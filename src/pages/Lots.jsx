@@ -32,6 +32,7 @@ export default function Lots() {
   const [clientFilter, setClientFilter] = useState('')
   const [locationFilter, setLocationFilter] = useState('')
   const [packageFilter, setPackageFilter] = useState('')
+  const [showAllTotals, setShowAllTotals] = useState(false)
 
   useEffect(() => {
     loadData()
@@ -62,14 +63,28 @@ export default function Lots() {
 
   const locations = useMemo(() => [...new Set(lots.map((lot) => lot.location).filter(Boolean))], [lots])
   const packages = useMemo(
-    () =>
-      [
-        ...new Set(
-          lots
-            .filter((lot) => lot.package_size)
-            .map((lot) => packageLabel(lot)),
-        ),
-      ].sort((a, b) => a.localeCompare(b, 'es', { numeric: true })),
+    () => {
+      const unitOrder = { gr: 1, kg: 2, ml: 3, lt: 4, cc: 5, un: 6 }
+      const map = new Map()
+      lots
+        .filter((lot) => lot.package_size)
+        .forEach((lot) => {
+          const label = packageLabel(lot)
+          map.set(label, {
+            label,
+            size: Number(lot.package_size || 0),
+            unit: lot.package_unit || '',
+          })
+        })
+
+      return [...map.values()]
+        .sort((a, b) => {
+          const unitDiff = (unitOrder[a.unit] || 99) - (unitOrder[b.unit] || 99)
+          if (unitDiff !== 0) return unitDiff
+          return a.size - b.size
+        })
+        .map((item) => item.label)
+    },
     [lots],
   )
 
@@ -83,13 +98,11 @@ export default function Lots() {
     }, {})
   }, [lots])
 
-  const topProductTotals = useMemo(
-    () =>
-      Object.values(productTotals)
-        .sort((a, b) => b.quantity - a.quantity)
-        .slice(0, 8),
+  const sortedProductTotals = useMemo(
+    () => Object.values(productTotals).sort((a, b) => a.product.localeCompare(b.product, 'es')),
     [productTotals],
   )
+  const visibleProductTotals = showAllTotals ? sortedProductTotals : sortedProductTotals.slice(0, 8)
 
   const filteredLots = lots.filter((lot) => {
     const term = search.toLowerCase()
@@ -193,9 +206,16 @@ export default function Lots() {
       </section>
 
       <section className="panel mb-4">
-        <h3 className="mb-3 font-bold text-slate-900">Totales por producto</h3>
+        <div className="mb-3 flex items-center justify-between gap-3">
+          <h3 className="font-bold text-slate-900">Totales por producto</h3>
+          {sortedProductTotals.length > 8 ? (
+            <button className="text-sm font-bold text-campo-700" type="button" onClick={() => setShowAllTotals((value) => !value)}>
+              {showAllTotals ? 'Ver menos' : 'Ver todos'}
+            </button>
+          ) : null}
+        </div>
         <div className="grid gap-2 md:grid-cols-2">
-          {topProductTotals.map((item) => (
+          {visibleProductTotals.map((item) => (
             <div key={item.product} className="rounded-lg bg-slate-50 p-3">
               <div className="flex items-start justify-between gap-3">
                 <p className="text-sm font-semibold text-slate-800">{item.product}</p>
