@@ -1,0 +1,172 @@
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { Camera, Keyboard, RefreshCcw, Search } from 'lucide-react'
+import PageHeader from '../components/PageHeader'
+import { supabase } from '../lib/supabase'
+
+const readerId = 'qr-reader'
+
+export default function Scanner() {
+  const navigate = useNavigate()
+  const qrRef = useRef(null)
+  const [status, setStatus] = useState('Preparando camara...')
+  const [error, setError] = useState('')
+  const [manualCode, setManualCode] = useState('')
+  const [restartKey, setRestartKey] = useState(0)
+
+  const goToScannedLot = useCallback(
+    (decodedText) => {
+      const value = decodedText.trim()
+      const url = new URL(value, window.location.origin)
+      if (url.pathname.startsWith('/lotes/')) {
+        navigate(url.pathname)
+        return true
+      }
+      return false
+    },
+    [navigate],
+  )
+
+  useEffect(() => {
+    let cancelled = false
+
+    async function startScanner() {
+      setError('')
+      setStatus('Solicitando permiso de camara...')
+
+      try {
+        const { Html5Qrcode } = await import('html5-qrcode')
+        if (cancelled) return
+
+        const scanner = new Html5Qrcode(readerId)
+        qrRef.current = scanner
+
+        if (!window.isSecureContext && window.location.hostname !== 'localhost') {
+          setStatus('Camara bloqueada')
+          setError('El navegador bloquea la camara en HTTP. Usa localhost en la PC o publica la app con HTTPS.')
+          return
+        }
+
+        const cameras = await Html5Qrcode.getCameras()
+        if (cancelled) return
+
+        if (!cameras.length) {
+          setStatus('Sin camaras detectadas')
+          setError('No se detecto ninguna camara disponible.')
+          return
+        }
+
+        const backCamera =
+          cameras.find((camera) => /back|rear|environment|trasera/i.test(camera.label)) || cameras[0]
+
+        await scanner.start(
+          backCamera.id,
+          {
+            fps: 10,
+            qrbox: { width: 260, height: 260 },
+            aspectRatio: 1,
+          },
+          (decodedText) => {
+            setStatus('QR detectado')
+            scanner.stop().finally(() => {
+              if (!goToScannedLot(decodedText)) {
+                setError('El QR no corresponde a un lote de esta app.')
+                setStatus('Listo para escanear')
+              }
+            })
+          },
+        )
+
+        if (!cancelled) setStatus('Listo para escanear')
+      } catch {
+        if (!cancelled) {
+          setStatus('Camara no disponible')
+          setError('No se pudo abrir la camara. Revisa permisos del navegador o usa HTTPS.')
+        }
+      }
+    }
+
+    startScanner()
+
+    return () => {
+      cancelled = true
+      qrRef.current?.stop().catch(() => null)
+    }
+  }, [goToScannedLot, restartKey])
+
+  async function handleManualSearch(event) {
+    event.preventDefault()
+    const value = manualCode.trim()
+    if (!value) return
+
+    setError('')
+
+    try {
+      if (goToScannedLot(value)) return
+    } catch {
+      // Continue with lot code search.
+    }
+
+    const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+    const query = supabase.from('lots').select('id')
+    const { data, error: searchError } = await (uuidPattern.test(value)
+      ? query.eq('id', value).maybeSingle()
+      : query.eq('lot_code', value).maybeSingle())
+
+    if (searchError || !data) {
+      setError('No se encontro un lote con ese codigo.')
+      return
+    }
+
+    navigate(`/lotes/${data.id}`)
+  }
+
+  return (
+    <div>
+      <PageHeader title="Escanear QR" subtitle="Apunta al codigo del lote" />
+      <div className="panel">
+        <div className="mb-3 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2 text-sm font-bold text-slate-700">
+            <Camera size={20} className="text-campo-700" />
+            {status}
+          </div>
+          <button
+            className="btn-secondary !min-h-10 !px-3 !py-2"
+            onClick={() => setRestartKey((value) => value + 1)}
+            type="button"
+            title="Reintentar camara"
+          >
+            <RefreshCcw size={18} />
+          </button>
+        </div>
+
+        <div className="relative min-h-[320px] overflow-hidden rounded-lg bg-slate-950">
+          <div id={readerId} className="min-h-[320px] w-full" />
+          {status !== 'Listo para escanear' && !error ? (
+            <div className="absolute inset-0 flex items-center justify-center bg-slate-950 text-sm font-semibold text-white">
+              {status}
+            </div>
+          ) : null}
+        </div>
+
+        {error ? <p className="mt-4 rounded-lg bg-red-50 p-3 text-sm font-bold text-red-700">{error}</p> : null}
+      </div>
+
+      <form className="panel mt-4 space-y-3" onSubmit={handleManualSearch}>
+        <div className="flex items-center gap-2">
+          <Keyboard size={20} className="text-campo-700" />
+          <h3 className="font-bold text-slate-900">Buscar sin camara</h3>
+        </div>
+        <input
+          className="input"
+          placeholder="Pega el link del QR o escribe el ID lote"
+          value={manualCode}
+          onChange={(event) => setManualCode(event.target.value)}
+        />
+        <button className="btn-primary w-full">
+          <Search size={20} /> Abrir ficha del lote
+        </button>
+      </form>
+    </div>
+  )
+}
