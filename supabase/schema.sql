@@ -25,6 +25,8 @@ create table public.lots (
   client_id uuid not null references public.clients(id),
   product text not null,
   current_quantity numeric(12, 2) not null default 0 check (current_quantity >= 0),
+  package_size numeric(12, 2),
+  package_unit text,
   location text not null,
   entry_date date not null default current_date,
   status lot_status not null default 'activo',
@@ -127,6 +129,9 @@ begin
   elsif p_type = 'salida' then
     if p_quantity > v_lot.current_quantity then
       raise exception 'No hay inventario suficiente.';
+    end if;
+    if v_lot.package_size is not null and v_lot.package_size > 0 and mod(p_quantity, v_lot.package_size) <> 0 then
+      raise exception 'La cantidad debe ser múltiplo de la presentación del producto.';
     end if;
     v_new_quantity := v_lot.current_quantity - p_quantity;
   elsif p_type = 'ajuste' then

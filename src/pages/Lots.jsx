@@ -12,6 +12,8 @@ const initialForm = {
   client_id: '',
   product: '',
   current_quantity: '',
+  package_size: '',
+  package_unit: 'lt',
   location: '',
   entry_date: new Date().toISOString().slice(0, 10),
   status: 'activo',
@@ -47,6 +49,8 @@ export default function Lots() {
     await supabase.from('lots').insert({
       ...form,
       current_quantity: Number(form.current_quantity),
+      package_size: form.package_size ? Number(form.package_size) : null,
+      package_unit: form.package_size ? form.package_unit : null,
       low_stock_threshold: Number(form.low_stock_threshold || 5),
     })
     setForm(initialForm)
@@ -97,6 +101,18 @@ export default function Lots() {
           <Field label="Cantidad actual">
             <input className="input" type="number" min="0" step="0.01" value={form.current_quantity} onChange={(event) => setForm({ ...form, current_quantity: event.target.value })} required />
           </Field>
+          <Field label="Tamaño presentación">
+            <input className="input" type="number" min="0" step="0.01" value={form.package_size} onChange={(event) => setForm({ ...form, package_size: event.target.value })} placeholder="Ej. 5, 20" />
+          </Field>
+          <Field label="Unidad presentación">
+            <select className="input" value={form.package_unit} onChange={(event) => setForm({ ...form, package_unit: event.target.value })}>
+              <option value="lt">Litros</option>
+              <option value="kg">Kilos</option>
+              <option value="gr">Gramos</option>
+              <option value="ml">Mililitros</option>
+              <option value="un">Unidades</option>
+            </select>
+          </Field>
           <Field label="Ubicación">
             <input className="input" value={form.location} onChange={(event) => setForm({ ...form, location: event.target.value })} required />
           </Field>
@@ -143,6 +159,11 @@ export default function Lots() {
                   <p className="text-sm font-semibold text-campo-700">{lot.lot_code}</p>
                   <h3 className="text-lg font-bold text-slate-950">{lot.product}</h3>
                   <p className="text-sm text-slate-500">{lot.clients?.name} · {lot.location}</p>
+                  {lot.package_size ? (
+                    <p className="mt-1 text-xs font-semibold text-slate-400">
+                      Presentacion: {formatNumber(lot.package_size)} {lot.package_unit}
+                    </p>
+                  ) : null}
                 </div>
                 <div className="text-right">
                   <p className="text-2xl font-bold text-slate-950">{formatNumber(lot.current_quantity)}</p>
