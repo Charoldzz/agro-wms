@@ -30,6 +30,7 @@ export default function Lots() {
   const [search, setSearch] = useState('')
   const [clientFilter, setClientFilter] = useState('')
   const [locationFilter, setLocationFilter] = useState('')
+  const [packageFilter, setPackageFilter] = useState('')
 
   useEffect(() => {
     loadData()
@@ -59,15 +60,28 @@ export default function Lots() {
   }
 
   const locations = useMemo(() => [...new Set(lots.map((lot) => lot.location).filter(Boolean))], [lots])
+  const packages = useMemo(
+    () =>
+      [
+        ...new Set(
+          lots
+            .filter((lot) => lot.package_size)
+            .map((lot) => `${Number(lot.package_size)} ${lot.package_unit || ''}`.trim()),
+        ),
+      ].sort((a, b) => a.localeCompare(b, 'es', { numeric: true })),
+    [lots],
+  )
 
   const filteredLots = lots.filter((lot) => {
     const term = search.toLowerCase()
-    const matchesSearch = [lot.lot_code, lot.product, lot.clients?.name, lot.location]
+    const packageLabel = lot.package_size ? `${Number(lot.package_size)} ${lot.package_unit || ''}`.trim() : ''
+    const matchesSearch = [lot.lot_code, lot.product, lot.clients?.name, lot.location, packageLabel]
       .filter(Boolean)
       .some((value) => value.toLowerCase().includes(term))
     const matchesClient = !clientFilter || lot.client_id === clientFilter
     const matchesLocation = !locationFilter || lot.location === locationFilter
-    return matchesSearch && matchesClient && matchesLocation
+    const matchesPackage = !packageFilter || packageLabel === packageFilter
+    return matchesSearch && matchesClient && matchesLocation && matchesPackage
   })
 
   return (
@@ -133,14 +147,18 @@ export default function Lots() {
         </form>
       ) : null}
 
-      <section className="mb-4 grid gap-3 md:grid-cols-3">
+      <section className="mb-4 grid gap-3 md:grid-cols-4">
         <div className="flex items-center rounded-lg border border-slate-200 bg-white px-3">
           <Search size={20} className="text-slate-400" />
-          <input className="min-h-12 flex-1 bg-transparent px-2 outline-none" placeholder="Buscar lote, producto..." value={search} onChange={(event) => setSearch(event.target.value)} />
+          <input className="min-h-12 flex-1 bg-transparent px-2 outline-none" placeholder="Buscar lote, producto, tamaño..." value={search} onChange={(event) => setSearch(event.target.value)} />
         </div>
         <select className="input" value={clientFilter} onChange={(event) => setClientFilter(event.target.value)}>
           <option value="">Todos los clientes</option>
           {clients.map((client) => <option key={client.id} value={client.id}>{client.name}</option>)}
+        </select>
+        <select className="input" value={packageFilter} onChange={(event) => setPackageFilter(event.target.value)}>
+          <option value="">Todos los tamaños</option>
+          {packages.map((packageLabel) => <option key={packageLabel} value={packageLabel}>{packageLabel}</option>)}
         </select>
         <select className="input" value={locationFilter} onChange={(event) => setLocationFilter(event.target.value)}>
           <option value="">Todas las ubicaciones</option>
@@ -167,7 +185,9 @@ export default function Lots() {
                 </div>
                 <div className="text-right">
                   <p className="text-2xl font-bold text-slate-950">{formatNumber(lot.current_quantity)}</p>
-                  <p className="text-xs font-semibold uppercase text-slate-400">{lot.status}</p>
+                  <p className="text-xs font-semibold uppercase text-slate-400">
+                    {lot.status === 'activo' ? 'Disponible' : lot.status}
+                  </p>
                 </div>
               </div>
             </Link>

@@ -31,8 +31,8 @@ body {
   background-image: url("/images/almacen-fondo.jpeg");
   background-size: cover;
   background-position: center;
-  filter: blur(10px);
-  transform: scale(1.04);
+  filter: blur(4px);
+  transform: scale(1.02);
 }
 
 .app-bg::after {
@@ -40,7 +40,7 @@ body {
   position: fixed;
   inset: 0;
   z-index: -1;
-  background: rgba(246, 247, 243, 0.84);
+  background: rgba(246, 247, 243, 0.68);
 }
 
 button,

@@ -1,8 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Camera, ImagePlus, Keyboard, RefreshCcw, Search } from 'lucide-react'
+import { Camera, ImagePlus, RefreshCcw } from 'lucide-react'
 import PageHeader from '../components/PageHeader'
-import { supabase } from '../lib/supabase'
 
 const readerId = 'qr-reader'
 
@@ -12,7 +11,6 @@ export default function Scanner() {
   const fileInputRef = useRef(null)
   const [status, setStatus] = useState('Preparando camara...')
   const [error, setError] = useState('')
-  const [manualCode, setManualCode] = useState('')
   const [restartKey, setRestartKey] = useState(0)
 
   const goToScannedLot = useCallback(
@@ -95,33 +93,6 @@ export default function Scanner() {
     }
   }, [goToScannedLot, restartKey])
 
-  async function handleManualSearch(event) {
-    event.preventDefault()
-    const value = manualCode.trim()
-    if (!value) return
-
-    setError('')
-
-    try {
-      if (goToScannedLot(value)) return
-    } catch {
-      // Continue with lot code search.
-    }
-
-    const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
-    const query = supabase.from('lots').select('id')
-    const { data, error: searchError } = await (uuidPattern.test(value)
-      ? query.eq('id', value).maybeSingle()
-      : query.eq('lot_code', value).maybeSingle())
-
-    if (searchError || !data) {
-      setError('No se encontro un lote con ese codigo.')
-      return
-    }
-
-    navigate(`/lotes/${data.id}`)
-  }
-
   async function handleImageFile(event) {
     const file = event.target.files?.[0]
     if (!file) return
@@ -195,22 +166,6 @@ export default function Scanner() {
           <ImagePlus size={20} /> Elegir imagen con QR
         </button>
       </div>
-
-      <form className="panel mt-4 space-y-3" onSubmit={handleManualSearch}>
-        <div className="flex items-center gap-2">
-          <Keyboard size={20} className="text-campo-700" />
-          <h3 className="font-bold text-slate-900">Buscar sin camara</h3>
-        </div>
-        <input
-          className="input"
-          placeholder="Pega el link del QR o escribe el ID lote"
-          value={manualCode}
-          onChange={(event) => setManualCode(event.target.value)}
-        />
-        <button className="btn-primary w-full">
-          <Search size={20} /> Abrir ficha del lote
-        </button>
-      </form>
     </div>
   )
 }
