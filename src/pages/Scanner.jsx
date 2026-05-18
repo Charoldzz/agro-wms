@@ -16,11 +16,18 @@ export default function Scanner() {
   const goToScannedLot = useCallback(
     (decodedText) => {
       const value = decodedText.trim()
+      const lotPathMatch = value.match(/\/lotes\/[0-9a-f-]{36}/i)
+      if (lotPathMatch) {
+        navigate(lotPathMatch[0])
+        return true
+      }
+
       const url = new URL(value, window.location.origin)
       if (url.pathname.startsWith('/lotes/')) {
         navigate(url.pathname)
         return true
       }
+
       return false
     },
     [navigate],

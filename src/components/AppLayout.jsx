@@ -1,5 +1,5 @@
 import { Outlet, NavLink, useNavigate } from 'react-router-dom'
-import { Boxes, Home, LogOut, QrCode, ScanLine, Users } from 'lucide-react'
+import { Boxes, ClipboardList, Home, LogOut, QrCode, ScanLine, Users } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../hooks/useAuth.jsx'
 
@@ -7,6 +7,7 @@ const navItems = [
   { to: '/', label: 'Inicio', icon: Home },
   { to: '/lotes', label: 'Lotes', icon: Boxes },
   { to: '/scanner', label: 'Scan', icon: ScanLine },
+  { to: '/movimientos', label: 'Mov.', icon: ClipboardList },
   { to: '/clientes', label: 'Clientes', icon: Users },
 ]
 
@@ -45,7 +46,7 @@ export default function AppLayout() {
       </main>
 
       <nav className="fixed inset-x-0 bottom-0 z-30 border-t border-slate-200 bg-white/95 backdrop-blur">
-        <div className="mx-auto grid max-w-5xl grid-cols-4 gap-1 px-2 py-2">
+        <div className="mx-auto grid max-w-5xl grid-cols-5 gap-1 px-2 py-2">
           {navItems.map((item) => {
             const Icon = item.icon
             return (
@@ -53,7 +54,7 @@ export default function AppLayout() {
                 key={item.to}
                 to={item.to}
                 className={({ isActive }) =>
-                  `flex min-h-16 flex-col items-center justify-center rounded-lg text-xs font-semibold ${
+                  `flex min-h-16 flex-col items-center justify-center rounded-lg text-[11px] font-semibold ${
                     isActive ? 'bg-campo-50 text-campo-700' : 'text-slate-500'
                   }`
                 }
