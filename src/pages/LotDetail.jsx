@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useParams } from 'react-router-dom'
-import { Download, QrCode, Save } from 'lucide-react'
+import { Download, ExternalLink, QrCode, Save } from 'lucide-react'
 import PageHeader from '../components/PageHeader'
 import { useAuth } from '../hooks/useAuth.jsx'
 import { formatDate, formatNumber, movementLabel } from '../lib/format'
@@ -111,6 +111,51 @@ export default function LotDetail() {
     setSaving(false)
   }
 
+  function openQrImage() {
+    if (!qrDataUrl) return
+    const imageWindow = window.open('', '_blank')
+    if (!imageWindow) return
+
+    imageWindow.document.write(`
+      <!doctype html>
+      <html>
+        <head>
+          <title>QR ${lot.lot_code}</title>
+          <meta name="viewport" content="width=device-width, initial-scale=1" />
+          <style>
+            body {
+              margin: 0;
+              min-height: 100vh;
+              display: grid;
+              place-items: center;
+              background: #f6f7f3;
+              font-family: Arial, sans-serif;
+            }
+            img {
+              width: min(86vw, 420px);
+              height: auto;
+              background: white;
+              padding: 16px;
+              border-radius: 8px;
+            }
+            p {
+              color: #334155;
+              text-align: center;
+              font-weight: 700;
+            }
+          </style>
+        </head>
+        <body>
+          <main>
+            <img src="${qrDataUrl}" alt="QR ${lot.lot_code}" />
+            <p>${lot.lot_code}</p>
+          </main>
+        </body>
+      </html>
+    `)
+    imageWindow.document.close()
+  }
+
   if (!lot) return <div className="p-6 text-center text-slate-600">Cargando lote...</div>
 
   return (
@@ -141,9 +186,14 @@ export default function LotDetail() {
           </div>
           {qrDataUrl ? <img src={qrDataUrl} alt={`QR ${lot.lot_code}`} className="mx-auto h-56 w-56" /> : null}
           {qrDataUrl ? (
-            <a className="btn-secondary mt-3 w-full" href={qrDataUrl} download={`${lot.lot_code}-qr.png`}>
-              <Download size={20} /> Descargar QR
-            </a>
+            <div className="mt-3 grid gap-2">
+              <button className="btn-secondary w-full" type="button" onClick={openQrImage}>
+                <ExternalLink size={20} /> Abrir imagen QR
+              </button>
+              <a className="btn-secondary w-full" href={qrDataUrl} download={`${lot.lot_code}-qr.png`}>
+                <Download size={20} /> Descargar PNG
+              </a>
+            </div>
           ) : null}
         </div>
       </section>

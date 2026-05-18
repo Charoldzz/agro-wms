@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Camera, Keyboard, RefreshCcw, Search } from 'lucide-react'
+import { Camera, ImagePlus, Keyboard, RefreshCcw, Search } from 'lucide-react'
 import PageHeader from '../components/PageHeader'
 import { supabase } from '../lib/supabase'
 
@@ -9,6 +9,7 @@ const readerId = 'qr-reader'
 export default function Scanner() {
   const navigate = useNavigate()
   const qrRef = useRef(null)
+  const fileInputRef = useRef(null)
   const [status, setStatus] = useState('Preparando camara...')
   const [error, setError] = useState('')
   const [manualCode, setManualCode] = useState('')
@@ -121,6 +122,31 @@ export default function Scanner() {
     navigate(`/lotes/${data.id}`)
   }
 
+  async function handleImageFile(event) {
+    const file = event.target.files?.[0]
+    if (!file) return
+
+    setError('')
+    setStatus('Leyendo imagen...')
+
+    try {
+      const { Html5Qrcode } = await import('html5-qrcode')
+      const imageScanner = new Html5Qrcode('qr-file-reader')
+      const decodedText = await imageScanner.scanFile(file, true)
+      await imageScanner.clear().catch(() => null)
+
+      if (!goToScannedLot(decodedText)) {
+        setError('La imagen no contiene un QR de un lote de esta app.')
+        setStatus('Listo para escanear')
+      }
+    } catch {
+      setError('No se pudo leer un QR en esa imagen.')
+      setStatus('Listo para escanear')
+    } finally {
+      event.target.value = ''
+    }
+  }
+
   return (
     <div>
       <PageHeader title="Escanear QR" subtitle="Apunta al codigo del lote" />
@@ -150,6 +176,24 @@ export default function Scanner() {
         </div>
 
         {error ? <p className="mt-4 rounded-lg bg-red-50 p-3 text-sm font-bold text-red-700">{error}</p> : null}
+      </div>
+
+      <div className="panel mt-4 space-y-3">
+        <div className="flex items-center gap-2">
+          <ImagePlus size={20} className="text-campo-700" />
+          <h3 className="font-bold text-slate-900">Escanear desde galeria</h3>
+        </div>
+        <input
+          ref={fileInputRef}
+          className="hidden"
+          type="file"
+          accept="image/*"
+          onChange={handleImageFile}
+        />
+        <div id="qr-file-reader" className="hidden" />
+        <button className="btn-secondary w-full" type="button" onClick={() => fileInputRef.current?.click()}>
+          <ImagePlus size={20} /> Elegir imagen con QR
+        </button>
       </div>
 
       <form className="panel mt-4 space-y-3" onSubmit={handleManualSearch}>

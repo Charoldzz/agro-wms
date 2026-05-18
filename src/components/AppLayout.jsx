@@ -20,7 +20,7 @@ export default function AppLayout() {
   }
 
   return (
-    <div className="min-h-screen bg-[#f6f7f3] pb-24">
+    <div className="app-bg min-h-screen pb-24">
       <header className="sticky top-0 z-20 border-b border-slate-200 bg-white/95 backdrop-blur">
         <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-3">
           <div className="flex items-center gap-3">
@@ -44,7 +44,7 @@ export default function AppLayout() {
         <Outlet />
       </main>
 
-      <nav className="fixed inset-x-0 bottom-0 z-30 border-t border-slate-200 bg-white">
+      <nav className="fixed inset-x-0 bottom-0 z-30 border-t border-slate-200 bg-white/95 backdrop-blur">
         <div className="mx-auto grid max-w-5xl grid-cols-4 gap-1 px-2 py-2">
           {navItems.map((item) => {
             const Icon = item.icon

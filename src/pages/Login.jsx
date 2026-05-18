@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Navigate } from 'react-router-dom'
 import { Lock, Mail } from 'lucide-react'
 import { supabase, isSupabaseConfigured } from '../lib/supabase'
-import { useAuth } from '../hooks/useAuth'
+import { useAuth } from '../hooks/useAuth.jsx'
 import ConfigWarning from '../components/ConfigWarning'
 
 export default function Login() {
@@ -30,7 +30,7 @@ export default function Login() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-[#f6f7f3] p-4">
+    <div className="app-bg flex min-h-screen items-center justify-center p-4">
       <form className="panel w-full max-w-md" onSubmit={handleSubmit}>
         <div className="mb-6">
           <h1 className="text-3xl font-bold text-slate-950">Agro WMS</h1>
