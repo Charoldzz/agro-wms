@@ -3,10 +3,12 @@ import { AlertTriangle, Boxes, Clock3, MapPinned, Users } from 'lucide-react'
 import PageHeader from '../components/PageHeader'
 import { supabase } from '../lib/supabase'
 import { formatDate, formatNumber, movementLabel } from '../lib/format'
+import { cleanProductName, displayLotCode } from '../lib/display'
 
 export default function Dashboard() {
   const [lots, setLots] = useState([])
   const [movements, setMovements] = useState([])
+  const [clients, setClients] = useState([])
 
   useEffect(() => {
     loadData()
@@ -21,16 +23,18 @@ export default function Dashboard() {
   }, [])
 
   async function loadData() {
-    const [{ data: lotsData }, { data: movementsData }] = await Promise.all([
+    const [{ data: lotsData }, { data: movementsData }, { data: clientsData }] = await Promise.all([
       supabase.from('lots').select('*, clients(name)').order('created_at', { ascending: false }),
       supabase
         .from('movements')
         .select('*, lots(product, lot_code), profiles(full_name)')
         .order('created_at', { ascending: false })
         .limit(8),
+      supabase.from('clients').select('id, name').order('name'),
     ])
     setLots(lotsData || [])
     setMovements(movementsData || [])
+    setClients(clientsData || [])
   }
 
   const stats = useMemo(() => {
@@ -47,11 +51,25 @@ export default function Dashboard() {
 
   return (
     <div>
-      <PageHeader title="Dashboard" subtitle="Estado actual del almacén" />
+      <PageHeader title="Dashboard" subtitle="Estado actual del almacen" />
+
+      <section className="panel mb-4">
+        <div className="mb-3 flex items-center gap-2">
+          <Users size={20} className="text-campo-700" />
+          <h3 className="font-bold text-slate-900">Clientes</h3>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {clients.map((client) => (
+            <span key={client.id} className="rounded-lg bg-slate-50 px-3 py-2 text-sm font-semibold text-slate-700">
+              {client.name}
+            </span>
+          ))}
+        </div>
+      </section>
 
       <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard icon={Boxes} label="Productos almacenados" value={formatNumber(stats.totalStock)} />
-        <StatCard icon={MapPinned} label="Ocupación almacén" value={`${lots.length} lotes`} />
+        <StatCard icon={MapPinned} label="Ocupacion almacen" value={`${lots.length} lotes`} />
         <StatCard icon={AlertTriangle} label="Stock bajo" value={stats.lowStock.length} />
         <StatCard icon={Users} label="Ubicaciones activas" value={stats.locationCount} />
       </section>
@@ -70,10 +88,10 @@ export default function Dashboard() {
                   <p className="text-sm font-bold text-campo-700">{formatNumber(movement.quantity)}</p>
                 </div>
                 <p className="text-sm text-slate-500">
-                  {movement.lots?.lot_code} · {movement.lots?.product}
+                  {displayLotCode(movement.lots?.lot_code)} - {cleanProductName(movement.lots?.product)}
                 </p>
                 <p className="mt-1 text-xs text-slate-400">
-                  {formatDate(movement.created_at)} · {movement.profiles?.full_name || 'Usuario'}
+                  {formatDate(movement.created_at)} - {movement.profiles?.full_name || 'Usuario'}
                 </p>
               </div>
             ))}

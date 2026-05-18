@@ -64,15 +64,13 @@ export default function Clients() {
         </form>
       ) : null}
 
-      <div className="space-y-3">
+      <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
         {clients.length === 0 ? (
           <EmptyState title="Sin clientes" text="Registra el primer cliente para crear lotes." />
         ) : (
           clients.map((client) => (
-            <article key={client.id} className="panel">
-              <h3 className="text-lg font-bold text-slate-900">{client.name}</h3>
-              <p className="mt-1 text-sm text-slate-500">{client.contact || 'Sin contacto'}</p>
-              {client.notes ? <p className="mt-2 text-sm text-slate-600">{client.notes}</p> : null}
+            <article key={client.id} className="rounded-lg border border-slate-200 bg-white/95 px-3 py-3 shadow-soft">
+              <h3 className="text-sm font-bold text-slate-900">{client.name}</h3>
             </article>
           ))
         )}

@@ -16,7 +16,7 @@ export default function Scanner() {
   const goToScannedLot = useCallback(
     (decodedText) => {
       const value = decodedText.trim()
-      const lotPathMatch = value.match(/\/lotes\/[0-9a-f-]{36}/i)
+      const lotPathMatch = value.match(/\/lotes\/[^?#\s]+/i)
       if (lotPathMatch) {
         navigate(lotPathMatch[0])
         return true

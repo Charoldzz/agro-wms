@@ -6,6 +6,7 @@ import PageHeader from '../components/PageHeader'
 import { useAuth } from '../hooks/useAuth.jsx'
 import { supabase } from '../lib/supabase'
 import { formatNumber } from '../lib/format'
+import { cleanProductName, displayLotCode, packageLabel, productTotalKey } from '../lib/display'
 
 const initialForm = {
   lot_code: '',
@@ -66,21 +67,46 @@ export default function Lots() {
         ...new Set(
           lots
             .filter((lot) => lot.package_size)
-            .map((lot) => `${Number(lot.package_size)} ${lot.package_unit || ''}`.trim()),
+            .map((lot) => packageLabel(lot)),
         ),
       ].sort((a, b) => a.localeCompare(b, 'es', { numeric: true })),
     [lots],
   )
 
+  const productTotals = useMemo(() => {
+    return lots.reduce((acc, lot) => {
+      const key = productTotalKey(lot)
+      if (!acc[key]) acc[key] = { product: key, quantity: 0, lots: 0 }
+      acc[key].quantity += Number(lot.current_quantity || 0)
+      acc[key].lots += 1
+      return acc
+    }, {})
+  }, [lots])
+
+  const topProductTotals = useMemo(
+    () =>
+      Object.values(productTotals)
+        .sort((a, b) => b.quantity - a.quantity)
+        .slice(0, 8),
+    [productTotals],
+  )
+
   const filteredLots = lots.filter((lot) => {
     const term = search.toLowerCase()
-    const packageLabel = lot.package_size ? `${Number(lot.package_size)} ${lot.package_unit || ''}`.trim() : ''
-    const matchesSearch = [lot.lot_code, lot.product, lot.clients?.name, lot.location, packageLabel]
+    const currentPackageLabel = packageLabel(lot)
+    const matchesSearch = [
+      lot.lot_code,
+      displayLotCode(lot.lot_code),
+      cleanProductName(lot.product),
+      lot.clients?.name,
+      lot.location,
+      currentPackageLabel,
+    ]
       .filter(Boolean)
       .some((value) => value.toLowerCase().includes(term))
     const matchesClient = !clientFilter || lot.client_id === clientFilter
     const matchesLocation = !locationFilter || lot.location === locationFilter
-    const matchesPackage = !packageFilter || packageLabel === packageFilter
+    const matchesPackage = !packageFilter || currentPackageLabel === packageFilter
     return matchesSearch && matchesClient && matchesLocation && matchesPackage
   })
 
@@ -166,6 +192,21 @@ export default function Lots() {
         </select>
       </section>
 
+      <section className="panel mb-4">
+        <h3 className="mb-3 font-bold text-slate-900">Totales por producto</h3>
+        <div className="grid gap-2 md:grid-cols-2">
+          {topProductTotals.map((item) => (
+            <div key={item.product} className="rounded-lg bg-slate-50 p-3">
+              <div className="flex items-start justify-between gap-3">
+                <p className="text-sm font-semibold text-slate-800">{item.product}</p>
+                <p className="whitespace-nowrap text-sm font-bold text-campo-700">{formatNumber(item.quantity)}</p>
+              </div>
+              <p className="mt-1 text-xs text-slate-500">{item.lots} lotes</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
       <div className="grid gap-3 md:grid-cols-2">
         {filteredLots.length === 0 ? (
           <EmptyState title="Sin lotes" text="Crea o busca otro lote." />
@@ -174,14 +215,17 @@ export default function Lots() {
             <Link key={lot.id} to={`/lotes/${lot.id}`} className="panel block transition hover:border-campo-500">
               <div className="flex justify-between gap-3">
                 <div>
-                  <p className="text-sm font-semibold text-campo-700">{lot.lot_code}</p>
-                  <h3 className="text-lg font-bold text-slate-950">{lot.product}</h3>
+                  <p className="text-sm font-semibold text-campo-700">{displayLotCode(lot.lot_code)}</p>
+                  <h3 className="text-lg font-bold text-slate-950">{cleanProductName(lot.product)}</h3>
                   <p className="text-sm text-slate-500">{lot.clients?.name} · {lot.location}</p>
                   {lot.package_size ? (
                     <p className="mt-1 text-xs font-semibold text-slate-400">
                       Presentacion: {formatNumber(lot.package_size)} {lot.package_unit}
                     </p>
                   ) : null}
+                  <p className="mt-1 text-xs font-semibold text-slate-500">
+                    Total producto: {formatNumber(productTotals[productTotalKey(lot)]?.quantity || lot.current_quantity)}
+                  </p>
                 </div>
                 <div className="text-right">
                   <p className="text-2xl font-bold text-slate-950">{formatNumber(lot.current_quantity)}</p>

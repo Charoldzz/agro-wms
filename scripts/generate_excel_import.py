@@ -82,19 +82,13 @@ def main():
         original_lot = clean(row[index["nrolote"]])
         package_size, package_unit = parse_package_size(product, code)
 
-        lot_code = f"EXCEL-{row_number}-{code}"
+        lot_code = code
         if original_lot:
             lot_code = f"{lot_code}-LOTE-{original_lot}"
 
         product_detail = product
-        group = clean(row[index["nomb_grup"]])
-        subgroup = clean(row[index["nomb_subg"]])
         if code and code not in product_detail:
             product_detail += f" | Cod: {code}"
-        if group:
-            product_detail += f" | Grupo: {group}"
-        if subgroup:
-            product_detail += f" | Subgrupo: {subgroup}"
 
         rows.append(
             (

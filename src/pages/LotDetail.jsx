@@ -6,6 +6,7 @@ import { useAuth } from '../hooks/useAuth.jsx'
 import { formatDate, formatNumber, movementLabel } from '../lib/format'
 import { createLotQrDataUrl } from '../lib/qr'
 import { supabase } from '../lib/supabase'
+import { cleanProductName, displayLotCode } from '../lib/display'
 
 const initialMovement = {
   type: 'entrada',
@@ -160,11 +161,11 @@ export default function LotDetail() {
 
   return (
     <div>
-      <PageHeader title={lot.lot_code} subtitle={`${lot.product} · ${lot.clients?.name}`} />
+      <PageHeader title={displayLotCode(lot.lot_code)} subtitle={`${cleanProductName(lot.product)} · ${lot.clients?.name}`} />
 
       <section className="grid gap-4 lg:grid-cols-[1.2fr_0.8fr]">
         <div className="panel">
-          {lot.photo_url ? <img className="mb-4 h-48 w-full rounded-lg object-cover" src={lot.photo_url} alt={lot.product} /> : null}
+          {lot.photo_url ? <img className="mb-4 h-48 w-full rounded-lg object-cover" src={lot.photo_url} alt={cleanProductName(lot.product)} /> : null}
           <div className="grid grid-cols-2 gap-3">
             <Info label="Cantidad actual" value={formatNumber(lot.current_quantity)} strong />
             <Info
