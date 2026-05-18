@@ -1,12 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
 import { Camera, ImagePlus, RefreshCcw } from 'lucide-react'
 import PageHeader from '../components/PageHeader'
 
 const readerId = 'qr-reader'
 
 export default function Scanner() {
-  const navigate = useNavigate()
   const qrRef = useRef(null)
   const fileInputRef = useRef(null)
   const [status, setStatus] = useState('Preparando camara...')
@@ -16,21 +14,32 @@ export default function Scanner() {
   const goToScannedLot = useCallback(
     (decodedText) => {
       const value = decodedText.trim()
+      const hashPathMatch = value.match(/#(\/lotes\/[^?#\s]+)/i)
+      if (hashPathMatch) {
+        window.location.hash = hashPathMatch[1]
+        return true
+      }
+
       const lotPathMatch = value.match(/\/lotes\/[^?#\s]+/i)
       if (lotPathMatch) {
-        navigate(lotPathMatch[0])
+        window.location.hash = lotPathMatch[0]
         return true
       }
 
       const url = new URL(value, window.location.origin)
+      if (url.hash.startsWith('#/lotes/')) {
+        window.location.hash = url.hash.slice(1)
+        return true
+      }
+
       if (url.pathname.startsWith('/lotes/')) {
-        navigate(url.pathname)
+        window.location.hash = url.pathname
         return true
       }
 
       return false
     },
-    [navigate],
+    [],
   )
 
   useEffect(() => {

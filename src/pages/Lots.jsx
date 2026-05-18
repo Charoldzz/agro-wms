@@ -25,6 +25,7 @@ const initialForm = {
 export default function Lots() {
   const { isAdmin } = useAuth()
   const [lots, setLots] = useState([])
+  const [movements, setMovements] = useState([])
   const [clients, setClients] = useState([])
   const [form, setForm] = useState(initialForm)
   const [showForm, setShowForm] = useState(false)
@@ -39,12 +40,18 @@ export default function Lots() {
   }, [])
 
   async function loadData() {
-    const [{ data: lotsData }, { data: clientsData }] = await Promise.all([
+    const [{ data: lotsData }, { data: clientsData }, { data: movementsData }] = await Promise.all([
       supabase.from('lots').select('*, clients(name)').order('created_at', { ascending: false }),
       supabase.from('clients').select('*').order('name'),
+      supabase
+        .from('movements')
+        .select('created_at, lots(product)')
+        .order('created_at', { ascending: false })
+        .limit(500),
     ])
     setLots(lotsData || [])
     setClients(clientsData || [])
+    setMovements(movementsData || [])
   }
 
   async function handleSubmit(event) {
@@ -91,7 +98,7 @@ export default function Lots() {
   const productTotals = useMemo(() => {
     return lots.reduce((acc, lot) => {
       const key = productTotalKey(lot)
-      if (!acc[key]) acc[key] = { product: key, quantity: 0, lots: 0 }
+      if (!acc[key]) acc[key] = { product: key, quantity: 0, lots: 0, lastMovementAt: null, movementCount: 0 }
       acc[key].quantity += Number(lot.current_quantity || 0)
       acc[key].lots += 1
       return acc
@@ -99,8 +106,25 @@ export default function Lots() {
   }, [lots])
 
   const sortedProductTotals = useMemo(
-    () => Object.values(productTotals).sort((a, b) => a.product.localeCompare(b.product, 'es')),
-    [productTotals],
+    () => {
+      const totals = { ...productTotals }
+      movements.forEach((movement) => {
+        const key = cleanProductName(movement.lots?.product)
+        if (!totals[key]) return
+        totals[key].movementCount += 1
+        if (!totals[key].lastMovementAt || new Date(movement.created_at) > new Date(totals[key].lastMovementAt)) {
+          totals[key].lastMovementAt = movement.created_at
+        }
+      })
+
+      return Object.values(totals).sort((a, b) => {
+        const aTime = a.lastMovementAt ? new Date(a.lastMovementAt).getTime() : 0
+        const bTime = b.lastMovementAt ? new Date(b.lastMovementAt).getTime() : 0
+        if (bTime !== aTime) return bTime - aTime
+        return a.product.localeCompare(b.product, 'es')
+      })
+    },
+    [productTotals, movements],
   )
   const visibleProductTotals = showAllTotals ? sortedProductTotals : sortedProductTotals.slice(0, 8)
 
@@ -221,7 +245,9 @@ export default function Lots() {
                 <p className="text-sm font-semibold text-slate-800">{item.product}</p>
                 <p className="whitespace-nowrap text-sm font-bold text-campo-700">{formatNumber(item.quantity)}</p>
               </div>
-              <p className="mt-1 text-xs text-slate-500">{item.lots} lotes</p>
+              <p className="mt-1 text-xs text-slate-500">
+                {item.lots} lotes{item.movementCount ? ` · ${item.movementCount} mov.` : ''}
+              </p>
             </div>
           ))}
         </div>
