@@ -210,7 +210,7 @@ export default function LotDetail() {
 
     const label = `
       <article class="label">
-        <div class="brand">Agro WMS</div>
+        <div class="brand">TODO Agrícola</div>
         <img src="${qrDataUrl}" alt="QR ${escapeHtml(lot.lot_code)}" />
         <h2>${escapeHtml(displayLotCode(lot.lot_code))}</h2>
         <small>Escanear para ver ficha</small>

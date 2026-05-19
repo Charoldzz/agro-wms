@@ -9,9 +9,14 @@ export function cleanProductName(product) {
 
 export function displayLotCode(lotCode) {
   if (!lotCode) return '-'
-  return lotCode
+  const cleanCode = lotCode
     .replace(/^EXCEL-\d+-/i, '')
-    .replace('-LOTE-', ' / Lote ')
+
+  if (cleanCode.includes('-LOTE-')) {
+    return `Lote ${cleanCode.split('-LOTE-').pop()}`
+  }
+
+  return cleanCode
 }
 
 export function packageLabel(lot) {

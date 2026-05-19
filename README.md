@@ -1,4 +1,4 @@
-# Agro WMS Bolivia
+# TODO Agrícola
 
 Mini-WMS web y móvil para almacenamiento agrícola de terceros. Cada lote tiene un QR único que abre su ficha desde el celular para registrar entradas, salidas, traslados internos y ajustes.
 

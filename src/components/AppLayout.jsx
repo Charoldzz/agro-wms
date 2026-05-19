@@ -1,5 +1,5 @@
 import { Outlet, NavLink, useNavigate } from 'react-router-dom'
-import { Boxes, ClipboardList, Home, LogOut, QrCode, ScanLine, Users } from 'lucide-react'
+import { Boxes, ClipboardList, Home, LogOut, ScanLine, Users } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../hooks/useAuth.jsx'
 
@@ -25,11 +25,11 @@ export default function AppLayout() {
       <header className="sticky top-0 z-20 border-b border-slate-200 bg-white/95 backdrop-blur">
         <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-3">
           <div className="flex items-center gap-3">
-            <div className="flex h-11 w-11 items-center justify-center rounded-lg bg-campo-600 text-white">
-              <QrCode size={24} />
+            <div className="flex h-12 w-24 items-center justify-center rounded-lg border border-slate-200 bg-white p-1.5 shadow-sm">
+              <img className="max-h-full max-w-full object-contain" src="/images/todo-logo.png" alt="TODO Agricola" />
             </div>
             <div>
-              <h1 className="text-lg font-bold leading-tight text-slate-950">Agro WMS</h1>
+              <h1 className="text-lg font-bold leading-tight text-slate-950">TODO Agrícola</h1>
               <p className="text-xs font-medium text-slate-500">
                 {profile?.full_name || 'Operación agrícola'}
               </p>
