@@ -1,10 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { BrowserQRCodeReader } from '@zxing/browser'
+import { BarcodeFormat, DecodeHintType } from '@zxing/library'
 import { Camera, ImagePlus, RefreshCcw } from 'lucide-react'
 import PageHeader from '../components/PageHeader'
-
-const readerId = 'qr-live-reader'
-const fileReaderId = 'qr-file-reader'
 
 async function decodeWithBarcodeDetector(file) {
   if (!('BarcodeDetector' in window) || !('createImageBitmap' in window)) return null
@@ -18,6 +17,16 @@ async function decodeWithBarcodeDetector(file) {
   } catch {
     return null
   }
+}
+
+function createQrReader() {
+  const hints = new Map()
+  hints.set(DecodeHintType.POSSIBLE_FORMATS, [BarcodeFormat.QR_CODE])
+  hints.set(DecodeHintType.TRY_HARDER, true)
+  return new BrowserQRCodeReader(hints, {
+    delayBetweenScanAttempts: 120,
+    delayBetweenScanSuccess: 500,
+  })
 }
 
 function getLotPath(decodedText) {
@@ -39,10 +48,25 @@ function getLotPath(decodedText) {
   return null
 }
 
+function loadImageFromFile(file) {
+  return new Promise((resolve, reject) => {
+    const imageUrl = URL.createObjectURL(file)
+    const image = new Image()
+    image.onload = () => resolve({ image, imageUrl })
+    image.onerror = () => {
+      URL.revokeObjectURL(imageUrl)
+      reject(new Error('No se pudo cargar la imagen.'))
+    }
+    image.src = imageUrl
+  })
+}
+
 export default function Scanner() {
   const navigate = useNavigate()
-  const scannerRef = useRef(null)
+  const videoRef = useRef(null)
+  const controlsRef = useRef(null)
   const galleryInputRef = useRef(null)
+  const foundQrRef = useRef(false)
   const [status, setStatus] = useState('Preparando camara...')
   const [error, setError] = useState('')
   const [restartKey, setRestartKey] = useState(0)
@@ -60,78 +84,74 @@ export default function Scanner() {
   useEffect(() => {
     let cancelled = false
 
-    async function stopScanner() {
-      const scanner = scannerRef.current
-      scannerRef.current = null
-      if (!scanner) return
-
+    async function stopCamera() {
       try {
-        if (scanner.isScanning) await scanner.stop()
+        controlsRef.current?.stop()
       } catch {
-        // La camara puede ya estar cerrada al cambiar de pestaña.
+        // La camara puede cerrarse sola al cambiar de pestaña.
       }
-
-      try {
-        await scanner.clear()
-      } catch {
-        // El lector puede no haberse montado si el permiso fue rechazado.
-      }
+      controlsRef.current = null
     }
 
-    async function startScanner() {
-      await stopScanner()
+    async function startCamera() {
+      await stopCamera()
+      foundQrRef.current = false
       setError('')
       setStatus('Solicitando permiso de camara...')
 
       if (!window.isSecureContext && window.location.hostname !== 'localhost') {
         setStatus('Camara bloqueada')
-        setError('El scanner en vivo necesita HTTPS. En Vercel debe funcionar; en red local HTTP el navegador lo bloquea.')
+        setError('El scanner en vivo necesita HTTPS. Usa la app publicada en Vercel para probar desde celular.')
         return
       }
 
       try {
-        const { Html5Qrcode } = await import('html5-qrcode')
-        if (cancelled) return
-
-        const scanner = new Html5Qrcode(readerId, { verbose: false })
-        scannerRef.current = scanner
-
-        await scanner.start(
-          { facingMode: 'environment' },
+        const reader = createQrReader()
+        const controls = await reader.decodeFromConstraints(
           {
-            fps: 8,
-            aspectRatio: 1.333,
-            qrbox: (viewfinderWidth, viewfinderHeight) => {
-              const minEdge = Math.min(viewfinderWidth, viewfinderHeight)
-              const size = Math.floor(minEdge * 0.72)
-              return { width: size, height: size }
+            video: {
+              facingMode: { ideal: 'environment' },
+              width: { ideal: 1280 },
+              height: { ideal: 720 },
             },
           },
-          async (decodedText) => {
-            setStatus('QR detectado')
-            await stopScanner()
+          videoRef.current,
+          (result) => {
+            if (!result || foundQrRef.current) return
+
+            const decodedText = result.getText()
             if (!goToScannedLot(decodedText)) {
+              setStatus('QR leido, pero no es de un lote')
               setError('El QR no corresponde a un lote de esta app.')
-              setStatus('Listo para escanear')
-              setRestartKey((value) => value + 1)
+              return
             }
+
+            foundQrRef.current = true
+            setStatus('QR detectado')
+            controls.stop()
           },
         )
 
-        if (!cancelled) setStatus('Listo para escanear')
+        if (cancelled) {
+          controls.stop()
+          return
+        }
+
+        controlsRef.current = controls
+        setStatus('Listo para escanear')
       } catch {
         if (!cancelled) {
           setStatus('Camara no disponible')
-          setError('No se pudo abrir la camara. Revisa permisos del navegador o prueba desde Vercel con HTTPS.')
+          setError('No se pudo abrir la camara. Revisa permisos del navegador o entra desde Vercel con HTTPS.')
         }
       }
     }
 
-    startScanner()
+    startCamera()
 
     return () => {
       cancelled = true
-      stopScanner()
+      stopCamera()
     }
   }, [goToScannedLot, restartKey])
 
@@ -149,12 +169,12 @@ export default function Scanner() {
         return
       }
 
-      const { Html5Qrcode } = await import('html5-qrcode')
-      const imageScanner = new Html5Qrcode(fileReaderId)
-      const decodedText = await imageScanner.scanFile(file, true)
-      await imageScanner.clear().catch(() => null)
+      const reader = createQrReader()
+      const { image, imageUrl } = await loadImageFromFile(file)
+      const result = await reader.decodeFromImageElement(image)
+      URL.revokeObjectURL(imageUrl)
 
-      if (!goToScannedLot(decodedText)) {
+      if (!goToScannedLot(result.getText())) {
         setError('La imagen no contiene un QR de un lote de esta app.')
         setStatus('Listo para escanear')
       }
@@ -192,8 +212,16 @@ export default function Scanner() {
           </button>
         </div>
 
-        <div className="overflow-hidden rounded-lg bg-slate-950">
-          <div id={readerId} className="min-h-[320px] w-full" />
+        <div className="relative overflow-hidden rounded-lg bg-slate-950">
+          <video
+            ref={videoRef}
+            className="h-[360px] w-full object-cover"
+            muted
+            playsInline
+          />
+          <div className="pointer-events-none absolute inset-0 grid place-items-center">
+            <div className="h-56 w-56 rounded-xl border-4 border-white/90 shadow-[0_0_0_999px_rgba(2,6,23,0.25)]" />
+          </div>
         </div>
 
         {error ? <p className="mt-4 rounded-lg bg-red-50 p-3 text-sm font-bold text-red-700">{error}</p> : null}
@@ -211,7 +239,6 @@ export default function Scanner() {
           accept="image/*"
           onChange={handleImageFile}
         />
-        <div id={fileReaderId} className="max-h-0 overflow-hidden opacity-0" />
         <button className="btn-secondary w-full" type="button" onClick={() => galleryInputRef.current?.click()}>
           <ImagePlus size={20} /> Elegir imagen con QR
         </button>
