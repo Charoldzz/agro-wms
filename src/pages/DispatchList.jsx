@@ -9,6 +9,35 @@ import { formatDate, formatNumber } from '../lib/format'
 import { isNetworkMovementError, queueMovement } from '../lib/offlineQueue'
 import { supabase } from '../lib/supabase'
 
+const DISPATCH_DRAFT_KEY = 'todo-agricola-dispatch-list-draft'
+
+function emptyDraft() {
+  return { items: [], receiverName: '', receiverDocument: '', vehiclePlate: '' }
+}
+
+function readDraft() {
+  try {
+    const draft = JSON.parse(sessionStorage.getItem(DISPATCH_DRAFT_KEY) || 'null')
+    if (!draft) return emptyDraft()
+    return {
+      items: Array.isArray(draft.items) ? draft.items : [],
+      receiverName: draft.receiverName || '',
+      receiverDocument: draft.receiverDocument || '',
+      vehiclePlate: draft.vehiclePlate || '',
+    }
+  } catch {
+    return emptyDraft()
+  }
+}
+
+function writeDraft(draft) {
+  sessionStorage.setItem(DISPATCH_DRAFT_KEY, JSON.stringify(draft))
+}
+
+function clearDraft() {
+  sessionStorage.removeItem(DISPATCH_DRAFT_KEY)
+}
+
 function expiryDays(expiryDate) {
   if (!expiryDate) return null
   const today = new Date()
@@ -20,15 +49,19 @@ export default function DispatchList() {
   const navigate = useNavigate()
   const location = useLocation()
   const { user, isOperator } = useAuth()
-  const [items, setItems] = useState([])
-  const [receiverName, setReceiverName] = useState('')
-  const [receiverDocument, setReceiverDocument] = useState('')
-  const [destination, setDestination] = useState('')
+  const [items, setItems] = useState(() => readDraft().items)
+  const [receiverName, setReceiverName] = useState(() => readDraft().receiverName)
+  const [receiverDocument, setReceiverDocument] = useState(() => readDraft().receiverDocument)
+  const [vehiclePlate, setVehiclePlate] = useState(() => readDraft().vehiclePlate)
   const [error, setError] = useState('')
   const [status, setStatus] = useState('')
   const [saving, setSaving] = useState(false)
 
   const lotId = new URLSearchParams(location.search).get('lot')
+
+  useEffect(() => {
+    writeDraft({ items, receiverName, receiverDocument, vehiclePlate })
+  }, [items, receiverName, receiverDocument, vehiclePlate])
 
   useEffect(() => {
     async function addScannedLot() {
@@ -108,7 +141,7 @@ export default function DispatchList() {
     for (const item of items) {
       const quantity = Number(item.package_count)
       const notes = [
-        destination.trim() ? `Destino: ${destination.trim()}` : null,
+        vehiclePlate.trim() ? `Placa: ${vehiclePlate.trim()}` : null,
         `Recibe: ${receiverName.trim()}`,
         `Documento: ${receiverDocument.trim()}`,
         'Despacho por lista',
@@ -122,7 +155,7 @@ export default function DispatchList() {
         quantity,
         previous_quantity: Number(item.lot.current_quantity || 0),
         new_quantity: Number(item.lot.current_quantity || 0) - quantity,
-        to_location: destination.trim() || null,
+        to_location: vehiclePlate.trim() || null,
         notes,
         lot_code: displayLotCode(item.lot.lot_code),
         product: cleanProductName(item.lot.product),
@@ -135,7 +168,7 @@ export default function DispatchList() {
         p_lot_id: item.lot.id,
         p_type: 'salida',
         p_quantity: quantity,
-        p_to_location: destination.trim() || null,
+        p_to_location: vehiclePlate.trim() || null,
         p_notes: notes,
         p_user_id: user.id,
       })
@@ -146,7 +179,7 @@ export default function DispatchList() {
             lot_id: item.lot.id,
             type: 'salida',
             quantity,
-            to_location: destination.trim() || null,
+            to_location: vehiclePlate.trim() || null,
             notes,
             user_id: user.id,
             email,
@@ -164,6 +197,7 @@ export default function DispatchList() {
     }
 
     setItems([])
+    clearDraft()
     setStatus(queued > 0 ? `${queued} salida(s) quedaron guardadas para sincronizar cuando vuelva la señal.` : 'Despacho guardado y correo enviado a oficina.')
     setTimeout(() => navigate(isOperator ? '/operacion' : '/'), 1000)
     setSaving(false)
@@ -183,8 +217,8 @@ export default function DispatchList() {
           <input className="input mt-1" value={receiverDocument} onChange={(event) => setReceiverDocument(event.target.value)} />
         </label>
         <label className="sm:col-span-2">
-          <span className="label">Destino / observacion</span>
-          <input className="input mt-1" value={destination} onChange={(event) => setDestination(event.target.value)} placeholder="Opcional" />
+          <span className="label">Placa del vehiculo</span>
+          <input className="input mt-1 uppercase" value={vehiclePlate} onChange={(event) => setVehiclePlate(event.target.value.toUpperCase())} placeholder="Opcional" />
         </label>
       </section>
 
@@ -207,14 +241,25 @@ export default function DispatchList() {
             return (
               <article key={item.lot.id} className="panel">
                 <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0">
+                  <div className="min-w-0 flex-1">
                     <p className="font-bold text-slate-950">{cleanProductName(item.lot.product)}</p>
                     <p className="text-sm font-semibold text-slate-500">
                       {displayLotCode(item.lot.lot_code)} · {item.lot.location || '-'}
                     </p>
-                    <p className="text-xs font-bold text-slate-500">
-                      Disponible: {formatNumber(item.lot.current_quantity)} envases · Vence: {item.lot.expiry_date ? formatDate(item.lot.expiry_date) : 'Sin dato'}
-                    </p>
+                    <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                      <div className="rounded-lg bg-campo-50 p-3">
+                        <p className="text-xs font-semibold uppercase text-campo-700">Disponible</p>
+                        <p className="mt-1 text-3xl font-black text-campo-800">{formatNumber(item.lot.current_quantity)}</p>
+                        <p className="text-sm font-bold text-campo-700">envases</p>
+                      </div>
+                      <div className="rounded-lg bg-slate-50 p-3">
+                        <p className="text-xs font-semibold uppercase text-slate-500">Vencimiento</p>
+                        <p className="mt-1 text-base font-black text-slate-950">
+                          {item.lot.expiry_date ? formatDate(item.lot.expiry_date) : 'Sin dato'}
+                        </p>
+                        <p className="text-xs font-bold text-slate-500">{item.lot.status || 'activo'}</p>
+                      </div>
+                    </div>
                   </div>
                   <button className="btn-secondary !min-h-10 !px-3" type="button" onClick={() => removeItem(item.lot.id)}>
                     <Trash2 size={17} />
