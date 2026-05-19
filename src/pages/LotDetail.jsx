@@ -179,7 +179,7 @@ export default function LotDetail() {
 
     const { error: emailError } = await supabase.functions.invoke('send-movement-email', {
       body: {
-        to: 'hgaray@tagribol.com',
+        to: 'hgarayd@outlook.com',
         movement_type: payload.type,
         quantity: payload.quantity,
         previous_quantity: payload.previousQuantity,
@@ -275,7 +275,7 @@ export default function LotDetail() {
 
     const label = `
       <article class="label">
-        <div class="brand">Todo Agrícola</div>
+        <div class="brand">Todo Agricola</div>
         <img src="${qrDataUrl}" alt="QR ${escapeHtml(lot.lot_code)}" />
         <h2>${escapeHtml(displayLotCode(lot.lot_code))}</h2>
         <small>Escanear para ver ficha</small>
@@ -374,7 +374,7 @@ export default function LotDetail() {
 
   return (
     <div>
-      <PageHeader title={displayLotCode(lot.lot_code)} subtitle={`${cleanProductName(lot.product)} · ${lot.clients?.name}`} />
+      <PageHeader title={displayLotCode(lot.lot_code)} subtitle={`${cleanProductName(lot.product)} - ${lot.clients?.name}`} />
 
       {isOperator ? (
         <div className="mb-4 rounded-lg bg-campo-50 p-4 text-sm font-bold text-campo-700">
@@ -397,7 +397,7 @@ export default function LotDetail() {
               label="Presentacion"
               value={lot.package_size ? `${formatNumber(lot.package_size)} ${lot.package_unit || ''}` : 'Sin dato'}
             />
-            <Info label="Ubicación" value={lot.location} />
+            <Info label="Ubicacion" value={lot.location} />
             <Info label="Fecha ingreso" value={formatDate(lot.entry_date)} />
             <Info label="Vencimiento" value={lot.expiry_date ? formatDate(lot.expiry_date) : 'Sin dato'} />
             <Info label="Estado" value={lot.status} />
@@ -440,7 +440,7 @@ export default function LotDetail() {
               <option value="entrada">Entrada</option>
               <option value="salida">Salida</option>
               <option value="traslado">Traslado interno</option>
-              <option value="ajuste">Ajuste de inventario</option>
+              <option value="ajuste">Reparo</option>
             </select>
           </label>
           {['entrada', 'salida'].includes(movement.type) && Number(lot.package_size) > 0 ? (
@@ -501,7 +501,16 @@ export default function LotDetail() {
         </div>
 
         <div className="rounded-lg bg-campo-50 p-3 text-sm font-semibold text-campo-700">
-          Stock despues del movimiento: {formatNumber(nextQuantity)} envases
+          <div className="flex justify-between gap-3">
+            <span>Stock despues</span>
+            <span>{formatNumber(nextQuantity)} envases</span>
+          </div>
+          {Number(lot.package_size) > 0 ? (
+            <div className="mt-1 flex justify-between gap-3 text-campo-800">
+              <span>Equivalente despues</span>
+              <span>{formatNumber(nextQuantity * Number(lot.package_size))} {lot.package_unit || ''}</span>
+            </div>
+          ) : null}
         </div>
         {isLargeSale ? (
           <div className="rounded-lg bg-amber-50 p-3 text-sm font-bold text-amber-800">
@@ -535,8 +544,14 @@ export default function LotDetail() {
               </div>
               {pendingMovement.calculatedQuantity ? (
                 <div className="flex justify-between gap-3">
-                  <span>Equivalente</span>
+                  <span>Movimiento calculado</span>
                   <span>{formatNumber(pendingMovement.calculatedQuantity)} {lot.package_unit || ''}</span>
+                </div>
+              ) : null}
+              {Number(lot.package_size) > 0 ? (
+                <div className="flex justify-between gap-3">
+                  <span>Equivalente despues</span>
+                  <span>{formatNumber(pendingMovement.newQuantity * Number(lot.package_size))} {lot.package_unit || ''}</span>
                 </div>
               ) : null}
               {pendingMovement.to_location ? (
@@ -578,8 +593,13 @@ export default function LotDetail() {
                 <p className="text-xl font-bold text-campo-700">{formatNumber(item.quantity)}</p>
               </div>
               <p className="mt-2 text-sm text-slate-600">
-                Usuario: {item.profiles?.full_name || 'Usuario'} · Stock anterior: {formatNumber(item.previous_quantity)} · Stock nuevo: {formatNumber(item.new_quantity)}
+                Usuario: {item.profiles?.full_name || 'Usuario'} - Stock anterior: {formatNumber(item.previous_quantity)} envases - Stock nuevo: {formatNumber(item.new_quantity)} envases
               </p>
+              {Number(lot.package_size) > 0 ? (
+                <p className="mt-1 text-sm font-semibold text-slate-600">
+                  Equivalente nuevo: {formatNumber(Number(item.new_quantity || 0) * Number(lot.package_size))} {lot.package_unit || ''}
+                </p>
+              ) : null}
               {item.notes ? <p className="mt-1 text-sm text-slate-600">{item.notes}</p> : null}
             </article>
           ))}

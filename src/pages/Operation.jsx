@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import { ArrowRightLeft, LogIn, LogOut, QrCode } from 'lucide-react'
+import { ArrowRightLeft, Boxes, CalendarClock, LogIn, LogOut, QrCode, Wrench } from 'lucide-react'
 import PageHeader from '../components/PageHeader'
 
 export default function Operation() {
@@ -11,13 +11,20 @@ export default function Operation() {
         <Link className="btn-primary min-h-20 !justify-start !px-5 text-left text-lg" to="/scanner">
           <QrCode size={28} /> Escanear QR del lote
         </Link>
+        <Link className="btn-secondary min-h-16 !justify-start !px-5 text-left text-lg" to="/lotes">
+          <Boxes size={24} /> Ver lotes y stock
+        </Link>
+        <Link className="btn-secondary min-h-16 !justify-start !px-5 text-left text-lg" to="/vencimientos">
+          <CalendarClock size={24} /> Productos proximos a vencer
+        </Link>
       </section>
 
       <section className="panel mt-4">
         <h3 className="mb-3 text-lg font-bold text-slate-950">Flujo de trabajo</h3>
-        <div className="grid gap-3 sm:grid-cols-3">
+        <div className="grid gap-3 sm:grid-cols-4">
           <Step icon={LogIn} title="Entrada" text="Aumenta el stock del lote escaneado." />
           <Step icon={LogOut} title="Salida" text="Descuenta stock con validacion de inventario." />
+          <Step icon={Wrench} title="Reparo" text="Corrige el stock con observacion obligatoria." />
           <Step icon={ArrowRightLeft} title="Traslado" text="Cambia la ubicacion interna del lote." />
         </div>
       </section>

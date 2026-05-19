@@ -11,6 +11,7 @@ import Scanner from './pages/Scanner'
 import Movements from './pages/Movements'
 import ProductLots from './pages/ProductLots'
 import Operation from './pages/Operation'
+import ExpiringLots from './pages/ExpiringLots'
 import { isSupabaseConfigured } from './lib/supabase'
 
 function ProtectedRoute({ children }) {
@@ -49,9 +50,10 @@ function AppRoutes() {
         <Route index element={homeElement} />
         <Route path="operacion" element={<Operation />} />
         <Route path="clientes" element={<RoleRoute roles={['administrador', 'oficina']}><Clients /></RoleRoute>} />
-        <Route path="lotes" element={<RoleRoute roles={['administrador', 'oficina']}><Lots /></RoleRoute>} />
+        <Route path="lotes" element={<RoleRoute roles={['administrador', 'oficina', 'operador']}><Lots /></RoleRoute>} />
         <Route path="lotes/:id" element={<LotDetail />} />
-        <Route path="productos/:name" element={<RoleRoute roles={['administrador', 'oficina']}><ProductLots /></RoleRoute>} />
+        <Route path="productos/:name" element={<RoleRoute roles={['administrador', 'oficina', 'operador']}><ProductLots /></RoleRoute>} />
+        <Route path="vencimientos" element={<RoleRoute roles={['administrador', 'oficina', 'operador']}><ExpiringLots /></RoleRoute>} />
         <Route path="scanner" element={<Scanner />} />
         <Route path="movimientos" element={<RoleRoute roles={['administrador', 'oficina']}><Movements /></RoleRoute>} />
       </Route>

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { Boxes, CalendarClock, Clock3, MapPinned, Users } from 'lucide-react'
 import PageHeader from '../components/PageHeader'
 import { supabase } from '../lib/supabase'
@@ -94,9 +95,14 @@ export default function Dashboard() {
         </div>
 
         <div className="panel">
-          <div className="mb-3 flex items-center gap-2">
-            <CalendarClock size={20} className="text-maiz" />
-            <h3 className="font-bold text-slate-900">Productos proximos a vencer</h3>
+          <div className="mb-3 flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2">
+              <CalendarClock size={20} className="text-maiz" />
+              <h3 className="font-bold text-slate-900">Productos proximos a vencer</h3>
+            </div>
+            <Link className="text-sm font-bold text-campo-700" to="/vencimientos">
+              Ver
+            </Link>
           </div>
           <div className="max-h-[420px] space-y-3 overflow-y-auto pr-1">
             {stats.expiringLots.length === 0 ? (
@@ -104,8 +110,8 @@ export default function Dashboard() {
                 No hay productos con vencimiento cercano.
               </div>
             ) : (
-              stats.expiringLots.map((lot) => (
-                <div key={lot.id} className="rounded-lg bg-amber-50 p-3">
+              stats.expiringLots.slice(0, 8).map((lot) => (
+                <Link key={lot.id} className="block rounded-lg bg-amber-50 p-3 transition hover:bg-amber-100" to={`/lotes/${lot.id}`}>
                   <div className="flex justify-between gap-3">
                     <div className="min-w-0">
                       <p className="truncate font-bold text-slate-900">{cleanProductName(lot.product)}</p>
@@ -118,7 +124,7 @@ export default function Dashboard() {
                       <p className="text-xs font-semibold text-slate-500">{formatNumber(lot.current_quantity)} env.</p>
                     </div>
                   </div>
-                </div>
+                </Link>
               ))
             )}
           </div>

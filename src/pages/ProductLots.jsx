@@ -3,7 +3,7 @@ import { Link, useParams } from 'react-router-dom'
 import PageHeader from '../components/PageHeader'
 import EmptyState from '../components/EmptyState'
 import { supabase } from '../lib/supabase'
-import { formatNumber } from '../lib/format'
+import { formatDate, formatNumber } from '../lib/format'
 import { cleanProductName, displayLotCode, packageLabel } from '../lib/display'
 
 export default function ProductLots() {
@@ -36,7 +36,7 @@ export default function ProductLots() {
 
   return (
     <div>
-      <PageHeader title={productName || 'Producto'} subtitle={`${productLots.length} lotes · Total ${formatNumber(total)}`} />
+      <PageHeader title={productName || 'Producto'} subtitle={`${productLots.length} lotes - Total ${formatNumber(total)} envases`} />
 
       <div className="grid gap-2">
         {productLots.length === 0 ? (
@@ -45,11 +45,14 @@ export default function ProductLots() {
           productLots.map((lot) => (
             <Link key={lot.id} to={`/lotes/${lot.id}`} className="panel block transition hover:border-campo-500">
               <div className="flex items-start justify-between gap-3">
-                <div>
+                <div className="min-w-0">
                   <p className="text-sm font-bold text-slate-950">{displayLotCode(lot.lot_code)}</p>
                   <p className="text-sm text-slate-500">
-                    {lot.clients?.name} · {lot.location}
-                    {packageLabel(lot) ? ` · ${packageLabel(lot)}` : ''}
+                    {lot.clients?.name} - {lot.location}
+                    {packageLabel(lot) ? ` - ${packageLabel(lot)}` : ''}
+                  </p>
+                  <p className="mt-1 text-xs font-semibold text-amber-700">
+                    Vence: {lot.expiry_date ? formatDate(lot.expiry_date) : 'Sin dato'}
                   </p>
                 </div>
                 <div className="text-right">

@@ -17,7 +17,7 @@ export default function AppLayout() {
   const { profile } = useAuth()
   const visibleNavItems =
     profile?.role === 'operador'
-      ? navItems.filter((item) => item.roles?.includes('operador') || item.to === '/scanner')
+      ? navItems.filter((item) => item.roles?.includes('operador') || ['/scanner', '/lotes'].includes(item.to))
       : navItems.filter((item) => !item.roles?.includes('operador'))
 
   async function signOut() {
@@ -51,7 +51,7 @@ export default function AppLayout() {
       </main>
 
       <nav className="fixed inset-x-0 bottom-0 z-30 border-t border-slate-200 bg-white/95 backdrop-blur">
-        <div className={`mx-auto grid max-w-5xl gap-1 px-2 py-2 ${visibleNavItems.length <= 2 ? 'grid-cols-2' : 'grid-cols-5'}`}>
+        <div className={`mx-auto grid max-w-5xl gap-1 px-2 py-2 ${visibleNavItems.length <= 3 ? 'grid-cols-3' : 'grid-cols-5'}`}>
           {visibleNavItems.map((item) => {
             const Icon = item.icon
             return (

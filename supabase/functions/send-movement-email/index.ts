@@ -36,7 +36,7 @@ Deno.serve(async (req) => {
     }
 
     const body = await req.json()
-    const toEmail = Deno.env.get('MOVEMENT_EMAIL_TO') || body.to || 'hgaray@tagribol.com'
+    const toEmail = Deno.env.get('MOVEMENT_EMAIL_TO') || body.to || 'hgarayd@outlook.com'
     const typeLabel = body.movement_type === 'entrada' ? 'Entrada' : 'Salida'
     const subject = `${typeLabel} de inventario - ${body.lot_code}`
     const logoUrl = `${appUrl.replace(/\/$/, '')}/images/todo-logo.png`
