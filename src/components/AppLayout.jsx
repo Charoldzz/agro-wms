@@ -1,7 +1,9 @@
 import { Outlet, NavLink, useNavigate } from 'react-router-dom'
 import { Boxes, ClipboardList, Home, LogOut, ScanLine, Users, Warehouse } from 'lucide-react'
+import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../hooks/useAuth.jsx'
+import { getQueuedMovementCount, syncQueuedMovements } from '../lib/offlineQueue'
 
 const navItems = [
   { to: '/', label: 'Inicio', icon: Home },
@@ -14,7 +16,8 @@ const navItems = [
 
 export default function AppLayout() {
   const navigate = useNavigate()
-  const { profile } = useAuth()
+  const { profile, user } = useAuth()
+  const [queuedMovements, setQueuedMovements] = useState(getQueuedMovementCount())
   const visibleNavItems =
     profile?.role === 'operador'
       ? navItems.filter((item) => item.roles?.includes('operador'))
@@ -24,6 +27,25 @@ export default function AppLayout() {
     await supabase.auth.signOut()
     navigate('/login')
   }
+
+  useEffect(() => {
+    if (!user) return undefined
+
+    async function syncQueue() {
+      const result = await syncQueuedMovements()
+      setQueuedMovements(result.remaining)
+    }
+
+    syncQueue()
+    window.addEventListener('online', syncQueue)
+    const queueListener = (event) => setQueuedMovements(event.detail || getQueuedMovementCount())
+    window.addEventListener('offline-movement-queue', queueListener)
+
+    return () => {
+      window.removeEventListener('online', syncQueue)
+      window.removeEventListener('offline-movement-queue', queueListener)
+    }
+  }, [user])
 
   return (
     <div className="app-bg min-h-screen pb-24">
@@ -47,6 +69,11 @@ export default function AppLayout() {
       </header>
 
       <main className="mx-auto max-w-5xl px-4 py-5">
+        {queuedMovements > 0 ? (
+          <div className="mb-4 rounded-lg bg-amber-50 p-3 text-sm font-bold text-amber-800">
+            {queuedMovements} movimiento{queuedMovements === 1 ? '' : 's'} pendiente{queuedMovements === 1 ? '' : 's'} por sincronizar.
+          </div>
+        ) : null}
         <Outlet />
       </main>
 

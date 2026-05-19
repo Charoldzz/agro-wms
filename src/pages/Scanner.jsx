@@ -71,7 +71,9 @@ export default function Scanner() {
   const [status, setStatus] = useState('Preparando camara...')
   const [error, setError] = useState('')
   const [restartKey, setRestartKey] = useState(0)
-  const movementMode = new URLSearchParams(location.search).get('modo') || ''
+  const searchParams = new URLSearchParams(location.search)
+  const movementMode = searchParams.get('modo') || ''
+  const returnTo = searchParams.get('return') || ''
   const validMovementMode = ['despacho', 'reparo', 'traslado'].includes(movementMode) ? movementMode : ''
 
   const goToScannedLot = useCallback(
@@ -87,10 +89,14 @@ export default function Scanner() {
           sessionStorage.removeItem(`lot-mode-${lotId}`)
         }
       }
+      if (returnTo && lotId) {
+        navigate(`${returnTo}?lot=${lotId}`, { state: { scanned: true, movementMode: validMovementMode } })
+        return true
+      }
       navigate(path, { state: { scanned: true, movementMode: validMovementMode } })
       return true
     },
-    [navigate, validMovementMode],
+    [navigate, returnTo, validMovementMode],
   )
 
   useEffect(() => {

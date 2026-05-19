@@ -7,6 +7,7 @@ import { formatDate, formatNumber, movementLabel } from '../lib/format'
 import { createLotQrDataUrl } from '../lib/qr'
 import { supabase } from '../lib/supabase'
 import { cleanProductName, displayLotCode } from '../lib/display'
+import { isNetworkMovementError, queueMovement } from '../lib/offlineQueue'
 
 const initialMovement = {
   type: 'entrada',
@@ -45,6 +46,7 @@ export default function LotDetail() {
   const [fefoLot, setFefoLot] = useState(null)
   const [movementPhotoFile, setMovementPhotoFile] = useState(null)
   const [movementPhotoPreview, setMovementPhotoPreview] = useState('')
+  const [showFullHistory, setShowFullHistory] = useState(false)
 
   useEffect(() => {
     loadLot()
@@ -159,6 +161,7 @@ export default function LotDetail() {
     stockQuantity >= Number(lot.current_quantity) * 0.5
 
   const currentEquivalent = lot ? Number(lot.current_quantity || 0) * Number(lot.package_size || 0) : 0
+  const visibleMovements = showFullHistory ? movements : movements.slice(0, 3)
 
   async function handleSubmit(event) {
     event.preventDefault()
@@ -250,6 +253,23 @@ export default function LotDetail() {
       .filter(Boolean)
       .join(' | ')
 
+    const emailPayload = ['entrada', 'salida'].includes(pendingMovement.type)
+      ? {
+          to: 'hgarayd@outlook.com',
+          movement_type: pendingMovement.type,
+          quantity,
+          previous_quantity: Number(lot.current_quantity),
+          new_quantity: pendingMovement.newQuantity,
+          to_location: pendingMovement.to_location || null,
+          notes: movementNotes || null,
+          lot_code: displayLotCode(lot.lot_code),
+          product: cleanProductName(lot.product),
+          client: lot.clients?.name || 'Sin cliente',
+          location: lot.location,
+          user_email: user.email,
+        }
+      : null
+
     const { error: rpcError } = await supabase.rpc('register_movement', {
       p_lot_id: lot.id,
       p_type: pendingMovement.type,
@@ -260,21 +280,30 @@ export default function LotDetail() {
     })
 
     if (rpcError) {
-      if (rpcError.message.includes('inventario')) {
+      if (isNetworkMovementError(rpcError)) {
+        queueMovement({
+          lot_id: lot.id,
+          type: pendingMovement.type,
+          quantity,
+          to_location: pendingMovement.to_location || null,
+          notes: movementNotes || null,
+          user_id: user.id,
+          email: emailPayload,
+        })
+        setMovement(initialMovement)
+        setMovementPhotoFile(null)
+        setMovementPhotoPreview('')
+        setPendingMovement(null)
+        setEmailStatus('Sin señal: movimiento guardado en cola. Se sincronizara automaticamente al volver internet.')
+        setTimeout(() => navigate(isOperator ? '/operacion' : '/'), 1200)
+      } else if (rpcError.message.includes('inventario')) {
         setError('No hay inventario suficiente.')
       } else {
         setError(rpcError.message)
       }
     } else {
       if (['entrada', 'salida'].includes(pendingMovement.type)) {
-        await notifyOfficeMovement({
-          type: pendingMovement.type,
-          quantity,
-          previousQuantity: Number(lot.current_quantity),
-          newQuantity: pendingMovement.newQuantity,
-          toLocation: pendingMovement.to_location,
-          notes: movementNotes,
-        })
+        await notifyOfficeMovement(emailPayload)
       } else if (pendingMovement.type === 'ajuste') {
         setEmailStatus(isOperator ? 'Reparacion enviada para aprobacion del administrador.' : 'Reparacion aplicada.')
       } else if (pendingMovement.type === 'traslado') {
@@ -317,23 +346,10 @@ export default function LotDetail() {
   }
 
   async function notifyOfficeMovement(payload) {
-    if (!['entrada', 'salida'].includes(payload.type)) return
+    if (!payload) return
 
     const { error: emailError } = await supabase.functions.invoke('send-movement-email', {
-      body: {
-        to: 'hgarayd@outlook.com',
-        movement_type: payload.type,
-        quantity: payload.quantity,
-        previous_quantity: payload.previousQuantity,
-        new_quantity: payload.newQuantity,
-        to_location: payload.toLocation || null,
-        notes: payload.notes || null,
-        lot_code: displayLotCode(lot.lot_code),
-        product: cleanProductName(lot.product),
-        client: lot.clients?.name || 'Sin cliente',
-        location: lot.location,
-        user_email: user.email,
-      },
+      body: payload,
     })
 
     setEmailStatus(
@@ -823,9 +839,16 @@ export default function LotDetail() {
       ) : null}
 
       <section className="mt-4">
-        <h3 className="mb-3 text-lg font-bold text-slate-950">Auditoria del lote</h3>
+        <div className="mb-3 flex items-center justify-between gap-3">
+          <h3 className="text-lg font-bold text-slate-950">Ultimos movimientos</h3>
+          {movements.length > 3 ? (
+            <button className="text-sm font-bold text-campo-700" type="button" onClick={() => setShowFullHistory((value) => !value)}>
+              {showFullHistory ? 'Ver menos' : 'Ver historial completo'}
+            </button>
+          ) : null}
+        </div>
         <div className="space-y-3">
-          {movements.map((item) => (
+          {visibleMovements.map((item) => (
             <article key={item.id} className="panel">
               <div className="flex justify-between gap-3">
                 <div>
