@@ -57,13 +57,13 @@ export default function Dashboard() {
         <StatCard icon={Users} label="Ubicaciones activas" value={stats.locationCount} />
       </section>
 
-      <section className="mt-5 grid gap-4 lg:grid-cols-[1fr_1fr]">
+      <section className="mt-5 grid gap-4 lg:grid-cols-3">
         <div className="panel">
           <div className="mb-3 flex items-center gap-2">
             <Clock3 size={20} className="text-campo-700" />
             <h3 className="font-bold text-slate-900">Movimientos recientes</h3>
           </div>
-          <div className="space-y-3">
+          <div className="max-h-[420px] space-y-3 overflow-y-auto pr-1">
             {movements.map((movement) => (
               <div key={movement.id} className="rounded-lg bg-slate-50 p-3">
                 <div className="flex justify-between gap-3">
@@ -80,15 +80,13 @@ export default function Dashboard() {
             ))}
           </div>
         </div>
-      </section>
 
-      <section className="mt-4 grid gap-4 lg:grid-cols-[1fr_1fr]">
         <div className="panel">
           <div className="mb-3 flex items-center gap-2">
             <AlertTriangle size={20} className="text-maiz" />
             <h3 className="font-bold text-slate-900">Productos con bajo stock</h3>
           </div>
-          <div className="space-y-3">
+          <div className="max-h-[420px] space-y-3 overflow-y-auto pr-1">
             {stats.lowStock.length === 0 ? (
               <div className="rounded-lg bg-campo-50 p-3 text-sm font-bold text-campo-700">
                 No hay productos bajo stock.
@@ -117,7 +115,7 @@ export default function Dashboard() {
             <Users size={20} className="text-campo-700" />
             <h3 className="font-bold text-slate-900">Cantidad por cliente</h3>
           </div>
-          <div className="space-y-3">
+          <div className="max-h-[420px] space-y-3 overflow-y-auto pr-1">
             {Object.entries(stats.byClient).map(([client, quantity]) => (
               <div key={client}>
                 <div className="flex justify-between gap-3 text-sm">

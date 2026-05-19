@@ -7,11 +7,18 @@ import { supabase } from '../lib/supabase'
 
 const initialForm = { name: '', contact: '', notes: '' }
 
+function cleanClientNotes(notes) {
+  if (!notes) return ''
+  if (/importado\s+desde\s+excel/i.test(notes)) return ''
+  return notes
+}
+
 export default function Clients() {
   const { isAdmin } = useAuth()
   const [clients, setClients] = useState([])
   const [form, setForm] = useState(initialForm)
   const [editingId, setEditingId] = useState(null)
+  const [selectedClient, setSelectedClient] = useState(null)
   const [showForm, setShowForm] = useState(false)
 
   useEffect(() => {
@@ -34,7 +41,7 @@ export default function Clients() {
     setForm({
       name: client.name || '',
       contact: client.contact || '',
-      notes: client.notes || '',
+      notes: cleanClientNotes(client.notes),
     })
     setShowForm(true)
   }
@@ -105,10 +112,10 @@ export default function Clients() {
           clients.map((client) => (
             <article key={client.id} className="rounded-lg border border-slate-200 bg-white/95 px-3 py-3 shadow-soft">
               <div className="flex items-center justify-between gap-3">
-                <div className="min-w-0">
+                <button className="min-w-0 flex-1 text-left" type="button" onClick={() => setSelectedClient(client)}>
                   <h3 className="truncate text-sm font-bold text-slate-900">{client.name}</h3>
                   {client.contact ? <p className="truncate text-xs font-semibold text-slate-500">{client.contact}</p> : null}
-                </div>
+                </button>
                 {isAdmin ? (
                   <button className="btn-secondary !min-h-10 !px-3" type="button" onClick={() => startEdit(client)}>
                     <Edit2 size={17} />
@@ -119,6 +126,51 @@ export default function Clients() {
           ))
         )}
       </div>
+
+      {selectedClient ? (
+        <div className="fixed inset-0 z-40 flex items-end bg-slate-950/40 p-4 sm:items-center sm:justify-center">
+          <div className="w-full max-w-md rounded-xl bg-white p-4 shadow-xl">
+            <div className="mb-4 flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <h3 className="text-lg font-bold text-slate-950">{selectedClient.name}</h3>
+                <p className="text-sm font-semibold text-slate-500">Informacion del cliente</p>
+              </div>
+              <button className="btn-secondary !min-h-10 !px-3" type="button" onClick={() => setSelectedClient(null)}>
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="space-y-3">
+              <Info label="Contacto" value={selectedClient.contact || 'Sin contacto registrado'} />
+              {cleanClientNotes(selectedClient.notes) ? (
+                <Info label="Observaciones" value={cleanClientNotes(selectedClient.notes)} />
+              ) : null}
+            </div>
+
+            {isAdmin ? (
+              <button
+                className="btn-primary mt-4 w-full"
+                type="button"
+                onClick={() => {
+                  startEdit(selectedClient)
+                  setSelectedClient(null)
+                }}
+              >
+                <Edit2 size={18} /> Editar cliente
+              </button>
+            ) : null}
+          </div>
+        </div>
+      ) : null}
+    </div>
+  )
+}
+
+function Info({ label, value }) {
+  return (
+    <div className="rounded-lg bg-slate-50 p-3">
+      <p className="text-xs font-semibold uppercase text-slate-400">{label}</p>
+      <p className="mt-1 text-sm font-bold text-slate-900">{value}</p>
     </div>
   )
 }
