@@ -1,6 +1,6 @@
 create extension if not exists "pgcrypto";
 
-create type user_role as enum ('administrador', 'operador', 'oficina');
+create type user_role as enum ('administrador', 'operador');
 create type lot_status as enum ('activo', 'retenido', 'cerrado');
 create type movement_type as enum ('entrada', 'salida', 'traslado', 'ajuste');
 
@@ -208,7 +208,7 @@ begin
   from public.profiles
   where id = auth.uid();
 
-  if v_role not in ('administrador', 'oficina', 'operador') then
+  if v_role not in ('administrador', 'operador') then
     raise exception 'No tienes permiso para registrar ingresos.';
   end if;
 

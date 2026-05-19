@@ -51,15 +51,15 @@ function AppRoutes() {
       >
         <Route index element={homeElement} />
         <Route path="operacion" element={<Operation />} />
-        <Route path="operacion/nuevo-ingreso" element={<RoleRoute roles={['administrador', 'oficina', 'operador']}><OperatorEntry /></RoleRoute>} />
-        <Route path="operacion/reparacion-traslado" element={<RoleRoute roles={['administrador', 'oficina', 'operador']}><OperatorService /></RoleRoute>} />
-        <Route path="clientes" element={<RoleRoute roles={['administrador', 'oficina']}><Clients /></RoleRoute>} />
-        <Route path="lotes" element={<RoleRoute roles={['administrador', 'oficina', 'operador']}><Lots /></RoleRoute>} />
+        <Route path="operacion/nuevo-ingreso" element={<RoleRoute roles={['administrador', 'operador']}><OperatorEntry /></RoleRoute>} />
+        <Route path="operacion/reparacion-traslado" element={<RoleRoute roles={['administrador', 'operador']}><OperatorService /></RoleRoute>} />
+        <Route path="clientes" element={<RoleRoute roles={['administrador']}><Clients /></RoleRoute>} />
+        <Route path="lotes" element={<RoleRoute roles={['administrador', 'operador']}><Lots /></RoleRoute>} />
         <Route path="lotes/:id" element={<LotDetail />} />
-        <Route path="productos/:name" element={<RoleRoute roles={['administrador', 'oficina', 'operador']}><ProductLots /></RoleRoute>} />
-        <Route path="vencimientos" element={<RoleRoute roles={['administrador', 'oficina', 'operador']}><ExpiringLots /></RoleRoute>} />
+        <Route path="productos/:name" element={<RoleRoute roles={['administrador', 'operador']}><ProductLots /></RoleRoute>} />
+        <Route path="vencimientos" element={<RoleRoute roles={['administrador', 'operador']}><ExpiringLots /></RoleRoute>} />
         <Route path="scanner" element={<Scanner />} />
-        <Route path="movimientos" element={<RoleRoute roles={['administrador', 'oficina']}><Movements /></RoleRoute>} />
+        <Route path="movimientos" element={<RoleRoute roles={['administrador']}><Movements /></RoleRoute>} />
       </Route>
     </Routes>
   )

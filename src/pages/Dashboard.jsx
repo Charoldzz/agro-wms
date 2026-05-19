@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Boxes, CalendarClock, Clock3, MapPinned, Users } from 'lucide-react'
+import { Boxes, CalendarClock, Clock3, LogOut, MapPinned, PackagePlus, Users, Wrench } from 'lucide-react'
 import PageHeader from '../components/PageHeader'
 import { supabase } from '../lib/supabase'
 import { formatDate, formatNumber, movementLabel } from '../lib/format'
@@ -68,6 +68,18 @@ export default function Dashboard() {
         <StatCard icon={MapPinned} label="Ocupacion almacen" value={`${lots.length} lotes`} />
         <StatCard icon={CalendarClock} label="Proximos a vencer" value={stats.expiringLots.length} />
         <StatCard icon={Users} label="Ubicaciones activas" value={stats.locationCount} />
+      </section>
+
+      <section className="mt-5 grid gap-3 md:grid-cols-3">
+        <Link className="btn-primary min-h-20 !justify-start !px-5 text-left text-lg" to="/operacion/nuevo-ingreso">
+          <PackagePlus size={28} /> Nuevo ingreso
+        </Link>
+        <Link className="min-h-20 !justify-start !px-5 text-left text-lg inline-flex items-center gap-2 rounded-lg bg-maiz px-4 py-3 font-semibold text-slate-950 shadow-soft transition active:scale-[0.99]" to="/scanner?modo=despacho">
+          <LogOut size={24} /> Modo despacho
+        </Link>
+        <Link className="min-h-20 !justify-start !px-5 text-left text-lg inline-flex items-center gap-2 rounded-lg bg-orange-500 px-4 py-3 font-semibold text-white shadow-soft transition active:scale-[0.99]" to="/operacion/reparacion-traslado">
+          <Wrench size={24} /> Reparacion / Traslado
+        </Link>
       </section>
 
       <section className="mt-5 grid gap-4 lg:grid-cols-3">

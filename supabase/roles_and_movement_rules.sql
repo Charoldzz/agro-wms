@@ -1,4 +1,6 @@
-alter type public.user_role add value if not exists 'oficina';
+update public.profiles
+set role = 'operador'
+where role::text = 'oficina';
 
 alter table public.lots
 add column if not exists expiry_date date;
@@ -164,7 +166,7 @@ begin
   from public.profiles
   where id = auth.uid();
 
-  if v_role not in ('administrador', 'oficina', 'operador') then
+  if v_role not in ('administrador', 'operador') then
     raise exception 'No tienes permiso para registrar ingresos.';
   end if;
 
