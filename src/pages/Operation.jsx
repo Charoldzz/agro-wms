@@ -1,20 +1,17 @@
 import { Link } from 'react-router-dom'
-import { ArrowRightLeft, Boxes, CalendarClock, LogIn, LogOut, PackagePlus, QrCode, Wrench } from 'lucide-react'
+import { ArrowRightLeft, Boxes, CalendarClock, LogIn, LogOut, PackagePlus, Wrench } from 'lucide-react'
 import PageHeader from '../components/PageHeader'
 
 export default function Operation() {
   return (
     <div>
-      <PageHeader title="Modo operario" subtitle="Escanea un lote y registra el movimiento" />
+      <PageHeader title="Modo operario" subtitle="Ingresos, despachos y control de almacen" />
 
       <section className="grid gap-3">
         <Link className="btn-primary min-h-20 !justify-start !px-5 text-left text-lg" to="/operacion/nuevo-ingreso">
           <PackagePlus size={28} /> Nuevo ingreso
         </Link>
-        <Link className="btn-primary min-h-20 !justify-start !px-5 text-left text-lg" to="/scanner">
-          <QrCode size={28} /> Escanear QR del lote
-        </Link>
-        <Link className="btn-secondary min-h-16 !justify-start !px-5 text-left text-lg" to="/scanner?modo=despacho">
+        <Link className="min-h-20 !justify-start !px-5 text-left text-lg inline-flex items-center gap-2 rounded-lg bg-maiz px-4 py-3 font-semibold text-slate-950 shadow-soft transition active:scale-[0.99]" to="/scanner?modo=despacho">
           <LogOut size={24} /> Modo despacho
         </Link>
         <Link className="btn-secondary min-h-16 !justify-start !px-5 text-left text-lg" to="/lotes">

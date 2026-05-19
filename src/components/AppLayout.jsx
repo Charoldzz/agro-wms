@@ -17,7 +17,7 @@ export default function AppLayout() {
   const { profile } = useAuth()
   const visibleNavItems =
     profile?.role === 'operador'
-      ? navItems.filter((item) => item.roles?.includes('operador'))
+      ? navItems.filter((item) => item.roles?.includes('operador') || item.to === '/scanner')
       : navItems.filter((item) => !item.roles?.includes('operador'))
 
   async function signOut() {
