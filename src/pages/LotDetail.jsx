@@ -93,6 +93,8 @@ export default function LotDetail() {
     Number(lot?.current_quantity || 0) > 0 &&
     stockQuantity >= Number(lot.current_quantity) * 0.5
 
+  const currentEquivalent = lot ? Number(lot.current_quantity || 0) * Number(lot.package_size || 0) : 0
+
   async function handleSubmit(event) {
     event.preventDefault()
     if (!lot) return
@@ -388,6 +390,32 @@ export default function LotDetail() {
         </div>
       ) : null}
 
+      <section className="panel mb-4 border-campo-200 bg-white/95">
+        <div className="grid gap-3 sm:grid-cols-[1.5fr_1fr_1fr]">
+          <div>
+            <p className="text-xs font-semibold uppercase text-slate-400">Lectura rapida</p>
+            <h2 className="mt-1 text-2xl font-black leading-tight text-slate-950">{cleanProductName(lot.product)}</h2>
+            <p className="mt-1 text-sm font-bold text-slate-500">{displayLotCode(lot.lot_code)}</p>
+          </div>
+          <div className="rounded-lg bg-campo-50 p-3">
+            <p className="text-xs font-semibold uppercase text-campo-700">Disponible</p>
+            <p className="mt-1 text-3xl font-black text-campo-800">{formatNumber(lot.current_quantity)}</p>
+            <p className="text-sm font-bold text-campo-700">envases</p>
+          </div>
+          <div className="rounded-lg bg-slate-50 p-3">
+            <p className="text-xs font-semibold uppercase text-slate-500">Equivalente actual</p>
+            <p className="mt-1 text-2xl font-black text-slate-950">
+              {Number(lot.package_size) > 0 ? `${formatNumber(currentEquivalent)} ${lot.package_unit || ''}` : 'Sin dato'}
+            </p>
+          </div>
+        </div>
+        <div className="mt-3 grid gap-2 text-sm font-bold text-slate-700 sm:grid-cols-3">
+          <div className="rounded-lg bg-slate-50 p-3">Ubicacion: {lot.location || '-'}</div>
+          <div className="rounded-lg bg-slate-50 p-3">Vence: {lot.expiry_date ? formatDate(lot.expiry_date) : 'Sin dato'}</div>
+          <div className="rounded-lg bg-slate-50 p-3">Estado: {lot.status}</div>
+        </div>
+      </section>
+
       <section className="grid gap-4 lg:grid-cols-[1.2fr_0.8fr]">
         <div className="panel">
           {lot.photo_url ? <img className="mb-4 h-48 w-full rounded-lg object-cover" src={lot.photo_url} alt={cleanProductName(lot.product)} /> : null}
@@ -581,7 +609,7 @@ export default function LotDetail() {
       ) : null}
 
       <section className="mt-4">
-        <h3 className="mb-3 text-lg font-bold text-slate-950">Historial completo</h3>
+        <h3 className="mb-3 text-lg font-bold text-slate-950">Auditoria del lote</h3>
         <div className="space-y-3">
           {movements.map((item) => (
             <article key={item.id} className="panel">
@@ -592,9 +620,14 @@ export default function LotDetail() {
                 </div>
                 <p className="text-xl font-bold text-campo-700">{formatNumber(item.quantity)}</p>
               </div>
-              <p className="mt-2 text-sm text-slate-600">
-                Usuario: {item.profiles?.full_name || 'Usuario'} - Stock anterior: {formatNumber(item.previous_quantity)} envases - Stock nuevo: {formatNumber(item.new_quantity)} envases
-              </p>
+              <div className="mt-3 grid gap-2 text-sm sm:grid-cols-2">
+                <p className="rounded-lg bg-slate-50 p-2 font-semibold text-slate-600">Usuario: {item.profiles?.full_name || 'Usuario'}</p>
+                <p className="rounded-lg bg-slate-50 p-2 font-semibold text-slate-600">Stock anterior: {formatNumber(item.previous_quantity)} envases</p>
+                <p className="rounded-lg bg-slate-50 p-2 font-semibold text-slate-600">Stock nuevo: {formatNumber(item.new_quantity)} envases</p>
+                {item.to_location ? (
+                  <p className="rounded-lg bg-slate-50 p-2 font-semibold text-slate-600">Nueva ubicacion: {item.to_location}</p>
+                ) : null}
+              </div>
               {Number(lot.package_size) > 0 ? (
                 <p className="mt-1 text-sm font-semibold text-slate-600">
                   Equivalente nuevo: {formatNumber(Number(item.new_quantity || 0) * Number(lot.package_size))} {lot.package_unit || ''}
