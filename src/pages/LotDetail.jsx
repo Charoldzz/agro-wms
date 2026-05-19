@@ -206,9 +206,6 @@ export default function LotDetail() {
               <a className="btn-secondary w-full" href={qrDataUrl} download={`${lot.lot_code}-qr.png`}>
                 <Download size={20} /> Descargar PNG
               </a>
-              <a className="btn-primary w-full" href={lotUrl} target="_blank" rel="noreferrer">
-                <ExternalLink size={20} /> Abrir ficha
-              </a>
               <p className="break-all rounded-lg bg-slate-50 p-2 text-xs font-semibold text-slate-500">
                 {lotUrl}
               </p>
