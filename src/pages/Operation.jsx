@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import { ArrowRightLeft, Boxes, CalendarClock, LogIn, LogOut, QrCode, Wrench } from 'lucide-react'
+import { ArrowRightLeft, Boxes, CalendarClock, LogIn, LogOut, PackagePlus, QrCode, Wrench } from 'lucide-react'
 import PageHeader from '../components/PageHeader'
 
 export default function Operation() {
@@ -8,6 +8,9 @@ export default function Operation() {
       <PageHeader title="Modo operario" subtitle="Escanea un lote y registra el movimiento" />
 
       <section className="grid gap-3">
+        <Link className="btn-primary min-h-20 !justify-start !px-5 text-left text-lg" to="/operacion/nuevo-ingreso">
+          <PackagePlus size={28} /> Nuevo ingreso
+        </Link>
         <Link className="btn-primary min-h-20 !justify-start !px-5 text-left text-lg" to="/scanner">
           <QrCode size={28} /> Escanear QR del lote
         </Link>

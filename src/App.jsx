@@ -12,6 +12,7 @@ import Movements from './pages/Movements'
 import ProductLots from './pages/ProductLots'
 import Operation from './pages/Operation'
 import ExpiringLots from './pages/ExpiringLots'
+import OperatorEntry from './pages/OperatorEntry'
 import { isSupabaseConfigured } from './lib/supabase'
 
 function ProtectedRoute({ children }) {
@@ -49,6 +50,7 @@ function AppRoutes() {
       >
         <Route index element={homeElement} />
         <Route path="operacion" element={<Operation />} />
+        <Route path="operacion/nuevo-ingreso" element={<RoleRoute roles={['administrador', 'oficina', 'operador']}><OperatorEntry /></RoleRoute>} />
         <Route path="clientes" element={<RoleRoute roles={['administrador', 'oficina']}><Clients /></RoleRoute>} />
         <Route path="lotes" element={<RoleRoute roles={['administrador', 'oficina', 'operador']}><Lots /></RoleRoute>} />
         <Route path="lotes/:id" element={<LotDetail />} />

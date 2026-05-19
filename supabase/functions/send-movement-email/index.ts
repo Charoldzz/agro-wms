@@ -26,7 +26,7 @@ Deno.serve(async (req) => {
   try {
     const resendApiKey = Deno.env.get('RESEND_API_KEY')
     const fromEmail = Deno.env.get('MOVEMENT_EMAIL_FROM') || 'Todo Agricola <onboarding@resend.dev>'
-    const appUrl = Deno.env.get('APP_PUBLIC_URL') || 'https://agro-wms.vercel.app'
+    const appUrl = Deno.env.get('APP_PUBLIC_URL') || 'https://todo-agricola.vercel.app'
 
     if (!resendApiKey) {
       return new Response(JSON.stringify({ error: 'RESEND_API_KEY no configurado' }), {

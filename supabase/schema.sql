@@ -1,6 +1,6 @@
 create extension if not exists "pgcrypto";
 
-create type user_role as enum ('administrador', 'operador');
+create type user_role as enum ('administrador', 'operador', 'oficina');
 create type lot_status as enum ('activo', 'retenido', 'cerrado');
 create type movement_type as enum ('entrada', 'salida', 'traslado', 'ajuste');
 
@@ -171,6 +171,111 @@ begin
   returning id into v_movement_id;
 
   return v_movement_id;
+end;
+$$;
+
+create or replace function public.create_lot_entry(
+  p_lot_code text,
+  p_client_id uuid,
+  p_product text,
+  p_quantity numeric,
+  p_package_size numeric,
+  p_package_unit text,
+  p_location text,
+  p_entry_date date,
+  p_expiry_date date,
+  p_notes text,
+  p_user_id uuid
+)
+returns uuid
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_lot_id uuid;
+  v_role public.user_role;
+begin
+  if p_user_id <> auth.uid() then
+    raise exception 'El usuario del ingreso no coincide con la sesion activa.';
+  end if;
+
+  select role into v_role
+  from public.profiles
+  where id = auth.uid();
+
+  if v_role not in ('administrador', 'oficina', 'operador') then
+    raise exception 'No tienes permiso para registrar ingresos.';
+  end if;
+
+  if coalesce(trim(p_lot_code), '') = '' then
+    raise exception 'El lote es obligatorio.';
+  end if;
+
+  if coalesce(trim(p_product), '') = '' then
+    raise exception 'El producto es obligatorio.';
+  end if;
+
+  if p_quantity <= 0 then
+    raise exception 'La cantidad debe ser mayor a cero.';
+  end if;
+
+  if coalesce(trim(p_location), '') = '' then
+    raise exception 'La ubicacion es obligatoria.';
+  end if;
+
+  insert into public.lots (
+    lot_code,
+    client_id,
+    product,
+    current_quantity,
+    package_size,
+    package_unit,
+    location,
+    entry_date,
+    expiry_date,
+    status,
+    low_stock_threshold
+  )
+  values (
+    trim(p_lot_code),
+    p_client_id,
+    trim(p_product),
+    p_quantity,
+    p_package_size,
+    p_package_unit,
+    trim(p_location),
+    coalesce(p_entry_date, current_date),
+    p_expiry_date,
+    'activo',
+    5
+  )
+  returning id into v_lot_id;
+
+  insert into public.movements (
+    lot_id,
+    type,
+    quantity,
+    previous_quantity,
+    new_quantity,
+    from_location,
+    to_location,
+    notes,
+    user_id
+  )
+  values (
+    v_lot_id,
+    'entrada',
+    p_quantity,
+    0,
+    p_quantity,
+    null,
+    trim(p_location),
+    coalesce(p_notes, 'Ingreso inicial de lote'),
+    p_user_id
+  );
+
+  return v_lot_id;
 end;
 $$;
 
