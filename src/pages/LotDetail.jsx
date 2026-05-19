@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useParams } from 'react-router-dom'
-import { Download, ExternalLink, QrCode, Save } from 'lucide-react'
+import { Download, ExternalLink, Printer, QrCode, Save } from 'lucide-react'
 import PageHeader from '../components/PageHeader'
 import { useAuth } from '../hooks/useAuth.jsx'
 import { formatDate, formatNumber, movementLabel } from '../lib/format'
-import { createLotQrDataUrl, createLotUrl } from '../lib/qr'
+import { createLotQrDataUrl } from '../lib/qr'
 import { supabase } from '../lib/supabase'
 import { cleanProductName, displayLotCode } from '../lib/display'
 
@@ -13,6 +13,15 @@ const initialMovement = {
   quantity: '',
   to_location: '',
   notes: '',
+}
+
+function escapeHtml(value) {
+  return String(value || '')
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#039;')
 }
 
 export default function LotDetail() {
@@ -24,7 +33,6 @@ export default function LotDetail() {
   const [qrDataUrl, setQrDataUrl] = useState('')
   const [error, setError] = useState('')
   const [saving, setSaving] = useState(false)
-  const lotUrl = createLotUrl(id)
 
   useEffect(() => {
     loadLot()
@@ -145,28 +153,126 @@ export default function LotDetail() {
               text-align: center;
               font-weight: 700;
             }
-            a {
-              display: block;
-              max-width: min(86vw, 520px);
-              color: #166534;
-              font-size: 12px;
-              line-height: 1.4;
-              overflow-wrap: anywhere;
-              text-align: center;
-              text-decoration: none;
-            }
           </style>
         </head>
         <body>
           <main>
             <img src="${qrDataUrl}" alt="QR ${lot.lot_code}" />
-            <p>${lot.lot_code}</p>
-            <a href="${lotUrl}">${lotUrl}</a>
+            <p>${escapeHtml(displayLotCode(lot.lot_code))}</p>
           </main>
         </body>
       </html>
     `)
     imageWindow.document.close()
+  }
+
+  function printQrLabels() {
+    if (!qrDataUrl || !lot) return
+    const printWindow = window.open('', '_blank')
+    if (!printWindow) return
+
+    const label = `
+      <article class="label">
+        <div class="brand">Agro WMS</div>
+        <img src="${qrDataUrl}" alt="QR ${escapeHtml(lot.lot_code)}" />
+        <h2>${escapeHtml(displayLotCode(lot.lot_code))}</h2>
+        <p>${escapeHtml(cleanProductName(lot.product))}</p>
+        <p>${escapeHtml(lot.clients?.name || '')}</p>
+        <small>${escapeHtml(lot.package_size ? `${formatNumber(lot.package_size)} ${lot.package_unit || ''}` : '')} | ${escapeHtml(lot.location || '')}</small>
+      </article>
+    `
+
+    printWindow.document.write(`
+      <!doctype html>
+      <html>
+        <head>
+          <title>Etiquetas QR ${escapeHtml(lot.lot_code)}</title>
+          <meta name="viewport" content="width=device-width, initial-scale=1" />
+          <style>
+            * {
+              box-sizing: border-box;
+            }
+            body {
+              margin: 0;
+              background: #fff;
+              color: #0f172a;
+              font-family: Arial, sans-serif;
+            }
+            .sheet {
+              display: grid;
+              grid-template-columns: repeat(2, 1fr);
+              gap: 12mm;
+              min-height: 100vh;
+              padding: 12mm;
+            }
+            .label {
+              align-items: center;
+              border: 2px solid #0f172a;
+              border-radius: 8px;
+              display: flex;
+              flex-direction: column;
+              justify-content: center;
+              min-height: 120mm;
+              padding: 8mm;
+              text-align: center;
+            }
+            .brand {
+              color: #166534;
+              font-size: 14px;
+              font-weight: 800;
+              margin-bottom: 3mm;
+              text-transform: uppercase;
+            }
+            img {
+              height: 62mm;
+              image-rendering: pixelated;
+              width: 62mm;
+            }
+            h2 {
+              font-size: 18px;
+              margin: 4mm 0 2mm;
+            }
+            p {
+              font-size: 13px;
+              font-weight: 700;
+              line-height: 1.25;
+              margin: 1mm 0;
+            }
+            small {
+              color: #334155;
+              display: block;
+              font-size: 12px;
+              font-weight: 700;
+              margin-top: 2mm;
+            }
+            @media print {
+              @page {
+                margin: 0;
+                size: A4;
+              }
+              body {
+                print-color-adjust: exact;
+                -webkit-print-color-adjust: exact;
+              }
+            }
+          </style>
+        </head>
+        <body>
+          <main class="sheet">
+            ${label}
+            ${label}
+            ${label}
+            ${label}
+          </main>
+          <script>
+            window.addEventListener('load', () => {
+              window.print()
+            })
+          </script>
+        </body>
+      </html>
+    `)
+    printWindow.document.close()
   }
 
   if (!lot) return <div className="p-6 text-center text-slate-600">Cargando lote...</div>
@@ -203,12 +309,12 @@ export default function LotDetail() {
               <button className="btn-secondary w-full" type="button" onClick={openQrImage}>
                 <ExternalLink size={20} /> Abrir imagen QR
               </button>
+              <button className="btn-primary w-full" type="button" onClick={printQrLabels}>
+                <Printer size={20} /> Imprimir 4 QR
+              </button>
               <a className="btn-secondary w-full" href={qrDataUrl} download={`${lot.lot_code}-qr.png`}>
                 <Download size={20} /> Descargar PNG
               </a>
-              <p className="break-all rounded-lg bg-slate-50 p-2 text-xs font-semibold text-slate-500">
-                {lotUrl}
-              </p>
             </div>
           ) : null}
         </div>
