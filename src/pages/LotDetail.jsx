@@ -270,7 +270,7 @@ export default function LotDetail() {
       setPendingMovement(null)
       await loadLot()
       if (canRegisterMovement) {
-        setTimeout(() => navigate('/operacion'), 900)
+        setTimeout(() => navigate(isOperator ? '/operacion' : '/'), 900)
       }
     }
 

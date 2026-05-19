@@ -17,6 +17,7 @@ export default function Movements() {
   const [movements, setMovements] = useState([])
   const [search, setSearch] = useState('')
   const [typeFilter, setTypeFilter] = useState('')
+  const [loadNotice, setLoadNotice] = useState('')
 
   useEffect(() => {
     loadMovements()
@@ -30,13 +31,55 @@ export default function Movements() {
   }, [])
 
   async function loadMovements() {
-    const { data } = await supabase
+    setLoadNotice('')
+
+    const { data, error } = await supabase
       .from('movements')
       .select('*, lots(lot_code, product, location, clients(name)), profiles(full_name)')
       .order('created_at', { ascending: false })
-      .limit(200)
+      .limit(1000)
 
-    setMovements(data || [])
+    if (!error) {
+      setMovements(data || [])
+      return
+    }
+
+    const fallback = await supabase
+      .from('movements')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .limit(1000)
+
+    if (fallback.error) {
+      setLoadNotice('No se pudieron cargar los movimientos. Revisa que el SQL de permisos este actualizado.')
+      setMovements([])
+      return
+    }
+
+    setMovements(await enrichMovements(fallback.data || []))
+  }
+
+  async function enrichMovements(rawMovements) {
+    const lotIds = [...new Set(rawMovements.map((movement) => movement.lot_id).filter(Boolean))]
+    const userIds = [...new Set(rawMovements.map((movement) => movement.user_id).filter(Boolean))]
+
+    const [{ data: lots }, { data: profiles }] = await Promise.all([
+      lotIds.length
+        ? supabase.from('lots').select('id, lot_code, product, location, clients(name)').in('id', lotIds)
+        : Promise.resolve({ data: [] }),
+      userIds.length
+        ? supabase.from('profiles').select('id, full_name').in('id', userIds)
+        : Promise.resolve({ data: [] }),
+    ])
+
+    const lotMap = new Map((lots || []).map((lot) => [lot.id, lot]))
+    const profileMap = new Map((profiles || []).map((profile) => [profile.id, profile]))
+
+    return rawMovements.map((movement) => ({
+      ...movement,
+      lots: lotMap.get(movement.lot_id) || null,
+      profiles: profileMap.get(movement.user_id) || null,
+    }))
   }
 
   const filteredMovements = useMemo(() => {
@@ -63,6 +106,12 @@ export default function Movements() {
   return (
     <div>
       <PageHeader title="Movimientos" subtitle="Historial general del inventario" />
+
+      {loadNotice ? (
+        <div className="mb-4 rounded-lg bg-red-50 p-3 text-sm font-bold text-red-700">
+          {loadNotice}
+        </div>
+      ) : null}
 
       <section className="mb-4 grid gap-3 sm:grid-cols-[1fr_220px]">
         <div className="flex items-center rounded-lg border border-slate-200 bg-white px-3">
@@ -107,7 +156,9 @@ export default function Movements() {
                           <p className="mt-1 inline-flex rounded-full bg-red-50 px-2 py-1 text-xs font-bold text-red-700">Rechazado</p>
                         ) : null}
                       </div>
-                      <p className="text-xl font-bold text-campo-700">{formatNumber(movement.quantity)}</p>
+                      {movement.type !== 'traslado' ? (
+                        <p className="text-xl font-bold text-campo-700">{formatNumber(movement.quantity)}</p>
+                      ) : null}
                     </div>
 
                     <p className="mt-2 font-semibold text-slate-800">
@@ -116,11 +167,18 @@ export default function Movements() {
                     <p className="text-sm text-slate-500">
                       Cliente: {movement.lots?.clients?.name || '-'} · Ubicación: {movement.lots?.location || '-'}
                     </p>
-                    <p className="mt-2 text-sm text-slate-600">
-                      Usuario: {movement.profiles?.full_name || 'Usuario'} · Stock anterior:{' '}
-                      {formatNumber(movement.previous_quantity)} · Stock nuevo:{' '}
-                      {formatNumber(movement.new_quantity)}
-                    </p>
+                    {movement.type === 'traslado' ? (
+                      <p className="mt-2 text-sm text-slate-600">
+                        Usuario: {movement.profiles?.full_name || 'Usuario'} · De {movement.from_location || '-'} a{' '}
+                        {movement.to_location || '-'}
+                      </p>
+                    ) : (
+                      <p className="mt-2 text-sm text-slate-600">
+                        Usuario: {movement.profiles?.full_name || 'Usuario'} · Stock anterior:{' '}
+                        {formatNumber(movement.previous_quantity)} · Stock nuevo:{' '}
+                        {formatNumber(movement.new_quantity)}
+                      </p>
+                    )}
                     {movement.notes ? <p className="mt-1 text-sm text-slate-600">{movement.notes}</p> : null}
                   </div>
                 </div>

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Boxes, CalendarClock, Check, Clock3, Download, LogOut, PackagePlus, Users, Wrench, X } from 'lucide-react'
+import { Boxes, CalendarClock, Check, Clock3, Download, LogOut, PackagePlus, Wrench, X } from 'lucide-react'
 import PageHeader from '../components/PageHeader'
 import { useAuth } from '../hooks/useAuth.jsx'
 import { supabase } from '../lib/supabase'
@@ -12,7 +12,7 @@ export default function Dashboard() {
   const [lots, setLots] = useState([])
   const [movements, setMovements] = useState([])
   const [pendingMovements, setPendingMovements] = useState([])
-  const [dashboardNotice, setDashboardNotice] = useState('')
+  const [dashboardError, setDashboardError] = useState('')
 
   useEffect(() => {
     loadData()
@@ -27,7 +27,7 @@ export default function Dashboard() {
   }, [])
 
   async function loadData() {
-    setDashboardNotice('')
+    setDashboardError('')
 
     const [{ data: lotsData, error: lotsError }, movementsResult, pendingResult] = await Promise.all([
       supabase.from('lots').select('*, clients(name)').order('created_at', { ascending: false }),
@@ -55,10 +55,9 @@ export default function Dashboard() {
         .limit(500)
 
       if (fallback.error) {
-        setDashboardNotice(`No se pudieron cargar movimientos: ${fallback.error.message}`)
+        setDashboardError('No se pudieron cargar los movimientos. Revisa que el SQL de permisos este actualizado.')
       } else {
         movementsData = await enrichMovements(fallback.data || [])
-        setDashboardNotice('Movimientos cargados en modo basico. Revisa relaciones/SQL si faltan nombres de lote o usuario.')
       }
     }
 
@@ -70,7 +69,7 @@ export default function Dashboard() {
         .order('created_at', { ascending: false })
 
       if (fallbackPending.error) {
-        setDashboardNotice(`Falta actualizar SQL para pendientes: ${pendingResult.error.message}`)
+        setDashboardError('No se pudieron cargar las aprobaciones pendientes. Revisa que el SQL de permisos este actualizado.')
         pendingData = []
       } else {
         pendingData = await enrichMovements((fallbackPending.data || []).filter((item) => item.approval_status === 'pendiente'))
@@ -78,7 +77,7 @@ export default function Dashboard() {
     }
 
     if (lotsError) {
-      setDashboardNotice(`No se pudieron cargar lotes: ${lotsError.message}`)
+      setDashboardError('No se pudieron cargar los lotes. Revisa que el SQL de permisos este actualizado.')
     }
 
     setLots(lotsData || [])
@@ -132,12 +131,7 @@ export default function Dashboard() {
       })
       .filter((lot) => lot.daysLeft <= 90)
       .sort((a, b) => a.daysLeft - b.daysLeft)
-    const byClient = lots.reduce((acc, lot) => {
-      const name = lot.clients?.name || 'Sin cliente'
-      acc[name] = (acc[name] || 0) + Number(lot.current_quantity || 0)
-      return acc
-    }, {})
-    return { totalStock, expiringLots, expiredLots, entriesToday, exitsToday, locationCount: locations.size, byClient }
+    return { totalStock, expiringLots, expiredLots, entriesToday, exitsToday, locationCount: locations.size }
   }, [lots, movements])
 
   const recentMovements = movements.slice(0, 8)
@@ -209,9 +203,9 @@ export default function Dashboard() {
         </Link>
       </section>
 
-      {dashboardNotice ? (
-        <div className="mt-4 rounded-lg bg-amber-50 p-3 text-sm font-bold text-amber-800">
-          {dashboardNotice}
+      {dashboardError ? (
+        <div className="mt-4 rounded-lg bg-red-50 p-3 text-sm font-bold text-red-700">
+          {dashboardError}
         </div>
       ) : null}
 
@@ -262,7 +256,9 @@ export default function Dashboard() {
               <div key={movement.id} className="rounded-lg bg-slate-50 p-3">
                 <div className="flex justify-between gap-3">
                   <p className="font-semibold text-slate-900">{movementLabel(movement.type)}</p>
-                  <p className="text-sm font-bold text-campo-700">{formatNumber(movement.quantity)}</p>
+                  {movement.type !== 'traslado' ? (
+                    <p className="text-sm font-bold text-campo-700">{formatNumber(movement.quantity)}</p>
+                  ) : null}
                 </div>
                 <p className="text-sm text-slate-500">
                   {displayLotCode(movement.lots?.lot_code)} - {cleanProductName(movement.lots?.product)}
@@ -308,24 +304,6 @@ export default function Dashboard() {
                 </Link>
               ))
             )}
-          </div>
-        </div>
-
-        <div className="panel">
-          <div className="mb-3 flex items-center gap-2">
-            <Users size={20} className="text-campo-700" />
-            <h3 className="font-bold text-slate-900">Cantidad por cliente</h3>
-          </div>
-          <div className="max-h-[420px] space-y-3 overflow-y-auto pr-1">
-            {Object.entries(stats.byClient).map(([client, quantity]) => (
-              <div key={client}>
-                <div className="flex justify-between gap-3 text-sm">
-                  <span className="font-semibold text-slate-700">{client}</span>
-                  <span className="font-bold text-slate-900">{formatNumber(quantity)}</span>
-                </div>
-                <div className="mt-2 h-1.5 rounded-full bg-gradient-to-r from-campo-500/55 via-maiz/45 to-campo-500/25" />
-              </div>
-            ))}
           </div>
         </div>
       </section>

@@ -4,6 +4,7 @@ import EmptyState from '../components/EmptyState'
 import PageHeader from '../components/PageHeader'
 import { useAuth } from '../hooks/useAuth.jsx'
 import { supabase } from '../lib/supabase'
+import { formatNumber } from '../lib/format'
 
 const initialForm = { name: '', contact: '', notes: '' }
 
@@ -20,14 +21,28 @@ export default function Clients() {
   const [editingId, setEditingId] = useState(null)
   const [selectedClient, setSelectedClient] = useState(null)
   const [showForm, setShowForm] = useState(false)
+  const [clientStats, setClientStats] = useState({})
 
   useEffect(() => {
     loadClients()
   }, [])
 
   async function loadClients() {
-    const { data } = await supabase.from('clients').select('*').order('name')
-    setClients(data || [])
+    const [{ data: clientsData }, { data: lotsData }] = await Promise.all([
+      supabase.from('clients').select('*').order('name'),
+      supabase.from('lots').select('client_id, current_quantity'),
+    ])
+
+    const stats = {}
+    ;(lotsData || []).forEach((lot) => {
+      if (!lot.client_id) return
+      if (!stats[lot.client_id]) stats[lot.client_id] = { lots: 0, quantity: 0 }
+      stats[lot.client_id].lots += 1
+      stats[lot.client_id].quantity += Number(lot.current_quantity || 0)
+    })
+
+    setClients(clientsData || [])
+    setClientStats(stats)
   }
 
   function startCreate() {
@@ -114,7 +129,9 @@ export default function Clients() {
               <div className="flex items-center justify-between gap-3">
                 <button className="min-w-0 flex-1 text-left" type="button" onClick={() => setSelectedClient(client)}>
                   <h3 className="truncate text-sm font-bold text-slate-900">{client.name}</h3>
-                  {client.contact ? <p className="truncate text-xs font-semibold text-slate-500">{client.contact}</p> : null}
+                  <p className="truncate text-xs font-semibold text-campo-700">
+                    {formatNumber(clientStats[client.id]?.quantity || 0)} envases · {clientStats[client.id]?.lots || 0} lotes
+                  </p>
                 </button>
                 {isAdmin ? (
                   <button className="btn-secondary !min-h-10 !px-3" type="button" onClick={() => startEdit(client)}>
@@ -141,6 +158,12 @@ export default function Clients() {
             </div>
 
             <div className="space-y-3">
+              <Info
+                label="Inventario"
+                value={`${formatNumber(clientStats[selectedClient.id]?.quantity || 0)} envases · ${
+                  clientStats[selectedClient.id]?.lots || 0
+                } lotes`}
+              />
               <Info label="Contacto" value={selectedClient.contact || 'Sin contacto registrado'} />
               {cleanClientNotes(selectedClient.notes) ? (
                 <Info label="Observaciones" value={cleanClientNotes(selectedClient.notes)} />

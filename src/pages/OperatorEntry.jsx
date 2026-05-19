@@ -28,7 +28,7 @@ function createOperatorLotCode() {
 
 export default function OperatorEntry() {
   const navigate = useNavigate()
-  const { user } = useAuth()
+  const { user, isOperator } = useAuth()
   const [clients, setClients] = useState([])
   const [form, setForm] = useState(initialForm)
   const [photoFile, setPhotoFile] = useState(null)
@@ -161,7 +161,7 @@ export default function OperatorEntry() {
       )
 
       setTimeout(() => {
-        navigate('/operacion')
+        navigate(isOperator ? '/operacion' : '/')
       }, 900)
     } catch (entryError) {
       setError(entryError.message?.includes('duplicate') ? 'Ese ID de lote ya existe. Usa otro ID.' : entryError.message)
