@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { AlertTriangle, Boxes, CalendarClock, Check, Clock3, Download, LogOut, MapPinned, PackagePlus, Users, Wrench, X } from 'lucide-react'
+import { Boxes, CalendarClock, Check, Clock3, Download, LogOut, PackagePlus, Users, Wrench, X } from 'lucide-react'
 import PageHeader from '../components/PageHeader'
 import { useAuth } from '../hooks/useAuth.jsx'
 import { supabase } from '../lib/supabase'
@@ -11,7 +11,7 @@ export default function Dashboard() {
   const { user } = useAuth()
   const [lots, setLots] = useState([])
   const [movements, setMovements] = useState([])
-  const [pendingAdjustments, setPendingAdjustments] = useState([])
+  const [pendingMovements, setPendingMovements] = useState([])
 
   useEffect(() => {
     loadData()
@@ -36,13 +36,13 @@ export default function Dashboard() {
       supabase
         .from('movements')
         .select('*, lots(product, lot_code, current_quantity, clients(name)), profiles(full_name)')
-        .eq('type', 'ajuste')
+        .in('type', ['ajuste', 'traslado'])
         .eq('approval_status', 'pendiente')
         .order('created_at', { ascending: false }),
     ])
     setLots(lotsData || [])
     setMovements(movementsData || [])
-    setPendingAdjustments(pendingData || [])
+    setPendingMovements(pendingData || [])
   }
 
   const stats = useMemo(() => {
@@ -75,6 +75,8 @@ export default function Dashboard() {
     }, {})
     return { totalStock, expiringLots, expiredLots, entriesToday, exitsToday, locationCount: locations.size, byClient }
   }, [lots, movements])
+
+  const recentMovements = movements.slice(0, 8)
 
   function exportInventoryExcel() {
     const headers = ['Cliente', 'Lote', 'Producto', 'Envases', 'Presentacion', 'Equivalente', 'Ubicacion', 'Ingreso', 'Vencimiento', 'Estado']
@@ -128,14 +130,7 @@ export default function Dashboard() {
         <StatCard icon={Boxes} label="Productos almacenados" value={formatNumber(stats.totalStock)} />
         <StatCard icon={PackagePlus} label="Ingresos hoy" value={stats.entriesToday} />
         <StatCard icon={LogOut} label="Salidas hoy" value={stats.exitsToday} />
-        <StatCard icon={AlertTriangle} label="Lotes vencidos" value={stats.expiredLots.length} />
-      </section>
-
-      <section className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard icon={CalendarClock} label="Vencen pronto" value={stats.expiringLots.length} />
-        <StatCard icon={Wrench} label="Reparaciones pendientes" value={pendingAdjustments.length} />
-        <StatCard icon={MapPinned} label="Ocupacion almacen" value={`${lots.length} lotes`} />
-        <StatCard icon={Users} label="Ubicaciones activas" value={stats.locationCount} />
+        <StatCard icon={Wrench} label="Pendientes" value={pendingMovements.length} />
       </section>
 
       <section className="mt-5 grid gap-3 md:grid-cols-3">
@@ -154,17 +149,20 @@ export default function Dashboard() {
         <div className="panel">
           <div className="mb-3 flex items-center gap-2">
             <Wrench size={20} className="text-orange-500" />
-            <h3 className="font-bold text-slate-900">Reparaciones pendientes</h3>
+            <h3 className="font-bold text-slate-900">Pendientes</h3>
           </div>
-          <div className="max-h-[420px] space-y-3 overflow-y-auto pr-1">
-            {pendingAdjustments.length === 0 ? (
-              <div className="rounded-lg bg-campo-50 p-3 text-sm font-bold text-campo-700">No hay reparaciones pendientes.</div>
+          <div className="max-h-[360px] space-y-2 overflow-y-auto pr-1">
+            {pendingMovements.length === 0 ? (
+              <div className="rounded-lg bg-campo-50 p-3 text-sm font-bold text-campo-700">No hay reparaciones ni traslados pendientes.</div>
             ) : (
-              pendingAdjustments.map((movement) => (
+              pendingMovements.map((movement) => (
                 <div key={movement.id} className="rounded-lg bg-orange-50 p-3">
-                  <p className="font-bold text-slate-900">{displayLotCode(movement.lots?.lot_code)} - {cleanProductName(movement.lots?.product)}</p>
+                  <p className="font-bold text-slate-900">{movementLabel(movement.type)} - {displayLotCode(movement.lots?.lot_code)}</p>
+                  <p className="text-sm font-semibold text-slate-700">{cleanProductName(movement.lots?.product)}</p>
                   <p className="text-sm font-semibold text-slate-600">
-                    Actual: {formatNumber(movement.previous_quantity)} env. - Solicitado: {formatNumber(movement.quantity)} env.
+                    {movement.type === 'traslado'
+                      ? `De ${movement.from_location || '-'} a ${movement.to_location || '-'}`
+                      : `Actual: ${formatNumber(movement.previous_quantity)} env. - Solicitado: ${formatNumber(movement.quantity)} env.`}
                   </p>
                   <p className="text-xs text-slate-500">{movement.profiles?.full_name || 'Usuario'} - {movement.lots?.clients?.name || '-'}</p>
                   {movement.notes ? <p className="mt-1 text-xs text-slate-600">{movement.notes}</p> : null}
@@ -187,8 +185,10 @@ export default function Dashboard() {
             <Clock3 size={20} className="text-campo-700" />
             <h3 className="font-bold text-slate-900">Movimientos recientes</h3>
           </div>
-          <div className="max-h-[420px] space-y-3 overflow-y-auto pr-1">
-            {movements.map((movement) => (
+          <div className="max-h-[360px] space-y-2 overflow-y-auto pr-1">
+            {recentMovements.length === 0 ? (
+              <div className="rounded-lg bg-slate-50 p-3 text-sm font-bold text-slate-600">Todavia no hay movimientos registrados.</div>
+            ) : recentMovements.map((movement) => (
               <div key={movement.id} className="rounded-lg bg-slate-50 p-3">
                 <div className="flex justify-between gap-3">
                   <p className="font-semibold text-slate-900">{movementLabel(movement.type)}</p>

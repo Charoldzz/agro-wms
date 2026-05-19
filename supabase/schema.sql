@@ -175,6 +175,35 @@ begin
     end if;
     v_new_quantity := p_quantity;
   elsif p_type = 'traslado' then
+    if v_role = 'operador' then
+      insert into public.movements (
+        lot_id,
+        type,
+        quantity,
+        previous_quantity,
+        new_quantity,
+        from_location,
+        to_location,
+        notes,
+        user_id,
+        approval_status
+      )
+      values (
+        p_lot_id,
+        p_type,
+        p_quantity,
+        v_lot.current_quantity,
+        v_lot.current_quantity,
+        v_lot.location,
+        p_to_location,
+        p_notes,
+        p_user_id,
+        'pendiente'
+      )
+      returning id into v_movement_id;
+
+      return v_movement_id;
+    end if;
     v_new_quantity := v_lot.current_quantity;
   else
     raise exception 'Tipo de movimiento inválido.';
@@ -236,7 +265,7 @@ begin
   where id = auth.uid();
 
   if v_role <> 'administrador' then
-    raise exception 'Solo un administrador puede aprobar reparaciones.';
+    raise exception 'Solo un administrador puede aprobar movimientos pendientes.';
   end if;
 
   select * into v_movement
@@ -248,17 +277,23 @@ begin
     raise exception 'Movimiento no encontrado.';
   end if;
 
-  if v_movement.type <> 'ajuste' or v_movement.approval_status <> 'pendiente' then
+  if v_movement.type not in ('ajuste', 'traslado') or v_movement.approval_status <> 'pendiente' then
     raise exception 'Este movimiento no esta pendiente de aprobacion.';
   end if;
 
-  update public.lots
-  set current_quantity = v_movement.quantity
-  where id = v_movement.lot_id;
+  if v_movement.type = 'ajuste' then
+    update public.lots
+    set current_quantity = v_movement.quantity
+    where id = v_movement.lot_id;
+  elsif v_movement.type = 'traslado' then
+    update public.lots
+    set location = v_movement.to_location
+    where id = v_movement.lot_id;
+  end if;
 
   update public.movements
   set
-    new_quantity = v_movement.quantity,
+    new_quantity = case when v_movement.type = 'ajuste' then v_movement.quantity else v_movement.previous_quantity end,
     approval_status = 'aprobado',
     approved_by = p_user_id,
     approved_at = now()
@@ -296,7 +331,7 @@ begin
     approved_by = p_user_id,
     approved_at = now()
   where id = p_movement_id
-    and type = 'ajuste'
+    and type in ('ajuste', 'traslado')
     and approval_status = 'pendiente';
 end;
 $$;

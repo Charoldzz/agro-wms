@@ -17,6 +17,8 @@ const initialMovement = {
   notes: '',
 }
 
+const internalLocations = ['Nave 1', 'Nave 2', 'Nave 3', 'Playa']
+
 function escapeHtml(value) {
   return String(value || '')
     .replaceAll('&', '&amp;')
@@ -258,6 +260,8 @@ export default function LotDetail() {
         })
       } else if (pendingMovement.type === 'ajuste') {
         setEmailStatus(isOperator ? 'Reparacion enviada para aprobacion del administrador.' : 'Reparacion aplicada.')
+      } else if (pendingMovement.type === 'traslado') {
+        setEmailStatus(isOperator ? 'Traslado enviado para aprobacion del administrador.' : 'Traslado aplicado.')
       } else {
         setEmailStatus('Movimiento guardado.')
       }
@@ -614,7 +618,12 @@ export default function LotDetail() {
           {movement.type === 'traslado' ? (
             <label className="sm:col-span-2">
               <span className="label">Nueva ubicación</span>
-              <input className="input mt-1" value={movement.to_location} onChange={(event) => setMovement({ ...movement, to_location: event.target.value })} required />
+              <select className="input mt-1" value={movement.to_location} onChange={(event) => setMovement({ ...movement, to_location: event.target.value })} required>
+                <option value="">Seleccionar ubicacion</option>
+                {internalLocations.map((locationName) => (
+                  <option key={locationName} value={locationName}>{locationName}</option>
+                ))}
+              </select>
             </label>
           ) : null}
           {movement.type === 'salida' ? (
