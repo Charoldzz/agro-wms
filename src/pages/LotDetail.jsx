@@ -4,7 +4,7 @@ import { Download, ExternalLink, QrCode, Save } from 'lucide-react'
 import PageHeader from '../components/PageHeader'
 import { useAuth } from '../hooks/useAuth.jsx'
 import { formatDate, formatNumber, movementLabel } from '../lib/format'
-import { createLotQrDataUrl } from '../lib/qr'
+import { createLotQrDataUrl, createLotUrl } from '../lib/qr'
 import { supabase } from '../lib/supabase'
 import { cleanProductName, displayLotCode } from '../lib/display'
 
@@ -24,6 +24,7 @@ export default function LotDetail() {
   const [qrDataUrl, setQrDataUrl] = useState('')
   const [error, setError] = useState('')
   const [saving, setSaving] = useState(false)
+  const lotUrl = createLotUrl(id)
 
   useEffect(() => {
     loadLot()
@@ -144,12 +145,23 @@ export default function LotDetail() {
               text-align: center;
               font-weight: 700;
             }
+            a {
+              display: block;
+              max-width: min(86vw, 520px);
+              color: #166534;
+              font-size: 12px;
+              line-height: 1.4;
+              overflow-wrap: anywhere;
+              text-align: center;
+              text-decoration: none;
+            }
           </style>
         </head>
         <body>
           <main>
             <img src="${qrDataUrl}" alt="QR ${lot.lot_code}" />
             <p>${lot.lot_code}</p>
+            <a href="${lotUrl}">${lotUrl}</a>
           </main>
         </body>
       </html>
@@ -194,6 +206,12 @@ export default function LotDetail() {
               <a className="btn-secondary w-full" href={qrDataUrl} download={`${lot.lot_code}-qr.png`}>
                 <Download size={20} /> Descargar PNG
               </a>
+              <a className="btn-primary w-full" href={lotUrl} target="_blank" rel="noreferrer">
+                <ExternalLink size={20} /> Abrir ficha
+              </a>
+              <p className="break-all rounded-lg bg-slate-50 p-2 text-xs font-semibold text-slate-500">
+                {lotUrl}
+              </p>
             </div>
           ) : null}
         </div>

@@ -1,142 +1,70 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
-import { Camera, ImagePlus, RefreshCcw } from 'lucide-react'
+import { useCallback, useRef, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { Camera, ImagePlus, QrCode } from 'lucide-react'
 import PageHeader from '../components/PageHeader'
 
-const readerId = 'qr-reader'
 const fileReaderId = 'qr-file-reader'
 
-function openLotPath(path) {
-  window.location.assign(`${window.location.origin}/#${path}`)
+async function decodeWithBarcodeDetector(file) {
+  if (!('BarcodeDetector' in window) || !('createImageBitmap' in window)) return null
+
+  try {
+    const detector = new window.BarcodeDetector({ formats: ['qr_code'] })
+    const bitmap = await createImageBitmap(file)
+    const codes = await detector.detect(bitmap)
+    bitmap.close?.()
+    return codes[0]?.rawValue || null
+  } catch {
+    return null
+  }
 }
 
-async function decodeWithBarcodeDetector(file) {
-  if (!('BarcodeDetector' in window)) return null
+function getLotPath(decodedText) {
+  const value = decodedText.trim()
+  const hashPathMatch = value.match(/#(\/lotes\/[^?#\s]+)/i)
+  if (hashPathMatch) return hashPathMatch[1]
 
-  const detector = new window.BarcodeDetector({ formats: ['qr_code'] })
-  const bitmap = await createImageBitmap(file)
-  const codes = await detector.detect(bitmap)
-  bitmap.close?.()
-  return codes[0]?.rawValue || null
+  const lotPathMatch = value.match(/\/lotes\/[^?#\s]+/i)
+  if (lotPathMatch) return lotPathMatch[0]
+
+  try {
+    const url = new URL(value, window.location.origin)
+    if (url.hash.startsWith('#/lotes/')) return url.hash.slice(1)
+    if (url.pathname.startsWith('/lotes/')) return url.pathname
+  } catch {
+    return null
+  }
+
+  return null
 }
 
 export default function Scanner() {
-  const qrRef = useRef(null)
-  const fileInputRef = useRef(null)
-  const [status, setStatus] = useState('Preparando camara...')
+  const navigate = useNavigate()
+  const cameraInputRef = useRef(null)
+  const galleryInputRef = useRef(null)
+  const [status, setStatus] = useState('Listo para leer QR')
   const [error, setError] = useState('')
-  const [restartKey, setRestartKey] = useState(0)
 
   const goToScannedLot = useCallback(
     (decodedText) => {
-      const value = decodedText.trim()
-      const hashPathMatch = value.match(/#(\/lotes\/[^?#\s]+)/i)
-      if (hashPathMatch) {
-        openLotPath(hashPathMatch[1])
-        return true
-      }
-
-      const lotPathMatch = value.match(/\/lotes\/[^?#\s]+/i)
-      if (lotPathMatch) {
-        openLotPath(lotPathMatch[0])
-        return true
-      }
-
-      const url = new URL(value, window.location.origin)
-      if (url.hash.startsWith('#/lotes/')) {
-        openLotPath(url.hash.slice(1))
-        return true
-      }
-
-      if (url.pathname.startsWith('/lotes/')) {
-        openLotPath(url.pathname)
-        return true
-      }
-
-      return false
+      const path = getLotPath(decodedText)
+      if (!path) return false
+      navigate(path)
+      return true
     },
-    [],
+    [navigate],
   )
 
-  useEffect(() => {
-    let cancelled = false
-
-    async function startScanner() {
-      setError('')
-      setStatus('Solicitando permiso de camara...')
-
-      try {
-        const { Html5Qrcode } = await import('html5-qrcode')
-        if (cancelled) return
-
-        const scanner = new Html5Qrcode(readerId)
-        qrRef.current = scanner
-
-        if (!window.isSecureContext && window.location.hostname !== 'localhost') {
-          setStatus('Camara bloqueada')
-          setError('El navegador bloquea la camara en HTTP. Usa localhost en la PC o publica la app con HTTPS.')
-          return
-        }
-
-        const cameras = await Html5Qrcode.getCameras()
-        if (cancelled) return
-
-        if (!cameras.length) {
-          setStatus('Sin camaras detectadas')
-          setError('No se detecto ninguna camara disponible.')
-          return
-        }
-
-        const backCamera =
-          cameras.find((camera) => /back|rear|environment|trasera/i.test(camera.label)) || cameras[0]
-
-        await scanner.start(
-          backCamera.id,
-          {
-            fps: 10,
-            qrbox: { width: 260, height: 260 },
-            aspectRatio: 1,
-          },
-          (decodedText) => {
-            setStatus('QR detectado')
-            scanner.stop().finally(() => {
-              if (!goToScannedLot(decodedText)) {
-                setError('El QR no corresponde a un lote de esta app.')
-                setStatus('Listo para escanear')
-              }
-            })
-          },
-        )
-
-        if (!cancelled) setStatus('Listo para escanear')
-      } catch {
-        if (!cancelled) {
-          setStatus('Camara no disponible')
-          setError('No se pudo abrir la camara. Revisa permisos del navegador o usa HTTPS.')
-        }
-      }
-    }
-
-    startScanner()
-
-    return () => {
-      cancelled = true
-      qrRef.current?.stop().catch(() => null)
-    }
-  }, [goToScannedLot, restartKey])
-
-  async function handleImageFile(event) {
-    const file = event.target.files?.[0]
-    if (!file) return
-
+  async function decodeImageFile(file) {
     setError('')
-    setStatus('Leyendo imagen...')
+    setStatus('Leyendo QR...')
 
     try {
       const nativeDecodedText = await decodeWithBarcodeDetector(file)
       if (nativeDecodedText) {
         if (!goToScannedLot(nativeDecodedText)) {
           setError('La imagen no contiene un QR de un lote de esta app.')
-          setStatus('Listo para escanear')
+          setStatus('Listo para leer QR')
         }
         return
       }
@@ -148,64 +76,70 @@ export default function Scanner() {
 
       if (!goToScannedLot(decodedText)) {
         setError('La imagen no contiene un QR de un lote de esta app.')
-        setStatus('Listo para escanear')
+        setStatus('Listo para leer QR')
       }
     } catch {
-      setError('No se pudo leer un QR en esa imagen.')
-      setStatus('Listo para escanear')
-    } finally {
-      event.target.value = ''
+      setError('No se pudo leer un QR en esa imagen. Usa la camara normal del telefono para abrir el enlace.')
+      setStatus('Listo para leer QR')
     }
+  }
+
+  async function handleImageFile(event) {
+    const file = event.target.files?.[0]
+    if (!file) return
+
+    await decodeImageFile(file)
+    event.target.value = ''
   }
 
   return (
     <div>
-      <PageHeader title="Escanear QR" subtitle="Apunta al codigo del lote" />
-      <div className="panel">
-        <div className="mb-3 flex items-center justify-between gap-3">
-          <div className="flex items-center gap-2 text-sm font-bold text-slate-700">
-            <Camera size={20} className="text-campo-700" />
-            {status}
-          </div>
-          <button
-            className="btn-secondary !min-h-10 !px-3 !py-2"
-            onClick={() => setRestartKey((value) => value + 1)}
-            type="button"
-            title="Reintentar camara"
-          >
-            <RefreshCcw size={18} />
-          </button>
-        </div>
+      <PageHeader title="Escanear QR" subtitle="El QR abre directamente la ficha del lote" />
 
-        <div className="relative min-h-[320px] overflow-hidden rounded-lg bg-slate-950">
-          <div id={readerId} className="min-h-[320px] w-full" />
-          {status !== 'Listo para escanear' && !error ? (
-            <div className="absolute inset-0 flex items-center justify-center bg-slate-950 text-sm font-semibold text-white">
-              {status}
-            </div>
-          ) : null}
+      <div className="panel space-y-4">
+        <div className="flex items-center gap-2">
+          <QrCode size={22} className="text-campo-700" />
+          <h3 className="font-bold text-slate-900">Metodo recomendado</h3>
         </div>
-
-        {error ? <p className="mt-4 rounded-lg bg-red-50 p-3 text-sm font-bold text-red-700">{error}</p> : null}
+        <p className="text-sm font-medium leading-relaxed text-slate-600">
+          Para mayor estabilidad, escanea el QR con la camara normal del telefono. El QR ya contiene el link
+          directo a la ficha del lote en Agro WMS.
+        </p>
+        <input
+          ref={cameraInputRef}
+          className="hidden"
+          type="file"
+          accept="image/*"
+          capture="environment"
+          onChange={handleImageFile}
+        />
+        <button className="btn-primary w-full" type="button" onClick={() => cameraInputRef.current?.click()}>
+          <Camera size={20} /> Tomar foto del QR
+        </button>
       </div>
 
-      <div className="panel mt-4 space-y-3">
+      <div className="panel mt-4 space-y-4">
         <div className="flex items-center gap-2">
           <ImagePlus size={20} className="text-campo-700" />
-          <h3 className="font-bold text-slate-900">Escanear desde galeria</h3>
+          <h3 className="font-bold text-slate-900">Leer QR guardado</h3>
         </div>
         <input
-          ref={fileInputRef}
+          ref={galleryInputRef}
           className="hidden"
           type="file"
           accept="image/*"
           onChange={handleImageFile}
         />
         <div id={fileReaderId} className="max-h-0 overflow-hidden opacity-0" />
-        <button className="btn-secondary w-full" type="button" onClick={() => fileInputRef.current?.click()}>
+        <button className="btn-secondary w-full" type="button" onClick={() => galleryInputRef.current?.click()}>
           <ImagePlus size={20} /> Elegir imagen con QR
         </button>
       </div>
+
+      <div className="mt-4 rounded-lg bg-white/85 p-3 text-sm font-bold text-slate-700 shadow-sm">
+        {status}
+      </div>
+      {error ? <p className="mt-3 rounded-lg bg-red-50 p-3 text-sm font-bold text-red-700">{error}</p> : null}
     </div>
   )
 }
