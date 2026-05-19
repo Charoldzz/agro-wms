@@ -9,6 +9,7 @@ import Lots from './pages/Lots'
 import LotDetail from './pages/LotDetail'
 import Scanner from './pages/Scanner'
 import Movements from './pages/Movements'
+import ProductLots from './pages/ProductLots'
 import { isSupabaseConfigured } from './lib/supabase'
 
 function ProtectedRoute({ children }) {
@@ -37,6 +38,7 @@ function AppRoutes() {
         <Route path="clientes" element={<Clients />} />
         <Route path="lotes" element={<Lots />} />
         <Route path="lotes/:id" element={<LotDetail />} />
+        <Route path="productos/:name" element={<ProductLots />} />
         <Route path="scanner" element={<Scanner />} />
         <Route path="movimientos" element={<Movements />} />
       </Route>

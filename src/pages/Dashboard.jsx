@@ -90,12 +90,7 @@ export default function Dashboard() {
                   <span className="font-semibold text-slate-700">{client}</span>
                   <span className="font-bold text-slate-900">{formatNumber(quantity)}</span>
                 </div>
-                <div className="mt-1 h-2 rounded-full bg-slate-100">
-                  <div
-                    className="h-2 rounded-full bg-campo-600"
-                    style={{ width: `${Math.min(100, (quantity / Math.max(stats.totalStock, 1)) * 100)}%` }}
-                  />
-                </div>
+                <div className="mt-2 h-1.5 rounded-full bg-gradient-to-r from-campo-500/55 via-maiz/45 to-campo-500/25" />
               </div>
             ))}
           </div>
