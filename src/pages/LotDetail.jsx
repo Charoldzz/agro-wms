@@ -11,6 +11,7 @@ import { cleanProductName, displayLotCode } from '../lib/display'
 const initialMovement = {
   type: 'entrada',
   quantity: '',
+  package_count: '',
   to_location: '',
   notes: '',
 }
@@ -26,13 +27,14 @@ function escapeHtml(value) {
 
 export default function LotDetail() {
   const { id } = useParams()
-  const { user } = useAuth()
+  const { user, isOperator } = useAuth()
   const [lot, setLot] = useState(null)
   const [movements, setMovements] = useState([])
   const [movement, setMovement] = useState(initialMovement)
   const [qrDataUrl, setQrDataUrl] = useState('')
   const [error, setError] = useState('')
   const [emailStatus, setEmailStatus] = useState('')
+  const [pendingMovement, setPendingMovement] = useState(null)
   const [saving, setSaving] = useState(false)
 
   useEffect(() => {
@@ -61,20 +63,41 @@ export default function LotDetail() {
     setMovements(movementsData || [])
   }
 
+  const computedQuantity = useMemo(() => {
+    if (!lot) return 0
+    if (['entrada', 'salida'].includes(movement.type) && Number(lot.package_size) > 0) {
+      return Number(movement.package_count || 0) * Number(lot.package_size)
+    }
+
+    return Number(movement.quantity || 0)
+  }, [lot, movement])
+
   const nextQuantity = useMemo(() => {
-    const quantity = Number(movement.quantity || 0)
+    const quantity = computedQuantity
     if (!lot) return 0
     if (movement.type === 'entrada') return Number(lot.current_quantity) + quantity
     if (movement.type === 'salida') return Number(lot.current_quantity) - quantity
     if (movement.type === 'ajuste') return quantity
     return Number(lot.current_quantity)
-  }, [lot, movement])
+  }, [lot, movement.type, computedQuantity])
+
+  const statusWarning = lot && lot.status !== 'activo'
+  const blocksSale = lot && ['retenido', 'cerrado'].includes(lot.status)
+  const isLargeSale =
+    movement.type === 'salida' &&
+    Number(lot?.current_quantity || 0) > 0 &&
+    computedQuantity >= Number(lot.current_quantity) * 0.5
 
   async function handleSubmit(event) {
     event.preventDefault()
     if (!lot) return
 
-    const quantity = Number(movement.quantity)
+    const quantity = movement.type === 'traslado' ? 0 : Number(computedQuantity)
+    if (movement.type === 'salida' && blocksSale) {
+      setError('No se puede registrar salida porque este lote esta retenido o cerrado.')
+      return
+    }
+
     if (movement.type === 'salida' && quantity > Number(lot.current_quantity)) {
       setError('No hay inventario suficiente.')
       return
@@ -89,21 +112,45 @@ export default function LotDetail() {
       return
     }
 
-    if (quantity < 0) {
-      setError('La cantidad no puede ser negativa.')
+    if (quantity < 0 || (movement.type !== 'traslado' && quantity === 0)) {
+      setError('La cantidad debe ser mayor a cero.')
       return
     }
 
+    if (movement.type === 'traslado' && !movement.to_location) {
+      setError('Selecciona la nueva ubicacion.')
+      return
+    }
+
+    if (movement.type === 'ajuste' && !movement.notes.trim()) {
+      setError('En ajustes debes escribir una observacion.')
+      return
+    }
+
+    setError('')
+    setPendingMovement({
+      ...movement,
+      quantity,
+      previousQuantity: Number(lot.current_quantity),
+      newQuantity: nextQuantity,
+      isLargeSale,
+    })
+  }
+
+  async function confirmMovement() {
+    if (!pendingMovement || !lot) return
+
+    const quantity = Number(pendingMovement.quantity)
     setSaving(true)
     setError('')
     setEmailStatus('')
 
     const { error: rpcError } = await supabase.rpc('register_movement', {
       p_lot_id: lot.id,
-      p_type: movement.type,
+      p_type: pendingMovement.type,
       p_quantity: quantity,
-      p_to_location: movement.to_location || null,
-      p_notes: movement.notes || null,
+      p_to_location: pendingMovement.to_location || null,
+      p_notes: pendingMovement.notes || null,
       p_user_id: user.id,
     })
 
@@ -117,14 +164,15 @@ export default function LotDetail() {
       }
     } else {
       await notifyOfficeMovement({
-        type: movement.type,
+        type: pendingMovement.type,
         quantity,
         previousQuantity: Number(lot.current_quantity),
-        newQuantity: nextQuantity,
-        toLocation: movement.to_location,
-        notes: movement.notes,
+        newQuantity: pendingMovement.newQuantity,
+        toLocation: pendingMovement.to_location,
+        notes: pendingMovement.notes,
       })
       setMovement(initialMovement)
+      setPendingMovement(null)
       await loadLot()
     }
 
@@ -333,6 +381,18 @@ export default function LotDetail() {
     <div>
       <PageHeader title={displayLotCode(lot.lot_code)} subtitle={`${cleanProductName(lot.product)} · ${lot.clients?.name}`} />
 
+      {isOperator ? (
+        <div className="mb-4 rounded-lg bg-campo-50 p-4 text-sm font-bold text-campo-700">
+          Modo operario: registra el movimiento y confirma antes de guardar.
+        </div>
+      ) : null}
+
+      {statusWarning ? (
+        <div className="mb-4 rounded-lg bg-amber-50 p-4 text-sm font-bold text-amber-800">
+          Alerta: este lote esta {lot.status}. Las salidas quedan bloqueadas si el lote esta retenido o cerrado.
+        </div>
+      ) : null}
+
       <section className="grid gap-4 lg:grid-cols-[1.2fr_0.8fr]">
         <div className="panel">
           {lot.photo_url ? <img className="mb-4 h-48 w-full rounded-lg object-cover" src={lot.photo_url} alt={cleanProductName(lot.product)} /> : null}
@@ -350,7 +410,8 @@ export default function LotDetail() {
           </div>
         </div>
 
-        <div className="panel text-center">
+        {!isOperator ? (
+          <div className="panel text-center">
           <div className="mb-3 flex items-center justify-center gap-2">
             <QrCode className="text-campo-700" />
             <h3 className="font-bold text-slate-900">QR del lote</h3>
@@ -370,7 +431,8 @@ export default function LotDetail() {
               </button>
             </div>
           ) : null}
-        </div>
+          </div>
+        ) : null}
       </section>
 
       <form className="panel mt-4 space-y-3" onSubmit={handleSubmit}>
@@ -385,21 +447,51 @@ export default function LotDetail() {
               <option value="ajuste">Ajuste de inventario</option>
             </select>
           </label>
-          <label>
-            <span className="label">{movement.type === 'ajuste' ? 'Nueva cantidad' : 'Cantidad'}</span>
-            <input
-              className="input mt-1"
-              type="text"
-              inputMode="decimal"
-              value={movement.quantity}
-              onChange={(event) => {
-                const value = event.target.value.replace(',', '.')
-                if (/^\d*\.?\d*$/.test(value)) setMovement({ ...movement, quantity: value })
-              }}
-              onWheel={(event) => event.currentTarget.blur()}
-              required
-            />
-          </label>
+          {['entrada', 'salida'].includes(movement.type) && Number(lot.package_size) > 0 ? (
+            <>
+              <label>
+                <span className="label">Cantidad de envases</span>
+                <input
+                  className="input mt-1"
+                  type="text"
+                  inputMode="decimal"
+                  value={movement.package_count}
+                  onChange={(event) => {
+                    const value = event.target.value.replace(',', '.')
+                    if (/^\d*\.?\d*$/.test(value)) setMovement({ ...movement, package_count: value })
+                  }}
+                  onWheel={(event) => event.currentTarget.blur()}
+                  required
+                />
+              </label>
+              <div>
+                <span className="label">Cantidad calculada</span>
+                <div className="mt-1 flex min-h-12 items-center rounded-lg border border-slate-200 bg-slate-50 px-3 py-3 text-base font-bold text-slate-950">
+                  {formatNumber(computedQuantity)} {lot.package_unit || ''}
+                </div>
+              </div>
+            </>
+          ) : movement.type !== 'traslado' ? (
+            <label>
+              <span className="label">{movement.type === 'ajuste' ? 'Nueva cantidad' : 'Cantidad'}</span>
+              <input
+                className="input mt-1"
+                type="text"
+                inputMode="decimal"
+                value={movement.quantity}
+                onChange={(event) => {
+                  const value = event.target.value.replace(',', '.')
+                  if (/^\d*\.?\d*$/.test(value)) setMovement({ ...movement, quantity: value })
+                }}
+                onWheel={(event) => event.currentTarget.blur()}
+                required
+              />
+            </label>
+          ) : (
+            <div className="rounded-lg bg-slate-50 p-3 text-sm font-bold text-slate-600">
+              El traslado solo cambia la ubicacion. El stock no cambia.
+            </div>
+          )}
           {movement.type === 'traslado' ? (
             <label className="sm:col-span-2">
               <span className="label">Nueva ubicación</span>
@@ -415,13 +507,61 @@ export default function LotDetail() {
         <div className="rounded-lg bg-campo-50 p-3 text-sm font-semibold text-campo-700">
           Stock después del movimiento: {formatNumber(nextQuantity)}
         </div>
+        {isLargeSale ? (
+          <div className="rounded-lg bg-amber-50 p-3 text-sm font-bold text-amber-800">
+            Advertencia: esta salida representa 50% o mas del stock disponible.
+          </div>
+        ) : null}
         {error ? <div className="rounded-lg bg-red-50 p-3 text-sm font-bold text-red-700">{error}</div> : null}
         {emailStatus ? <div className="rounded-lg bg-campo-50 p-3 text-sm font-bold text-campo-700">{emailStatus}</div> : null}
 
         <button className="btn-primary w-full" disabled={saving}>
-          <Save size={20} /> {saving ? 'Guardando...' : 'Guardar movimiento'}
+          <Save size={20} /> Revisar y confirmar
         </button>
       </form>
+
+      {pendingMovement ? (
+        <div className="fixed inset-0 z-40 flex items-end bg-slate-950/45 p-4 sm:items-center sm:justify-center">
+          <div className="w-full max-w-md rounded-xl bg-white p-4 shadow-xl">
+            <h3 className="text-xl font-bold text-slate-950">Confirmar movimiento</h3>
+            <p className="mt-2 text-sm font-semibold text-slate-500">
+              Vas a registrar {movementLabel(pendingMovement.type).toLowerCase()} de {formatNumber(pendingMovement.quantity)} {lot.package_unit || ''}.
+            </p>
+
+            <div className="mt-4 space-y-2 rounded-lg bg-slate-50 p-3 text-sm font-bold text-slate-700">
+              <div className="flex justify-between gap-3">
+                <span>Stock actual</span>
+                <span>{formatNumber(pendingMovement.previousQuantity)}</span>
+              </div>
+              <div className="flex justify-between gap-3">
+                <span>Stock despues</span>
+                <span>{formatNumber(pendingMovement.newQuantity)}</span>
+              </div>
+              {pendingMovement.to_location ? (
+                <div className="flex justify-between gap-3">
+                  <span>Nueva ubicacion</span>
+                  <span>{pendingMovement.to_location}</span>
+                </div>
+              ) : null}
+            </div>
+
+            {pendingMovement.isLargeSale ? (
+              <div className="mt-3 rounded-lg bg-amber-50 p-3 text-sm font-bold text-amber-800">
+                Esta salida es grande. Revisa antes de confirmar.
+              </div>
+            ) : null}
+
+            <div className="mt-4 grid grid-cols-2 gap-2">
+              <button className="btn-secondary w-full" type="button" onClick={() => setPendingMovement(null)} disabled={saving}>
+                Cancelar
+              </button>
+              <button className="btn-primary w-full" type="button" onClick={confirmMovement} disabled={saving}>
+                {saving ? 'Guardando...' : 'Confirmar'}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       <section className="mt-4">
         <h3 className="mb-3 text-lg font-bold text-slate-950">Historial completo</h3>

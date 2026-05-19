@@ -52,6 +52,8 @@ export function AuthProvider({ children }) {
       profile,
       loading,
       isAdmin: profile?.role === 'administrador',
+      isOperator: profile?.role === 'operador',
+      isOffice: profile?.role === 'oficina',
     }),
     [session, profile, loading],
   )

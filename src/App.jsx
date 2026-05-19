@@ -10,6 +10,7 @@ import LotDetail from './pages/LotDetail'
 import Scanner from './pages/Scanner'
 import Movements from './pages/Movements'
 import ProductLots from './pages/ProductLots'
+import Operation from './pages/Operation'
 import { isSupabaseConfigured } from './lib/supabase'
 
 function ProtectedRoute({ children }) {
@@ -22,7 +23,18 @@ function ProtectedRoute({ children }) {
   return children
 }
 
+function RoleRoute({ roles, children }) {
+  const { profile } = useAuth()
+
+  if (!roles.includes(profile?.role)) return <Navigate to="/operacion" replace />
+
+  return children
+}
+
 function AppRoutes() {
+  const { profile } = useAuth()
+  const homeElement = profile?.role === 'operador' ? <Operation /> : <Dashboard />
+
   return (
     <Routes>
       <Route path="/login" element={<Login />} />
@@ -34,13 +46,14 @@ function AppRoutes() {
           </ProtectedRoute>
         }
       >
-        <Route index element={<Dashboard />} />
-        <Route path="clientes" element={<Clients />} />
-        <Route path="lotes" element={<Lots />} />
+        <Route index element={homeElement} />
+        <Route path="operacion" element={<Operation />} />
+        <Route path="clientes" element={<RoleRoute roles={['administrador', 'oficina']}><Clients /></RoleRoute>} />
+        <Route path="lotes" element={<RoleRoute roles={['administrador', 'oficina']}><Lots /></RoleRoute>} />
         <Route path="lotes/:id" element={<LotDetail />} />
-        <Route path="productos/:name" element={<ProductLots />} />
+        <Route path="productos/:name" element={<RoleRoute roles={['administrador', 'oficina']}><ProductLots /></RoleRoute>} />
         <Route path="scanner" element={<Scanner />} />
-        <Route path="movimientos" element={<Movements />} />
+        <Route path="movimientos" element={<RoleRoute roles={['administrador', 'oficina']}><Movements /></RoleRoute>} />
       </Route>
     </Routes>
   )

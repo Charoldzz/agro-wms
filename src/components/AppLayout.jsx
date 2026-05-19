@@ -1,10 +1,11 @@
 import { Outlet, NavLink, useNavigate } from 'react-router-dom'
-import { Boxes, ClipboardList, Home, LogOut, ScanLine, Users } from 'lucide-react'
+import { Boxes, ClipboardList, Home, LogOut, ScanLine, Users, Warehouse } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../hooks/useAuth.jsx'
 
 const navItems = [
   { to: '/', label: 'Inicio', icon: Home },
+  { to: '/operacion', label: 'Operar', icon: Warehouse, roles: ['operador'] },
   { to: '/lotes', label: 'Lotes', icon: Boxes },
   { to: '/scanner', label: 'Scan', icon: ScanLine },
   { to: '/movimientos', label: 'Mov.', icon: ClipboardList },
@@ -14,6 +15,10 @@ const navItems = [
 export default function AppLayout() {
   const navigate = useNavigate()
   const { profile } = useAuth()
+  const visibleNavItems =
+    profile?.role === 'operador'
+      ? navItems.filter((item) => item.roles?.includes('operador') || item.to === '/scanner')
+      : navItems.filter((item) => !item.roles?.includes('operador'))
 
   async function signOut() {
     await supabase.auth.signOut()
@@ -46,8 +51,8 @@ export default function AppLayout() {
       </main>
 
       <nav className="fixed inset-x-0 bottom-0 z-30 border-t border-slate-200 bg-white/95 backdrop-blur">
-        <div className="mx-auto grid max-w-5xl grid-cols-5 gap-1 px-2 py-2">
-          {navItems.map((item) => {
+        <div className={`mx-auto grid max-w-5xl gap-1 px-2 py-2 ${visibleNavItems.length <= 2 ? 'grid-cols-2' : 'grid-cols-5'}`}>
+          {visibleNavItems.map((item) => {
             const Icon = item.icon
             return (
               <NavLink
