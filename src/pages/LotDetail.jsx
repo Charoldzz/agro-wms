@@ -13,6 +13,7 @@ const initialMovement = {
   quantity: '',
   package_count: '',
   to_location: '',
+  dispatcher_signature: '',
   notes: '',
 }
 
@@ -37,6 +38,7 @@ export default function LotDetail() {
   const [emailStatus, setEmailStatus] = useState('')
   const [pendingMovement, setPendingMovement] = useState(null)
   const [saving, setSaving] = useState(false)
+  const [fefoLot, setFefoLot] = useState(null)
 
   useEffect(() => {
     loadLot()
@@ -61,6 +63,39 @@ export default function LotDetail() {
       setMovement((value) => ({ ...value, type: 'traslado' }))
     }
   }, [id, location.state])
+
+  useEffect(() => {
+    async function loadFefoWarning() {
+      if (!lot?.product || movement.type !== 'salida') {
+        setFefoLot(null)
+        return
+      }
+
+      const { data } = await supabase
+        .from('lots')
+        .select('id, lot_code, expiry_date, current_quantity, location')
+        .eq('product', lot.product)
+        .neq('id', lot.id)
+        .gt('current_quantity', 0)
+        .not('expiry_date', 'is', null)
+        .order('expiry_date', { ascending: true })
+        .limit(1)
+
+      const earlierLot = data?.[0]
+      if (!earlierLot) {
+        setFefoLot(null)
+        return
+      }
+
+      if (!lot.expiry_date || new Date(`${earlierLot.expiry_date}T00:00:00`) < new Date(`${lot.expiry_date}T00:00:00`)) {
+        setFefoLot(earlierLot)
+      } else {
+        setFefoLot(null)
+      }
+    }
+
+    loadFefoWarning()
+  }, [lot, movement.type])
 
   async function loadLot() {
     const [{ data: lotData }, { data: movementsData }] = await Promise.all([
@@ -144,6 +179,16 @@ export default function LotDetail() {
       return
     }
 
+    if (movement.type === 'salida' && !movement.to_location.trim()) {
+      setError('Escribe el destino del despacho.')
+      return
+    }
+
+    if (movement.type === 'salida' && !movement.dispatcher_signature.trim()) {
+      setError('Escribe la firma o nombre del despachante.')
+      return
+    }
+
     if (quantity < 0 || (movement.type !== 'traslado' && quantity === 0)) {
       setError('La cantidad debe ser mayor a cero.')
       return
@@ -166,6 +211,7 @@ export default function LotDetail() {
       calculatedQuantity: calculatedPresentationQuantity,
       previousQuantity: Number(lot.current_quantity),
       newQuantity: nextQuantity,
+      fefoLot,
       isLargeSale,
     })
   }
@@ -178,12 +224,19 @@ export default function LotDetail() {
     setError('')
     setEmailStatus('')
 
+    const movementNotes = [
+      pendingMovement.notes || null,
+      pendingMovement.dispatcher_signature ? `Despachante: ${pendingMovement.dispatcher_signature}` : null,
+    ]
+      .filter(Boolean)
+      .join(' | ')
+
     const { error: rpcError } = await supabase.rpc('register_movement', {
       p_lot_id: lot.id,
       p_type: pendingMovement.type,
       p_quantity: quantity,
       p_to_location: pendingMovement.to_location || null,
-      p_notes: pendingMovement.notes || null,
+      p_notes: movementNotes || null,
       p_user_id: user.id,
     })
 
@@ -194,14 +247,20 @@ export default function LotDetail() {
         setError(rpcError.message)
       }
     } else {
-      await notifyOfficeMovement({
-        type: pendingMovement.type,
-        quantity,
-        previousQuantity: Number(lot.current_quantity),
-        newQuantity: pendingMovement.newQuantity,
-        toLocation: pendingMovement.to_location,
-        notes: pendingMovement.notes,
-      })
+      if (['entrada', 'salida'].includes(pendingMovement.type)) {
+        await notifyOfficeMovement({
+          type: pendingMovement.type,
+          quantity,
+          previousQuantity: Number(lot.current_quantity),
+          newQuantity: pendingMovement.newQuantity,
+          toLocation: pendingMovement.to_location,
+          notes: movementNotes,
+        })
+      } else if (pendingMovement.type === 'ajuste') {
+        setEmailStatus(isOperator ? 'Reparacion enviada para aprobacion del administrador.' : 'Reparacion aplicada.')
+      } else {
+        setEmailStatus('Movimiento guardado.')
+      }
       setMovement(initialMovement)
       setPendingMovement(null)
       await loadLot()
@@ -558,6 +617,18 @@ export default function LotDetail() {
               <input className="input mt-1" value={movement.to_location} onChange={(event) => setMovement({ ...movement, to_location: event.target.value })} required />
             </label>
           ) : null}
+          {movement.type === 'salida' ? (
+            <>
+              <label className="sm:col-span-2">
+                <span className="label">Destino / receptor</span>
+                <input className="input mt-1" value={movement.to_location} onChange={(event) => setMovement({ ...movement, to_location: event.target.value })} required />
+              </label>
+              <label className="sm:col-span-2">
+                <span className="label">Firma despachante</span>
+                <input className="input mt-1" value={movement.dispatcher_signature} onChange={(event) => setMovement({ ...movement, dispatcher_signature: event.target.value })} placeholder="Nombre o firma del responsable" required />
+              </label>
+            </>
+          ) : null}
           <label className="sm:col-span-2">
             <span className="label">Observaciones</span>
             <textarea className="input mt-1" rows="3" value={movement.notes} onChange={(event) => setMovement({ ...movement, notes: event.target.value })} />
@@ -584,6 +655,11 @@ export default function LotDetail() {
         {saleExpiryWarning && !isExpired ? (
           <div className="rounded-lg bg-amber-50 p-3 text-sm font-bold text-amber-800">
             Advertencia: este lote vence {expiryDaysLeft === 0 ? 'hoy' : `en ${expiryDaysLeft} dias`}. Verifica antes de despachar.
+          </div>
+        ) : null}
+        {movement.type === 'salida' && fefoLot ? (
+          <div className="rounded-lg bg-amber-50 p-3 text-sm font-bold text-amber-800">
+            FEFO: existe un lote que vence antes ({displayLotCode(fefoLot.lot_code)}, vence {formatDate(fefoLot.expiry_date)}, {formatNumber(fefoLot.current_quantity)} envases en {fefoLot.location}). Revisa antes de despachar este lote.
           </div>
         ) : null}
         {movement.type === 'salida' && movementMode !== 'despacho' ? (
@@ -635,8 +711,14 @@ export default function LotDetail() {
               ) : null}
               {pendingMovement.to_location ? (
                 <div className="flex justify-between gap-3">
-                  <span>Nueva ubicacion</span>
+                  <span>{pendingMovement.type === 'salida' ? 'Destino' : 'Nueva ubicacion'}</span>
                   <span>{pendingMovement.to_location}</span>
+                </div>
+              ) : null}
+              {pendingMovement.dispatcher_signature ? (
+                <div className="flex justify-between gap-3">
+                  <span>Despachante</span>
+                  <span>{pendingMovement.dispatcher_signature}</span>
                 </div>
               ) : null}
             </div>
@@ -644,6 +726,11 @@ export default function LotDetail() {
             {pendingMovement.isLargeSale ? (
               <div className="mt-3 rounded-lg bg-amber-50 p-3 text-sm font-bold text-amber-800">
                 Esta salida es grande. Revisa antes de confirmar.
+              </div>
+            ) : null}
+            {pendingMovement.fefoLot ? (
+              <div className="mt-3 rounded-lg bg-amber-50 p-3 text-sm font-bold text-amber-800">
+                FEFO advierte que hay un lote con vencimiento anterior.
               </div>
             ) : null}
 
@@ -666,8 +753,14 @@ export default function LotDetail() {
             <article key={item.id} className="panel">
               <div className="flex justify-between gap-3">
                 <div>
-                  <p className="font-bold text-slate-900">{movementLabel(item.type)}</p>
-                  <p className="text-sm text-slate-500">{formatDate(item.created_at)}</p>
+                <p className="font-bold text-slate-900">{movementLabel(item.type)}</p>
+                <p className="text-sm text-slate-500">{formatDate(item.created_at)}</p>
+                {item.approval_status === 'pendiente' ? (
+                  <p className="mt-1 inline-flex rounded-full bg-orange-50 px-2 py-1 text-xs font-bold text-orange-700">Pendiente de aprobacion</p>
+                ) : null}
+                {item.approval_status === 'rechazado' ? (
+                  <p className="mt-1 inline-flex rounded-full bg-red-50 px-2 py-1 text-xs font-bold text-red-700">Rechazado</p>
+                ) : null}
                 </div>
                 <p className="text-xl font-bold text-campo-700">{formatNumber(item.quantity)}</p>
               </div>

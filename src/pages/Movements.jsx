@@ -79,7 +79,7 @@ export default function Movements() {
           <option value="entrada">Entrada</option>
           <option value="salida">Salida</option>
           <option value="traslado">Traslado interno</option>
-          <option value="ajuste">Ajuste</option>
+          <option value="ajuste">Reparo</option>
         </select>
       </section>
 
@@ -100,6 +100,12 @@ export default function Movements() {
                       <div>
                         <p className="font-bold text-slate-950">{movementLabel(movement.type)}</p>
                         <p className="text-sm text-slate-500">{formatDate(movement.created_at)}</p>
+                        {movement.approval_status === 'pendiente' ? (
+                          <p className="mt-1 inline-flex rounded-full bg-orange-50 px-2 py-1 text-xs font-bold text-orange-700">Pendiente de aprobacion</p>
+                        ) : null}
+                        {movement.approval_status === 'rechazado' ? (
+                          <p className="mt-1 inline-flex rounded-full bg-red-50 px-2 py-1 text-xs font-bold text-red-700">Rechazado</p>
+                        ) : null}
                       </div>
                       <p className="text-xl font-bold text-campo-700">{formatNumber(movement.quantity)}</p>
                     </div>

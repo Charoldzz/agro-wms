@@ -7,7 +7,7 @@ export default function Operation() {
     <div>
       <PageHeader title="Modo operario" subtitle="Ingresos, despachos y control de almacen" />
 
-      <section className="grid gap-3">
+      <section className="grid gap-3 md:grid-cols-3">
         <Link className="btn-primary min-h-20 !justify-start !px-5 text-left text-lg" to="/operacion/nuevo-ingreso">
           <PackagePlus size={28} /> Nuevo ingreso
         </Link>

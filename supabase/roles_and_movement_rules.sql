@@ -5,6 +5,11 @@ where role::text = 'oficina';
 alter table public.lots
 add column if not exists expiry_date date;
 
+alter table public.movements
+add column if not exists approval_status text not null default 'aprobado',
+add column if not exists approved_by uuid references public.profiles(id),
+add column if not exists approved_at timestamptz;
+
 insert into storage.buckets (id, name, public)
 values ('lot-photos', 'lot-photos', true)
 on conflict (id) do update set public = true;
@@ -52,6 +57,7 @@ declare
   v_lot public.lots%rowtype;
   v_new_quantity numeric(12, 2);
   v_movement_id uuid;
+  v_role public.user_role;
 begin
   if p_user_id <> auth.uid() then
     raise exception 'El usuario del movimiento no coincide con la sesion activa.';
@@ -60,6 +66,10 @@ begin
   if p_quantity < 0 then
     raise exception 'La cantidad no puede ser negativa.';
   end if;
+
+  select role into v_role
+  from public.profiles
+  where id = auth.uid();
 
   select * into v_lot
   from public.lots
@@ -88,6 +98,35 @@ begin
   elsif p_type = 'ajuste' then
     if coalesce(trim(p_notes), '') = '' then
       raise exception 'Los ajustes requieren observacion.';
+    end if;
+    if v_role = 'operador' then
+      insert into public.movements (
+        lot_id,
+        type,
+        quantity,
+        previous_quantity,
+        new_quantity,
+        from_location,
+        to_location,
+        notes,
+        user_id,
+        approval_status
+      )
+      values (
+        p_lot_id,
+        p_type,
+        p_quantity,
+        v_lot.current_quantity,
+        v_lot.current_quantity,
+        v_lot.location,
+        p_to_location,
+        p_notes,
+        p_user_id,
+        'pendiente'
+      )
+      returning id into v_movement_id;
+
+      return v_movement_id;
     end if;
     v_new_quantity := p_quantity;
   elsif p_type = 'traslado' then
@@ -130,6 +169,93 @@ begin
   returning id into v_movement_id;
 
   return v_movement_id;
+end;
+$$;
+
+create or replace function public.approve_adjustment(
+  p_movement_id uuid,
+  p_user_id uuid
+)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_role public.user_role;
+  v_movement public.movements%rowtype;
+begin
+  if p_user_id <> auth.uid() then
+    raise exception 'El usuario no coincide con la sesion activa.';
+  end if;
+
+  select role into v_role
+  from public.profiles
+  where id = auth.uid();
+
+  if v_role <> 'administrador' then
+    raise exception 'Solo un administrador puede aprobar reparaciones.';
+  end if;
+
+  select * into v_movement
+  from public.movements
+  where id = p_movement_id
+  for update;
+
+  if not found then
+    raise exception 'Movimiento no encontrado.';
+  end if;
+
+  if v_movement.type <> 'ajuste' or v_movement.approval_status <> 'pendiente' then
+    raise exception 'Este movimiento no esta pendiente de aprobacion.';
+  end if;
+
+  update public.lots
+  set current_quantity = v_movement.quantity
+  where id = v_movement.lot_id;
+
+  update public.movements
+  set
+    new_quantity = v_movement.quantity,
+    approval_status = 'aprobado',
+    approved_by = p_user_id,
+    approved_at = now()
+  where id = p_movement_id;
+end;
+$$;
+
+create or replace function public.reject_adjustment(
+  p_movement_id uuid,
+  p_user_id uuid
+)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_role public.user_role;
+begin
+  if p_user_id <> auth.uid() then
+    raise exception 'El usuario no coincide con la sesion activa.';
+  end if;
+
+  select role into v_role
+  from public.profiles
+  where id = auth.uid();
+
+  if v_role <> 'administrador' then
+    raise exception 'Solo un administrador puede rechazar reparaciones.';
+  end if;
+
+  update public.movements
+  set
+    approval_status = 'rechazado',
+    approved_by = p_user_id,
+    approved_at = now()
+  where id = p_movement_id
+    and type = 'ajuste'
+    and approval_status = 'pendiente';
 end;
 $$;
 

@@ -1,14 +1,17 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Boxes, CalendarClock, Clock3, LogOut, MapPinned, PackagePlus, Users, Wrench } from 'lucide-react'
+import { AlertTriangle, Boxes, CalendarClock, Check, Clock3, Download, LogOut, MapPinned, PackagePlus, Users, Wrench, X } from 'lucide-react'
 import PageHeader from '../components/PageHeader'
+import { useAuth } from '../hooks/useAuth.jsx'
 import { supabase } from '../lib/supabase'
 import { formatDate, formatNumber, movementLabel } from '../lib/format'
 import { cleanProductName, displayLotCode } from '../lib/display'
 
 export default function Dashboard() {
+  const { user } = useAuth()
   const [lots, setLots] = useState([])
   const [movements, setMovements] = useState([])
+  const [pendingAdjustments, setPendingAdjustments] = useState([])
 
   useEffect(() => {
     loadData()
@@ -23,16 +26,23 @@ export default function Dashboard() {
   }, [])
 
   async function loadData() {
-    const [{ data: lotsData }, { data: movementsData }] = await Promise.all([
+    const [{ data: lotsData }, { data: movementsData }, { data: pendingData }] = await Promise.all([
       supabase.from('lots').select('*, clients(name)').order('created_at', { ascending: false }),
       supabase
         .from('movements')
         .select('*, lots(product, lot_code), profiles(full_name)')
         .order('created_at', { ascending: false })
-        .limit(8),
+        .limit(500),
+      supabase
+        .from('movements')
+        .select('*, lots(product, lot_code, current_quantity, clients(name)), profiles(full_name)')
+        .eq('type', 'ajuste')
+        .eq('approval_status', 'pendiente')
+        .order('created_at', { ascending: false }),
     ])
     setLots(lotsData || [])
     setMovements(movementsData || [])
+    setPendingAdjustments(pendingData || [])
   }
 
   const stats = useMemo(() => {
@@ -40,8 +50,15 @@ export default function Dashboard() {
     const locations = new Set(lots.map((lot) => lot.location).filter(Boolean))
     const today = new Date()
     today.setHours(0, 0, 0, 0)
-    const limit = new Date(today)
-    limit.setDate(limit.getDate() + 90)
+    const tomorrow = new Date(today)
+    tomorrow.setDate(tomorrow.getDate() + 1)
+    const todaysMovements = movements.filter((movement) => {
+      const createdAt = new Date(movement.created_at)
+      return createdAt >= today && createdAt < tomorrow
+    })
+    const entriesToday = todaysMovements.filter((movement) => movement.type === 'entrada').length
+    const exitsToday = todaysMovements.filter((movement) => movement.type === 'salida').length
+    const expiredLots = lots.filter((lot) => lot.expiry_date && new Date(`${lot.expiry_date}T00:00:00`) < today)
     const expiringLots = lots
       .filter((lot) => lot.expiry_date)
       .map((lot) => {
@@ -56,17 +73,68 @@ export default function Dashboard() {
       acc[name] = (acc[name] || 0) + Number(lot.current_quantity || 0)
       return acc
     }, {})
-    return { totalStock, expiringLots, locationCount: locations.size, byClient }
-  }, [lots])
+    return { totalStock, expiringLots, expiredLots, entriesToday, exitsToday, locationCount: locations.size, byClient }
+  }, [lots, movements])
+
+  function exportInventoryExcel() {
+    const headers = ['Cliente', 'Lote', 'Producto', 'Envases', 'Presentacion', 'Equivalente', 'Ubicacion', 'Ingreso', 'Vencimiento', 'Estado']
+    const rows = lots.map((lot) => [
+      lot.clients?.name || '',
+      displayLotCode(lot.lot_code),
+      cleanProductName(lot.product),
+      formatNumber(lot.current_quantity),
+      lot.package_size ? `${formatNumber(lot.package_size)} ${lot.package_unit || ''}` : '',
+      lot.package_size ? `${formatNumber(Number(lot.current_quantity || 0) * Number(lot.package_size || 0))} ${lot.package_unit || ''}` : '',
+      lot.location || '',
+      lot.entry_date ? formatDate(lot.entry_date) : '',
+      lot.expiry_date ? formatDate(lot.expiry_date) : '',
+      lot.status || '',
+    ])
+    const tableRows = [headers, ...rows]
+      .map((row) => `<tr>${row.map((cell) => `<td>${String(cell).replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;')}</td>`).join('')}</tr>`)
+      .join('')
+    const html = `<html><head><meta charset="utf-8" /></head><body><table>${tableRows}</table></body></html>`
+    const blob = new Blob([html], { type: 'application/vnd.ms-excel;charset=utf-8' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `inventario-todo-agricola-${new Date().toISOString().slice(0, 10)}.xls`
+    link.click()
+    URL.revokeObjectURL(url)
+  }
+
+  async function reviewAdjustment(id, action) {
+    const fn = action === 'approve' ? 'approve_adjustment' : 'reject_adjustment'
+    await supabase.rpc(fn, {
+      p_movement_id: id,
+      p_user_id: user.id,
+    })
+    loadData()
+  }
 
   return (
     <div>
-      <PageHeader title="Dashboard" subtitle="Estado actual del almacen" />
+      <PageHeader
+        title="Dashboard"
+        subtitle="Estado actual del almacen"
+        action={
+          <button className="btn-secondary !min-h-11 !px-3" type="button" onClick={exportInventoryExcel}>
+            <Download size={20} /> Excel
+          </button>
+        }
+      />
 
       <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard icon={Boxes} label="Productos almacenados" value={formatNumber(stats.totalStock)} />
+        <StatCard icon={PackagePlus} label="Ingresos hoy" value={stats.entriesToday} />
+        <StatCard icon={LogOut} label="Salidas hoy" value={stats.exitsToday} />
+        <StatCard icon={AlertTriangle} label="Lotes vencidos" value={stats.expiredLots.length} />
+      </section>
+
+      <section className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <StatCard icon={CalendarClock} label="Vencen pronto" value={stats.expiringLots.length} />
+        <StatCard icon={Wrench} label="Reparaciones pendientes" value={pendingAdjustments.length} />
         <StatCard icon={MapPinned} label="Ocupacion almacen" value={`${lots.length} lotes`} />
-        <StatCard icon={CalendarClock} label="Proximos a vencer" value={stats.expiringLots.length} />
         <StatCard icon={Users} label="Ubicaciones activas" value={stats.locationCount} />
       </section>
 
@@ -83,6 +151,37 @@ export default function Dashboard() {
       </section>
 
       <section className="mt-5 grid gap-4 lg:grid-cols-3">
+        <div className="panel">
+          <div className="mb-3 flex items-center gap-2">
+            <Wrench size={20} className="text-orange-500" />
+            <h3 className="font-bold text-slate-900">Reparaciones pendientes</h3>
+          </div>
+          <div className="max-h-[420px] space-y-3 overflow-y-auto pr-1">
+            {pendingAdjustments.length === 0 ? (
+              <div className="rounded-lg bg-campo-50 p-3 text-sm font-bold text-campo-700">No hay reparaciones pendientes.</div>
+            ) : (
+              pendingAdjustments.map((movement) => (
+                <div key={movement.id} className="rounded-lg bg-orange-50 p-3">
+                  <p className="font-bold text-slate-900">{displayLotCode(movement.lots?.lot_code)} - {cleanProductName(movement.lots?.product)}</p>
+                  <p className="text-sm font-semibold text-slate-600">
+                    Actual: {formatNumber(movement.previous_quantity)} env. - Solicitado: {formatNumber(movement.quantity)} env.
+                  </p>
+                  <p className="text-xs text-slate-500">{movement.profiles?.full_name || 'Usuario'} - {movement.lots?.clients?.name || '-'}</p>
+                  {movement.notes ? <p className="mt-1 text-xs text-slate-600">{movement.notes}</p> : null}
+                  <div className="mt-2 grid grid-cols-2 gap-2">
+                    <button className="btn-secondary !min-h-10 !py-2" type="button" onClick={() => reviewAdjustment(movement.id, 'reject')}>
+                      <X size={16} /> Rechazar
+                    </button>
+                    <button className="btn-primary !min-h-10 !py-2" type="button" onClick={() => reviewAdjustment(movement.id, 'approve')}>
+                      <Check size={16} /> Aprobar
+                    </button>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+
         <div className="panel">
           <div className="mb-3 flex items-center gap-2">
             <Clock3 size={20} className="text-campo-700" />
