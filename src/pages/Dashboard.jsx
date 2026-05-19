@@ -12,6 +12,7 @@ export default function Dashboard() {
   const [lots, setLots] = useState([])
   const [movements, setMovements] = useState([])
   const [pendingMovements, setPendingMovements] = useState([])
+  const [dashboardNotice, setDashboardNotice] = useState('')
 
   useEffect(() => {
     loadData()
@@ -26,7 +27,9 @@ export default function Dashboard() {
   }, [])
 
   async function loadData() {
-    const [{ data: lotsData }, { data: movementsData }, { data: pendingData }] = await Promise.all([
+    setDashboardNotice('')
+
+    const [{ data: lotsData, error: lotsError }, movementsResult, pendingResult] = await Promise.all([
       supabase.from('lots').select('*, clients(name)').order('created_at', { ascending: false }),
       supabase
         .from('movements')
@@ -40,9 +43,70 @@ export default function Dashboard() {
         .eq('approval_status', 'pendiente')
         .order('created_at', { ascending: false }),
     ])
+
+    let movementsData = movementsResult.data || []
+    let pendingData = pendingResult.data || []
+
+    if (movementsResult.error) {
+      const fallback = await supabase
+        .from('movements')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(500)
+
+      if (fallback.error) {
+        setDashboardNotice(`No se pudieron cargar movimientos: ${fallback.error.message}`)
+      } else {
+        movementsData = await enrichMovements(fallback.data || [])
+        setDashboardNotice('Movimientos cargados en modo basico. Revisa relaciones/SQL si faltan nombres de lote o usuario.')
+      }
+    }
+
+    if (pendingResult.error) {
+      const fallbackPending = await supabase
+        .from('movements')
+        .select('*')
+        .in('type', ['ajuste', 'traslado'])
+        .order('created_at', { ascending: false })
+
+      if (fallbackPending.error) {
+        setDashboardNotice(`Falta actualizar SQL para pendientes: ${pendingResult.error.message}`)
+        pendingData = []
+      } else {
+        pendingData = await enrichMovements((fallbackPending.data || []).filter((item) => item.approval_status === 'pendiente'))
+      }
+    }
+
+    if (lotsError) {
+      setDashboardNotice(`No se pudieron cargar lotes: ${lotsError.message}`)
+    }
+
     setLots(lotsData || [])
     setMovements(movementsData || [])
     setPendingMovements(pendingData || [])
+  }
+
+  async function enrichMovements(rawMovements) {
+    const lotIds = [...new Set(rawMovements.map((movement) => movement.lot_id).filter(Boolean))]
+    const userIds = [...new Set(rawMovements.map((movement) => movement.user_id).filter(Boolean))]
+
+    const [{ data: lotRows }, { data: profileRows }] = await Promise.all([
+      lotIds.length
+        ? supabase.from('lots').select('id, product, lot_code, current_quantity, location, clients(name)').in('id', lotIds)
+        : Promise.resolve({ data: [] }),
+      userIds.length
+        ? supabase.from('profiles').select('id, full_name').in('id', userIds)
+        : Promise.resolve({ data: [] }),
+    ])
+
+    const lotMap = new Map((lotRows || []).map((lot) => [lot.id, lot]))
+    const profileMap = new Map((profileRows || []).map((profile) => [profile.id, profile]))
+
+    return rawMovements.map((movement) => ({
+      ...movement,
+      lots: movement.lots || lotMap.get(movement.lot_id) || null,
+      profiles: movement.profiles || profileMap.get(movement.user_id) || null,
+    }))
   }
 
   const stats = useMemo(() => {
@@ -144,6 +208,12 @@ export default function Dashboard() {
           <Wrench size={24} /> Reparacion / Traslado
         </Link>
       </section>
+
+      {dashboardNotice ? (
+        <div className="mt-4 rounded-lg bg-amber-50 p-3 text-sm font-bold text-amber-800">
+          {dashboardNotice}
+        </div>
+      ) : null}
 
       <section className="mt-5 grid gap-4 lg:grid-cols-3">
         <div className="panel">

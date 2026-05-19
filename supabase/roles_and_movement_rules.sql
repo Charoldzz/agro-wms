@@ -10,6 +10,24 @@ add column if not exists approval_status text not null default 'aprobado',
 add column if not exists approved_by uuid references public.profiles(id),
 add column if not exists approved_at timestamptz;
 
+drop policy if exists "Usuarios autenticados leen movimientos" on public.movements;
+create policy "Usuarios autenticados leen movimientos"
+on public.movements for select
+to authenticated
+using (true);
+
+drop policy if exists "Usuarios autenticados leen lotes" on public.lots;
+create policy "Usuarios autenticados leen lotes"
+on public.lots for select
+to authenticated
+using (true);
+
+drop policy if exists "Usuarios autenticados leen perfiles" on public.profiles;
+create policy "Usuarios autenticados leen perfiles"
+on public.profiles for select
+to authenticated
+using (true);
+
 insert into storage.buckets (id, name, public)
 values ('lot-photos', 'lot-photos', true)
 on conflict (id) do update set public = true;
