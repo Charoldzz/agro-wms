@@ -52,10 +52,15 @@ export default function LotDetail() {
   }, [id])
 
   useEffect(() => {
-    if (location.state?.dispatchMode) {
+    const mode = location.state?.movementMode || sessionStorage.getItem(`lot-mode-${id}`)
+    if (mode === 'despacho') {
       setMovement((value) => ({ ...value, type: 'salida' }))
+    } else if (mode === 'reparo') {
+      setMovement((value) => ({ ...value, type: 'ajuste' }))
+    } else if (mode === 'traslado') {
+      setMovement((value) => ({ ...value, type: 'traslado' }))
     }
-  }, [location.state])
+  }, [id, location.state])
 
   async function loadLot() {
     const [{ data: lotData }, { data: movementsData }] = await Promise.all([
@@ -96,6 +101,8 @@ export default function LotDetail() {
   const statusWarning = lot && lot.status !== 'activo'
   const blocksSale = lot && ['retenido', 'cerrado'].includes(lot.status)
   const scannedAccess = Boolean(location.state?.scanned) || sessionStorage.getItem(`scanned-lot-${id}`) === '1'
+  const movementMode = location.state?.movementMode || sessionStorage.getItem(`lot-mode-${id}`) || ''
+  const canRegisterMovement = ['despacho', 'reparo', 'traslado'].includes(movementMode)
   const expiryDaysLeft = useMemo(() => {
     if (!lot?.expiry_date) return null
     const today = new Date()
@@ -127,8 +134,8 @@ export default function LotDetail() {
       return
     }
 
-    if (movement.type === 'salida' && !scannedAccess) {
-      setError('Para registrar salida debes escanear el QR del lote desde Scan o Modo despacho.')
+    if (movement.type === 'salida' && (!scannedAccess || movementMode !== 'despacho')) {
+      setError('Para registrar salida debes entrar por Modo despacho.')
       return
     }
 
@@ -405,7 +412,7 @@ export default function LotDetail() {
     <div>
       <PageHeader title={displayLotCode(lot.lot_code)} subtitle={`${cleanProductName(lot.product)} - ${lot.clients?.name}`} />
 
-      {isOperator ? (
+      {isOperator && canRegisterMovement ? (
         <div className="mb-4 rounded-lg bg-campo-50 p-4 text-sm font-bold text-campo-700">
           Modo operario: registra el movimiento y confirma antes de guardar.
         </div>
@@ -492,18 +499,14 @@ export default function LotDetail() {
         ) : null}
       </section>
 
+      {canRegisterMovement ? (
       <form className="panel mt-4 space-y-3" onSubmit={handleSubmit}>
         <h3 className="text-lg font-bold text-slate-950">Registrar movimiento</h3>
         <div className="grid gap-3 sm:grid-cols-2">
-          <label>
-            <span className="label">Tipo</span>
-            <select className="input mt-1" value={movement.type} onChange={(event) => setMovement({ ...movement, type: event.target.value })}>
-              <option value="entrada">Entrada</option>
-              <option value="salida">Salida</option>
-              <option value="traslado">Traslado interno</option>
-              <option value="ajuste">Reparo</option>
-            </select>
-          </label>
+          <div className="rounded-lg bg-slate-50 p-3">
+            <p className="text-xs font-semibold uppercase text-slate-500">Tipo</p>
+            <p className="mt-1 text-lg font-black text-slate-950">{movementLabel(movement.type)}</p>
+          </div>
           {['entrada', 'salida'].includes(movement.type) && Number(lot.package_size) > 0 ? (
             <>
               <label>
@@ -583,9 +586,9 @@ export default function LotDetail() {
             Advertencia: este lote vence {expiryDaysLeft === 0 ? 'hoy' : `en ${expiryDaysLeft} dias`}. Verifica antes de despachar.
           </div>
         ) : null}
-        {movement.type === 'salida' && !scannedAccess ? (
+        {movement.type === 'salida' && movementMode !== 'despacho' ? (
           <div className="rounded-lg bg-red-50 p-3 text-sm font-bold text-red-700">
-            Salida bloqueada: entra por Scan o Modo despacho para confirmar que estas frente al lote correcto.
+            Salida bloqueada: entra por Modo despacho para confirmar que estas frente al lote correcto.
           </div>
         ) : null}
         {error ? <div className="rounded-lg bg-red-50 p-3 text-sm font-bold text-red-700">{error}</div> : null}
@@ -595,6 +598,11 @@ export default function LotDetail() {
           <Save size={20} /> Revisar y confirmar
         </button>
       </form>
+      ) : (
+        <div className="panel mt-4 rounded-lg bg-slate-50 p-4 text-sm font-bold text-slate-600">
+          Scan solo muestra la ficha del producto. Para registrar movimientos usa Nuevo ingreso, Modo despacho o Reparacion / Traslado.
+        </div>
+      )}
 
       {pendingMovement ? (
         <div className="fixed inset-0 z-40 flex items-end bg-slate-950/45 p-4 sm:items-center sm:justify-center">

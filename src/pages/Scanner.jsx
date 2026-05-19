@@ -71,7 +71,8 @@ export default function Scanner() {
   const [status, setStatus] = useState('Preparando camara...')
   const [error, setError] = useState('')
   const [restartKey, setRestartKey] = useState(0)
-  const dispatchMode = new URLSearchParams(location.search).get('modo') === 'despacho'
+  const movementMode = new URLSearchParams(location.search).get('modo') || ''
+  const validMovementMode = ['despacho', 'reparo', 'traslado'].includes(movementMode) ? movementMode : ''
 
   const goToScannedLot = useCallback(
     (decodedText) => {
@@ -80,11 +81,16 @@ export default function Scanner() {
       const lotId = path.split('/').filter(Boolean).pop()
       if (lotId) {
         sessionStorage.setItem(`scanned-lot-${lotId}`, '1')
+        if (validMovementMode) {
+          sessionStorage.setItem(`lot-mode-${lotId}`, validMovementMode)
+        } else {
+          sessionStorage.removeItem(`lot-mode-${lotId}`)
+        }
       }
-      navigate(path, { state: { scanned: true, dispatchMode } })
+      navigate(path, { state: { scanned: true, movementMode: validMovementMode } })
       return true
     },
-    [dispatchMode, navigate],
+    [navigate, validMovementMode],
   )
 
   useEffect(() => {
@@ -201,8 +207,8 @@ export default function Scanner() {
   return (
     <div>
       <PageHeader
-        title={dispatchMode ? 'Modo despacho' : 'Escanear QR'}
-        subtitle={dispatchMode ? 'Escanea el lote para registrar salida' : 'Apunta al codigo del lote'}
+        title={validMovementMode === 'despacho' ? 'Modo despacho' : validMovementMode ? 'Escanear lote' : 'Escanear QR'}
+        subtitle={validMovementMode === 'despacho' ? 'Escanea el lote para registrar salida' : validMovementMode ? 'Escanea el lote para continuar' : 'Solo consulta la ficha del producto'}
       />
 
       <div className="panel">
