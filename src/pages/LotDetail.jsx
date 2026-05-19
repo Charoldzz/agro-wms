@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
-import { Download, Printer, QrCode, Save } from 'lucide-react'
+import { Camera, Download, Printer, QrCode, Save } from 'lucide-react'
 import PageHeader from '../components/PageHeader'
 import { useAuth } from '../hooks/useAuth.jsx'
 import { formatDate, formatNumber, movementLabel } from '../lib/format'
@@ -13,7 +13,8 @@ const initialMovement = {
   quantity: '',
   package_count: '',
   to_location: '',
-  dispatcher_signature: '',
+  receiver_name: '',
+  receiver_document: '',
   notes: '',
 }
 
@@ -42,6 +43,8 @@ export default function LotDetail() {
   const [pendingMovement, setPendingMovement] = useState(null)
   const [saving, setSaving] = useState(false)
   const [fefoLot, setFefoLot] = useState(null)
+  const [movementPhotoFile, setMovementPhotoFile] = useState(null)
+  const [movementPhotoPreview, setMovementPhotoPreview] = useState('')
 
   useEffect(() => {
     loadLot()
@@ -182,13 +185,13 @@ export default function LotDetail() {
       return
     }
 
-    if (movement.type === 'salida' && !movement.to_location.trim()) {
-      setError('Escribe el destino del despacho.')
+    if (movement.type === 'salida' && !movement.receiver_name.trim()) {
+      setError('Escribe el nombre de la persona que recibe.')
       return
     }
 
-    if (movement.type === 'salida' && !movement.dispatcher_signature.trim()) {
-      setError('Escribe la firma o nombre del despachante.')
+    if (movement.type === 'salida' && !movement.receiver_document.trim()) {
+      setError('Escribe el numero de documento de la persona que recibe.')
       return
     }
 
@@ -227,9 +230,22 @@ export default function LotDetail() {
     setError('')
     setEmailStatus('')
 
+    let photoUrl = ''
+    if (movementPhotoFile) {
+      try {
+        photoUrl = await uploadMovementPhoto(lot.lot_code)
+      } catch (photoError) {
+        setError(photoError.message || 'No se pudo guardar la foto del movimiento.')
+        setSaving(false)
+        return
+      }
+    }
+
     const movementNotes = [
       pendingMovement.notes || null,
-      pendingMovement.dispatcher_signature ? `Despachante: ${pendingMovement.dispatcher_signature}` : null,
+      pendingMovement.receiver_name ? `Recibe: ${pendingMovement.receiver_name}` : null,
+      pendingMovement.receiver_document ? `Documento: ${pendingMovement.receiver_document}` : null,
+      photoUrl ? `Foto: ${photoUrl}` : null,
     ]
       .filter(Boolean)
       .join(' | ')
@@ -267,6 +283,8 @@ export default function LotDetail() {
         setEmailStatus('Movimiento guardado.')
       }
       setMovement(initialMovement)
+      setMovementPhotoFile(null)
+      setMovementPhotoPreview('')
       setPendingMovement(null)
       await loadLot()
       if (canRegisterMovement) {
@@ -275,6 +293,27 @@ export default function LotDetail() {
     }
 
     setSaving(false)
+  }
+
+  function selectMovementPhoto(file) {
+    if (!file) return
+    setMovementPhotoFile(file)
+    setMovementPhotoPreview(URL.createObjectURL(file))
+  }
+
+  async function uploadMovementPhoto(lotCode) {
+    const extension = movementPhotoFile.name.split('.').pop() || 'jpg'
+    const cleanCode = displayLotCode(lotCode).replace(/[^a-z0-9_-]/gi, '-')
+    const path = `movimiento-${cleanCode}-${Date.now()}.${extension}`
+    const { error: uploadError } = await supabase.storage.from('lot-photos').upload(path, movementPhotoFile, {
+      cacheControl: '3600',
+      upsert: false,
+    })
+
+    if (uploadError) throw uploadError
+
+    const { data } = supabase.storage.from('lot-photos').getPublicUrl(path)
+    return data.publicUrl
   }
 
   async function notifyOfficeMovement(payload) {
@@ -633,14 +672,32 @@ export default function LotDetail() {
           {movement.type === 'salida' ? (
             <>
               <label className="sm:col-span-2">
-                <span className="label">Destino / receptor</span>
-                <input className="input mt-1" value={movement.to_location} onChange={(event) => setMovement({ ...movement, to_location: event.target.value })} required />
+                <span className="label">Destino / observacion de despacho</span>
+                <input className="input mt-1" value={movement.to_location} onChange={(event) => setMovement({ ...movement, to_location: event.target.value })} placeholder="Opcional: destino, camion, obra, sucursal..." />
               </label>
-              <label className="sm:col-span-2">
-                <span className="label">Firma despachante</span>
-                <input className="input mt-1" value={movement.dispatcher_signature} onChange={(event) => setMovement({ ...movement, dispatcher_signature: event.target.value })} placeholder="Nombre o firma del responsable" required />
+              <label>
+                <span className="label">Nombre del que recibe</span>
+                <input className="input mt-1" value={movement.receiver_name} onChange={(event) => setMovement({ ...movement, receiver_name: event.target.value })} required />
+              </label>
+              <label>
+                <span className="label">Numero de documento</span>
+                <input className="input mt-1" value={movement.receiver_document} onChange={(event) => setMovement({ ...movement, receiver_document: event.target.value })} required />
               </label>
             </>
+          ) : null}
+          {['ajuste', 'traslado'].includes(movement.type) ? (
+            <label className="block sm:col-span-2">
+              <span className="label">Foto opcional</span>
+              <div className="mt-1 grid gap-3">
+                {movementPhotoPreview ? (
+                  <img className="h-44 w-full rounded-lg object-cover" src={movementPhotoPreview} alt="Movimiento" />
+                ) : null}
+                <input className="hidden" id="movement-photo" type="file" accept="image/*" capture="environment" onChange={(event) => selectMovementPhoto(event.target.files?.[0])} />
+                <label className="btn-secondary w-full cursor-pointer" htmlFor="movement-photo">
+                  <Camera size={20} /> Tomar o elegir foto
+                </label>
+              </div>
+            </label>
           ) : null}
           <label className="sm:col-span-2">
             <span className="label">Observaciones</span>
@@ -728,10 +785,16 @@ export default function LotDetail() {
                   <span>{pendingMovement.to_location}</span>
                 </div>
               ) : null}
-              {pendingMovement.dispatcher_signature ? (
+              {pendingMovement.receiver_name ? (
                 <div className="flex justify-between gap-3">
-                  <span>Despachante</span>
-                  <span>{pendingMovement.dispatcher_signature}</span>
+                  <span>Recibe</span>
+                  <span>{pendingMovement.receiver_name}</span>
+                </div>
+              ) : null}
+              {pendingMovement.receiver_document ? (
+                <div className="flex justify-between gap-3">
+                  <span>Documento</span>
+                  <span>{pendingMovement.receiver_document}</span>
                 </div>
               ) : null}
             </div>
