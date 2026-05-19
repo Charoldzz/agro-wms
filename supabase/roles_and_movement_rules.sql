@@ -1,5 +1,8 @@
 alter type public.user_role add value if not exists 'oficina';
 
+alter table public.lots
+add column if not exists expiry_date date;
+
 create or replace function public.prevent_movement_delete()
 returns trigger
 language plpgsql
@@ -58,9 +61,6 @@ begin
   elsif p_type = 'salida' then
     if p_quantity > v_lot.current_quantity then
       raise exception 'No hay inventario suficiente.';
-    end if;
-    if v_lot.package_size is not null and v_lot.package_size > 0 and mod(p_quantity, v_lot.package_size) <> 0 then
-      raise exception 'La cantidad debe ser multiplo de la presentacion del producto.';
     end if;
     v_new_quantity := v_lot.current_quantity - p_quantity;
   elsif p_type = 'ajuste' then

@@ -63,36 +63,41 @@ export default function LotDetail() {
     setMovements(movementsData || [])
   }
 
-  const computedQuantity = useMemo(() => {
+  const stockQuantity = useMemo(() => {
     if (!lot) return 0
     if (['entrada', 'salida'].includes(movement.type) && Number(lot.package_size) > 0) {
-      return Number(movement.package_count || 0) * Number(lot.package_size)
+      return Number(movement.package_count || 0)
     }
 
     return Number(movement.quantity || 0)
   }, [lot, movement])
 
+  const calculatedPresentationQuantity = useMemo(() => {
+    if (!lot || !['entrada', 'salida'].includes(movement.type)) return 0
+    return Number(movement.package_count || 0) * Number(lot.package_size || 0)
+  }, [lot, movement])
+
   const nextQuantity = useMemo(() => {
-    const quantity = computedQuantity
+    const quantity = stockQuantity
     if (!lot) return 0
     if (movement.type === 'entrada') return Number(lot.current_quantity) + quantity
     if (movement.type === 'salida') return Number(lot.current_quantity) - quantity
     if (movement.type === 'ajuste') return quantity
     return Number(lot.current_quantity)
-  }, [lot, movement.type, computedQuantity])
+  }, [lot, movement.type, stockQuantity])
 
   const statusWarning = lot && lot.status !== 'activo'
   const blocksSale = lot && ['retenido', 'cerrado'].includes(lot.status)
   const isLargeSale =
     movement.type === 'salida' &&
     Number(lot?.current_quantity || 0) > 0 &&
-    computedQuantity >= Number(lot.current_quantity) * 0.5
+    stockQuantity >= Number(lot.current_quantity) * 0.5
 
   async function handleSubmit(event) {
     event.preventDefault()
     if (!lot) return
 
-    const quantity = movement.type === 'traslado' ? 0 : Number(computedQuantity)
+    const quantity = movement.type === 'traslado' ? 0 : Number(stockQuantity)
     if (movement.type === 'salida' && blocksSale) {
       setError('No se puede registrar salida porque este lote esta retenido o cerrado.')
       return
@@ -100,15 +105,6 @@ export default function LotDetail() {
 
     if (movement.type === 'salida' && quantity > Number(lot.current_quantity)) {
       setError('No hay inventario suficiente.')
-      return
-    }
-
-    if (
-      movement.type === 'salida' &&
-      Number(lot.package_size) > 0 &&
-      quantity % Number(lot.package_size) !== 0
-    ) {
-      setError(`La salida debe ser multiplo de ${formatNumber(lot.package_size)} ${lot.package_unit || ''}.`)
       return
     }
 
@@ -131,6 +127,7 @@ export default function LotDetail() {
     setPendingMovement({
       ...movement,
       quantity,
+      calculatedQuantity: calculatedPresentationQuantity,
       previousQuantity: Number(lot.current_quantity),
       newQuantity: nextQuantity,
       isLargeSale,
@@ -157,8 +154,6 @@ export default function LotDetail() {
     if (rpcError) {
       if (rpcError.message.includes('inventario')) {
         setError('No hay inventario suficiente.')
-      } else if (rpcError.message.includes('múltiplo') || rpcError.message.includes('multiplo')) {
-        setError(`La salida debe ser multiplo de ${formatNumber(lot.package_size)} ${lot.package_unit || ''}.`)
       } else {
         setError(rpcError.message)
       }
@@ -397,13 +392,14 @@ export default function LotDetail() {
         <div className="panel">
           {lot.photo_url ? <img className="mb-4 h-48 w-full rounded-lg object-cover" src={lot.photo_url} alt={cleanProductName(lot.product)} /> : null}
           <div className="grid grid-cols-2 gap-3">
-            <Info label="Cantidad actual" value={formatNumber(lot.current_quantity)} strong />
+            <Info label="Envases actuales" value={formatNumber(lot.current_quantity)} strong />
             <Info
               label="Presentacion"
               value={lot.package_size ? `${formatNumber(lot.package_size)} ${lot.package_unit || ''}` : 'Sin dato'}
             />
             <Info label="Ubicación" value={lot.location} />
             <Info label="Fecha ingreso" value={formatDate(lot.entry_date)} />
+            <Info label="Vencimiento" value={lot.expiry_date ? formatDate(lot.expiry_date) : 'Sin dato'} />
             <Info label="Estado" value={lot.status} />
             <Info label="Cliente" value={lot.clients?.name} />
             <Info label="Contacto" value={lot.clients?.contact || '-'} />
@@ -467,7 +463,7 @@ export default function LotDetail() {
               <div>
                 <span className="label">Cantidad calculada</span>
                 <div className="mt-1 flex min-h-12 items-center rounded-lg border border-slate-200 bg-slate-50 px-3 py-3 text-base font-bold text-slate-950">
-                  {formatNumber(computedQuantity)} {lot.package_unit || ''}
+                  {formatNumber(calculatedPresentationQuantity)} {lot.package_unit || ''}
                 </div>
               </div>
             </>
@@ -505,7 +501,7 @@ export default function LotDetail() {
         </div>
 
         <div className="rounded-lg bg-campo-50 p-3 text-sm font-semibold text-campo-700">
-          Stock después del movimiento: {formatNumber(nextQuantity)}
+          Stock despues del movimiento: {formatNumber(nextQuantity)} envases
         </div>
         {isLargeSale ? (
           <div className="rounded-lg bg-amber-50 p-3 text-sm font-bold text-amber-800">
@@ -525,18 +521,24 @@ export default function LotDetail() {
           <div className="w-full max-w-md rounded-xl bg-white p-4 shadow-xl">
             <h3 className="text-xl font-bold text-slate-950">Confirmar movimiento</h3>
             <p className="mt-2 text-sm font-semibold text-slate-500">
-              Vas a registrar {movementLabel(pendingMovement.type).toLowerCase()} de {formatNumber(pendingMovement.quantity)} {lot.package_unit || ''}.
+              Vas a registrar {movementLabel(pendingMovement.type).toLowerCase()} de {formatNumber(pendingMovement.quantity)} envases.
             </p>
 
             <div className="mt-4 space-y-2 rounded-lg bg-slate-50 p-3 text-sm font-bold text-slate-700">
               <div className="flex justify-between gap-3">
                 <span>Stock actual</span>
-                <span>{formatNumber(pendingMovement.previousQuantity)}</span>
+                <span>{formatNumber(pendingMovement.previousQuantity)} envases</span>
               </div>
               <div className="flex justify-between gap-3">
                 <span>Stock despues</span>
-                <span>{formatNumber(pendingMovement.newQuantity)}</span>
+                <span>{formatNumber(pendingMovement.newQuantity)} envases</span>
               </div>
+              {pendingMovement.calculatedQuantity ? (
+                <div className="flex justify-between gap-3">
+                  <span>Equivalente</span>
+                  <span>{formatNumber(pendingMovement.calculatedQuantity)} {lot.package_unit || ''}</span>
+                </div>
+              ) : null}
               {pendingMovement.to_location ? (
                 <div className="flex justify-between gap-3">
                   <span>Nueva ubicacion</span>

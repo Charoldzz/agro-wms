@@ -18,6 +18,7 @@ const initialForm = {
   package_unit: 'lt',
   location: '',
   entry_date: new Date().toISOString().slice(0, 10),
+  expiry_date: '',
   status: 'activo',
   photo_url: '',
   low_stock_threshold: 5,
@@ -67,6 +68,7 @@ export default function Lots() {
       current_quantity: Number(form.current_quantity),
       package_size: form.package_size ? Number(form.package_size) : null,
       package_unit: form.package_size ? form.package_unit : null,
+      expiry_date: form.expiry_date || null,
       low_stock_threshold: Number(form.low_stock_threshold || 5),
     })
     setForm(initialForm)
@@ -143,7 +145,7 @@ export default function Lots() {
           <Field label="Producto">
             <input className="input" value={form.product} onChange={(event) => setForm({ ...form, product: event.target.value })} required />
           </Field>
-          <Field label="Cantidad actual">
+          <Field label="Cantidad actual (envases)">
             <input className="input" type="number" min="0" step="0.01" value={form.current_quantity} onChange={(event) => setForm({ ...form, current_quantity: event.target.value })} required />
           </Field>
           <Field label="Tamaño presentación">
@@ -166,6 +168,9 @@ export default function Lots() {
           </Field>
           <Field label="Fecha ingreso">
             <input className="input" type="date" value={form.entry_date} onChange={(event) => setForm({ ...form, entry_date: event.target.value })} required />
+          </Field>
+          <Field label="Fecha vencimiento">
+            <input className="input" type="date" value={form.expiry_date} onChange={(event) => setForm({ ...form, expiry_date: event.target.value })} />
           </Field>
           <Field label="Estado">
             <select className="input" value={form.status} onChange={(event) => setForm({ ...form, status: event.target.value })}>

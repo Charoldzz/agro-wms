@@ -1,6 +1,7 @@
 alter table public.lots
 add column if not exists package_size numeric(12, 2),
-add column if not exists package_unit text;
+add column if not exists package_unit text,
+add column if not exists expiry_date date;
 
 create or replace function public.register_movement(
   p_lot_id uuid,
@@ -42,10 +43,6 @@ begin
   elsif p_type = 'salida' then
     if p_quantity > v_lot.current_quantity then
       raise exception 'No hay inventario suficiente.';
-    end if;
-
-    if v_lot.package_size is not null and v_lot.package_size > 0 and mod(p_quantity, v_lot.package_size) <> 0 then
-      raise exception 'La cantidad debe ser múltiplo de la presentación del producto.';
     end if;
 
     v_new_quantity := v_lot.current_quantity - p_quantity;

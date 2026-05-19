@@ -1,5 +1,6 @@
 from decimal import Decimal
 from pathlib import Path
+from datetime import date, datetime
 import re
 
 import openpyxl
@@ -30,6 +31,27 @@ def sql_number(value):
         return str(Decimal(str(value or 0)).quantize(Decimal("0.01")))
     except Exception:
         return "0.00"
+
+
+def sql_date(value):
+    if value is None:
+        return "null"
+    if isinstance(value, datetime):
+        return f"'{value.date().isoformat()}'"
+    if isinstance(value, date):
+        return f"'{value.isoformat()}'"
+
+    text = clean(value)
+    if not text or text.replace(" ", "") in {"-", "--", "-.-"}:
+        return "null"
+
+    for fmt in ("%d-%b-%y", "%d-%b-%Y", "%d/%m/%Y", "%d/%m/%y", "%Y-%m-%d"):
+        try:
+            return f"'{datetime.strptime(text, fmt).date().isoformat()}'"
+        except ValueError:
+            continue
+
+    return "null"
 
 
 def parse_package_size(product, code):
@@ -80,9 +102,10 @@ def main():
         product = clean(row[index["nomb_cata"]]) or clean(row[index["codorigen"]])
         code = clean(row[index["codorigen"]]) or f"FILA-{row_number}"
         original_lot = clean(row[index["nrolote"]])
+        expiry_date = sql_date(row[index["fechacaduc"]])
         package_size, package_unit = parse_package_size(product, code)
 
-        lot_code = code
+        lot_code = f"EXCEL-{row_number}-{code}"
         if original_lot:
             lot_code = f"{lot_code}-LOTE-{original_lot}"
 
@@ -97,6 +120,7 @@ def main():
                 product_detail[:500],
                 sql_number(stock),
                 location[:200],
+                expiry_date,
                 package_size,
                 package_unit,
             )
@@ -117,12 +141,12 @@ def main():
         ") as v(name, contact, notes)",
         "where not exists (select 1 from public.clients c where c.name = v.name);",
         "",
-        "insert into public.lots (lot_code, client_id, product, current_quantity, package_size, package_unit, location, entry_date, status, low_stock_threshold)",
+        "insert into public.lots (lot_code, client_id, product, current_quantity, package_size, package_unit, location, entry_date, expiry_date, status, low_stock_threshold)",
         "values",
     ]
 
     lot_values = []
-    for client, lot_code, product, stock, location, package_size, package_unit in rows:
+    for client, lot_code, product, stock, location, expiry_date, package_size, package_unit in rows:
         unit_value = "null" if package_unit == "null" else sql_quote(package_unit)
         lot_values.append(
             "  ("
@@ -134,6 +158,7 @@ def main():
             f"{unit_value}, "
             f"{sql_quote(location)}, "
             "current_date, "
+            f"{expiry_date}, "
             "'activo', "
             "5)"
         )
@@ -141,7 +166,7 @@ def main():
     lines.extend(
         [
             ",\n".join(lot_values),
-            "on conflict (lot_code) do update set current_quantity = excluded.current_quantity, product = excluded.product, package_size = excluded.package_size, package_unit = excluded.package_unit, location = excluded.location, updated_at = now();",
+            "on conflict (lot_code) do update set current_quantity = excluded.current_quantity, product = excluded.product, package_size = excluded.package_size, package_unit = excluded.package_unit, location = excluded.location, expiry_date = excluded.expiry_date, updated_at = now();",
             "",
         ]
     )

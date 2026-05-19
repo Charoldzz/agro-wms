@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { AlertTriangle, Boxes, Clock3, MapPinned, Users } from 'lucide-react'
+import { Boxes, CalendarClock, Clock3, MapPinned, Users } from 'lucide-react'
 import PageHeader from '../components/PageHeader'
 import { supabase } from '../lib/supabase'
 import { formatDate, formatNumber, movementLabel } from '../lib/format'
@@ -36,14 +36,26 @@ export default function Dashboard() {
 
   const stats = useMemo(() => {
     const totalStock = lots.reduce((sum, lot) => sum + Number(lot.current_quantity || 0), 0)
-    const lowStock = lots.filter((lot) => Number(lot.current_quantity) <= Number(lot.low_stock_threshold || 5))
     const locations = new Set(lots.map((lot) => lot.location).filter(Boolean))
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    const limit = new Date(today)
+    limit.setDate(limit.getDate() + 90)
+    const expiringLots = lots
+      .filter((lot) => lot.expiry_date)
+      .map((lot) => {
+        const expiry = new Date(`${lot.expiry_date}T00:00:00`)
+        const daysLeft = Math.ceil((expiry - today) / 86400000)
+        return { ...lot, daysLeft }
+      })
+      .filter((lot) => lot.daysLeft <= 90)
+      .sort((a, b) => a.daysLeft - b.daysLeft)
     const byClient = lots.reduce((acc, lot) => {
       const name = lot.clients?.name || 'Sin cliente'
       acc[name] = (acc[name] || 0) + Number(lot.current_quantity || 0)
       return acc
     }, {})
-    return { totalStock, lowStock, locationCount: locations.size, byClient }
+    return { totalStock, expiringLots, locationCount: locations.size, byClient }
   }, [lots])
 
   return (
@@ -53,7 +65,7 @@ export default function Dashboard() {
       <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard icon={Boxes} label="Productos almacenados" value={formatNumber(stats.totalStock)} />
         <StatCard icon={MapPinned} label="Ocupacion almacen" value={`${lots.length} lotes`} />
-        <StatCard icon={AlertTriangle} label="Stock bajo" value={stats.lowStock.length} />
+        <StatCard icon={CalendarClock} label="Proximos a vencer" value={stats.expiringLots.length} />
         <StatCard icon={Users} label="Ubicaciones activas" value={stats.locationCount} />
       </section>
 
@@ -83,25 +95,27 @@ export default function Dashboard() {
 
         <div className="panel">
           <div className="mb-3 flex items-center gap-2">
-            <AlertTriangle size={20} className="text-maiz" />
-            <h3 className="font-bold text-slate-900">Productos con bajo stock</h3>
+            <CalendarClock size={20} className="text-maiz" />
+            <h3 className="font-bold text-slate-900">Productos proximos a vencer</h3>
           </div>
           <div className="max-h-[420px] space-y-3 overflow-y-auto pr-1">
-            {stats.lowStock.length === 0 ? (
+            {stats.expiringLots.length === 0 ? (
               <div className="rounded-lg bg-campo-50 p-3 text-sm font-bold text-campo-700">
-                No hay productos bajo stock.
+                No hay productos con vencimiento cercano.
               </div>
             ) : (
-              stats.lowStock.map((lot) => (
+              stats.expiringLots.map((lot) => (
                 <div key={lot.id} className="rounded-lg bg-amber-50 p-3">
                   <div className="flex justify-between gap-3">
                     <div className="min-w-0">
                       <p className="truncate font-bold text-slate-900">{cleanProductName(lot.product)}</p>
-                      <p className="text-xs font-semibold text-slate-500">{displayLotCode(lot.lot_code)}</p>
+                      <p className="text-xs font-semibold text-slate-500">
+                        {displayLotCode(lot.lot_code)} - vence {formatDate(lot.expiry_date)}
+                      </p>
                     </div>
                     <div className="text-right">
-                      <p className="text-lg font-bold text-amber-700">{formatNumber(lot.current_quantity)}</p>
-                      <p className="text-xs font-semibold text-slate-500">Min. {formatNumber(lot.low_stock_threshold || 5)}</p>
+                      <p className="text-lg font-bold text-amber-700">{lot.daysLeft < 0 ? 'Vencido' : `${lot.daysLeft} d`}</p>
+                      <p className="text-xs font-semibold text-slate-500">{formatNumber(lot.current_quantity)} env.</p>
                     </div>
                   </div>
                 </div>
