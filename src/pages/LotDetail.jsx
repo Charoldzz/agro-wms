@@ -544,7 +544,7 @@ export default function LotDetail() {
               </div>
               {pendingMovement.calculatedQuantity ? (
                 <div className="flex justify-between gap-3">
-                  <span>Movimiento calculado</span>
+                  <span>Equivalente actual</span>
                   <span>{formatNumber(pendingMovement.calculatedQuantity)} {lot.package_unit || ''}</span>
                 </div>
               ) : null}
