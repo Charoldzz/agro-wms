@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { useLocation, useParams } from 'react-router-dom'
+import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { Download, Printer, QrCode, Save } from 'lucide-react'
 import PageHeader from '../components/PageHeader'
 import { useAuth } from '../hooks/useAuth.jsx'
@@ -31,6 +31,7 @@ function escapeHtml(value) {
 export default function LotDetail() {
   const { id } = useParams()
   const location = useLocation()
+  const navigate = useNavigate()
   const { user, isOperator } = useAuth()
   const [lot, setLot] = useState(null)
   const [movements, setMovements] = useState([])
@@ -268,6 +269,9 @@ export default function LotDetail() {
       setMovement(initialMovement)
       setPendingMovement(null)
       await loadLot()
+      if (canRegisterMovement) {
+        setTimeout(() => navigate('/operacion'), 900)
+      }
     }
 
     setSaving(false)

@@ -161,7 +161,7 @@ export default function OperatorEntry() {
       )
 
       setTimeout(() => {
-        navigate(`/lotes/${lotId}`)
+        navigate('/operacion')
       }, 900)
     } catch (entryError) {
       setError(entryError.message?.includes('duplicate') ? 'Ese ID de lote ya existe. Usa otro ID.' : entryError.message)
@@ -313,7 +313,18 @@ export default function OperatorEntry() {
         {status ? <div className="rounded-lg bg-campo-50 p-3 text-sm font-bold text-campo-700 sm:col-span-2">{status}</div> : null}
 
         <div className="grid grid-cols-2 gap-2 sm:col-span-2">
-          <button className="btn-secondary" type="button" onClick={() => setStep((value) => Math.max(value - 1, 1))} disabled={step === 1 || saving}>
+          <button
+            className="btn-secondary"
+            type="button"
+            onClick={() => {
+              if (step === 1) {
+                navigate(-1)
+                return
+              }
+              setStep((value) => Math.max(value - 1, 1))
+            }}
+            disabled={saving}
+          >
             <ChevronLeft size={20} /> Atras
           </button>
           {step < 3 ? (
