@@ -3,9 +3,20 @@ import { Camera, ImagePlus, RefreshCcw } from 'lucide-react'
 import PageHeader from '../components/PageHeader'
 
 const readerId = 'qr-reader'
+const fileReaderId = 'qr-file-reader'
 
 function openLotPath(path) {
   window.location.assign(`${window.location.origin}/#${path}`)
+}
+
+async function decodeWithBarcodeDetector(file) {
+  if (!('BarcodeDetector' in window)) return null
+
+  const detector = new window.BarcodeDetector({ formats: ['qr_code'] })
+  const bitmap = await createImageBitmap(file)
+  const codes = await detector.detect(bitmap)
+  bitmap.close?.()
+  return codes[0]?.rawValue || null
 }
 
 export default function Scanner() {
@@ -121,8 +132,17 @@ export default function Scanner() {
     setStatus('Leyendo imagen...')
 
     try {
+      const nativeDecodedText = await decodeWithBarcodeDetector(file)
+      if (nativeDecodedText) {
+        if (!goToScannedLot(nativeDecodedText)) {
+          setError('La imagen no contiene un QR de un lote de esta app.')
+          setStatus('Listo para escanear')
+        }
+        return
+      }
+
       const { Html5Qrcode } = await import('html5-qrcode')
-      const imageScanner = new Html5Qrcode('qr-file-reader')
+      const imageScanner = new Html5Qrcode(fileReaderId)
       const decodedText = await imageScanner.scanFile(file, true)
       await imageScanner.clear().catch(() => null)
 
@@ -181,7 +201,7 @@ export default function Scanner() {
           accept="image/*"
           onChange={handleImageFile}
         />
-        <div id="qr-file-reader" className="hidden" />
+        <div id={fileReaderId} className="max-h-0 overflow-hidden opacity-0" />
         <button className="btn-secondary w-full" type="button" onClick={() => fileInputRef.current?.click()}>
           <ImagePlus size={20} /> Elegir imagen con QR
         </button>
