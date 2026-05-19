@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Plus, Save } from 'lucide-react'
+import { Edit2, Plus, Save, X } from 'lucide-react'
 import EmptyState from '../components/EmptyState'
 import PageHeader from '../components/PageHeader'
 import { useAuth } from '../hooks/useAuth.jsx'
@@ -11,6 +11,7 @@ export default function Clients() {
   const { isAdmin } = useAuth()
   const [clients, setClients] = useState([])
   const [form, setForm] = useState(initialForm)
+  const [editingId, setEditingId] = useState(null)
   const [showForm, setShowForm] = useState(false)
 
   useEffect(() => {
@@ -22,11 +23,38 @@ export default function Clients() {
     setClients(data || [])
   }
 
-  async function handleSubmit(event) {
-    event.preventDefault()
-    await supabase.from('clients').insert(form)
+  function startCreate() {
+    setEditingId(null)
+    setForm(initialForm)
+    setShowForm((value) => !value)
+  }
+
+  function startEdit(client) {
+    setEditingId(client.id)
+    setForm({
+      name: client.name || '',
+      contact: client.contact || '',
+      notes: client.notes || '',
+    })
+    setShowForm(true)
+  }
+
+  function cancelForm() {
+    setEditingId(null)
     setForm(initialForm)
     setShowForm(false)
+  }
+
+  async function handleSubmit(event) {
+    event.preventDefault()
+
+    if (editingId) {
+      await supabase.from('clients').update(form).eq('id', editingId)
+    } else {
+      await supabase.from('clients').insert(form)
+    }
+
+    cancelForm()
     loadClients()
   }
 
@@ -34,10 +62,10 @@ export default function Clients() {
     <div>
       <PageHeader
         title="Clientes"
-        subtitle="Terceros con producto almacenado"
+        subtitle="Lista compacta de clientes"
         action={
           isAdmin ? (
-            <button className="btn-primary !min-h-11 !px-3" onClick={() => setShowForm((value) => !value)}>
+            <button className="btn-primary !min-h-11 !px-3" onClick={startCreate}>
               <Plus size={20} />
             </button>
           ) : null
@@ -46,6 +74,12 @@ export default function Clients() {
 
       {showForm && isAdmin ? (
         <form className="panel mb-4 space-y-3" onSubmit={handleSubmit}>
+          <div className="flex items-center justify-between gap-3">
+            <h3 className="font-bold text-slate-900">{editingId ? 'Editar cliente' : 'Nuevo cliente'}</h3>
+            <button className="btn-secondary !min-h-10 !px-3" type="button" onClick={cancelForm}>
+              <X size={18} />
+            </button>
+          </div>
           <label className="block">
             <span className="label">Nombre cliente</span>
             <input className="input mt-1" value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} required />
@@ -59,7 +93,7 @@ export default function Clients() {
             <textarea className="input mt-1" rows="3" value={form.notes} onChange={(event) => setForm({ ...form, notes: event.target.value })} />
           </label>
           <button className="btn-primary w-full">
-            <Save size={20} /> Guardar cliente
+            <Save size={20} /> {editingId ? 'Guardar cambios' : 'Guardar cliente'}
           </button>
         </form>
       ) : null}
@@ -70,7 +104,17 @@ export default function Clients() {
         ) : (
           clients.map((client) => (
             <article key={client.id} className="rounded-lg border border-slate-200 bg-white/95 px-3 py-3 shadow-soft">
-              <h3 className="text-sm font-bold text-slate-900">{client.name}</h3>
+              <div className="flex items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <h3 className="truncate text-sm font-bold text-slate-900">{client.name}</h3>
+                  {client.contact ? <p className="truncate text-xs font-semibold text-slate-500">{client.contact}</p> : null}
+                </div>
+                {isAdmin ? (
+                  <button className="btn-secondary !min-h-10 !px-3" type="button" onClick={() => startEdit(client)}>
+                    <Edit2 size={17} />
+                  </button>
+                ) : null}
+              </div>
             </article>
           ))
         )}

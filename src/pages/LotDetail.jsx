@@ -32,6 +32,7 @@ export default function LotDetail() {
   const [movement, setMovement] = useState(initialMovement)
   const [qrDataUrl, setQrDataUrl] = useState('')
   const [error, setError] = useState('')
+  const [emailStatus, setEmailStatus] = useState('')
   const [saving, setSaving] = useState(false)
 
   useEffect(() => {
@@ -95,6 +96,7 @@ export default function LotDetail() {
 
     setSaving(true)
     setError('')
+    setEmailStatus('')
 
     const { error: rpcError } = await supabase.rpc('register_movement', {
       p_lot_id: lot.id,
@@ -114,11 +116,46 @@ export default function LotDetail() {
         setError(rpcError.message)
       }
     } else {
+      await notifyOfficeMovement({
+        type: movement.type,
+        quantity,
+        previousQuantity: Number(lot.current_quantity),
+        newQuantity: nextQuantity,
+        toLocation: movement.to_location,
+        notes: movement.notes,
+      })
       setMovement(initialMovement)
       await loadLot()
     }
 
     setSaving(false)
+  }
+
+  async function notifyOfficeMovement(payload) {
+    if (!['entrada', 'salida'].includes(payload.type)) return
+
+    const { error: emailError } = await supabase.functions.invoke('send-movement-email', {
+      body: {
+        to: 'hgaray@tagribol.com',
+        movement_type: payload.type,
+        quantity: payload.quantity,
+        previous_quantity: payload.previousQuantity,
+        new_quantity: payload.newQuantity,
+        to_location: payload.toLocation || null,
+        notes: payload.notes || null,
+        lot_code: displayLotCode(lot.lot_code),
+        product: cleanProductName(lot.product),
+        client: lot.clients?.name || 'Sin cliente',
+        location: lot.location,
+        user_email: user.email,
+      },
+    })
+
+    setEmailStatus(
+      emailError
+        ? 'Movimiento guardado. Falta configurar el envio automatico de correo.'
+        : 'Movimiento guardado y correo enviado a oficina.',
+    )
   }
 
   function openQrImage() {
@@ -176,9 +213,7 @@ export default function LotDetail() {
         <div class="brand">Agro WMS</div>
         <img src="${qrDataUrl}" alt="QR ${escapeHtml(lot.lot_code)}" />
         <h2>${escapeHtml(displayLotCode(lot.lot_code))}</h2>
-        <p>${escapeHtml(cleanProductName(lot.product))}</p>
-        <p>${escapeHtml(lot.clients?.name || '')}</p>
-        <small>${escapeHtml(lot.package_size ? `${formatNumber(lot.package_size)} ${lot.package_unit || ''}` : '')} | ${escapeHtml(lot.location || '')}</small>
+        <small>Escanear para ver ficha</small>
       </article>
     `
 
@@ -213,7 +248,7 @@ export default function LotDetail() {
               flex-direction: column;
               justify-content: center;
               min-height: 120mm;
-              padding: 8mm;
+              padding: 10mm;
               text-align: center;
             }
             .brand {
@@ -224,26 +259,21 @@ export default function LotDetail() {
               text-transform: uppercase;
             }
             img {
-              height: 62mm;
+              height: 72mm;
               image-rendering: pixelated;
-              width: 62mm;
+              width: 72mm;
             }
             h2 {
-              font-size: 18px;
-              margin: 4mm 0 2mm;
-            }
-            p {
-              font-size: 13px;
+              font-size: 16px;
               font-weight: 700;
-              line-height: 1.25;
-              margin: 1mm 0;
+              margin: 4mm 0 1mm;
             }
             small {
               color: #334155;
               display: block;
-              font-size: 12px;
+              font-size: 11px;
               font-weight: 700;
-              margin-top: 2mm;
+              margin-top: 1mm;
             }
             @media print {
               @page {
@@ -352,6 +382,7 @@ export default function LotDetail() {
           Stock después del movimiento: {formatNumber(nextQuantity)}
         </div>
         {error ? <div className="rounded-lg bg-red-50 p-3 text-sm font-bold text-red-700">{error}</div> : null}
+        {emailStatus ? <div className="rounded-lg bg-campo-50 p-3 text-sm font-bold text-campo-700">{emailStatus}</div> : null}
 
         <button className="btn-primary w-full" disabled={saving}>
           <Save size={20} /> {saving ? 'Guardando...' : 'Guardar movimiento'}
