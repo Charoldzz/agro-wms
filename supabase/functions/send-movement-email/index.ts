@@ -25,7 +25,7 @@ Deno.serve(async (req) => {
 
   try {
     const resendApiKey = Deno.env.get('RESEND_API_KEY')
-    const fromEmail = Deno.env.get('MOVEMENT_EMAIL_FROM') || 'TODO Agricola <onboarding@resend.dev>'
+    const fromEmail = Deno.env.get('MOVEMENT_EMAIL_FROM') || 'Todo Agricola <onboarding@resend.dev>'
     const appUrl = Deno.env.get('APP_PUBLIC_URL') || 'https://agro-wms.vercel.app'
 
     if (!resendApiKey) {
@@ -41,7 +41,7 @@ Deno.serve(async (req) => {
     const subject = `${typeLabel} de inventario - ${body.lot_code}`
     const logoUrl = `${appUrl.replace(/\/$/, '')}/images/todo-logo.png`
     const text = [
-      `${typeLabel} registrada en TODO Agricola`,
+      `${typeLabel} registrada en Todo Agricola`,
       ``,
       `Lote: ${body.lot_code}`,
       `Producto: ${body.product}`,
@@ -65,7 +65,7 @@ Deno.serve(async (req) => {
                 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:620px;background:#ffffff;border:1px solid #e2e8f0;border-radius:12px;overflow:hidden;">
                   <tr>
                     <td style="padding:22px 24px;border-bottom:1px solid #e2e8f0;">
-                      <img src="${logoUrl}" width="160" alt="TODO Agricola" style="display:block;max-width:160px;height:auto;margin-bottom:16px;" />
+                      <img src="${logoUrl}" width="160" alt="Todo Agricola" style="display:block;max-width:160px;height:auto;margin-bottom:16px;" />
                       <h1 style="margin:0;color:#14532d;font-size:22px;line-height:1.25;">${escapeHtml(typeLabel)} de inventario</h1>
                       <p style="margin:8px 0 0;color:#475569;font-size:14px;">Resumen para registro en oficina</p>
                     </td>

@@ -38,7 +38,12 @@ export default function Dashboard() {
     const totalStock = lots.reduce((sum, lot) => sum + Number(lot.current_quantity || 0), 0)
     const lowStock = lots.filter((lot) => Number(lot.current_quantity) <= Number(lot.low_stock_threshold || 5))
     const locations = new Set(lots.map((lot) => lot.location).filter(Boolean))
-    return { totalStock, lowStock, locationCount: locations.size }
+    const byClient = lots.reduce((acc, lot) => {
+      const name = lot.clients?.name || 'Sin cliente'
+      acc[name] = (acc[name] || 0) + Number(lot.current_quantity || 0)
+      return acc
+    }, {})
+    return { totalStock, lowStock, locationCount: locations.size, byClient }
   }, [lots])
 
   return (
@@ -75,7 +80,9 @@ export default function Dashboard() {
             ))}
           </div>
         </div>
+      </section>
 
+      <section className="mt-4 grid gap-4 lg:grid-cols-[1fr_1fr]">
         <div className="panel">
           <div className="mb-3 flex items-center gap-2">
             <AlertTriangle size={20} className="text-maiz" />
@@ -102,6 +109,24 @@ export default function Dashboard() {
                 </div>
               ))
             )}
+          </div>
+        </div>
+
+        <div className="panel">
+          <div className="mb-3 flex items-center gap-2">
+            <Users size={20} className="text-campo-700" />
+            <h3 className="font-bold text-slate-900">Cantidad por cliente</h3>
+          </div>
+          <div className="space-y-3">
+            {Object.entries(stats.byClient).map(([client, quantity]) => (
+              <div key={client}>
+                <div className="flex justify-between gap-3 text-sm">
+                  <span className="font-semibold text-slate-700">{client}</span>
+                  <span className="font-bold text-slate-900">{formatNumber(quantity)}</span>
+                </div>
+                <div className="mt-2 h-1.5 rounded-full bg-gradient-to-r from-campo-500/55 via-maiz/45 to-campo-500/25" />
+              </div>
+            ))}
           </div>
         </div>
       </section>

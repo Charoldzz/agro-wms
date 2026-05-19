@@ -210,7 +210,7 @@ export default function LotDetail() {
 
     const label = `
       <article class="label">
-        <div class="brand">TODO Agrícola</div>
+        <div class="brand">Todo Agrícola</div>
         <img src="${qrDataUrl}" alt="QR ${escapeHtml(lot.lot_code)}" />
         <h2>${escapeHtml(displayLotCode(lot.lot_code))}</h2>
         <small>Escanear para ver ficha</small>
@@ -252,7 +252,7 @@ export default function LotDetail() {
               text-align: center;
             }
             .brand {
-              color: #166534;
+              color: #000;
               font-size: 14px;
               font-weight: 800;
               margin-bottom: 3mm;
