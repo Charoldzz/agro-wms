@@ -4,6 +4,10 @@ import PageHeader from '../components/PageHeader'
 
 const readerId = 'qr-reader'
 
+function openLotPath(path) {
+  window.location.assign(`${window.location.origin}/#${path}`)
+}
+
 export default function Scanner() {
   const qrRef = useRef(null)
   const fileInputRef = useRef(null)
@@ -16,24 +20,24 @@ export default function Scanner() {
       const value = decodedText.trim()
       const hashPathMatch = value.match(/#(\/lotes\/[^?#\s]+)/i)
       if (hashPathMatch) {
-        window.location.hash = hashPathMatch[1]
+        openLotPath(hashPathMatch[1])
         return true
       }
 
       const lotPathMatch = value.match(/\/lotes\/[^?#\s]+/i)
       if (lotPathMatch) {
-        window.location.hash = lotPathMatch[0]
+        openLotPath(lotPathMatch[0])
         return true
       }
 
       const url = new URL(value, window.location.origin)
       if (url.hash.startsWith('#/lotes/')) {
-        window.location.hash = url.hash.slice(1)
+        openLotPath(url.hash.slice(1))
         return true
       }
 
       if (url.pathname.startsWith('/lotes/')) {
-        window.location.hash = url.pathname
+        openLotPath(url.pathname)
         return true
       }
 

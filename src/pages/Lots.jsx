@@ -8,6 +8,8 @@ import { supabase } from '../lib/supabase'
 import { formatNumber } from '../lib/format'
 import { cleanProductName, displayLotCode, packageLabel, productTotalKey } from '../lib/display'
 
+const internalLocations = ['Nave 1', 'Nave 2', 'Nave 3', 'Playa']
+
 const initialForm = {
   lot_code: '',
   client_id: '',
@@ -22,6 +24,11 @@ const initialForm = {
   low_stock_threshold: 5,
 }
 
+function createManualLotCode() {
+  const stamp = new Date().toISOString().replace(/\D/g, '').slice(0, 14)
+  return `MANUAL-${stamp}`
+}
+
 export default function Lots() {
   const { isAdmin } = useAuth()
   const [lots, setLots] = useState([])
@@ -29,11 +36,12 @@ export default function Lots() {
   const [clients, setClients] = useState([])
   const [form, setForm] = useState(initialForm)
   const [showForm, setShowForm] = useState(false)
+  const [showAllTotals, setShowAllTotals] = useState(false)
+  const [showLotDetails, setShowLotDetails] = useState(false)
   const [search, setSearch] = useState('')
   const [clientFilter, setClientFilter] = useState('')
   const [locationFilter, setLocationFilter] = useState('')
   const [packageFilter, setPackageFilter] = useState('')
-  const [showAllTotals, setShowAllTotals] = useState(false)
 
   useEffect(() => {
     loadData()
@@ -56,8 +64,10 @@ export default function Lots() {
 
   async function handleSubmit(event) {
     event.preventDefault()
+    const lotCode = form.lot_code.trim() || createManualLotCode()
     await supabase.from('lots').insert({
       ...form,
+      lot_code: lotCode,
       current_quantity: Number(form.current_quantity),
       package_size: form.package_size ? Number(form.package_size) : null,
       package_unit: form.package_size ? form.package_unit : null,
@@ -68,32 +78,33 @@ export default function Lots() {
     loadData()
   }
 
-  const locations = useMemo(() => [...new Set(lots.map((lot) => lot.location).filter(Boolean))], [lots])
-  const packages = useMemo(
-    () => {
-      const unitOrder = { gr: 1, kg: 2, ml: 3, lt: 4, cc: 5, un: 6 }
-      const map = new Map()
-      lots
-        .filter((lot) => lot.package_size)
-        .forEach((lot) => {
-          const label = packageLabel(lot)
-          map.set(label, {
-            label,
-            size: Number(lot.package_size || 0),
-            unit: lot.package_unit || '',
-          })
-        })
-
-      return [...map.values()]
-        .sort((a, b) => {
-          const unitDiff = (unitOrder[a.unit] || 99) - (unitOrder[b.unit] || 99)
-          if (unitDiff !== 0) return unitDiff
-          return a.size - b.size
-        })
-        .map((item) => item.label)
-    },
+  const locations = useMemo(
+    () => [...new Set([...internalLocations, ...lots.map((lot) => lot.location).filter(Boolean)])],
     [lots],
   )
+
+  const packages = useMemo(() => {
+    const unitOrder = { gr: 1, kg: 2, ml: 3, lt: 4, cc: 5, un: 6 }
+    const map = new Map()
+    lots
+      .filter((lot) => lot.package_size)
+      .forEach((lot) => {
+        const label = packageLabel(lot)
+        map.set(label, {
+          label,
+          size: Number(lot.package_size || 0),
+          unit: lot.package_unit || '',
+        })
+      })
+
+    return [...map.values()]
+      .sort((a, b) => {
+        const unitDiff = (unitOrder[a.unit] || 99) - (unitOrder[b.unit] || 99)
+        if (unitDiff !== 0) return unitDiff
+        return a.size - b.size
+      })
+      .map((item) => item.label)
+  }, [lots])
 
   const productTotals = useMemo(() => {
     return lots.reduce((acc, lot) => {
@@ -105,28 +116,26 @@ export default function Lots() {
     }, {})
   }, [lots])
 
-  const sortedProductTotals = useMemo(
-    () => {
-      const totals = { ...productTotals }
-      movements.forEach((movement) => {
-        const key = cleanProductName(movement.lots?.product)
-        if (!totals[key]) return
-        totals[key].movementCount += 1
-        if (!totals[key].lastMovementAt || new Date(movement.created_at) > new Date(totals[key].lastMovementAt)) {
-          totals[key].lastMovementAt = movement.created_at
-        }
-      })
+  const sortedProductTotals = useMemo(() => {
+    const totals = { ...productTotals }
+    movements.forEach((movement) => {
+      const key = cleanProductName(movement.lots?.product)
+      if (!totals[key]) return
+      totals[key].movementCount += 1
+      if (!totals[key].lastMovementAt || new Date(movement.created_at) > new Date(totals[key].lastMovementAt)) {
+        totals[key].lastMovementAt = movement.created_at
+      }
+    })
 
-      return Object.values(totals).sort((a, b) => {
-        const aTime = a.lastMovementAt ? new Date(a.lastMovementAt).getTime() : 0
-        const bTime = b.lastMovementAt ? new Date(b.lastMovementAt).getTime() : 0
-        if (bTime !== aTime) return bTime - aTime
-        return a.product.localeCompare(b.product, 'es')
-      })
-    },
-    [productTotals, movements],
-  )
-  const visibleProductTotals = showAllTotals ? sortedProductTotals : sortedProductTotals.slice(0, 8)
+    return Object.values(totals).sort((a, b) => {
+      const aTime = a.lastMovementAt ? new Date(a.lastMovementAt).getTime() : 0
+      const bTime = b.lastMovementAt ? new Date(b.lastMovementAt).getTime() : 0
+      if (bTime !== aTime) return bTime - aTime
+      return a.product.localeCompare(b.product, 'es')
+    })
+  }, [productTotals, movements])
+
+  const visibleProductTotals = showAllTotals ? sortedProductTotals : sortedProductTotals.slice(0, 10)
 
   const filteredLots = lots.filter((lot) => {
     const term = search.toLowerCase()
@@ -151,7 +160,7 @@ export default function Lots() {
     <div>
       <PageHeader
         title="Lotes"
-        subtitle="Inventario por QR"
+        subtitle="Inventario por producto"
         action={
           isAdmin ? (
             <button className="btn-primary !min-h-11 !px-3" onClick={() => setShowForm((value) => !value)}>
@@ -164,7 +173,12 @@ export default function Lots() {
       {showForm && isAdmin ? (
         <form className="panel mb-4 grid gap-3 sm:grid-cols-2" onSubmit={handleSubmit}>
           <Field label="ID lote">
-            <input className="input" value={form.lot_code} onChange={(event) => setForm({ ...form, lot_code: event.target.value })} required />
+            <input
+              className="input"
+              value={form.lot_code}
+              onChange={(event) => setForm({ ...form, lot_code: event.target.value })}
+              placeholder="Opcional"
+            />
           </Field>
           <Field label="Cliente">
             <select className="input" value={form.client_id} onChange={(event) => setForm({ ...form, client_id: event.target.value })} required>
@@ -183,22 +197,25 @@ export default function Lots() {
           </Field>
           <Field label="Unidad presentación">
             <select className="input" value={form.package_unit} onChange={(event) => setForm({ ...form, package_unit: event.target.value })}>
-              <option value="lt">Litros</option>
-              <option value="kg">Kilos</option>
               <option value="gr">Gramos</option>
+              <option value="kg">Kilos</option>
               <option value="ml">Mililitros</option>
+              <option value="lt">Litros</option>
               <option value="un">Unidades</option>
             </select>
           </Field>
           <Field label="Ubicación">
-            <input className="input" value={form.location} onChange={(event) => setForm({ ...form, location: event.target.value })} required />
+            <select className="input" value={form.location} onChange={(event) => setForm({ ...form, location: event.target.value })} required>
+              <option value="">Seleccionar ubicación</option>
+              {internalLocations.map((location) => <option key={location} value={location}>{location}</option>)}
+            </select>
           </Field>
           <Field label="Fecha ingreso">
             <input className="input" type="date" value={form.entry_date} onChange={(event) => setForm({ ...form, entry_date: event.target.value })} required />
           </Field>
           <Field label="Estado">
             <select className="input" value={form.status} onChange={(event) => setForm({ ...form, status: event.target.value })}>
-              <option value="activo">Activo</option>
+              <option value="activo">Disponible</option>
               <option value="retenido">Retenido</option>
               <option value="cerrado">Cerrado</option>
             </select>
@@ -213,7 +230,7 @@ export default function Lots() {
       <section className="mb-4 grid gap-3 md:grid-cols-4">
         <div className="flex items-center rounded-lg border border-slate-200 bg-white px-3">
           <Search size={20} className="text-slate-400" />
-          <input className="min-h-12 flex-1 bg-transparent px-2 outline-none" placeholder="Buscar lote, producto, tamaño..." value={search} onChange={(event) => setSearch(event.target.value)} />
+          <input className="min-h-12 flex-1 bg-transparent px-2 outline-none" placeholder="Buscar producto, lote, tamaño..." value={search} onChange={(event) => setSearch(event.target.value)} />
         </div>
         <select className="input" value={clientFilter} onChange={(event) => setClientFilter(event.target.value)}>
           <option value="">Todos los clientes</option>
@@ -221,7 +238,7 @@ export default function Lots() {
         </select>
         <select className="input" value={packageFilter} onChange={(event) => setPackageFilter(event.target.value)}>
           <option value="">Todos los tamaños</option>
-          {packages.map((packageLabel) => <option key={packageLabel} value={packageLabel}>{packageLabel}</option>)}
+          {packages.map((label) => <option key={label} value={label}>{label}</option>)}
         </select>
         <select className="input" value={locationFilter} onChange={(event) => setLocationFilter(event.target.value)}>
           <option value="">Todas las ubicaciones</option>
@@ -231,59 +248,77 @@ export default function Lots() {
 
       <section className="panel mb-4">
         <div className="mb-3 flex items-center justify-between gap-3">
-          <h3 className="font-bold text-slate-900">Totales por producto</h3>
-          {sortedProductTotals.length > 8 ? (
+          <h3 className="font-bold text-slate-900">Productos</h3>
+          {sortedProductTotals.length > 10 ? (
             <button className="text-sm font-bold text-campo-700" type="button" onClick={() => setShowAllTotals((value) => !value)}>
               {showAllTotals ? 'Ver menos' : 'Ver todos'}
             </button>
           ) : null}
         </div>
-        <div className="grid gap-2 md:grid-cols-2">
+        <div className="grid gap-2">
           {visibleProductTotals.map((item) => (
-            <div key={item.product} className="rounded-lg bg-slate-50 p-3">
+            <button
+              key={item.product}
+              className="rounded-lg bg-slate-50 p-3 text-left transition hover:bg-campo-50"
+              type="button"
+              onClick={() => {
+                setSearch(item.product)
+                setShowLotDetails(true)
+              }}
+            >
               <div className="flex items-start justify-between gap-3">
-                <p className="text-sm font-semibold text-slate-800">{item.product}</p>
-                <p className="whitespace-nowrap text-sm font-bold text-campo-700">{formatNumber(item.quantity)}</p>
+                <div>
+                  <p className="text-sm font-bold text-slate-900">{item.product}</p>
+                  <p className="mt-1 text-xs text-slate-500">
+                    {item.lots} lotes{item.movementCount ? ` · ${item.movementCount} mov.` : ''}
+                  </p>
+                </div>
+                <p className="whitespace-nowrap text-base font-bold text-campo-700">{formatNumber(item.quantity)}</p>
               </div>
-              <p className="mt-1 text-xs text-slate-500">
-                {item.lots} lotes{item.movementCount ? ` · ${item.movementCount} mov.` : ''}
-              </p>
-            </div>
+            </button>
           ))}
         </div>
       </section>
 
-      <div className="grid gap-3 md:grid-cols-2">
-        {filteredLots.length === 0 ? (
-          <EmptyState title="Sin lotes" text="Crea o busca otro lote." />
+      <section className="panel">
+        <div className="mb-3 flex items-center justify-between gap-3">
+          <h3 className="font-bold text-slate-900">Lotes individuales</h3>
+          <button className="text-sm font-bold text-campo-700" type="button" onClick={() => setShowLotDetails((value) => !value)}>
+            {showLotDetails ? 'Ocultar' : 'Ver lotes'}
+          </button>
+        </div>
+
+        {showLotDetails ? (
+          <div className="grid gap-2">
+            {filteredLots.length === 0 ? (
+              <EmptyState title="Sin lotes" text="Crea o busca otro lote." />
+            ) : (
+              filteredLots.map((lot) => (
+                <Link key={lot.id} to={`/lotes/${lot.id}`} className="rounded-lg bg-slate-50 p-3 transition hover:bg-campo-50">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="text-sm font-bold text-slate-950">{cleanProductName(lot.product)}</p>
+                      <p className="text-xs font-semibold text-campo-700">{displayLotCode(lot.lot_code)}</p>
+                      <p className="text-xs text-slate-500">
+                        {lot.clients?.name} · {lot.location}
+                        {lot.package_size ? ` · ${formatNumber(lot.package_size)} ${lot.package_unit}` : ''}
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-lg font-bold text-slate-950">{formatNumber(lot.current_quantity)}</p>
+                      <p className="text-[11px] font-semibold uppercase text-slate-400">
+                        {lot.status === 'activo' ? 'Disponible' : lot.status}
+                      </p>
+                    </div>
+                  </div>
+                </Link>
+              ))
+            )}
+          </div>
         ) : (
-          filteredLots.map((lot) => (
-            <Link key={lot.id} to={`/lotes/${lot.id}`} className="panel block transition hover:border-campo-500">
-              <div className="flex justify-between gap-3">
-                <div>
-                  <p className="text-sm font-semibold text-campo-700">{displayLotCode(lot.lot_code)}</p>
-                  <h3 className="text-lg font-bold text-slate-950">{cleanProductName(lot.product)}</h3>
-                  <p className="text-sm text-slate-500">{lot.clients?.name} · {lot.location}</p>
-                  {lot.package_size ? (
-                    <p className="mt-1 text-xs font-semibold text-slate-400">
-                      Presentacion: {formatNumber(lot.package_size)} {lot.package_unit}
-                    </p>
-                  ) : null}
-                  <p className="mt-1 text-xs font-semibold text-slate-500">
-                    Total producto: {formatNumber(productTotals[productTotalKey(lot)]?.quantity || lot.current_quantity)}
-                  </p>
-                </div>
-                <div className="text-right">
-                  <p className="text-2xl font-bold text-slate-950">{formatNumber(lot.current_quantity)}</p>
-                  <p className="text-xs font-semibold uppercase text-slate-400">
-                    {lot.status === 'activo' ? 'Disponible' : lot.status}
-                  </p>
-                </div>
-              </div>
-            </Link>
-          ))
+          <p className="text-sm text-slate-500">Usa la lista de productos para revisar rápido. Abre esta sección solo cuando necesites entrar a un lote específico.</p>
         )}
-      </div>
+      </section>
     </div>
   )
 }
