@@ -17,7 +17,6 @@ const initialForm = {
   package_size: '',
   package_unit: 'lt',
   location: '',
-  entry_date: new Date().toISOString().slice(0, 10),
   expiry_date: '',
   notes: '',
 }
@@ -49,6 +48,7 @@ export default function OperatorEntry() {
   const equivalent = useMemo(() => {
     return Number(form.package_count || 0) * Number(form.package_size || 0)
   }, [form.package_count, form.package_size])
+  const today = new Date().toISOString().slice(0, 10)
 
   async function handleSubmit(event) {
     event.preventDefault()
@@ -89,7 +89,7 @@ export default function OperatorEntry() {
       p_package_size: packageSize > 0 ? packageSize : null,
       p_package_unit: packageSize > 0 ? form.package_unit : null,
       p_location: form.location,
-      p_entry_date: form.entry_date,
+      p_entry_date: today,
       p_expiry_date: form.expiry_date || null,
       p_notes: form.notes || null,
       p_user_id: user.id,
@@ -209,9 +209,11 @@ export default function OperatorEntry() {
           </select>
         </Field>
 
-        <Field label="Fecha ingreso">
-          <input className="input" type="date" value={form.entry_date} onChange={(event) => setForm({ ...form, entry_date: event.target.value })} required />
-        </Field>
+        <div className="rounded-lg bg-slate-50 p-3">
+          <p className="text-xs font-semibold uppercase text-slate-500">Fecha ingreso</p>
+          <p className="mt-1 text-lg font-black text-slate-950">{today}</p>
+          <p className="mt-1 text-xs font-semibold text-slate-500">Automatica, no editable</p>
+        </div>
 
         <Field label="Fecha vencimiento">
           <input className="input" type="date" value={form.expiry_date} onChange={(event) => setForm({ ...form, expiry_date: event.target.value })} />
