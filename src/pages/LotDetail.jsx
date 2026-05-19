@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useParams } from 'react-router-dom'
-import { Download, ExternalLink, Printer, QrCode, Save } from 'lucide-react'
+import { Download, Printer, QrCode, Save } from 'lucide-react'
 import PageHeader from '../components/PageHeader'
 import { useAuth } from '../hooks/useAuth.jsx'
 import { formatDate, formatNumber, movementLabel } from '../lib/format'
@@ -156,6 +156,28 @@ export default function LotDetail() {
         ? 'Movimiento guardado. Falta configurar el envio automatico de correo.'
         : 'Movimiento guardado y correo enviado a oficina.',
     )
+  }
+
+  async function saveQrImage() {
+    if (!qrDataUrl || !lot) return
+
+    try {
+      const response = await fetch(qrDataUrl)
+      const blob = await response.blob()
+      const file = new File([blob], `${displayLotCode(lot.lot_code)}-qr.png`, { type: 'image/png' })
+
+      if (navigator.canShare?.({ files: [file] })) {
+        await navigator.share({
+          files: [file],
+          title: `QR ${displayLotCode(lot.lot_code)}`,
+        })
+        return
+      }
+    } catch {
+      // Si compartir no esta disponible, se abre la imagen como alternativa.
+    }
+
+    openQrImage()
   }
 
   function openQrImage() {
@@ -333,18 +355,19 @@ export default function LotDetail() {
             <QrCode className="text-campo-700" />
             <h3 className="font-bold text-slate-900">QR del lote</h3>
           </div>
-          {qrDataUrl ? <img src={qrDataUrl} alt={`QR ${lot.lot_code}`} className="mx-auto h-56 w-56" /> : null}
+          {qrDataUrl ? (
+            <button className="mx-auto block" type="button" onClick={openQrImage} title="Abrir QR">
+              <img src={qrDataUrl} alt={`QR ${lot.lot_code}`} className="h-56 w-56" />
+            </button>
+          ) : null}
           {qrDataUrl ? (
             <div className="mt-3 grid gap-2">
-              <button className="btn-secondary w-full" type="button" onClick={openQrImage}>
-                <ExternalLink size={20} /> Abrir imagen QR
-              </button>
               <button className="btn-primary w-full" type="button" onClick={printQrLabels}>
-                <Printer size={20} /> Imprimir 4 QR
+                <Printer size={20} /> QR Pallets
               </button>
-              <a className="btn-secondary w-full" href={qrDataUrl} download={`${lot.lot_code}-qr.png`}>
-                <Download size={20} /> Descargar PNG
-              </a>
+              <button className="btn-secondary w-full" type="button" onClick={saveQrImage}>
+                <Download size={20} /> Descargar QR
+              </button>
             </div>
           ) : null}
         </div>
@@ -364,7 +387,18 @@ export default function LotDetail() {
           </label>
           <label>
             <span className="label">{movement.type === 'ajuste' ? 'Nueva cantidad' : 'Cantidad'}</span>
-            <input className="input mt-1" type="number" min="0" step="0.01" value={movement.quantity} onChange={(event) => setMovement({ ...movement, quantity: event.target.value })} required />
+            <input
+              className="input mt-1"
+              type="text"
+              inputMode="decimal"
+              value={movement.quantity}
+              onChange={(event) => {
+                const value = event.target.value.replace(',', '.')
+                if (/^\d*\.?\d*$/.test(value)) setMovement({ ...movement, quantity: value })
+              }}
+              onWheel={(event) => event.currentTarget.blur()}
+              required
+            />
           </label>
           {movement.type === 'traslado' ? (
             <label className="sm:col-span-2">
