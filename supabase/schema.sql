@@ -128,6 +128,9 @@ begin
   if p_type = 'entrada' then
     v_new_quantity := v_lot.current_quantity + p_quantity;
   elsif p_type = 'salida' then
+    if v_lot.expiry_date is not null and v_lot.expiry_date < current_date then
+      raise exception 'No se puede registrar salida porque el lote esta vencido.';
+    end if;
     if p_quantity > v_lot.current_quantity then
       raise exception 'No hay inventario suficiente.';
     end if;
@@ -184,6 +187,7 @@ create or replace function public.create_lot_entry(
   p_location text,
   p_entry_date date,
   p_expiry_date date,
+  p_photo_url text,
   p_notes text,
   p_user_id uuid
 )
@@ -235,6 +239,7 @@ begin
     entry_date,
     expiry_date,
     status,
+    photo_url,
     low_stock_threshold
   )
   values (
@@ -248,6 +253,7 @@ begin
     coalesce(p_entry_date, current_date),
     p_expiry_date,
     'activo',
+    nullif(trim(coalesce(p_photo_url, '')), ''),
     5
   )
   returning id into v_lot_id;

@@ -14,6 +14,9 @@ export default function Operation() {
         <Link className="btn-primary min-h-20 !justify-start !px-5 text-left text-lg" to="/scanner">
           <QrCode size={28} /> Escanear QR del lote
         </Link>
+        <Link className="btn-secondary min-h-16 !justify-start !px-5 text-left text-lg" to="/scanner?modo=despacho">
+          <LogOut size={24} /> Modo despacho
+        </Link>
         <Link className="btn-secondary min-h-16 !justify-start !px-5 text-left text-lg" to="/lotes">
           <Boxes size={24} /> Ver lotes y stock
         </Link>

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { useParams } from 'react-router-dom'
+import { useLocation, useParams } from 'react-router-dom'
 import { Download, Printer, QrCode, Save } from 'lucide-react'
 import PageHeader from '../components/PageHeader'
 import { useAuth } from '../hooks/useAuth.jsx'
@@ -27,6 +27,7 @@ function escapeHtml(value) {
 
 export default function LotDetail() {
   const { id } = useParams()
+  const location = useLocation()
   const { user, isOperator } = useAuth()
   const [lot, setLot] = useState(null)
   const [movements, setMovements] = useState([])
@@ -49,6 +50,12 @@ export default function LotDetail() {
 
     return () => supabase.removeChannel(channel)
   }, [id])
+
+  useEffect(() => {
+    if (location.state?.dispatchMode) {
+      setMovement((value) => ({ ...value, type: 'salida' }))
+    }
+  }, [location.state])
 
   async function loadLot() {
     const [{ data: lotData }, { data: movementsData }] = await Promise.all([
@@ -88,6 +95,16 @@ export default function LotDetail() {
 
   const statusWarning = lot && lot.status !== 'activo'
   const blocksSale = lot && ['retenido', 'cerrado'].includes(lot.status)
+  const scannedAccess = Boolean(location.state?.scanned) || sessionStorage.getItem(`scanned-lot-${id}`) === '1'
+  const expiryDaysLeft = useMemo(() => {
+    if (!lot?.expiry_date) return null
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    const expiry = new Date(`${lot.expiry_date}T00:00:00`)
+    return Math.ceil((expiry - today) / 86400000)
+  }, [lot?.expiry_date])
+  const isExpired = expiryDaysLeft !== null && expiryDaysLeft < 0
+  const saleExpiryWarning = movement.type === 'salida' && expiryDaysLeft !== null && expiryDaysLeft <= 90
   const isLargeSale =
     movement.type === 'salida' &&
     Number(lot?.current_quantity || 0) > 0 &&
@@ -102,6 +119,16 @@ export default function LotDetail() {
     const quantity = movement.type === 'traslado' ? 0 : Number(stockQuantity)
     if (movement.type === 'salida' && blocksSale) {
       setError('No se puede registrar salida porque este lote esta retenido o cerrado.')
+      return
+    }
+
+    if (movement.type === 'salida' && isExpired) {
+      setError('No se puede registrar salida porque este lote esta vencido.')
+      return
+    }
+
+    if (movement.type === 'salida' && !scannedAccess) {
+      setError('Para registrar salida debes escanear el QR del lote desde Scan o Modo despacho.')
       return
     }
 
@@ -390,6 +417,12 @@ export default function LotDetail() {
         </div>
       ) : null}
 
+      {isExpired ? (
+        <div className="mb-4 rounded-lg bg-red-50 p-4 text-sm font-bold text-red-700">
+          Lote vencido. Las salidas quedan bloqueadas.
+        </div>
+      ) : null}
+
       <section className="panel mb-4 border-campo-200 bg-white/95">
         <div className="grid gap-3 sm:grid-cols-[1.5fr_1fr_1fr]">
           <div>
@@ -543,6 +576,16 @@ export default function LotDetail() {
         {isLargeSale ? (
           <div className="rounded-lg bg-amber-50 p-3 text-sm font-bold text-amber-800">
             Advertencia: esta salida representa 50% o mas del stock disponible.
+          </div>
+        ) : null}
+        {saleExpiryWarning && !isExpired ? (
+          <div className="rounded-lg bg-amber-50 p-3 text-sm font-bold text-amber-800">
+            Advertencia: este lote vence {expiryDaysLeft === 0 ? 'hoy' : `en ${expiryDaysLeft} dias`}. Verifica antes de despachar.
+          </div>
+        ) : null}
+        {movement.type === 'salida' && !scannedAccess ? (
+          <div className="rounded-lg bg-red-50 p-3 text-sm font-bold text-red-700">
+            Salida bloqueada: entra por Scan o Modo despacho para confirmar que estas frente al lote correcto.
           </div>
         ) : null}
         {error ? <div className="rounded-lg bg-red-50 p-3 text-sm font-bold text-red-700">{error}</div> : null}

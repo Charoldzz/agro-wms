@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { BrowserQRCodeReader } from '@zxing/browser'
 import { BarcodeFormat, DecodeHintType } from '@zxing/library'
 import { Camera, ImagePlus, RefreshCcw } from 'lucide-react'
@@ -63,6 +63,7 @@ function loadImageFromFile(file) {
 
 export default function Scanner() {
   const navigate = useNavigate()
+  const location = useLocation()
   const videoRef = useRef(null)
   const controlsRef = useRef(null)
   const galleryInputRef = useRef(null)
@@ -70,15 +71,20 @@ export default function Scanner() {
   const [status, setStatus] = useState('Preparando camara...')
   const [error, setError] = useState('')
   const [restartKey, setRestartKey] = useState(0)
+  const dispatchMode = new URLSearchParams(location.search).get('modo') === 'despacho'
 
   const goToScannedLot = useCallback(
     (decodedText) => {
       const path = getLotPath(decodedText)
       if (!path) return false
-      navigate(path)
+      const lotId = path.split('/').filter(Boolean).pop()
+      if (lotId) {
+        sessionStorage.setItem(`scanned-lot-${lotId}`, '1')
+      }
+      navigate(path, { state: { scanned: true, dispatchMode } })
       return true
     },
-    [navigate],
+    [dispatchMode, navigate],
   )
 
   useEffect(() => {
@@ -194,7 +200,10 @@ export default function Scanner() {
 
   return (
     <div>
-      <PageHeader title="Escanear QR" subtitle="Apunta al codigo del lote" />
+      <PageHeader
+        title={dispatchMode ? 'Modo despacho' : 'Escanear QR'}
+        subtitle={dispatchMode ? 'Escanea el lote para registrar salida' : 'Apunta al codigo del lote'}
+      />
 
       <div className="panel">
         <div className="mb-3 flex items-center justify-between gap-3">

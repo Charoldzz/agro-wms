@@ -3,6 +3,22 @@ alter type public.user_role add value if not exists 'oficina';
 alter table public.lots
 add column if not exists expiry_date date;
 
+insert into storage.buckets (id, name, public)
+values ('lot-photos', 'lot-photos', true)
+on conflict (id) do update set public = true;
+
+drop policy if exists "Usuarios autenticados leen fotos de lotes" on storage.objects;
+create policy "Usuarios autenticados leen fotos de lotes"
+on storage.objects for select
+to authenticated
+using (bucket_id = 'lot-photos');
+
+drop policy if exists "Usuarios autenticados suben fotos de lotes" on storage.objects;
+create policy "Usuarios autenticados suben fotos de lotes"
+on storage.objects for insert
+to authenticated
+with check (bucket_id = 'lot-photos');
+
 create or replace function public.prevent_movement_delete()
 returns trigger
 language plpgsql
@@ -54,6 +70,10 @@ begin
 
   if p_type = 'salida' and v_lot.status in ('retenido', 'cerrado') then
     raise exception 'No se puede registrar salida porque el lote esta retenido o cerrado.';
+  end if;
+
+  if p_type = 'salida' and v_lot.expiry_date is not null and v_lot.expiry_date < current_date then
+    raise exception 'No se puede registrar salida porque el lote esta vencido.';
   end if;
 
   if p_type = 'entrada' then
@@ -111,6 +131,8 @@ begin
 end;
 $$;
 
+drop function if exists public.create_lot_entry(text, uuid, text, numeric, numeric, text, text, date, date, text, uuid);
+
 create or replace function public.create_lot_entry(
   p_lot_code text,
   p_client_id uuid,
@@ -121,6 +143,7 @@ create or replace function public.create_lot_entry(
   p_location text,
   p_entry_date date,
   p_expiry_date date,
+  p_photo_url text,
   p_notes text,
   p_user_id uuid
 )
@@ -172,6 +195,7 @@ begin
     entry_date,
     expiry_date,
     status,
+    photo_url,
     low_stock_threshold
   )
   values (
@@ -185,6 +209,7 @@ begin
     coalesce(p_entry_date, current_date),
     p_expiry_date,
     'activo',
+    nullif(trim(coalesce(p_photo_url, '')), ''),
     5
   )
   returning id into v_lot_id;
