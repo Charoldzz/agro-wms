@@ -22,9 +22,9 @@ function readDraft(key) {
     if (!draft) return emptyDraft()
     return {
       items: Array.isArray(draft.items) ? draft.items : [],
-      receiverName: '',
-      receiverDocument: '',
-      vehiclePlate: '',
+      receiverName: draft.receiverName || '',
+      receiverDocument: draft.receiverDocument || '',
+      vehiclePlate: draft.vehiclePlate || '',
     }
   } catch {
     return emptyDraft()
@@ -61,10 +61,11 @@ export default function DispatchList() {
   const requestId = new URLSearchParams(location.search).get('request')
   const startNew = new URLSearchParams(location.search).get('nuevo') === '1'
   const draftKey = requestId ? `${DISPATCH_DRAFT_KEY}:${requestId}` : `${DISPATCH_DRAFT_KEY}:manual`
-  const [items, setItems] = useState(() => (startNew ? emptyDraft() : readDraft(draftKey)).items)
-  const [receiverName, setReceiverName] = useState('')
-  const [receiverDocument, setReceiverDocument] = useState('')
-  const [vehiclePlate, setVehiclePlate] = useState('')
+  const initialDraft = startNew ? emptyDraft() : readDraft(draftKey)
+  const [items, setItems] = useState(initialDraft.items)
+  const [receiverName, setReceiverName] = useState(initialDraft.receiverName)
+  const [receiverDocument, setReceiverDocument] = useState(initialDraft.receiverDocument)
+  const [vehiclePlate, setVehiclePlate] = useState(initialDraft.vehiclePlate)
   const [error, setError] = useState('')
   const [status, setStatus] = useState('')
   const [saving, setSaving] = useState(false)
@@ -83,10 +84,11 @@ export default function DispatchList() {
       return
     }
 
-    setItems(readDraft(draftKey).items)
-    setReceiverName('')
-    setReceiverDocument('')
-    setVehiclePlate('')
+    const draft = readDraft(draftKey)
+    setItems(draft.items)
+    setReceiverName(draft.receiverName)
+    setReceiverDocument(draft.receiverDocument)
+    setVehiclePlate(draft.vehiclePlate)
     setReceipt(null)
     setConfirming(false)
     setError('')
@@ -116,8 +118,8 @@ export default function DispatchList() {
   }, [requestId])
 
   useEffect(() => {
-    writeDraft(draftKey, { items })
-  }, [draftKey, items])
+    writeDraft(draftKey, { items, receiverName, receiverDocument, vehiclePlate })
+  }, [draftKey, items, receiverName, receiverDocument, vehiclePlate])
 
   useEffect(() => {
     async function addScannedLot() {

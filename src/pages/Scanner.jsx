@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { BrowserQRCodeReader } from '@zxing/browser'
 import { BarcodeFormat, DecodeHintType } from '@zxing/library'
+import { Html5Qrcode } from 'html5-qrcode'
 import { Camera, ImagePlus, RefreshCcw } from 'lucide-react'
 import PageHeader from '../components/PageHeader'
 import { supabase } from '../lib/supabase'
@@ -77,6 +78,7 @@ export default function Scanner() {
   const controlsRef = useRef(null)
   const galleryInputRef = useRef(null)
   const foundQrRef = useRef(false)
+  const html5ReaderId = 'todo-agricola-html5-qr-reader'
   const [status, setStatus] = useState('Preparando camara...')
   const [error, setError] = useState('')
   const [restartKey, setRestartKey] = useState(0)
@@ -223,12 +225,22 @@ export default function Scanner() {
         return
       }
 
-      const reader = createQrReader()
-      const { image, imageUrl } = await loadImageFromFile(file)
-      const result = await reader.decodeFromImageElement(image)
-      URL.revokeObjectURL(imageUrl)
+      try {
+        const reader = createQrReader()
+        const { image, imageUrl } = await loadImageFromFile(file)
+        const result = await reader.decodeFromImageElement(image)
+        URL.revokeObjectURL(imageUrl)
 
-      if (!(await goToScannedLot(result.getText()))) {
+        if (!(await goToScannedLot(result.getText()))) {
+          setError('La imagen no contiene un QR de un lote de esta app.')
+          setStatus('Listo para escanear')
+        }
+        return
+      } catch {
+        const html5Reader = new Html5Qrcode(html5ReaderId, { verbose: false })
+        const decodedText = await html5Reader.scanFile(file, false)
+        html5Reader.clear()
+        if (await goToScannedLot(decodedText)) return
         setError('La imagen no contiene un QR de un lote de esta app.')
         setStatus('Listo para escanear')
       }
@@ -248,6 +260,7 @@ export default function Scanner() {
 
   return (
     <div>
+      <div id={html5ReaderId} className="hidden" />
       <PageHeader
         title={validMovementMode === 'despacho' ? 'Despacho' : validMovementMode ? 'Escanear lote' : 'Escanear QR'}
         subtitle={validMovementMode === 'despacho' ? 'Escanea el lote para registrar salida' : validMovementMode ? 'Escanea el lote para continuar' : 'Solo consulta la ficha del producto'}
