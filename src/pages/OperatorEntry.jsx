@@ -14,6 +14,9 @@ const initialForm = {
   lot_code: '',
   client_id: '',
   product: '',
+  driver_name: '',
+  driver_document: '',
+  vehicle_plate: '',
   package_count: '',
   package_size: '',
   package_unit: 'lt',
@@ -68,6 +71,9 @@ export default function OperatorEntry() {
     if (currentStep === 1) {
       if (!form.client_id) return 'Selecciona el cliente.'
       if (!form.product.trim()) return 'Escribe el producto.'
+      if (!form.driver_name.trim()) return 'Escribe el nombre del chofer.'
+      if (!form.driver_document.trim()) return 'Escribe el numero de identidad del chofer.'
+      if (!form.vehicle_plate.trim()) return 'Escribe la placa del vehiculo.'
     }
 
     if (currentStep === 2) {
@@ -118,6 +124,15 @@ export default function OperatorEntry() {
     const lotCode = form.lot_code.trim() || createOperatorLotCode()
     const packageCount = Number(form.package_count || 0)
     const packageSize = Number(form.package_size || 0)
+    const entryNotes = [
+      'Nuevo ingreso desde almacen.',
+      `Chofer: ${form.driver_name.trim()}`,
+      `CI chofer: ${form.driver_document.trim()}`,
+      `Placa: ${form.vehicle_plate.trim()}`,
+      form.notes || null,
+    ]
+      .filter(Boolean)
+      .join(' | ')
 
     setSaving(true)
 
@@ -134,7 +149,7 @@ export default function OperatorEntry() {
         p_entry_date: today,
         p_expiry_date: form.expiry_date || null,
         p_photo_url: photoUrl,
-        p_notes: form.notes || null,
+        p_notes: entryNotes,
         p_user_id: user.id,
       })
 
@@ -147,7 +162,7 @@ export default function OperatorEntry() {
           quantity: packageCount,
           previous_quantity: 0,
           new_quantity: packageCount,
-          notes: form.notes ? `Nuevo ingreso desde almacen. ${form.notes}` : 'Nuevo ingreso desde almacen.',
+          notes: entryNotes,
           lot_code: displayLotCode(lotCode),
           product: cleanProductName(form.product),
           client: selectedClient?.name || 'Sin cliente',
@@ -188,7 +203,7 @@ export default function OperatorEntry() {
         {step === 1 ? (
           <>
             <div className="sm:col-span-2 rounded-lg bg-campo-50 p-3 text-sm font-bold text-campo-700">
-              Paso 1: selecciona el cliente y registra el producto.
+              Paso 1: selecciona el cliente, producto y datos del transporte.
             </div>
             <Field label="Cliente">
               <select className="input" value={form.client_id} onChange={(event) => setForm({ ...form, client_id: event.target.value })} required>
@@ -208,6 +223,15 @@ export default function OperatorEntry() {
             </Field>
             <Field label="Producto">
               <input className="input" value={form.product} onChange={(event) => setForm({ ...form, product: event.target.value })} required />
+            </Field>
+            <Field label="Nombre del chofer">
+              <input className="input" value={form.driver_name} onChange={(event) => setForm({ ...form, driver_name: event.target.value })} required />
+            </Field>
+            <Field label="Numero de identidad">
+              <input className="input" value={form.driver_document} onChange={(event) => setForm({ ...form, driver_document: event.target.value })} required />
+            </Field>
+            <Field label="Placa del vehiculo">
+              <input className="input uppercase" value={form.vehicle_plate} onChange={(event) => setForm({ ...form, vehicle_plate: event.target.value.toUpperCase() })} required />
             </Field>
             <div className="rounded-lg bg-slate-50 p-3">
               <p className="text-xs font-semibold uppercase text-slate-500">Fecha ingreso</p>
@@ -303,6 +327,9 @@ export default function OperatorEntry() {
             <div className="sm:col-span-2 rounded-lg bg-slate-50 p-3 text-sm font-bold text-slate-700">
               <p>Cliente: {selectedClient?.name || '-'}</p>
               <p>Producto: {form.product || '-'}</p>
+              <p>Chofer: {form.driver_name || '-'}</p>
+              <p>CI chofer: {form.driver_document || '-'}</p>
+              <p>Placa: {form.vehicle_plate || '-'}</p>
               <p>Envases: {formatNumber(form.package_count)}</p>
               <p>Equivalente: {formatNumber(equivalent)} {form.package_unit}</p>
               <p>Ubicacion: {form.location || '-'}</p>
@@ -350,6 +377,9 @@ export default function OperatorEntry() {
             </p>
             <div className="mt-4 space-y-2 rounded-lg bg-slate-50 p-3 text-sm font-bold text-slate-700">
               <div className="flex justify-between gap-3"><span>Ubicacion</span><span>{form.location}</span></div>
+              <div className="flex justify-between gap-3"><span>Chofer</span><span>{form.driver_name}</span></div>
+              <div className="flex justify-between gap-3"><span>CI chofer</span><span>{form.driver_document}</span></div>
+              <div className="flex justify-between gap-3"><span>Placa</span><span>{form.vehicle_plate}</span></div>
               <div className="flex justify-between gap-3"><span>Equivalente</span><span>{formatNumber(equivalent)} {form.package_unit}</span></div>
               <div className="flex justify-between gap-3"><span>Vencimiento</span><span>{form.expiry_date || 'Sin dato'}</span></div>
               <div className="flex justify-between gap-3"><span>Foto</span><span>{photoFile ? 'Adjunta' : 'Sin foto'}</span></div>

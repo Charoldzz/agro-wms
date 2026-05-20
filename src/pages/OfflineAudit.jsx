@@ -26,12 +26,47 @@ export default function OfflineAudit() {
       .limit(300)
 
     if (loadError) {
-      setError('No se pudo cargar la auditoria offline.')
-      setMovements([])
+      const fallback = await supabase
+        .from('movements')
+        .select('*')
+        .ilike('notes', '%[OFFLINE]%')
+        .order('created_at', { ascending: false })
+        .limit(300)
+
+      if (fallback.error) {
+        setError('No se pudo cargar la auditoria offline. Ejecuta el SQL offline_audit_and_dispatch.sql y vuelve a intentar.')
+        setMovements([])
+        return
+      }
+
+      setMovements(await enrichMovements(fallback.data || []))
       return
     }
 
     setMovements(data || [])
+  }
+
+  async function enrichMovements(rawMovements) {
+    const lotIds = [...new Set(rawMovements.map((movement) => movement.lot_id).filter(Boolean))]
+    const userIds = [...new Set(rawMovements.map((movement) => movement.user_id).filter(Boolean))]
+
+    const [{ data: lots }, { data: profiles }] = await Promise.all([
+      lotIds.length
+        ? supabase.from('lots').select('id, lot_code, product, current_quantity, location, clients(name)').in('id', lotIds)
+        : Promise.resolve({ data: [] }),
+      userIds.length
+        ? supabase.from('profiles').select('id, full_name').in('id', userIds)
+        : Promise.resolve({ data: [] }),
+    ])
+
+    const lotMap = new Map((lots || []).map((lot) => [lot.id, lot]))
+    const profileMap = new Map((profiles || []).map((profile) => [profile.id, profile]))
+
+    return rawMovements.map((movement) => ({
+      ...movement,
+      lots: lotMap.get(movement.lot_id) || null,
+      profiles: profileMap.get(movement.user_id) || null,
+    }))
   }
 
   async function reviewMovement(id, action) {
