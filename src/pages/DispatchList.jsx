@@ -16,9 +16,9 @@ function emptyDraft() {
   return { items: [], receiverName: '', receiverDocument: '', vehiclePlate: '' }
 }
 
-function readDraft() {
+function readDraft(key) {
   try {
-    const draft = JSON.parse(sessionStorage.getItem(DISPATCH_DRAFT_KEY) || 'null')
+    const draft = JSON.parse(sessionStorage.getItem(key) || 'null')
     if (!draft) return emptyDraft()
     return {
       items: Array.isArray(draft.items) ? draft.items : [],
@@ -31,12 +31,12 @@ function readDraft() {
   }
 }
 
-function writeDraft(draft) {
-  sessionStorage.setItem(DISPATCH_DRAFT_KEY, JSON.stringify(draft))
+function writeDraft(key, draft) {
+  sessionStorage.setItem(key, JSON.stringify(draft))
 }
 
-function clearDraft() {
-  sessionStorage.removeItem(DISPATCH_DRAFT_KEY)
+function clearDraft(key) {
+  sessionStorage.removeItem(key)
 }
 
 function expiryDays(expiryDate) {
@@ -57,10 +57,14 @@ export default function DispatchList() {
   const navigate = useNavigate()
   const location = useLocation()
   const { user } = useAuth()
-  const [items, setItems] = useState(() => readDraft().items)
-  const [receiverName, setReceiverName] = useState(() => readDraft().receiverName)
-  const [receiverDocument, setReceiverDocument] = useState(() => readDraft().receiverDocument)
-  const [vehiclePlate, setVehiclePlate] = useState(() => readDraft().vehiclePlate)
+  const lotId = new URLSearchParams(location.search).get('lot')
+  const requestId = new URLSearchParams(location.search).get('request')
+  const startNew = new URLSearchParams(location.search).get('nuevo') === '1'
+  const draftKey = requestId ? `${DISPATCH_DRAFT_KEY}:${requestId}` : `${DISPATCH_DRAFT_KEY}:manual`
+  const [items, setItems] = useState(() => (startNew ? emptyDraft() : readDraft(draftKey)).items)
+  const [receiverName, setReceiverName] = useState('')
+  const [receiverDocument, setReceiverDocument] = useState('')
+  const [vehiclePlate, setVehiclePlate] = useState('')
   const [error, setError] = useState('')
   const [status, setStatus] = useState('')
   const [saving, setSaving] = useState(false)
@@ -69,8 +73,25 @@ export default function DispatchList() {
   const [approvedRequest, setApprovedRequest] = useState(null)
   const [approvedRequestLoaded, setApprovedRequestLoaded] = useState(false)
 
-  const lotId = new URLSearchParams(location.search).get('lot')
-  const requestId = new URLSearchParams(location.search).get('request')
+  const isApprovedDispatch = Boolean(requestId)
+
+  useEffect(() => {
+    if (startNew) {
+      clearDraft(draftKey)
+      setItems([])
+      navigate('/operacion/despacho-lista', { replace: true })
+      return
+    }
+
+    setItems(readDraft(draftKey).items)
+    setReceiverName('')
+    setReceiverDocument('')
+    setVehiclePlate('')
+    setReceipt(null)
+    setConfirming(false)
+    setError('')
+    setStatus('')
+  }, [draftKey, startNew, navigate])
 
   useEffect(() => {
     async function loadApprovedRequest() {
@@ -95,8 +116,8 @@ export default function DispatchList() {
   }, [requestId])
 
   useEffect(() => {
-    writeDraft({ items })
-  }, [items])
+    writeDraft(draftKey, { items })
+  }, [draftKey, items])
 
   useEffect(() => {
     async function addScannedLot() {
@@ -301,7 +322,7 @@ export default function DispatchList() {
     setReceiverName('')
     setReceiverDocument('')
     setVehiclePlate('')
-    clearDraft()
+    clearDraft(draftKey)
     if (requestId && queued === 0) {
       await supabase.rpc('complete_client_dispatch_request', {
         p_request_id: requestId,
@@ -503,9 +524,11 @@ export default function DispatchList() {
                       </div>
                     </div>
                   </div>
-                  <button className="btn-secondary !min-h-10 !px-3" type="button" onClick={() => removeItem(item.lot.id)}>
-                    <Trash2 size={17} />
-                  </button>
+                  {!isApprovedDispatch ? (
+                    <button className="btn-secondary !min-h-10 !px-3" type="button" onClick={() => removeItem(item.lot.id)}>
+                      <Trash2 size={17} />
+                    </button>
+                  ) : null}
                 </div>
                 {days !== null && days <= 90 ? (
                   <div className={`mt-3 rounded-lg p-2 text-xs font-bold ${days < 0 ? 'bg-red-50 text-red-700' : 'bg-amber-50 text-amber-800'}`}>
@@ -521,13 +544,17 @@ export default function DispatchList() {
                   <label>
                     <span className="label">Envases a despachar</span>
                     <input
-                      className="input mt-1"
+                      className={`input mt-1 ${isApprovedDispatch ? 'bg-slate-100 font-black text-slate-700' : ''}`}
                       inputMode="decimal"
+                      readOnly={isApprovedDispatch}
                       type="text"
                       value={item.package_count}
                       onChange={(event) => updateQuantity(item.lot.id, event.target.value)}
                       onWheel={(event) => event.currentTarget.blur()}
                     />
+                    {isApprovedDispatch ? (
+                      <span className="mt-1 block text-xs font-bold text-slate-500">Cantidad aprobada, no editable.</span>
+                    ) : null}
                   </label>
                   <div className="rounded-lg bg-slate-50 p-3">
                     <p className="text-xs font-semibold uppercase text-slate-500">Equivalente</p>

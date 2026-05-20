@@ -684,18 +684,15 @@ export default function LotDetail() {
       <section className="grid gap-4 lg:grid-cols-[1.2fr_0.8fr]">
         <div className="panel">
           {lot.photo_url ? <img className="mb-4 h-48 w-full rounded-lg object-cover" src={lot.photo_url} alt={cleanProductName(lot.product)} /> : null}
+          <h3 className="mb-3 text-base font-black text-slate-950">Datos del lote</h3>
           <div className="grid grid-cols-2 gap-3">
-            <Info label="Envases actuales" value={formatNumber(lot.current_quantity)} strong />
+            <Info label="Cliente" value={lot.clients?.name} strong />
+            <Info label="Contacto" value={lot.clients?.contact || '-'} />
             <Info
               label="Presentacion"
               value={lot.package_size ? `${formatNumber(lot.package_size)} ${lot.package_unit || ''}` : 'Sin dato'}
             />
-            <Info label="Ubicacion" value={lot.location} />
             <Info label="Fecha ingreso" value={formatDate(lot.entry_date)} />
-            <Info label="Vencimiento" value={lot.expiry_date ? formatDate(lot.expiry_date) : 'Sin dato'} />
-            <Info label="Estado" value={lot.status} />
-            <Info label="Cliente" value={lot.clients?.name} />
-            <Info label="Contacto" value={lot.clients?.contact || '-'} />
           </div>
         </div>
 

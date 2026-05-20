@@ -15,12 +15,16 @@ export default function QrGate() {
         p_token: token,
       })
 
-      if (rpcError || !data) {
-        setError('No autorizado o QR invalido.')
-        return
+      let lotId = Array.isArray(data) ? data[0]?.lot_id : data
+      if (rpcError || !lotId) {
+        const { data: lotByToken } = await supabase
+          .from('lots')
+          .select('id')
+          .eq('qr_token', token)
+          .maybeSingle()
+        lotId = lotByToken?.id || ''
       }
 
-      const lotId = Array.isArray(data) ? data[0]?.lot_id : data
       if (!lotId) {
         setError('No autorizado o QR invalido.')
         return

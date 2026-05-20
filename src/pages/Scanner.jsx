@@ -97,8 +97,18 @@ export default function Scanner() {
           p_token: parts[1],
         })
 
-        if (qrError || !data) return false
-        lotId = Array.isArray(data) ? data[0]?.lot_id : data
+        if (qrError || !data) {
+          const { data: lotByToken } = await supabase
+            .from('lots')
+            .select('id')
+            .eq('qr_token', parts[1])
+            .maybeSingle()
+
+          lotId = lotByToken?.id || ''
+          if (!lotId) return false
+        } else {
+          lotId = Array.isArray(data) ? data[0]?.lot_id : data
+        }
         if (!lotId) return false
         path = `/lotes/${lotId}`
       }
@@ -166,7 +176,7 @@ export default function Scanner() {
               if (!loaded) {
                 foundQrRef.current = false
                 setStatus('QR leido, pero no es de un lote')
-                setError('El QR no corresponde a un lote de esta app o no tienes permiso.')
+                setError('No se pudo autorizar este QR. Revisa que sea un QR nuevo del lote y que el usuario operador tenga permiso.')
                 return
               }
 

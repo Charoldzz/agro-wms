@@ -59,12 +59,17 @@ begin
 end;
 $$;
 
+grant execute on function public.resolve_lot_qr(text) to authenticated;
+
 drop policy if exists "Usuarios autenticados leen clientes" on public.clients;
+drop policy if exists "Usuarios leen clientes autorizados" on public.clients;
 drop policy if exists "Administradores gestionan clientes" on public.clients;
 drop policy if exists "Usuarios autenticados leen lotes" on public.lots;
+drop policy if exists "Usuarios leen lotes autorizados" on public.lots;
 drop policy if exists "Administradores crean lotes" on public.lots;
 drop policy if exists "Administradores actualizan lotes" on public.lots;
 drop policy if exists "Usuarios autenticados leen movimientos" on public.movements;
+drop policy if exists "Usuarios leen movimientos autorizados" on public.movements;
 
 create policy "Usuarios leen clientes autorizados"
 on public.clients for select
