@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { Plus, Search } from 'lucide-react'
 import PageHeader from '../components/PageHeader'
 import { useAuth } from '../hooks/useAuth.jsx'
 import { supabase } from '../lib/supabase'
-import { formatNumber } from '../lib/format'
-import { cleanProductName, productTotalKey } from '../lib/display'
+import { formatDate, formatNumber } from '../lib/format'
+import { cleanProductName, displayLotCode, packageLabel, productTotalKey } from '../lib/display'
 
 const internalLocations = ['Nave 1', 'Nave 2', 'Nave 3', 'Playa']
 
@@ -32,17 +32,22 @@ function createManualLotCode() {
 export default function Lots() {
   const { isAdmin } = useAuth()
   const navigate = useNavigate()
+  const location = useLocation()
   const [lots, setLots] = useState([])
   const [movements, setMovements] = useState([])
   const [clients, setClients] = useState([])
   const [form, setForm] = useState(initialForm)
   const [showForm, setShowForm] = useState(false)
   const [showAllTotals, setShowAllTotals] = useState(false)
-  const [search, setSearch] = useState('')
+  const [search, setSearch] = useState(() => location.state?.restoreSearch || '')
 
   useEffect(() => {
     loadData()
   }, [])
+
+  useEffect(() => {
+    if (location.state?.restoreSearch) setSearch(location.state.restoreSearch)
+  }, [location.state])
 
   async function loadData() {
     const [{ data: lotsData }, { data: clientsData }, { data: movementsData }] = await Promise.all([
@@ -105,12 +110,24 @@ export default function Lots() {
     })
   }, [productTotals, movements])
 
+  const searchTerm = search.trim().toLowerCase()
   const visibleProductTotals = showAllTotals ? sortedProductTotals : sortedProductTotals.slice(0, 10)
-  const filteredProducts = visibleProductTotals.filter((item) => {
-    const term = search.toLowerCase()
+  const filteredProducts = (searchTerm ? sortedProductTotals : visibleProductTotals).filter((item) => {
+    const term = searchTerm
     if (!term) return true
     return item.product.toLowerCase().includes(term)
   })
+  const filteredLots = useMemo(() => {
+    const term = search.trim().toLowerCase()
+    if (!term) return []
+    return lots
+      .filter((lot) =>
+        [lot.product, cleanProductName(lot.product), lot.lot_code, displayLotCode(lot.lot_code), lot.location, lot.clients?.name]
+          .filter(Boolean)
+          .some((value) => value.toLowerCase().includes(term)),
+      )
+      .slice(0, 30)
+  }, [lots, search])
 
   return (
     <div>
@@ -198,10 +215,50 @@ export default function Lots() {
         </div>
       </section>
 
+      {search.trim() ? (
+        <section className="panel mb-4">
+          <div className="mb-3 flex items-center justify-between gap-3">
+            <h3 className="font-bold text-slate-900">Lotes encontrados</h3>
+            <span className="text-xs font-bold text-slate-500">{filteredLots.length} resultado{filteredLots.length === 1 ? '' : 's'}</span>
+          </div>
+          <div className="grid gap-2">
+            {filteredLots.length === 0 ? (
+              <p className="rounded-lg bg-slate-50 p-3 text-sm font-bold text-slate-500">No hay lotes con esa busqueda.</p>
+            ) : (
+              filteredLots.map((lot) => (
+                <button
+                  key={lot.id}
+                  className="rounded-lg bg-slate-50 p-3 text-left transition hover:bg-campo-50"
+                  type="button"
+                  onClick={() => navigate(`/lotes/${lot.id}`, { state: { fromLotsSearch: true, search } })}
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="truncate font-bold text-slate-950">{cleanProductName(lot.product)}</p>
+                      <p className="text-sm font-semibold text-slate-500">
+                        {displayLotCode(lot.lot_code)} - {lot.clients?.name || '-'} - {lot.location || '-'}
+                        {packageLabel(lot) ? ` - ${packageLabel(lot)}` : ''}
+                      </p>
+                      <p className="mt-1 text-xs font-bold text-amber-700">
+                        Vence: {lot.expiry_date ? formatDate(lot.expiry_date) : 'Sin dato'}
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-xl font-black text-campo-700">{formatNumber(lot.current_quantity)}</p>
+                      <p className="text-xs font-bold text-slate-500">env.</p>
+                    </div>
+                  </div>
+                </button>
+              ))
+            )}
+          </div>
+        </section>
+      ) : null}
+
       <section className="panel">
         <div className="mb-3 flex items-center justify-between gap-3">
           <h3 className="font-bold text-slate-900">Productos</h3>
-          {sortedProductTotals.length > 10 ? (
+          {!searchTerm && sortedProductTotals.length > 10 ? (
             <button className="text-sm font-bold text-campo-700" type="button" onClick={() => setShowAllTotals((value) => !value)}>
               {showAllTotals ? 'Ver menos' : 'Ver todos'}
             </button>

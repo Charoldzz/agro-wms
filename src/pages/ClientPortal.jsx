@@ -130,7 +130,6 @@ export default function ClientPortal() {
   const clientName = lots[0]?.clients?.name || 'Cliente'
   const dispatchReceipts = movements.filter((movement) => movement.type === 'salida')
   const history = movements.slice(0, 12)
-  const requestTotalPackages = requestItems.reduce((sum, item) => sum + Number(item.quantity || 0), 0)
 
   function addRequestItem() {
     setRequestMessage('')
@@ -459,12 +458,6 @@ export default function ClientPortal() {
               </button>
               {requestItems.length > 0 ? (
                 <div className="space-y-2 rounded-lg bg-slate-50 p-2">
-                  <div className="grid gap-2">
-                    <div className="rounded-lg bg-campo-50 p-3">
-                      <p className="text-xs font-bold uppercase text-campo-700">Envases solicitados</p>
-                      <p className="mt-1 text-3xl font-black text-campo-800">{formatNumber(requestTotalPackages)}</p>
-                    </div>
-                  </div>
                   {requestItems.map((item) => (
                     <div key={item.lot_id} className="flex items-center justify-between gap-2 rounded-lg bg-white p-2">
                       <div className="min-w-0">

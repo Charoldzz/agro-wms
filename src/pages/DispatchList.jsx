@@ -272,6 +272,9 @@ export default function DispatchList() {
     }
 
     setItems([])
+    setReceiverName('')
+    setReceiverDocument('')
+    setVehiclePlate('')
     clearDraft()
     if (requestId && queued === 0) {
       await supabase.rpc('complete_client_dispatch_request', {

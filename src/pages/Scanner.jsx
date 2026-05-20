@@ -99,7 +99,8 @@ export default function Scanner() {
         }
       }
       if (returnTo && lotId) {
-        navigate(`${returnTo}?lot=${lotId}`, { state: { scanned: true, movementMode: validMovementMode } })
+        const separator = returnTo.includes('?') ? '&' : '?'
+        navigate(`${returnTo}${separator}lot=${lotId}`, { state: { scanned: true, movementMode: validMovementMode } })
         return true
       }
       navigate(path, { state: { scanned: true, movementMode: validMovementMode, returnTo } })

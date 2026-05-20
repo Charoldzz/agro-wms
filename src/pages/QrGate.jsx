@@ -32,7 +32,8 @@ export default function QrGate() {
       }
 
       if (location.state?.returnTo) {
-        navigate(`${location.state.returnTo}?lot=${lotId}`, {
+        const separator = location.state.returnTo.includes('?') ? '&' : '?'
+        navigate(`${location.state.returnTo}${separator}lot=${lotId}`, {
           replace: true,
           state: { scanned: true, movementMode: location.state.movementMode || '' },
         })

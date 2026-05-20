@@ -627,6 +627,16 @@ export default function LotDetail() {
     <div>
       <PageHeader title={displayLotCode(lot.lot_code)} subtitle={`${cleanProductName(lot.product)} - ${lot.clients?.name}`} />
 
+      {location.state?.fromLotsSearch ? (
+        <button
+          className="btn-secondary mb-4 w-full sm:w-auto"
+          type="button"
+          onClick={() => navigate('/lotes', { state: { restoreSearch: location.state.search || '' } })}
+        >
+          Volver al buscador
+        </button>
+      ) : null}
+
       {isOperator && canRegisterMovement ? (
         <div className="mb-4 rounded-lg bg-campo-50 p-4 text-sm font-bold text-campo-700">
           Modo operario: registra el movimiento y confirma antes de guardar.

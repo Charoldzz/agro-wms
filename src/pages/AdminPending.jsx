@@ -40,14 +40,78 @@ export default function AdminPending() {
         .order('created_at', { ascending: false }),
     ])
 
-    if (requestResult.error || movementResult.error) {
-      setError('No se pudieron cargar todos los pendientes. Revisa que el SQL este actualizado.')
-    } else {
-      setError('')
+    let requestRows = requestResult.data || []
+    let movementRows = movementResult.data || []
+    const loadErrors = []
+
+    if (requestResult.error) {
+      const { data, error: fallbackError } = await supabase
+        .from('client_dispatch_requests')
+        .select('*')
+        .eq('status', 'pendiente')
+        .order('created_at', { ascending: false })
+
+      if (fallbackError) {
+        loadErrors.push('solicitudes de despacho')
+      } else {
+        requestRows = await enrichRequests(data || [])
+      }
     }
 
-    setRequests(requestResult.data || [])
-    setMovements(movementResult.data || [])
+    if (movementResult.error) {
+      const { data, error: fallbackError } = await supabase
+        .from('movements')
+        .select('*')
+        .in('type', ['ajuste', 'traslado', 'salida'])
+        .eq('approval_status', 'pendiente')
+        .order('created_at', { ascending: false })
+
+      if (fallbackError) {
+        loadErrors.push('movimientos')
+      } else {
+        movementRows = await enrichMovements(data || [])
+      }
+    }
+
+    setError(loadErrors.length ? `No se pudieron cargar: ${loadErrors.join(', ')}.` : '')
+    setRequests(requestRows)
+    setMovements(movementRows)
+  }
+
+  async function enrichRequests(rows) {
+    const lotIds = [...new Set(rows.map((row) => row.lot_id).filter(Boolean))]
+    const clientIds = [...new Set(rows.map((row) => row.client_id).filter(Boolean))]
+    const [{ data: lotRows }, { data: clientRows }] = await Promise.all([
+      lotIds.length
+        ? supabase.from('lots').select('id, lot_code, product, current_quantity, location').in('id', lotIds)
+        : Promise.resolve({ data: [] }),
+      clientIds.length ? supabase.from('clients').select('id, name').in('id', clientIds) : Promise.resolve({ data: [] }),
+    ])
+    const lotMap = new Map((lotRows || []).map((lot) => [lot.id, lot]))
+    const clientMap = new Map((clientRows || []).map((client) => [client.id, client]))
+    return rows.map((row) => ({
+      ...row,
+      lots: row.lots || lotMap.get(row.lot_id) || null,
+      clients: row.clients || clientMap.get(row.client_id) || null,
+    }))
+  }
+
+  async function enrichMovements(rows) {
+    const lotIds = [...new Set(rows.map((row) => row.lot_id).filter(Boolean))]
+    const userIds = [...new Set(rows.map((row) => row.user_id).filter(Boolean))]
+    const [{ data: lotRows }, { data: profileRows }] = await Promise.all([
+      lotIds.length
+        ? supabase.from('lots').select('id, lot_code, product, current_quantity, location, clients(name)').in('id', lotIds)
+        : Promise.resolve({ data: [] }),
+      userIds.length ? supabase.from('profiles').select('id, full_name').in('id', userIds) : Promise.resolve({ data: [] }),
+    ])
+    const lotMap = new Map((lotRows || []).map((lot) => [lot.id, lot]))
+    const profileMap = new Map((profileRows || []).map((profile) => [profile.id, profile]))
+    return rows.map((row) => ({
+      ...row,
+      lots: row.lots || lotMap.get(row.lot_id) || null,
+      profiles: row.profiles || profileMap.get(row.user_id) || null,
+    }))
   }
 
   async function reviewDispatchRequest(id, status) {
