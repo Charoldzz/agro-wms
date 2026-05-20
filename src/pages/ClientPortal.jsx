@@ -32,21 +32,56 @@ function lotStatus(lot) {
   return { label: 'Disponible', className: 'bg-campo-50 text-campo-700' }
 }
 
+const REQUEST_DRAFT_KEY = 'todo-agricola-client-dispatch-draft'
+
+function readRequestDraft() {
+  try {
+    const draft = JSON.parse(localStorage.getItem(REQUEST_DRAFT_KEY) || 'null')
+    if (!draft) return { lotId: '', quantity: '', notes: '', items: [] }
+    return {
+      lotId: draft.lotId || '',
+      quantity: draft.quantity || '',
+      notes: draft.notes || '',
+      items: Array.isArray(draft.items) ? draft.items : [],
+    }
+  } catch {
+    return { lotId: '', quantity: '', notes: '', items: [] }
+  }
+}
+
+function writeRequestDraft(draft) {
+  localStorage.setItem(REQUEST_DRAFT_KEY, JSON.stringify(draft))
+}
+
+function clearRequestDraft() {
+  localStorage.removeItem(REQUEST_DRAFT_KEY)
+}
+
 export default function ClientPortal() {
   const { user } = useAuth()
+  const initialDraft = useMemo(readRequestDraft, [])
   const [lots, setLots] = useState([])
   const [movements, setMovements] = useState([])
   const [requests, setRequests] = useState([])
   const [search, setSearch] = useState('')
-  const [requestLotId, setRequestLotId] = useState('')
-  const [requestQuantity, setRequestQuantity] = useState('')
-  const [requestNotes, setRequestNotes] = useState('')
-  const [requestItems, setRequestItems] = useState([])
+  const [requestLotId, setRequestLotId] = useState(initialDraft.lotId)
+  const [requestQuantity, setRequestQuantity] = useState(initialDraft.quantity)
+  const [requestNotes, setRequestNotes] = useState(initialDraft.notes)
+  const [requestItems, setRequestItems] = useState(initialDraft.items)
   const [requestMessage, setRequestMessage] = useState('')
 
   useEffect(() => {
     loadData()
   }, [])
+
+  useEffect(() => {
+    writeRequestDraft({
+      lotId: requestLotId,
+      quantity: requestQuantity,
+      notes: requestNotes,
+      items: requestItems,
+    })
+  }, [requestLotId, requestQuantity, requestNotes, requestItems])
 
   async function loadData() {
     const { data: lotsData } = await supabase
@@ -147,6 +182,15 @@ export default function ClientPortal() {
     setRequestItems((current) => current.filter((item) => item.lot_id !== lotId))
   }
 
+  function clearRequestCart() {
+    setRequestLotId('')
+    setRequestQuantity('')
+    setRequestItems([])
+    setRequestNotes('')
+    setRequestMessage('')
+    clearRequestDraft()
+  }
+
   async function createDispatchRequest(event) {
     event.preventDefault()
     setRequestMessage('')
@@ -184,6 +228,7 @@ export default function ClientPortal() {
     setRequestQuantity('')
     setRequestItems([])
     setRequestNotes('')
+    clearRequestDraft()
     setRequestMessage('Solicitud enviada. Administracion la revisara.')
     loadData()
   }
@@ -447,6 +492,9 @@ export default function ClientPortal() {
                       </button>
                     </div>
                   ))}
+                  <button className="btn-secondary w-full !min-h-10 !py-2" type="button" onClick={clearRequestCart}>
+                    Vaciar carrito
+                  </button>
                 </div>
               ) : null}
               <label>
