@@ -67,6 +67,7 @@ export default function DispatchList() {
   const [confirming, setConfirming] = useState(false)
   const [receipt, setReceipt] = useState(null)
   const [approvedRequest, setApprovedRequest] = useState(null)
+  const [approvedRequestLoaded, setApprovedRequestLoaded] = useState(false)
 
   const lotId = new URLSearchParams(location.search).get('lot')
   const requestId = new URLSearchParams(location.search).get('request')
@@ -75,9 +76,11 @@ export default function DispatchList() {
     async function loadApprovedRequest() {
       if (!requestId) {
         setApprovedRequest(null)
+        setApprovedRequestLoaded(true)
         return
       }
 
+      setApprovedRequestLoaded(false)
       const { data } = await supabase
         .from('client_dispatch_requests')
         .select('*, clients(name), lots(id, lot_code, product, current_quantity, location)')
@@ -85,6 +88,7 @@ export default function DispatchList() {
         .single()
 
       setApprovedRequest(data || null)
+      setApprovedRequestLoaded(true)
     }
 
     loadApprovedRequest()
@@ -97,6 +101,14 @@ export default function DispatchList() {
   useEffect(() => {
     async function addScannedLot() {
       if (!lotId) return
+      if (requestId && !approvedRequestLoaded) return
+
+      if (requestId && !approvedRequest) {
+        setError('No se pudo cargar la orden aprobada. Vuelve a abrir el despacho desde Trabajo del dia.')
+        vibrateError()
+        navigate('/operacion/despacho-lista', { replace: true })
+        return
+      }
 
       const { data, error: lotError } = await supabase
         .from('lots')
@@ -107,6 +119,13 @@ export default function DispatchList() {
       if (lotError || !data) {
         setError('No se pudo cargar el lote escaneado.')
         vibrateError()
+        return
+      }
+
+      if (approvedRequest?.client_id && data.client_id !== approvedRequest.client_id) {
+        setError(`Este QR pertenece a ${data.clients?.name || 'otro cliente'}, pero la orden es de ${approvedRequest.clients?.name || 'otro cliente'}.`)
+        vibrateError()
+        navigate(requestId ? `/operacion/despacho-lista?request=${requestId}` : '/operacion/despacho-lista', { replace: true })
         return
       }
 
@@ -150,7 +169,7 @@ export default function DispatchList() {
     }
 
     addScannedLot()
-  }, [lotId, navigate, approvedRequest, requestId])
+  }, [lotId, navigate, approvedRequest, approvedRequestLoaded, requestId])
 
   const totalPackages = useMemo(
     () => items.reduce((sum, item) => sum + Number(item.package_count || 0), 0),
@@ -191,6 +210,9 @@ export default function DispatchList() {
       if (quantity > Number(item.lot.current_quantity || 0)) return `No hay inventario suficiente en ${displayLotCode(item.lot.lot_code)}.`
       if (['retenido', 'cerrado'].includes(item.lot.status)) return `${displayLotCode(item.lot.lot_code)} esta ${item.lot.status}.`
       if (expiryDays(item.lot.expiry_date) < 0) return `${displayLotCode(item.lot.lot_code)} esta vencido.`
+      if (approvedRequest?.client_id && item.lot.client_id !== approvedRequest.client_id) {
+        return `${displayLotCode(item.lot.lot_code)} pertenece a otro cliente.`
+      }
       if (approvedItems.length > 0 && !approvedItems.some((approvedItem) => approvedItem.lot_id === item.lot.id)) {
         return `${displayLotCode(item.lot.lot_code)} no pertenece a la lista aprobada.`
       }
