@@ -426,13 +426,25 @@ export default function LotDetail() {
     try {
       const response = await fetch(qrDataUrl)
       const blob = await response.blob()
-      const file = new File([blob], `${displayLotCode(lot.lot_code)}-qr.png`, { type: 'image/png' })
+      const fileName = `${displayLotCode(lot.lot_code)}-qr.png`
+      const file = new File([blob], fileName, { type: 'image/png' })
+      const isPhoneLike = window.matchMedia?.('(pointer: coarse)').matches
 
-      if (navigator.canShare?.({ files: [file] })) {
+      if (isPhoneLike && navigator.canShare?.({ files: [file] })) {
         await navigator.share({
           files: [file],
           title: `QR ${displayLotCode(lot.lot_code)}`,
         })
+        return
+      }
+
+      if (!isPhoneLike) {
+        const url = URL.createObjectURL(blob)
+        const link = document.createElement('a')
+        link.href = url
+        link.download = fileName
+        link.click()
+        URL.revokeObjectURL(url)
         return
       }
     } catch {
