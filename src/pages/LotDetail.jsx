@@ -50,7 +50,7 @@ export default function LotDetail() {
   const { id } = useParams()
   const location = useLocation()
   const navigate = useNavigate()
-  const { user, isOperator } = useAuth()
+  const { user, isAdmin, isOperator } = useAuth()
   const [lot, setLot] = useState(null)
   const [movements, setMovements] = useState([])
   const [movement, setMovement] = useState(initialMovement)
@@ -66,7 +66,6 @@ export default function LotDetail() {
 
   useEffect(() => {
     loadLot()
-    createLotQrDataUrl(id).then(setQrDataUrl)
 
     const channel = supabase
       .channel(`lot-${id}`)
@@ -76,6 +75,15 @@ export default function LotDetail() {
 
     return () => supabase.removeChannel(channel)
   }, [id])
+
+  useEffect(() => {
+    if (!lot?.qr_token) {
+      setQrDataUrl('')
+      return
+    }
+
+    createLotQrDataUrl(lot.qr_token).then(setQrDataUrl)
+  }, [lot?.qr_token])
 
   useEffect(() => {
     const mode = location.state?.movementMode || sessionStorage.getItem(`lot-mode-${id}`)
@@ -649,7 +657,7 @@ export default function LotDetail() {
           </div>
         </div>
 
-        {!isOperator ? (
+        {isAdmin ? (
           <div className="panel text-center">
           <div className="mb-3 flex items-center justify-center gap-2">
             <QrCode className="text-campo-700" />

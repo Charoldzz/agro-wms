@@ -53,6 +53,7 @@ export function AuthProvider({ children }) {
       loading,
       isAdmin: profile?.role === 'administrador',
       isOperator: profile?.role === 'operador',
+      isClient: profile?.role === 'cliente',
     }),
     [session, profile, loading],
   )

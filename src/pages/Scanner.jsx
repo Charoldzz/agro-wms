@@ -31,6 +31,12 @@ function createQrReader() {
 
 function getLotPath(decodedText) {
   const value = decodedText.trim()
+  const qrPathMatch = value.match(/\/qr\/[^?#\s]+/i)
+  if (qrPathMatch) return qrPathMatch[0]
+
+  const hashQrPathMatch = value.match(/#(\/qr\/[^?#\s]+)/i)
+  if (hashQrPathMatch) return hashQrPathMatch[1]
+
   const hashPathMatch = value.match(/#(\/lotes\/[^?#\s]+)/i)
   if (hashPathMatch) return hashPathMatch[1]
 
@@ -39,6 +45,8 @@ function getLotPath(decodedText) {
 
   try {
     const url = new URL(value, window.location.origin)
+    if (url.hash.startsWith('#/qr/')) return url.hash.slice(1)
+    if (url.pathname.startsWith('/qr/')) return url.pathname
     if (url.hash.startsWith('#/lotes/')) return url.hash.slice(1)
     if (url.pathname.startsWith('/lotes/')) return url.pathname
   } catch {
@@ -80,7 +88,8 @@ export default function Scanner() {
     (decodedText) => {
       const path = getLotPath(decodedText)
       if (!path) return false
-      const lotId = path.split('/').filter(Boolean).pop()
+      const parts = path.split('/').filter(Boolean)
+      const lotId = parts[0] === 'lotes' ? parts.pop() : ''
       if (lotId) {
         sessionStorage.setItem(`scanned-lot-${lotId}`, '1')
         if (validMovementMode) {
@@ -93,7 +102,7 @@ export default function Scanner() {
         navigate(`${returnTo}?lot=${lotId}`, { state: { scanned: true, movementMode: validMovementMode } })
         return true
       }
-      navigate(path, { state: { scanned: true, movementMode: validMovementMode } })
+      navigate(path, { state: { scanned: true, movementMode: validMovementMode, returnTo } })
       return true
     },
     [navigate, returnTo, validMovementMode],

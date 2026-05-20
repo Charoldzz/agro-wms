@@ -8,8 +8,8 @@ import { getQueuedMovementCount, syncQueuedMovements } from '../lib/offlineQueue
 const navItems = [
   { to: '/', label: 'Inicio', icon: Home },
   { to: '/operacion', label: 'Operar', icon: Warehouse, roles: ['operador'] },
-  { to: '/lotes', label: 'Lotes', icon: Boxes },
-  { to: '/scanner', label: 'Scan', icon: ScanLine },
+  { to: '/lotes', label: 'Lotes', icon: Boxes, roles: ['administrador', 'operador'] },
+  { to: '/scanner', label: 'Scan', icon: ScanLine, roles: ['administrador', 'cliente'] },
   { to: '/movimientos', label: 'Mov.', icon: ClipboardList },
   { to: '/offline', label: 'Offline', icon: ShieldAlert },
   { to: '/clientes', label: 'Clientes', icon: Users },
@@ -22,7 +22,9 @@ export default function AppLayout() {
   const visibleNavItems =
     profile?.role === 'operador'
       ? navItems.filter((item) => item.roles?.includes('operador'))
-      : navItems.filter((item) => !item.roles?.includes('operador'))
+      : profile?.role === 'cliente'
+        ? navItems.filter((item) => item.to === '/' || item.roles?.includes('cliente'))
+        : navItems.filter((item) => !item.roles || item.roles.includes('administrador'))
 
   async function signOut() {
     await supabase.auth.signOut()

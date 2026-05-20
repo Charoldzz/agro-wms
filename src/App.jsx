@@ -16,6 +16,8 @@ import OperatorEntry from './pages/OperatorEntry'
 import OperatorService from './pages/OperatorService'
 import DispatchList from './pages/DispatchList'
 import OfflineAudit from './pages/OfflineAudit'
+import QrGate from './pages/QrGate'
+import ClientPortal from './pages/ClientPortal'
 import { isSupabaseConfigured } from './lib/supabase'
 
 function ProtectedRoute({ children }) {
@@ -31,14 +33,14 @@ function ProtectedRoute({ children }) {
 function RoleRoute({ roles, children }) {
   const { profile } = useAuth()
 
-  if (!roles.includes(profile?.role)) return <Navigate to="/operacion" replace />
+  if (!roles.includes(profile?.role)) return <Navigate to="/" replace />
 
   return children
 }
 
 function AppRoutes() {
   const { profile } = useAuth()
-  const homeElement = profile?.role === 'operador' ? <Operation /> : <Dashboard />
+  const homeElement = profile?.role === 'operador' ? <Operation /> : profile?.role === 'cliente' ? <ClientPortal /> : <Dashboard />
 
   return (
     <Routes>
@@ -53,14 +55,15 @@ function AppRoutes() {
       >
         <Route index element={homeElement} />
         <Route path="operacion" element={<Operation />} />
+        <Route path="qr/:token" element={<QrGate />} />
         <Route path="operacion/nuevo-ingreso" element={<RoleRoute roles={['administrador', 'operador']}><OperatorEntry /></RoleRoute>} />
         <Route path="operacion/despacho-lista" element={<RoleRoute roles={['administrador', 'operador']}><DispatchList /></RoleRoute>} />
         <Route path="operacion/reparacion-traslado" element={<RoleRoute roles={['administrador', 'operador']}><OperatorService /></RoleRoute>} />
         <Route path="clientes" element={<RoleRoute roles={['administrador']}><Clients /></RoleRoute>} />
-        <Route path="lotes" element={<RoleRoute roles={['administrador', 'operador']}><Lots /></RoleRoute>} />
+        <Route path="lotes" element={<RoleRoute roles={['administrador', 'operador', 'cliente']}><Lots /></RoleRoute>} />
         <Route path="lotes/:id" element={<LotDetail />} />
-        <Route path="productos/:name" element={<RoleRoute roles={['administrador', 'operador']}><ProductLots /></RoleRoute>} />
-        <Route path="vencimientos" element={<RoleRoute roles={['administrador', 'operador']}><ExpiringLots /></RoleRoute>} />
+        <Route path="productos/:name" element={<RoleRoute roles={['administrador', 'operador', 'cliente']}><ProductLots /></RoleRoute>} />
+        <Route path="vencimientos" element={<RoleRoute roles={['administrador', 'operador', 'cliente']}><ExpiringLots /></RoleRoute>} />
         <Route path="scanner" element={<Scanner />} />
         <Route path="movimientos" element={<RoleRoute roles={['administrador']}><Movements /></RoleRoute>} />
         <Route path="offline" element={<RoleRoute roles={['administrador']}><OfflineAudit /></RoleRoute>} />
