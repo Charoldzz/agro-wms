@@ -219,11 +219,6 @@ export default function LotDetail() {
       return
     }
 
-    if (movement.type === 'salida' && fefoLot) {
-      setError(`FEFO bloquea esta salida. Primero revisa ${displayLotCode(fefoLot.lot_code)}, que vence antes.`)
-      return
-    }
-
     if (movement.type === 'salida' && !movement.receiver_name.trim()) {
       setError('Escribe el nombre de la persona que recibe.')
       return
@@ -889,7 +884,7 @@ export default function LotDetail() {
         ) : null}
         {movement.type === 'salida' && fefoLot ? (
           <div className="rounded-lg bg-amber-50 p-3 text-sm font-bold text-amber-800">
-            FEFO: existe un lote que vence antes ({displayLotCode(fefoLot.lot_code)}, vence {formatDate(fefoLot.expiry_date)}, {formatNumber(fefoLot.current_quantity)} envases en {fefoLot.location}). Revisa antes de despachar este lote.
+            FEFO: existe un lote que vence antes ({displayLotCode(fefoLot.lot_code)}, vence {formatDate(fefoLot.expiry_date)}, {formatNumber(fefoLot.current_quantity)} envases en {fefoLot.location}). Es una advertencia para considerar, no bloquea la salida.
           </div>
         ) : null}
         {movement.type === 'salida' && movementMode !== 'despacho' ? (

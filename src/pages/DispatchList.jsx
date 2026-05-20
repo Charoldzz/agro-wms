@@ -146,9 +146,6 @@ export default function DispatchList() {
       if (quantity > Number(item.lot.current_quantity || 0)) return `No hay inventario suficiente en ${displayLotCode(item.lot.lot_code)}.`
       if (['retenido', 'cerrado'].includes(item.lot.status)) return `${displayLotCode(item.lot.lot_code)} esta ${item.lot.status}.`
       if (expiryDays(item.lot.expiry_date) < 0) return `${displayLotCode(item.lot.lot_code)} esta vencido.`
-      if (item.fefo_lot && !items.some((dispatchItem) => dispatchItem.lot.id === item.fefo_lot.id && Number(dispatchItem.package_count || 0) > 0)) {
-        return `FEFO bloquea ${displayLotCode(item.lot.lot_code)}. Primero revisa ${displayLotCode(item.fefo_lot.lot_code)}, que vence antes.`
-      }
     }
 
     return ''
@@ -395,7 +392,7 @@ export default function DispatchList() {
                 ) : null}
                 {item.fefo_lot ? (
                   <div className="mt-3 rounded-lg bg-red-50 p-2 text-xs font-bold text-red-700">
-                    FEFO: existe un lote anterior ({displayLotCode(item.fefo_lot.lot_code)}, vence {formatDate(item.fefo_lot.expiry_date)}, {formatNumber(item.fefo_lot.current_quantity)} envases en {item.fefo_lot.location}). Agrega ese lote primero o revisa con administracion.
+                    FEFO: existe un lote anterior ({displayLotCode(item.fefo_lot.lot_code)}, vence {formatDate(item.fefo_lot.expiry_date)}, {formatNumber(item.fefo_lot.current_quantity)} envases en {item.fefo_lot.location}). Es una advertencia para considerar antes de confirmar, no bloquea la salida.
                   </div>
                 ) : null}
                 <div className="mt-3 grid gap-3 sm:grid-cols-2">
