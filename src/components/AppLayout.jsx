@@ -57,7 +57,7 @@ export default function AppLayout() {
               <img className="max-h-full max-w-full object-contain" src="/images/todo-logo.png" alt="Todo Agricola" />
             </div>
             <div>
-              <h1 className="text-lg font-bold leading-tight text-slate-950">Todo Agrícola</h1>
+              <h1 className="text-lg font-bold leading-tight text-slate-950">Todo Agricola Boliviana Ltda</h1>
               <p className="text-xs font-medium text-slate-500">
                 {profile?.full_name || 'Operación agrícola'}
               </p>

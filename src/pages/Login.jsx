@@ -36,7 +36,7 @@ export default function Login() {
           <div className="mx-auto mb-5 flex h-28 w-56 items-center justify-center rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
             <img className="max-h-full max-w-full object-contain" src="/images/todo-logo.png" alt="Todo Agricola" />
           </div>
-          <h1 className="text-3xl font-bold text-slate-950">Todo Agrícola</h1>
+          <h1 className="text-3xl font-bold text-slate-950">Todo Agricola Boliviana Ltda</h1>
           <p className="mt-2 text-slate-600">Control simple de lotes agrícolas con QR.</p>
         </div>
 
