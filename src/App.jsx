@@ -2,6 +2,7 @@ import { Navigate, Route, Routes } from 'react-router-dom'
 import { AuthProvider, useAuth } from './hooks/useAuth.jsx'
 import AppLayout from './components/AppLayout'
 import ConfigWarning from './components/ConfigWarning'
+import AppVersion from './components/AppVersion'
 import Dashboard from './pages/Dashboard'
 import Login from './pages/Login'
 import Clients from './pages/Clients'
@@ -80,6 +81,7 @@ export default function App() {
   return (
     <AuthProvider>
       <AppRoutes />
+      <AppVersion />
     </AuthProvider>
   )
 }
