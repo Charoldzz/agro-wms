@@ -14,6 +14,9 @@ const initialMovement = {
   type: 'entrada',
   quantity: '',
   package_count: '',
+  incident_type: '',
+  affected_packages: '',
+  physical_count: '',
   to_location: '',
   receiver_name: '',
   receiver_document: '',
@@ -21,6 +24,14 @@ const initialMovement = {
 }
 
 const internalLocations = ['Nave 1', 'Nave 2', 'Nave 3', 'Playa']
+const incidentTypes = [
+  { value: 'etiqueta_danada', label: 'Etiqueta dañada', needsAffected: false, needsPhysicalCount: false },
+  { value: 'envase_danado', label: 'Envase dañado', needsAffected: true, needsPhysicalCount: false },
+  { value: 'reempaque', label: 'Reempaque', needsAffected: true, needsPhysicalCount: false },
+  { value: 'fraccionamiento', label: 'Fraccionamiento', needsAffected: true, needsPhysicalCount: true },
+  { value: 'diferencia_stock', label: 'Diferencia de stock', needsAffected: false, needsPhysicalCount: true },
+  { value: 'otro', label: 'Otro', needsAffected: false, needsPhysicalCount: false },
+]
 
 function escapeHtml(value) {
   return String(value || '')
@@ -29,6 +40,10 @@ function escapeHtml(value) {
     .replaceAll('>', '&gt;')
     .replaceAll('"', '&quot;')
     .replaceAll("'", '&#039;')
+}
+
+function getIncidentConfig(value) {
+  return incidentTypes.find((incident) => incident.value === value) || null
 }
 
 export default function LotDetail() {
@@ -133,14 +148,21 @@ export default function LotDetail() {
     return Number(movement.package_count || 0) * Number(lot.package_size || 0)
   }, [lot, movement])
 
+  const selectedIncident = getIncidentConfig(movement.incident_type)
+  const repairQuantity = useMemo(() => {
+    if (!lot || movement.type !== 'ajuste') return 0
+    if (selectedIncident?.needsPhysicalCount) return Number(movement.physical_count || 0)
+    return Number(lot.current_quantity || 0)
+  }, [lot, movement.type, movement.physical_count, selectedIncident])
+
   const nextQuantity = useMemo(() => {
     const quantity = stockQuantity
     if (!lot) return 0
     if (movement.type === 'entrada') return Number(lot.current_quantity) + quantity
     if (movement.type === 'salida') return Number(lot.current_quantity) - quantity
-    if (movement.type === 'ajuste') return quantity
+    if (movement.type === 'ajuste') return repairQuantity
     return Number(lot.current_quantity)
-  }, [lot, movement.type, stockQuantity])
+  }, [lot, movement.type, stockQuantity, repairQuantity])
 
   const statusWarning = lot && lot.status !== 'activo'
   const blocksSale = lot && ['retenido', 'cerrado'].includes(lot.status)
@@ -168,7 +190,7 @@ export default function LotDetail() {
     event.preventDefault()
     if (!lot) return
 
-    const quantity = movement.type === 'traslado' ? 0 : Number(stockQuantity)
+    const quantity = movement.type === 'traslado' ? 0 : movement.type === 'ajuste' ? repairQuantity : Number(stockQuantity)
     if (movement.type === 'salida' && blocksSale) {
       setError('No se puede registrar salida porque este lote esta retenido o cerrado.')
       return
@@ -204,7 +226,7 @@ export default function LotDetail() {
       return
     }
 
-    if (quantity < 0 || (movement.type !== 'traslado' && quantity === 0)) {
+    if (quantity < 0 || (!['traslado', 'ajuste'].includes(movement.type) && quantity === 0)) {
       setError('La cantidad debe ser mayor a cero.')
       return
     }
@@ -214,8 +236,28 @@ export default function LotDetail() {
       return
     }
 
+    if (movement.type === 'ajuste' && !movement.incident_type) {
+      setError('Selecciona que paso con el lote.')
+      return
+    }
+
+    if (movement.type === 'ajuste' && selectedIncident?.needsAffected && Number(movement.affected_packages || 0) <= 0) {
+      setError('Escribe cuantos envases estan afectados.')
+      return
+    }
+
+    if (movement.type === 'ajuste' && selectedIncident?.needsPhysicalCount && movement.physical_count === '') {
+      setError('Escribe la cantidad fisica contada.')
+      return
+    }
+
+    if (movement.type === 'ajuste' && selectedIncident?.needsPhysicalCount && Number(movement.physical_count || 0) < 0) {
+      setError('La cantidad fisica no puede ser negativa.')
+      return
+    }
+
     if (movement.type === 'ajuste' && !movement.notes.trim()) {
-      setError('En ajustes debes escribir una observacion.')
+      setError('Escribe un motivo u observacion.')
       return
     }
 
@@ -251,6 +293,9 @@ export default function LotDetail() {
     }
 
     const movementNotes = [
+      pendingMovement.type === 'ajuste' && pendingMovement.incident_type ? `Incidencia: ${getIncidentConfig(pendingMovement.incident_type)?.label || pendingMovement.incident_type}` : null,
+      pendingMovement.type === 'ajuste' && pendingMovement.affected_packages ? `Envases afectados: ${pendingMovement.affected_packages}` : null,
+      pendingMovement.type === 'ajuste' && pendingMovement.physical_count !== '' ? `Cantidad fisica: ${pendingMovement.physical_count}` : null,
       pendingMovement.notes || null,
       pendingMovement.type === 'salida' && pendingMovement.to_location ? `Placa: ${pendingMovement.to_location}` : null,
       pendingMovement.receiver_name ? `Recibe: ${pendingMovement.receiver_name}` : null,
@@ -661,6 +706,60 @@ export default function LotDetail() {
                 </div>
               </div>
             </>
+          ) : movement.type === 'ajuste' ? (
+            <>
+              <label className="sm:col-span-2">
+                <span className="label">¿Que paso?</span>
+                <select
+                  className="input mt-1"
+                  value={movement.incident_type}
+                  onChange={(event) => setMovement({ ...movement, incident_type: event.target.value, affected_packages: '', physical_count: '' })}
+                  required
+                >
+                  <option value="">Seleccionar incidencia</option>
+                  {incidentTypes.map((incident) => (
+                    <option key={incident.value} value={incident.value}>{incident.label}</option>
+                  ))}
+                </select>
+              </label>
+              {selectedIncident?.needsAffected ? (
+                <label>
+                  <span className="label">Envases afectados</span>
+                  <input
+                    className="input mt-1"
+                    type="text"
+                    inputMode="decimal"
+                    value={movement.affected_packages}
+                    onChange={(event) => {
+                      const value = event.target.value.replace(',', '.')
+                      if (/^\d*\.?\d*$/.test(value)) setMovement({ ...movement, affected_packages: value })
+                    }}
+                    onWheel={(event) => event.currentTarget.blur()}
+                    required
+                  />
+                </label>
+              ) : null}
+              {selectedIncident?.needsPhysicalCount ? (
+                <label>
+                  <span className="label">Cantidad fisica contada</span>
+                  <input
+                    className="input mt-1"
+                    type="text"
+                    inputMode="decimal"
+                    value={movement.physical_count}
+                    onChange={(event) => {
+                      const value = event.target.value.replace(',', '.')
+                      if (/^\d*\.?\d*$/.test(value)) setMovement({ ...movement, physical_count: value })
+                    }}
+                    onWheel={(event) => event.currentTarget.blur()}
+                    required
+                  />
+                </label>
+              ) : null}
+              <div className="rounded-lg bg-orange-50 p-3 text-sm font-bold text-orange-800 sm:col-span-2">
+                Se enviara a revision del administrador. El operador solo reporta la incidencia.
+              </div>
+            </>
           ) : movement.type !== 'traslado' ? (
             <label>
               <span className="label">{movement.type === 'ajuste' ? 'Nueva cantidad' : 'Cantidad'}</span>
@@ -729,6 +828,22 @@ export default function LotDetail() {
           </label>
         </div>
 
+        {movement.type === 'ajuste' ? (
+          <div className="rounded-lg bg-orange-50 p-3 text-sm font-semibold text-orange-800">
+            <div className="flex justify-between gap-3">
+              <span>Stock actual</span>
+              <span>{formatNumber(lot.current_quantity)} envases</span>
+            </div>
+            {selectedIncident?.needsPhysicalCount ? (
+              <div className="mt-1 flex justify-between gap-3">
+                <span>Stock propuesto</span>
+                <span>{formatNumber(nextQuantity)} envases</span>
+              </div>
+            ) : (
+              <p className="mt-1">No cambia stock automaticamente hasta revision administrativa.</p>
+            )}
+          </div>
+        ) : (
         <div className="rounded-lg bg-campo-50 p-3 text-sm font-semibold text-campo-700">
           <div className="flex justify-between gap-3">
             <span>Stock despues</span>
@@ -741,6 +856,7 @@ export default function LotDetail() {
             </div>
           ) : null}
         </div>
+        )}
         {isLargeSale ? (
           <div className="rounded-lg bg-amber-50 p-3 text-sm font-bold text-amber-800">
             Advertencia: esta salida representa 50% o mas del stock disponible.
@@ -779,18 +895,28 @@ export default function LotDetail() {
           <div className="w-full max-w-md rounded-xl bg-white p-4 shadow-xl">
             <h3 className="text-xl font-bold text-slate-950">Confirmar movimiento</h3>
             <p className="mt-2 text-sm font-semibold text-slate-500">
-              Vas a registrar {movementLabel(pendingMovement.type).toLowerCase()} de {formatNumber(pendingMovement.quantity)} envases.
+              {pendingMovement.type === 'ajuste'
+                ? `Vas a enviar ${getIncidentConfig(pendingMovement.incident_type)?.label || 'reparacion'} a revision.`
+                : `Vas a registrar ${movementLabel(pendingMovement.type).toLowerCase()} de ${formatNumber(pendingMovement.quantity)} envases.`}
             </p>
 
             <div className="mt-4 space-y-2 rounded-lg bg-slate-50 p-3 text-sm font-bold text-slate-700">
+              {pendingMovement.type === 'ajuste' && pendingMovement.affected_packages ? (
+                <div className="flex justify-between gap-3">
+                  <span>Envases afectados</span>
+                  <span>{formatNumber(pendingMovement.affected_packages)}</span>
+                </div>
+              ) : null}
               <div className="flex justify-between gap-3">
                 <span>Stock actual</span>
                 <span>{formatNumber(pendingMovement.previousQuantity)} envases</span>
               </div>
-              <div className="flex justify-between gap-3">
-                <span>Stock despues</span>
-                <span>{formatNumber(pendingMovement.newQuantity)} envases</span>
-              </div>
+              {pendingMovement.type !== 'ajuste' || getIncidentConfig(pendingMovement.incident_type)?.needsPhysicalCount ? (
+                <div className="flex justify-between gap-3">
+                  <span>{pendingMovement.type === 'ajuste' ? 'Stock propuesto' : 'Stock despues'}</span>
+                  <span>{formatNumber(pendingMovement.newQuantity)} envases</span>
+                </div>
+              ) : null}
               {pendingMovement.calculatedQuantity ? (
                 <div className="flex justify-between gap-3">
                   <span>Equivalente actual</span>
