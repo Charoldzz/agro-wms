@@ -4,6 +4,7 @@ import { BrowserQRCodeReader } from '@zxing/browser'
 import { BarcodeFormat, DecodeHintType } from '@zxing/library'
 import { Camera, ImagePlus, RefreshCcw } from 'lucide-react'
 import PageHeader from '../components/PageHeader'
+import { supabase } from '../lib/supabase'
 
 async function decodeWithBarcodeDetector(file) {
   if (!('BarcodeDetector' in window) || !('createImageBitmap' in window)) return null
@@ -85,11 +86,23 @@ export default function Scanner() {
   const validMovementMode = ['despacho', 'reparo', 'traslado'].includes(movementMode) ? movementMode : ''
 
   const goToScannedLot = useCallback(
-    (decodedText) => {
-      const path = getLotPath(decodedText)
+    async (decodedText) => {
+      let path = getLotPath(decodedText)
       if (!path) return false
       const parts = path.split('/').filter(Boolean)
-      const lotId = parts[0] === 'lotes' ? parts.pop() : ''
+      let lotId = parts[0] === 'lotes' ? parts.pop() : ''
+
+      if (!lotId && returnTo && parts[0] === 'qr' && parts[1]) {
+        const { data, error: qrError } = await supabase.rpc('resolve_lot_qr', {
+          p_token: parts[1],
+        })
+
+        if (qrError || !data) return false
+        lotId = Array.isArray(data) ? data[0]?.lot_id : data
+        if (!lotId) return false
+        path = `/lotes/${lotId}`
+      }
+
       if (lotId) {
         sessionStorage.setItem(`scanned-lot-${lotId}`, '1')
         if (validMovementMode) {
@@ -147,16 +160,19 @@ export default function Scanner() {
           (result) => {
             if (!result || foundQrRef.current) return
 
-            const decodedText = result.getText()
-            if (!goToScannedLot(decodedText)) {
-              setStatus('QR leido, pero no es de un lote')
-              setError('El QR no corresponde a un lote de esta app.')
-              return
-            }
-
             foundQrRef.current = true
-            setStatus('QR detectado')
-            controls.stop()
+            const decodedText = result.getText()
+            goToScannedLot(decodedText).then((loaded) => {
+              if (!loaded) {
+                foundQrRef.current = false
+                setStatus('QR leido, pero no es de un lote')
+                setError('El QR no corresponde a un lote de esta app o no tienes permiso.')
+                return
+              }
+
+              setStatus('QR detectado')
+              controls.stop()
+            })
           },
         )
 
@@ -190,7 +206,7 @@ export default function Scanner() {
     try {
       const nativeDecodedText = await decodeWithBarcodeDetector(file)
       if (nativeDecodedText) {
-        if (!goToScannedLot(nativeDecodedText)) {
+        if (!(await goToScannedLot(nativeDecodedText))) {
           setError('La imagen no contiene un QR de un lote de esta app.')
           setStatus('Listo para escanear')
         }
@@ -202,7 +218,7 @@ export default function Scanner() {
       const result = await reader.decodeFromImageElement(image)
       URL.revokeObjectURL(imageUrl)
 
-      if (!goToScannedLot(result.getText())) {
+      if (!(await goToScannedLot(result.getText()))) {
         setError('La imagen no contiene un QR de un lote de esta app.')
         setStatus('Listo para escanear')
       }

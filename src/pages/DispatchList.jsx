@@ -22,9 +22,9 @@ function readDraft() {
     if (!draft) return emptyDraft()
     return {
       items: Array.isArray(draft.items) ? draft.items : [],
-      receiverName: draft.receiverName || '',
-      receiverDocument: draft.receiverDocument || '',
-      vehiclePlate: draft.vehiclePlate || '',
+      receiverName: '',
+      receiverDocument: '',
+      vehiclePlate: '',
     }
   } catch {
     return emptyDraft()
@@ -95,8 +95,8 @@ export default function DispatchList() {
   }, [requestId])
 
   useEffect(() => {
-    writeDraft({ items, receiverName, receiverDocument, vehiclePlate })
-  }, [items, receiverName, receiverDocument, vehiclePlate])
+    writeDraft({ items })
+  }, [items])
 
   useEffect(() => {
     async function addScannedLot() {
@@ -151,10 +151,14 @@ export default function DispatchList() {
 
       if (approvedItems.length > 0 && !approvedItem) {
         setError('Este lote no esta en la lista aprobada. Verifica antes de continuar.')
-        vibrateWarning()
+        vibrateError()
+        navigate(requestId ? `/operacion/despacho-lista?request=${requestId}` : '/operacion/despacho-lista', { replace: true })
+        return
       } else if (approvedLotId && data.id !== approvedLotId) {
         setError(`Este no es el lote asignado. Debia ser ${displayLotCode(approvedRequest.lots?.lot_code)}. Verifica antes de continuar.`)
-        vibrateWarning()
+        vibrateError()
+        navigate(requestId ? `/operacion/despacho-lista?request=${requestId}` : '/operacion/despacho-lista', { replace: true })
+        return
       }
 
       setItems((current) => {
@@ -441,15 +445,15 @@ export default function DispatchList() {
         <h3 className="text-lg font-bold text-slate-950 sm:col-span-2">Datos del despacho</h3>
         <label>
           <span className="label">Nombre del que recibe</span>
-          <input className="input mt-1" value={receiverName} onChange={(event) => setReceiverName(event.target.value)} />
+          <input className="input mt-1" autoComplete="off" value={receiverName} onChange={(event) => setReceiverName(event.target.value)} />
         </label>
         <label>
           <span className="label">Numero de documento</span>
-          <input className="input mt-1" value={receiverDocument} onChange={(event) => setReceiverDocument(event.target.value)} />
+          <input className="input mt-1" autoComplete="off" value={receiverDocument} onChange={(event) => setReceiverDocument(event.target.value)} />
         </label>
         <label className="sm:col-span-2">
           <span className="label">Placa del vehiculo</span>
-          <input className="input mt-1 uppercase" value={vehiclePlate} onChange={(event) => setVehiclePlate(event.target.value.toUpperCase())} placeholder="Opcional" />
+          <input className="input mt-1 uppercase" autoComplete="off" value={vehiclePlate} onChange={(event) => setVehiclePlate(event.target.value.toUpperCase())} placeholder="Opcional" />
         </label>
       </section>
 

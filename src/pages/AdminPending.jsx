@@ -173,7 +173,7 @@ export default function AdminPending() {
                       <div className="mt-2 flex gap-2">
                         <span className="rounded-lg bg-campo-50 px-2 py-1 text-sm font-black text-campo-800">{formatNumber(item.quantity)} env.</span>
                         <span className="rounded-lg bg-amber-100 px-2 py-1 text-sm font-black text-amber-800">
-                          {formatNumber(Number(item.quantity || 0) * Number(item.package_size || 0))} lt
+                          {formatNumber(Number(item.quantity || 0) * Number(item.package_size || 0))} {item.package_unit || ''}
                         </span>
                       </div>
                     </div>

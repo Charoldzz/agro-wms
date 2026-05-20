@@ -225,13 +225,13 @@ export default function OperatorEntry() {
               <input className="input" value={form.product} onChange={(event) => setForm({ ...form, product: event.target.value })} required />
             </Field>
             <Field label="Nombre del chofer">
-              <input className="input" value={form.driver_name} onChange={(event) => setForm({ ...form, driver_name: event.target.value })} required />
+              <input className="input" autoComplete="off" value={form.driver_name} onChange={(event) => setForm({ ...form, driver_name: event.target.value })} required />
             </Field>
             <Field label="Numero de identidad">
-              <input className="input" value={form.driver_document} onChange={(event) => setForm({ ...form, driver_document: event.target.value })} required />
+              <input className="input" autoComplete="off" value={form.driver_document} onChange={(event) => setForm({ ...form, driver_document: event.target.value })} required />
             </Field>
             <Field label="Placa del vehiculo">
-              <input className="input uppercase" value={form.vehicle_plate} onChange={(event) => setForm({ ...form, vehicle_plate: event.target.value.toUpperCase() })} required />
+              <input className="input uppercase" autoComplete="off" value={form.vehicle_plate} onChange={(event) => setForm({ ...form, vehicle_plate: event.target.value.toUpperCase() })} required />
             </Field>
             <div className="rounded-lg bg-slate-50 p-3">
               <p className="text-xs font-semibold uppercase text-slate-500">Fecha ingreso</p>

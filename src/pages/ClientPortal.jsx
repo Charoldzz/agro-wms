@@ -468,7 +468,7 @@ export default function ClientPortal() {
                             {formatNumber(item.quantity)} env.
                           </span>
                           <span className="rounded-lg bg-amber-50 px-2 py-1 text-sm font-black text-amber-800">
-                            {formatNumber(Number(item.quantity || 0) * Number(item.package_size || 0))} lt
+                            {formatNumber(Number(item.quantity || 0) * Number(item.package_size || 0))} {item.package_unit || ''}
                           </span>
                         </div>
                       </div>
