@@ -56,6 +56,7 @@ export default function DispatchList() {
   const [error, setError] = useState('')
   const [status, setStatus] = useState('')
   const [saving, setSaving] = useState(false)
+  const [confirming, setConfirming] = useState(false)
 
   const lotId = new URLSearchParams(location.search).get('lot')
 
@@ -79,7 +80,11 @@ export default function DispatchList() {
       }
 
       setItems((current) => {
-        if (current.some((item) => item.lot.id === data.id)) return current
+        if (current.some((item) => item.lot.id === data.id)) {
+          setStatus(`${displayLotCode(data.lot_code)} ya esta en la lista. Puedes cambiar la cantidad.`)
+          return current
+        }
+        setStatus(`${displayLotCode(data.lot_code)} agregado. Puedes escanear otro QR.`)
         return [...current, { lot: data, package_count: '' }]
       })
       navigate('/operacion/despacho-lista', { replace: true })
@@ -123,6 +128,17 @@ export default function DispatchList() {
     }
 
     return ''
+  }
+
+  function reviewDispatch() {
+    const validationError = validateDispatch()
+    if (validationError) {
+      setError(validationError)
+      return
+    }
+
+    setError('')
+    setConfirming(true)
   }
 
   async function confirmDispatch() {
@@ -231,6 +247,12 @@ export default function DispatchList() {
         </div>
       </section>
 
+      {items.length > 0 ? (
+        <button className="btn-primary mb-4 min-h-16 w-full text-lg" type="button" onClick={scanLot}>
+          <ScanLine size={24} /> Escanear otro QR
+        </button>
+      ) : null}
+
       <div className="space-y-3">
         {items.length === 0 ? (
           <EmptyState title="Sin lotes en despacho" text="Escanea el primer QR para agregarlo a la lista." />
@@ -298,14 +320,59 @@ export default function DispatchList() {
       {error ? <div className="mt-4 rounded-lg bg-red-50 p-3 text-sm font-bold text-red-700">{error}</div> : null}
       {status ? <div className="mt-4 rounded-lg bg-campo-50 p-3 text-sm font-bold text-campo-700">{status}</div> : null}
 
-      <button className="btn-primary mt-4 w-full" type="button" onClick={confirmDispatch} disabled={saving}>
-        {saving ? <LogOut size={20} /> : <CheckCircle2 size={20} />}
-        {saving ? 'Guardando...' : 'Confirmar despacho'}
+      <button className="btn-primary mt-4 w-full" type="button" onClick={reviewDispatch} disabled={saving}>
+        <CheckCircle2 size={20} /> Revisar despacho
       </button>
 
       <Link className="btn-secondary mt-3 w-full" to="/operacion">
         <Plus size={20} /> Volver a operar
       </Link>
+
+      {confirming ? (
+        <div className="fixed inset-0 z-40 flex items-end bg-slate-950/45 p-4 sm:items-center sm:justify-center">
+          <div className="w-full max-w-lg rounded-xl bg-white p-4 shadow-xl">
+            <h3 className="text-xl font-bold text-slate-950">Confirmar despacho</h3>
+            <div className="mt-3 grid gap-2 rounded-lg bg-slate-50 p-3 text-sm font-bold text-slate-700 sm:grid-cols-2">
+              <div>Productos: {items.length}</div>
+              <div>Total envases: {formatNumber(totalPackages)}</div>
+              <div>Recibe: {receiverName}</div>
+              <div>Documento: {receiverDocument}</div>
+              <div className="sm:col-span-2">Placa: {vehiclePlate || 'Sin placa'}</div>
+            </div>
+
+            <div className="mt-4 max-h-72 space-y-2 overflow-y-auto pr-1">
+              {items.map((item) => {
+                const quantity = Number(item.package_count || 0)
+                const remaining = Number(item.lot.current_quantity || 0) - quantity
+                return (
+                  <div key={item.lot.id} className="rounded-lg border border-slate-200 p-3">
+                    <div className="flex justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="truncate font-bold text-slate-950">{cleanProductName(item.lot.product)}</p>
+                        <p className="text-xs font-semibold text-slate-500">{displayLotCode(item.lot.lot_code)}</p>
+                      </div>
+                      <p className="text-lg font-black text-campo-700">{formatNumber(quantity)}</p>
+                    </div>
+                    <p className="mt-1 text-xs font-bold text-slate-500">
+                      Disponible: {formatNumber(item.lot.current_quantity)} · Queda: {formatNumber(remaining)} envases
+                    </p>
+                  </div>
+                )
+              })}
+            </div>
+
+            <div className="mt-4 grid grid-cols-2 gap-2">
+              <button className="btn-secondary w-full" type="button" onClick={() => setConfirming(false)} disabled={saving}>
+                Cancelar
+              </button>
+              <button className="btn-primary w-full" type="button" onClick={confirmDispatch} disabled={saving}>
+                {saving ? <LogOut size={20} /> : <CheckCircle2 size={20} />}
+                {saving ? 'Guardando...' : 'Confirmar'}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   )
 }
