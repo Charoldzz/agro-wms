@@ -1,5 +1,5 @@
 import { Outlet, NavLink, useNavigate } from 'react-router-dom'
-import { Boxes, ClipboardCheck, ClipboardList, Home, LogOut, ScanLine, ShieldAlert, Users, Warehouse } from 'lucide-react'
+import { Boxes, ClipboardList, Home, LogOut, ScanLine, ShieldAlert, Users, Warehouse } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../hooks/useAuth.jsx'
@@ -12,7 +12,6 @@ const navItems = [
   { to: '/scanner', label: 'Scan', icon: ScanLine, roles: ['administrador'] },
   { to: '/movimientos', label: 'Mov.', icon: ClipboardList },
   { to: '/offline', label: 'Offline', icon: ShieldAlert },
-  { to: '/solicitudes', label: 'Solic.', icon: ClipboardCheck },
   { to: '/clientes', label: 'Clientes', icon: Users },
 ]
 
@@ -82,7 +81,7 @@ export default function AppLayout() {
       </main>
 
       <nav className="fixed inset-x-0 bottom-0 z-30 border-t border-slate-200 bg-white/95 backdrop-blur">
-        <div className={`mx-auto grid max-w-5xl gap-1 px-2 py-2 ${visibleNavItems.length <= 1 ? 'grid-cols-1' : visibleNavItems.length <= 2 ? 'grid-cols-2' : visibleNavItems.length <= 3 ? 'grid-cols-3' : visibleNavItems.length <= 5 ? 'grid-cols-5' : visibleNavItems.length <= 6 ? 'grid-cols-6' : 'grid-cols-7'}`}>
+        <div className={`mx-auto grid max-w-5xl gap-1 px-2 py-2 ${visibleNavItems.length <= 1 ? 'grid-cols-1' : visibleNavItems.length <= 2 ? 'grid-cols-2' : visibleNavItems.length <= 3 ? 'grid-cols-3' : visibleNavItems.length <= 5 ? 'grid-cols-5' : 'grid-cols-6'}`}>
           {visibleNavItems.map((item) => {
             const Icon = item.icon
             return (

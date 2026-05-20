@@ -1,17 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import {
-  Boxes,
-  CalendarClock,
-  Download,
-  FileText,
-  History,
-  Mail,
-  PackageCheck,
-  Search,
-  Send,
-  Truck,
-} from 'lucide-react'
+import { Boxes, CalendarClock, Download, FileText, History, Mail, PackageCheck, Search, Send, Truck } from 'lucide-react'
+import PageHeader from '../components/PageHeader'
 import EmptyState from '../components/EmptyState'
 import { useAuth } from '../hooks/useAuth.jsx'
 import { cleanProductName, displayLotCode } from '../lib/display'
@@ -35,15 +25,12 @@ function daysUntil(expiryDate) {
 
 function lotStatus(lot) {
   const days = daysUntil(lot.expiry_date)
-  if (days !== null && days < 0) return { label: 'Vencido', className: 'bg-red-500/15 text-red-200 ring-1 ring-red-400/20' }
-  if (lot.status === 'retenido') return { label: 'Retenido', className: 'bg-orange-400/15 text-orange-200 ring-1 ring-orange-300/20' }
-  if (lot.status === 'cerrado') return { label: 'Cerrado', className: 'bg-slate-500/20 text-slate-300 ring-1 ring-slate-400/20' }
-  if (days !== null && days <= 90) return { label: 'Por vencer', className: 'bg-amber-300/15 text-amber-100 ring-1 ring-amber-200/20' }
-  return { label: 'Disponible', className: 'bg-emerald-400/15 text-emerald-100 ring-1 ring-emerald-300/20' }
+  if (days !== null && days < 0) return { label: 'Vencido', className: 'bg-red-50 text-red-700' }
+  if (lot.status === 'retenido') return { label: 'Retenido', className: 'bg-orange-50 text-orange-700' }
+  if (lot.status === 'cerrado') return { label: 'Cerrado', className: 'bg-slate-100 text-slate-600' }
+  if (days !== null && days <= 90) return { label: 'Por vencer', className: 'bg-amber-50 text-amber-800' }
+  return { label: 'Disponible', className: 'bg-campo-50 text-campo-700' }
 }
-
-const darkPanel = 'rounded-xl border border-white/10 bg-white/[0.06] p-4 shadow-soft backdrop-blur'
-const darkInput = 'min-h-12 rounded-lg border border-white/10 bg-slate-950/50 px-3 py-2 text-slate-100 outline-none placeholder:text-slate-500 focus:border-emerald-300/60'
 
 export default function ClientPortal() {
   const { user } = useAuth()
@@ -267,22 +254,21 @@ export default function ClientPortal() {
   }
 
   return (
-    <div className="-mx-4 -my-5 min-h-[calc(100vh-8rem)] bg-slate-950 px-4 py-5 text-slate-100 sm:mx-0 sm:rounded-2xl sm:border sm:border-white/10 sm:p-5">
-      <div className="mb-5 flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <p className="text-xs font-bold uppercase tracking-[0.18em] text-emerald-200/70">Portal cliente</p>
-          <h2 className="mt-1 text-3xl font-black tracking-normal text-white">{clientName}</h2>
-          <p className="mt-1 text-sm font-semibold text-slate-400">Inventario, comprobantes y solicitudes de despacho</p>
-        </div>
-        <div className="flex gap-2">
-          <button className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-white/10 bg-white/10 px-3 py-2 font-bold text-white transition hover:bg-white/15" type="button" onClick={exportInventoryExcel}>
-            <Download size={20} /> Excel
-          </button>
-          <button className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-white/10 bg-white/10 px-3 py-2 font-bold text-white transition hover:bg-white/15" type="button" onClick={printInventoryPdf}>
-            <FileText size={20} /> PDF
-          </button>
-        </div>
-      </div>
+    <div>
+      <PageHeader
+        title={clientName}
+        subtitle="Inventario, comprobantes y solicitudes de despacho"
+        action={
+          <div className="flex gap-2">
+            <button className="btn-secondary !min-h-11 !px-3" type="button" onClick={exportInventoryExcel}>
+              <Download size={20} /> Excel
+            </button>
+            <button className="btn-secondary !min-h-11 !px-3" type="button" onClick={printInventoryPdf}>
+              <FileText size={20} /> PDF
+            </button>
+          </div>
+        }
+      />
 
       <section className="grid gap-3 sm:grid-cols-3">
         <Metric icon={Boxes} label="Envases disponibles" value={formatNumber(totalStock)} />
@@ -290,10 +276,10 @@ export default function ClientPortal() {
         <Metric icon={CalendarClock} label="Por vencer" value={expiring.length} accent="text-maiz" />
       </section>
 
-      <section className="my-4 flex items-center rounded-lg border border-white/10 bg-white/[0.06] px-3">
-        <Search size={20} className="text-slate-500" />
+      <section className="my-4 flex items-center rounded-lg border border-slate-200 bg-white px-3">
+        <Search size={20} className="text-slate-400" />
         <input
-          className="min-h-12 flex-1 bg-transparent px-2 text-slate-100 outline-none placeholder:text-slate-500"
+          className="min-h-12 flex-1 bg-transparent px-2 outline-none"
           placeholder="Buscar producto, lote, estado o ubicacion..."
           value={search}
           onChange={(event) => setSearch(event.target.value)}
@@ -309,28 +295,28 @@ export default function ClientPortal() {
               const equivalent = Number(lot.current_quantity || 0) * Number(lot.package_size || 0)
               const status = lotStatus(lot)
               return (
-                <Link key={lot.id} className={`${darkPanel} block transition hover:border-emerald-300/30 hover:bg-white/[0.09]`} to={`/lotes/${lot.id}`}>
+                <Link key={lot.id} className="panel block" to={`/lotes/${lot.id}`}>
                   <div className="flex justify-between gap-3">
                     <div className="min-w-0">
                       <div className="flex flex-wrap items-center gap-2">
-                        <p className="truncate font-bold text-white">{cleanProductName(lot.product)}</p>
+                        <p className="truncate font-bold text-slate-950">{cleanProductName(lot.product)}</p>
                         <span className={`rounded-full px-2 py-1 text-xs font-bold ${status.className}`}>{status.label}</span>
                       </div>
-                      <p className="text-sm font-semibold text-slate-400">{displayLotCode(lot.lot_code)} - {lot.location || '-'}</p>
+                      <p className="text-sm font-semibold text-slate-500">{displayLotCode(lot.lot_code)} - {lot.location || '-'}</p>
                     </div>
                     <div className="text-right">
-                      <p className="text-2xl font-black text-emerald-200">{formatNumber(lot.current_quantity)}</p>
-                      <p className="text-xs font-bold text-slate-400">envases</p>
+                      <p className="text-2xl font-black text-campo-700">{formatNumber(lot.current_quantity)}</p>
+                      <p className="text-xs font-bold text-slate-500">envases</p>
                     </div>
                   </div>
-                  <div className="mt-3 grid gap-2 text-xs font-bold text-slate-300 sm:grid-cols-3">
-                    <span className="rounded-lg bg-slate-950/35 p-2">
+                  <div className="mt-3 grid gap-2 text-xs font-bold text-slate-600 sm:grid-cols-3">
+                    <span className="rounded-lg bg-slate-50 p-2">
                       Equivalente: {Number(lot.package_size) > 0 ? `${formatNumber(equivalent)} ${lot.package_unit || ''}` : 'Sin dato'}
                     </span>
-                    <span className="rounded-lg bg-slate-950/35 p-2">
+                    <span className="rounded-lg bg-slate-50 p-2">
                       Ingreso: {lot.entry_date ? formatDate(lot.entry_date) : 'Sin dato'}
                     </span>
-                    <span className="rounded-lg bg-slate-950/35 p-2">
+                    <span className="rounded-lg bg-slate-50 p-2">
                       Vence: {lot.expiry_date ? formatDate(lot.expiry_date) : 'Sin dato'}
                     </span>
                   </div>
@@ -341,15 +327,15 @@ export default function ClientPortal() {
         </div>
 
         <aside className="space-y-4">
-          <section className={darkPanel}>
+          <section className="panel">
             <div className="mb-3 flex items-center gap-2">
-              <Send size={20} className="text-emerald-200" />
-              <h3 className="font-bold text-white">Solicitar despacho</h3>
+              <Send size={20} className="text-campo-700" />
+              <h3 className="font-bold text-slate-950">Solicitar despacho</h3>
             </div>
             <form className="space-y-3" onSubmit={createDispatchRequest}>
               <label>
-                <span className="text-sm font-bold text-slate-300">Producto / lote</span>
-                <select className={`${darkInput} mt-1 w-full`} value={requestLotId} onChange={(event) => setRequestLotId(event.target.value)} required>
+                <span className="label">Producto / lote</span>
+                <select className="input mt-1" value={requestLotId} onChange={(event) => setRequestLotId(event.target.value)} required>
                   <option value="">Seleccionar</option>
                   {lots.map((lot) => (
                     <option key={lot.id} value={lot.id}>
@@ -359,9 +345,9 @@ export default function ClientPortal() {
                 </select>
               </label>
               <label>
-                <span className="text-sm font-bold text-slate-300">Envases solicitados</span>
+                <span className="label">Envases solicitados</span>
                 <input
-                  className={`${darkInput} mt-1 w-full`}
+                  className="input mt-1"
                   inputMode="decimal"
                   type="text"
                   value={requestQuantity}
@@ -372,30 +358,30 @@ export default function ClientPortal() {
                 />
               </label>
               <label>
-                <span className="text-sm font-bold text-slate-300">Observacion</span>
-                <textarea className={`${darkInput} mt-1 w-full`} rows="3" value={requestNotes} onChange={(event) => setRequestNotes(event.target.value)} />
+                <span className="label">Observacion</span>
+                <textarea className="input mt-1" rows="3" value={requestNotes} onChange={(event) => setRequestNotes(event.target.value)} />
               </label>
               {requestMessage ? (
-                <div className="rounded-lg bg-emerald-400/10 p-3 text-sm font-bold text-emerald-100">{requestMessage}</div>
+                <div className="rounded-lg bg-campo-50 p-3 text-sm font-bold text-campo-700">{requestMessage}</div>
               ) : null}
-              <button className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-lg bg-emerald-400 px-4 py-3 font-black text-slate-950 transition hover:bg-emerald-300" type="submit">
+              <button className="btn-primary w-full" type="submit">
                 <Truck size={20} /> Enviar solicitud
               </button>
             </form>
           </section>
 
-          <section className={darkPanel}>
+          <section className="panel">
             <div className="mb-3 flex items-center gap-2">
-              <Mail size={20} className="text-emerald-200" />
-              <h3 className="font-bold text-white">Contacto rapido</h3>
+              <Mail size={20} className="text-campo-700" />
+              <h3 className="font-bold text-slate-950">Contacto rapido</h3>
             </div>
-            <p className="text-sm font-semibold text-slate-400">Para consultas o coordinacion, escribe a Todo Agricola.</p>
-            <a className="mt-3 inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-lg border border-white/10 bg-white/10 px-4 py-3 font-bold text-white transition hover:bg-white/15" href="mailto:hgarayd@outlook.com?subject=Consulta%20de%20inventario%20Todo%20Agricola">
+            <p className="text-sm font-semibold text-slate-600">Para consultas o coordinacion, escribe a Todo Agricola.</p>
+            <a className="btn-secondary mt-3 w-full" href="mailto:hgarayd@outlook.com?subject=Consulta%20de%20inventario%20Todo%20Agricola">
               <Mail size={20} /> Solicitar informacion
             </a>
           </section>
 
-          <section className="rounded-lg border border-white/10 bg-white/[0.04] p-3 text-xs font-semibold text-slate-400">
+          <section className="rounded-lg border border-slate-200 bg-white/80 p-3 text-xs font-semibold text-slate-500">
             La informacion del portal es referencial y queda sujeta a validacion operativa de Todo Agricola. Las solicitudes de despacho requieren aprobacion antes de ejecutarse.
           </section>
         </aside>
@@ -404,15 +390,15 @@ export default function ClientPortal() {
       <section className="mt-5 grid gap-4 lg:grid-cols-3">
         <Panel title="Comprobantes de despacho" icon={FileText}>
           {dispatchReceipts.length === 0 ? (
-            <p className="rounded-lg bg-white/[0.06] p-3 text-sm font-bold text-slate-300">Sin despachos registrados.</p>
+            <p className="rounded-lg bg-slate-50 p-3 text-sm font-bold text-slate-600">Sin despachos registrados.</p>
           ) : (
             dispatchReceipts.slice(0, 6).map((movement) => (
-              <button key={movement.id} className="block w-full rounded-lg bg-white/[0.06] p-3 text-left transition hover:bg-white/[0.1]" type="button" onClick={() => printMovementReceipt(movement)}>
-                <p className="font-bold text-white">{cleanProductName(movement.lots?.product)}</p>
-                <p className="text-sm font-semibold text-slate-400">
+              <button key={movement.id} className="block w-full rounded-lg bg-slate-50 p-3 text-left transition hover:bg-slate-100" type="button" onClick={() => printMovementReceipt(movement)}>
+                <p className="font-bold text-slate-950">{cleanProductName(movement.lots?.product)}</p>
+                <p className="text-sm font-semibold text-slate-500">
                   {displayLotCode(movement.lots?.lot_code)} - {formatNumber(movement.quantity)} env.
                 </p>
-                <p className="mt-1 text-xs font-bold text-emerald-200">{formatDate(movement.created_at)} - Ver comprobante</p>
+                <p className="mt-1 text-xs font-bold text-campo-700">{formatDate(movement.created_at)} - Ver comprobante</p>
               </button>
             ))
           )}
@@ -420,18 +406,18 @@ export default function ClientPortal() {
 
         <Panel title="Historial simple" icon={History}>
           {history.length === 0 ? (
-            <p className="rounded-lg bg-white/[0.06] p-3 text-sm font-bold text-slate-300">Sin movimientos visibles.</p>
+            <p className="rounded-lg bg-slate-50 p-3 text-sm font-bold text-slate-600">Sin movimientos visibles.</p>
           ) : (
             history.map((movement) => (
-              <div key={movement.id} className="rounded-lg bg-white/[0.06] p-3">
+              <div key={movement.id} className="rounded-lg bg-slate-50 p-3">
                 <div className="flex justify-between gap-3">
-                  <p className="font-bold text-white">{movementLabel(movement.type)}</p>
-                  <p className="font-black text-emerald-200">{formatNumber(movement.quantity)} env.</p>
+                  <p className="font-bold text-slate-950">{movementLabel(movement.type)}</p>
+                  <p className="font-black text-campo-700">{formatNumber(movement.quantity)} env.</p>
                 </div>
-                <p className="text-sm font-semibold text-slate-400">
+                <p className="text-sm font-semibold text-slate-500">
                   {displayLotCode(movement.lots?.lot_code)} - {cleanProductName(movement.lots?.product)}
                 </p>
-                <p className="mt-1 text-xs font-semibold text-slate-500">{formatDate(movement.created_at)}</p>
+                <p className="mt-1 text-xs font-semibold text-slate-400">{formatDate(movement.created_at)}</p>
               </div>
             ))
           )}
@@ -439,21 +425,21 @@ export default function ClientPortal() {
 
         <Panel title="Solicitudes" icon={Truck}>
           {requests.length === 0 ? (
-            <p className="rounded-lg bg-white/[0.06] p-3 text-sm font-bold text-slate-300">Todavia no hay solicitudes.</p>
+            <p className="rounded-lg bg-slate-50 p-3 text-sm font-bold text-slate-600">Todavia no hay solicitudes.</p>
           ) : (
             requests.slice(0, 8).map((request) => (
-              <div key={request.id} className="rounded-lg bg-white/[0.06] p-3">
+              <div key={request.id} className="rounded-lg bg-slate-50 p-3">
                 <div className="flex justify-between gap-3">
-                  <p className="font-bold text-white">{cleanProductName(request.product || request.lots?.product)}</p>
-                  <span className={`rounded-full px-2 py-1 text-xs font-bold ${request.status === 'aprobado' ? 'bg-emerald-400/15 text-emerald-100' : request.status === 'rechazado' ? 'bg-red-500/15 text-red-200' : 'bg-amber-300/15 text-amber-100'}`}>
+                  <p className="font-bold text-slate-950">{cleanProductName(request.product || request.lots?.product)}</p>
+                  <span className={`rounded-full px-2 py-1 text-xs font-bold ${request.status === 'aprobado' ? 'bg-campo-50 text-campo-700' : request.status === 'rechazado' ? 'bg-red-50 text-red-700' : 'bg-amber-50 text-amber-800'}`}>
                     {request.status}
                   </span>
                 </div>
-                <p className="text-sm font-semibold text-slate-400">
+                <p className="text-sm font-semibold text-slate-500">
                   {displayLotCode(request.lots?.lot_code)} - {formatNumber(request.quantity)} env.
                 </p>
-                <p className="mt-1 text-xs font-semibold text-slate-500">{formatDate(request.created_at)}</p>
-                {request.admin_notes ? <p className="mt-2 text-xs font-semibold text-slate-300">{request.admin_notes}</p> : null}
+                <p className="mt-1 text-xs font-semibold text-slate-400">{formatDate(request.created_at)}</p>
+                {request.admin_notes ? <p className="mt-2 text-xs font-semibold text-slate-600">{request.admin_notes}</p> : null}
               </div>
             ))
           )}
@@ -463,22 +449,22 @@ export default function ClientPortal() {
   )
 }
 
-function Metric({ icon: Icon, label, value, accent = 'text-emerald-200' }) {
+function Metric({ icon: Icon, label, value, accent = 'text-campo-700' }) {
   return (
-    <div className={darkPanel}>
+    <div className="panel">
       <Icon className={accent} size={24} />
-      <p className="mt-3 text-sm font-medium text-slate-400">{label}</p>
-      <p className="mt-1 text-2xl font-bold text-white">{value}</p>
+      <p className="mt-3 text-sm font-medium text-slate-500">{label}</p>
+      <p className="mt-1 text-2xl font-bold text-slate-950">{value}</p>
     </div>
   )
 }
 
 function Panel({ title, icon: Icon, children }) {
   return (
-    <section className={darkPanel}>
+    <section className="panel">
       <div className="mb-3 flex items-center gap-2">
-        <Icon size={20} className="text-emerald-200" />
-        <h3 className="font-bold text-white">{title}</h3>
+        <Icon size={20} className="text-campo-700" />
+        <h3 className="font-bold text-slate-950">{title}</h3>
       </div>
       <div className="max-h-[360px] space-y-2 overflow-y-auto pr-1">{children}</div>
     </section>

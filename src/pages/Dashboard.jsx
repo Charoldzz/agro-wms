@@ -12,6 +12,7 @@ export default function Dashboard() {
   const [lots, setLots] = useState([])
   const [movements, setMovements] = useState([])
   const [pendingMovements, setPendingMovements] = useState([])
+  const [dispatchRequests, setDispatchRequests] = useState([])
   const [dashboardError, setDashboardError] = useState('')
 
   useEffect(() => {
@@ -21,6 +22,7 @@ export default function Dashboard() {
       .channel('dashboard-realtime')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'lots' }, loadData)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'movements' }, loadData)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'client_dispatch_requests' }, loadData)
       .subscribe()
 
     return () => supabase.removeChannel(channel)
@@ -29,7 +31,7 @@ export default function Dashboard() {
   async function loadData() {
     setDashboardError('')
 
-    const [{ data: lotsData, error: lotsError }, movementsResult, pendingResult] = await Promise.all([
+    const [{ data: lotsData, error: lotsError }, movementsResult, pendingResult, requestsResult] = await Promise.all([
       supabase.from('lots').select('*, clients(name)').order('created_at', { ascending: false }),
       supabase
         .from('movements')
@@ -41,6 +43,11 @@ export default function Dashboard() {
         .select('*, lots(product, lot_code, current_quantity, clients(name)), profiles(full_name)')
         .in('type', ['ajuste', 'traslado', 'salida'])
         .eq('approval_status', 'pendiente')
+        .order('created_at', { ascending: false }),
+      supabase
+        .from('client_dispatch_requests')
+        .select('*, clients(name), lots(lot_code, product, current_quantity, location)')
+        .eq('status', 'pendiente')
         .order('created_at', { ascending: false }),
     ])
 
@@ -83,6 +90,7 @@ export default function Dashboard() {
     setLots(lotsData || [])
     setMovements(movementsData || [])
     setPendingMovements(pendingData || [])
+    setDispatchRequests(requestsResult.error ? [] : requestsResult.data || [])
   }
 
   async function enrichMovements(rawMovements) {
@@ -172,6 +180,18 @@ export default function Dashboard() {
     loadData()
   }
 
+  async function reviewDispatchRequest(id, status) {
+    await supabase
+      .from('client_dispatch_requests')
+      .update({
+        status,
+        reviewed_by: user.id,
+        reviewed_at: new Date().toISOString(),
+      })
+      .eq('id', id)
+    loadData()
+  }
+
   return (
     <div>
       <PageHeader
@@ -184,11 +204,11 @@ export default function Dashboard() {
         }
       />
 
-      <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <section className="grid grid-cols-2 gap-2 lg:grid-cols-4">
         <StatCard icon={Boxes} label="Productos almacenados" value={formatNumber(stats.totalStock)} />
         <StatCard icon={PackagePlus} label="Ingresos hoy" value={stats.entriesToday} />
         <StatCard icon={LogOut} label="Salidas hoy" value={stats.exitsToday} />
-        <StatCard icon={Wrench} label="Pendientes" value={pendingMovements.length} />
+        <StatCard icon={Wrench} label="Pendientes" value={pendingMovements.length + dispatchRequests.length} />
       </section>
 
       <section className="mt-5 grid gap-3 md:grid-cols-3">
@@ -216,10 +236,32 @@ export default function Dashboard() {
             <h3 className="font-bold text-slate-900">Pendientes</h3>
           </div>
           <div className="max-h-[360px] space-y-2 overflow-y-auto pr-1">
-            {pendingMovements.length === 0 ? (
-              <div className="rounded-lg bg-campo-50 p-3 text-sm font-bold text-campo-700">No hay salidas offline, reparaciones ni traslados pendientes.</div>
+            {pendingMovements.length === 0 && dispatchRequests.length === 0 ? (
+              <div className="rounded-lg bg-campo-50 p-3 text-sm font-bold text-campo-700">No hay solicitudes, salidas offline, reparaciones ni traslados pendientes.</div>
             ) : (
-              pendingMovements.map((movement) => (
+              <>
+              {dispatchRequests.map((request) => (
+                <div key={request.id} className="rounded-lg bg-amber-50 p-3">
+                  <p className="font-bold text-slate-900">Solicitud despacho - {request.clients?.name || 'Cliente'}</p>
+                  <p className="text-sm font-semibold text-slate-700">{cleanProductName(request.product || request.lots?.product)}</p>
+                  <p className="text-sm font-semibold text-slate-600">
+                    {displayLotCode(request.lots?.lot_code)} - {formatNumber(request.quantity)} env. solicitados
+                  </p>
+                  <p className="text-xs text-slate-500">
+                    Disponible: {formatNumber(request.lots?.current_quantity)} env. - {request.lots?.location || '-'}
+                  </p>
+                  {request.notes ? <p className="mt-1 text-xs text-slate-600">{request.notes}</p> : null}
+                  <div className="mt-2 grid grid-cols-2 gap-2">
+                    <button className="btn-secondary !min-h-10 !py-2" type="button" onClick={() => reviewDispatchRequest(request.id, 'rechazado')}>
+                      <X size={16} /> Rechazar
+                    </button>
+                    <button className="btn-primary !min-h-10 !py-2" type="button" onClick={() => reviewDispatchRequest(request.id, 'aprobado')}>
+                      <Check size={16} /> Aprobar
+                    </button>
+                  </div>
+                </div>
+              ))}
+              {pendingMovements.map((movement) => (
                 <div key={movement.id} className="rounded-lg bg-orange-50 p-3">
                   <p className="font-bold text-slate-900">{movementLabel(movement.type)} - {displayLotCode(movement.lots?.lot_code)}</p>
                   <p className="text-sm font-semibold text-slate-700">{cleanProductName(movement.lots?.product)}</p>
@@ -241,7 +283,8 @@ export default function Dashboard() {
                     </button>
                   </div>
                 </div>
-              ))
+              ))}
+              </>
             )}
           </div>
         </div>
@@ -315,10 +358,10 @@ export default function Dashboard() {
 
 function StatCard({ icon: Icon, label, value }) {
   return (
-    <div className="panel">
-      <Icon className="text-campo-700" size={24} />
-      <p className="mt-3 text-sm font-medium text-slate-500">{label}</p>
-      <p className="mt-1 text-2xl font-bold text-slate-950">{value}</p>
+    <div className="rounded-lg border border-slate-200 bg-white/90 p-3 shadow-soft sm:p-4">
+      <Icon className="text-campo-700" size={20} />
+      <p className="mt-2 text-xs font-bold text-slate-500 sm:text-sm">{label}</p>
+      <p className="mt-1 text-xl font-black text-slate-950 sm:text-2xl">{value}</p>
     </div>
   )
 }
