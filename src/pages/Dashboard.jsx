@@ -39,7 +39,7 @@ export default function Dashboard() {
       supabase
         .from('movements')
         .select('*, lots(product, lot_code, current_quantity, clients(name)), profiles(full_name)')
-        .in('type', ['ajuste', 'traslado'])
+        .in('type', ['ajuste', 'traslado', 'salida'])
         .eq('approval_status', 'pendiente')
         .order('created_at', { ascending: false }),
     ])
@@ -65,7 +65,7 @@ export default function Dashboard() {
       const fallbackPending = await supabase
         .from('movements')
         .select('*')
-        .in('type', ['ajuste', 'traslado'])
+        .in('type', ['ajuste', 'traslado', 'salida'])
         .order('created_at', { ascending: false })
 
       if (fallbackPending.error) {
@@ -195,7 +195,7 @@ export default function Dashboard() {
         <Link className="btn-primary min-h-20 !justify-start !px-5 text-left text-lg" to="/operacion/nuevo-ingreso">
           <PackagePlus size={28} /> Nuevo ingreso
         </Link>
-        <Link className="min-h-20 !justify-start !px-5 text-left text-lg inline-flex items-center gap-2 rounded-lg bg-maiz px-4 py-3 font-semibold text-slate-950 shadow-soft transition active:scale-[0.99]" to="/scanner?modo=despacho">
+        <Link className="min-h-20 !justify-start !px-5 text-left text-lg inline-flex items-center gap-2 rounded-lg bg-maiz px-4 py-3 font-semibold text-slate-950 shadow-soft transition active:scale-[0.99]" to="/operacion/despacho-lista">
           <LogOut size={24} /> Modo despacho
         </Link>
         <Link className="min-h-20 !justify-start !px-5 text-left text-lg inline-flex items-center gap-2 rounded-lg bg-orange-500 px-4 py-3 font-semibold text-white shadow-soft transition active:scale-[0.99]" to="/operacion/reparacion-traslado">
@@ -217,7 +217,7 @@ export default function Dashboard() {
           </div>
           <div className="max-h-[360px] space-y-2 overflow-y-auto pr-1">
             {pendingMovements.length === 0 ? (
-              <div className="rounded-lg bg-campo-50 p-3 text-sm font-bold text-campo-700">No hay reparaciones ni traslados pendientes.</div>
+              <div className="rounded-lg bg-campo-50 p-3 text-sm font-bold text-campo-700">No hay salidas offline, reparaciones ni traslados pendientes.</div>
             ) : (
               pendingMovements.map((movement) => (
                 <div key={movement.id} className="rounded-lg bg-orange-50 p-3">
@@ -226,6 +226,8 @@ export default function Dashboard() {
                   <p className="text-sm font-semibold text-slate-600">
                     {movement.type === 'traslado'
                       ? `De ${movement.from_location || '-'} a ${movement.to_location || '-'}`
+                      : movement.type === 'salida'
+                        ? `Salida offline: ${formatNumber(movement.quantity)} env. - Stock actual: ${formatNumber(movement.lots?.current_quantity)} env.`
                       : `Actual: ${formatNumber(movement.previous_quantity)} env. - Solicitado: ${formatNumber(movement.quantity)} env.`}
                   </p>
                   <p className="text-xs text-slate-500">{movement.profiles?.full_name || 'Usuario'} - {movement.lots?.clients?.name || '-'}</p>

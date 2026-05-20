@@ -8,6 +8,7 @@ import { createLotQrDataUrl } from '../lib/qr'
 import { supabase } from '../lib/supabase'
 import { cleanProductName, displayLotCode } from '../lib/display'
 import { isNetworkMovementError, queueMovement } from '../lib/offlineQueue'
+import { compressImageFile } from '../lib/image'
 
 const initialMovement = {
   type: 'entrada',
@@ -188,6 +189,11 @@ export default function LotDetail() {
       return
     }
 
+    if (movement.type === 'salida' && fefoLot) {
+      setError(`FEFO bloquea esta salida. Primero revisa ${displayLotCode(fefoLot.lot_code)}, que vence antes.`)
+      return
+    }
+
     if (movement.type === 'salida' && !movement.receiver_name.trim()) {
       setError('Escribe el nombre de la persona que recibe.')
       return
@@ -246,6 +252,7 @@ export default function LotDetail() {
 
     const movementNotes = [
       pendingMovement.notes || null,
+      pendingMovement.type === 'salida' && pendingMovement.to_location ? `Placa: ${pendingMovement.to_location}` : null,
       pendingMovement.receiver_name ? `Recibe: ${pendingMovement.receiver_name}` : null,
       pendingMovement.receiver_document ? `Documento: ${pendingMovement.receiver_document}` : null,
       photoUrl ? `Foto: ${photoUrl}` : null,
@@ -286,7 +293,7 @@ export default function LotDetail() {
           type: pendingMovement.type,
           quantity,
           to_location: pendingMovement.to_location || null,
-          notes: movementNotes || null,
+          notes: pendingMovement.type === 'salida' ? `[OFFLINE] [REQUIERE REVISION] ${movementNotes || ''}`.trim() : movementNotes || null,
           user_id: user.id,
           email: emailPayload,
         })
@@ -324,10 +331,11 @@ export default function LotDetail() {
     setSaving(false)
   }
 
-  function selectMovementPhoto(file) {
+  async function selectMovementPhoto(file) {
     if (!file) return
-    setMovementPhotoFile(file)
-    setMovementPhotoPreview(URL.createObjectURL(file))
+    const compressed = await compressImageFile(file)
+    setMovementPhotoFile(compressed)
+    setMovementPhotoPreview(URL.createObjectURL(compressed))
   }
 
   async function uploadMovementPhoto(lotCode) {
@@ -688,8 +696,8 @@ export default function LotDetail() {
           {movement.type === 'salida' ? (
             <>
               <label className="sm:col-span-2">
-                <span className="label">Destino / observacion de despacho</span>
-                <input className="input mt-1" value={movement.to_location} onChange={(event) => setMovement({ ...movement, to_location: event.target.value })} placeholder="Opcional: destino, camion, obra, sucursal..." />
+                <span className="label">Placa del vehiculo</span>
+                <input className="input mt-1 uppercase" value={movement.to_location} onChange={(event) => setMovement({ ...movement, to_location: event.target.value.toUpperCase() })} placeholder="Opcional" />
               </label>
               <label>
                 <span className="label">Nombre del que recibe</span>
@@ -797,7 +805,7 @@ export default function LotDetail() {
               ) : null}
               {pendingMovement.to_location ? (
                 <div className="flex justify-between gap-3">
-                  <span>{pendingMovement.type === 'salida' ? 'Destino' : 'Nueva ubicacion'}</span>
+                  <span>{pendingMovement.type === 'salida' ? 'Placa' : 'Nueva ubicacion'}</span>
                   <span>{pendingMovement.to_location}</span>
                 </div>
               ) : null}

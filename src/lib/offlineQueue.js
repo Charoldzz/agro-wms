@@ -43,7 +43,8 @@ export async function syncQueuedMovements() {
   let synced = 0
 
   for (const item of queue) {
-    const { error } = await supabase.rpc('register_movement', {
+    const rpcName = item.type === 'salida' ? 'register_offline_movement' : 'register_movement'
+    const { error } = await supabase.rpc(rpcName, {
       p_lot_id: item.lot_id,
       p_type: item.type,
       p_quantity: item.quantity,

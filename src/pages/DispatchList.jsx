@@ -45,10 +45,17 @@ function expiryDays(expiryDate) {
   return Math.ceil((new Date(`${expiryDate}T00:00:00`) - today) / 86400000)
 }
 
+function escapeHtml(value) {
+  return String(value || '')
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+}
+
 export default function DispatchList() {
   const navigate = useNavigate()
   const location = useLocation()
-  const { user, isOperator } = useAuth()
+  const { user } = useAuth()
   const [items, setItems] = useState(() => readDraft().items)
   const [receiverName, setReceiverName] = useState(() => readDraft().receiverName)
   const [receiverDocument, setReceiverDocument] = useState(() => readDraft().receiverDocument)
@@ -57,6 +64,7 @@ export default function DispatchList() {
   const [status, setStatus] = useState('')
   const [saving, setSaving] = useState(false)
   const [confirming, setConfirming] = useState(false)
+  const [receipt, setReceipt] = useState(null)
 
   const lotId = new URLSearchParams(location.search).get('lot')
 
@@ -79,13 +87,26 @@ export default function DispatchList() {
         return
       }
 
+      const { data: earlierLots } = await supabase
+        .from('lots')
+        .select('id, lot_code, expiry_date, current_quantity, location')
+        .eq('product', data.product)
+        .neq('id', data.id)
+        .gt('current_quantity', 0)
+        .not('expiry_date', 'is', null)
+        .lt('expiry_date', data.expiry_date || '9999-12-31')
+        .order('expiry_date', { ascending: true })
+        .limit(1)
+
+      const scannedItem = { lot: data, package_count: '', fefo_lot: earlierLots?.[0] || null }
+
       setItems((current) => {
         if (current.some((item) => item.lot.id === data.id)) {
           setStatus(`${displayLotCode(data.lot_code)} ya esta en la lista. Puedes cambiar la cantidad.`)
           return current
         }
         setStatus(`${displayLotCode(data.lot_code)} agregado. Puedes escanear otro QR.`)
-        return [...current, { lot: data, package_count: '' }]
+        return [...current, scannedItem]
       })
       navigate('/operacion/despacho-lista', { replace: true })
     }
@@ -125,6 +146,9 @@ export default function DispatchList() {
       if (quantity > Number(item.lot.current_quantity || 0)) return `No hay inventario suficiente en ${displayLotCode(item.lot.lot_code)}.`
       if (['retenido', 'cerrado'].includes(item.lot.status)) return `${displayLotCode(item.lot.lot_code)} esta ${item.lot.status}.`
       if (expiryDays(item.lot.expiry_date) < 0) return `${displayLotCode(item.lot.lot_code)} esta vencido.`
+      if (item.fefo_lot && !items.some((dispatchItem) => dispatchItem.lot.id === item.fefo_lot.id && Number(dispatchItem.package_count || 0) > 0)) {
+        return `FEFO bloquea ${displayLotCode(item.lot.lot_code)}. Primero revisa ${displayLotCode(item.fefo_lot.lot_code)}, que vence antes.`
+      }
     }
 
     return ''
@@ -153,6 +177,7 @@ export default function DispatchList() {
     setStatus('')
 
     let queued = 0
+    const receiptItems = []
 
     for (const item of items) {
       const quantity = Number(item.package_count)
@@ -196,11 +221,12 @@ export default function DispatchList() {
             type: 'salida',
             quantity,
             to_location: vehiclePlate.trim() || null,
-            notes,
+            notes: `[OFFLINE] [REQUIERE REVISION] ${notes}`,
             user_id: user.id,
             email,
           })
           queued += 1
+          receiptItems.push({ ...item, quantity, pending: true })
           continue
         }
 
@@ -210,13 +236,86 @@ export default function DispatchList() {
       }
 
       await supabase.functions.invoke('send-movement-email', { body: email })
+      receiptItems.push({ ...item, quantity, pending: false })
     }
 
     setItems([])
     clearDraft()
-    setStatus(queued > 0 ? `${queued} salida(s) quedaron guardadas para sincronizar cuando vuelva la señal.` : 'Despacho guardado y correo enviado a oficina.')
-    setTimeout(() => navigate(isOperator ? '/operacion' : '/'), 1000)
+    setReceipt({
+      id: `DESP-${new Date().toISOString().replace(/\D/g, '').slice(0, 14)}`,
+      createdAt: new Date().toISOString(),
+      receiverName: receiverName.trim(),
+      receiverDocument: receiverDocument.trim(),
+      vehiclePlate: vehiclePlate.trim(),
+      items: receiptItems,
+      totalPackages,
+      userEmail: user.email,
+      queued,
+    })
+    setConfirming(false)
+    setStatus(queued > 0 ? `${queued} salida(s) quedaron pendientes de revision admin al sincronizar.` : 'Despacho guardado y correo enviado a oficina.')
     setSaving(false)
+  }
+
+  function printReceipt() {
+    if (!receipt) return
+    const rows = receipt.items
+      .map((item) => {
+        const equivalent = Number(item.quantity || 0) * Number(item.lot.package_size || 0)
+        return `
+          <tr>
+            <td>${escapeHtml(cleanProductName(item.lot.product))}</td>
+            <td>${escapeHtml(displayLotCode(item.lot.lot_code))}</td>
+            <td>${escapeHtml(formatNumber(item.quantity))}</td>
+            <td>${escapeHtml(Number(item.lot.package_size) > 0 ? `${formatNumber(equivalent)} ${item.lot.package_unit || ''}` : '-')}</td>
+            <td>${escapeHtml(item.lot.location || '-')}</td>
+            <td>${escapeHtml(item.lot.expiry_date ? formatDate(item.lot.expiry_date) : '-')}</td>
+            <td>${item.pending ? 'Pendiente offline' : 'Aplicado'}</td>
+          </tr>
+        `
+      })
+      .join('')
+    const printWindow = window.open('', '_blank')
+    if (!printWindow) return
+    printWindow.document.write(`
+      <!doctype html>
+      <html>
+        <head>
+          <title>Comprobante ${escapeHtml(receipt.id)}</title>
+          <meta name="viewport" content="width=device-width, initial-scale=1" />
+          <style>
+            body { color: #0f172a; font-family: Arial, sans-serif; margin: 24px; }
+            h1 { margin: 0 0 4px; }
+            .meta { display: grid; gap: 8px; grid-template-columns: repeat(2, 1fr); margin: 18px 0; }
+            .box { border: 1px solid #cbd5e1; border-radius: 8px; padding: 10px; }
+            table { border-collapse: collapse; width: 100%; }
+            th, td { border-bottom: 1px solid #cbd5e1; font-size: 12px; padding: 8px; text-align: left; }
+            th { background: #f1f5f9; }
+            @media print { body { margin: 12mm; } }
+          </style>
+        </head>
+        <body>
+          <h1>Todo Agricola</h1>
+          <strong>Comprobante de despacho ${escapeHtml(receipt.id)}</strong>
+          <div class="meta">
+            <div class="box">Fecha: ${escapeHtml(formatDate(receipt.createdAt))}</div>
+            <div class="box">Usuario: ${escapeHtml(receipt.userEmail)}</div>
+            <div class="box">Recibe: ${escapeHtml(receipt.receiverName)}</div>
+            <div class="box">Documento: ${escapeHtml(receipt.receiverDocument)}</div>
+            <div class="box">Placa: ${escapeHtml(receipt.vehiclePlate || '-')}</div>
+            <div class="box">Total envases: ${escapeHtml(formatNumber(receipt.totalPackages))}</div>
+          </div>
+          <table>
+            <thead>
+              <tr><th>Producto</th><th>Lote</th><th>Envases</th><th>Equivalente</th><th>Ubicacion</th><th>Vence</th><th>Estado</th></tr>
+            </thead>
+            <tbody>${rows}</tbody>
+          </table>
+          <script>window.addEventListener('load', () => window.print())</script>
+        </body>
+      </html>
+    `)
+    printWindow.document.close()
   }
 
   return (
@@ -290,6 +389,11 @@ export default function DispatchList() {
                 {days !== null && days <= 90 ? (
                   <div className={`mt-3 rounded-lg p-2 text-xs font-bold ${days < 0 ? 'bg-red-50 text-red-700' : 'bg-amber-50 text-amber-800'}`}>
                     {days < 0 ? 'Lote vencido, salida bloqueada.' : `Vence en ${days} dias. Revisa FEFO antes de confirmar.`}
+                  </div>
+                ) : null}
+                {item.fefo_lot ? (
+                  <div className="mt-3 rounded-lg bg-red-50 p-2 text-xs font-bold text-red-700">
+                    FEFO: existe un lote anterior ({displayLotCode(item.fefo_lot.lot_code)}, vence {formatDate(item.fefo_lot.expiry_date)}, {formatNumber(item.fefo_lot.current_quantity)} envases en {item.fefo_lot.location}). Agrega ese lote primero o revisa con administracion.
                   </div>
                 ) : null}
                 <div className="mt-3 grid gap-3 sm:grid-cols-2">
@@ -368,6 +472,35 @@ export default function DispatchList() {
               <button className="btn-primary w-full" type="button" onClick={confirmDispatch} disabled={saving}>
                 {saving ? <LogOut size={20} /> : <CheckCircle2 size={20} />}
                 {saving ? 'Guardando...' : 'Confirmar'}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {receipt ? (
+        <div className="fixed inset-0 z-40 flex items-end bg-slate-950/45 p-4 sm:items-center sm:justify-center">
+          <div className="w-full max-w-lg rounded-xl bg-white p-4 shadow-xl">
+            <h3 className="text-xl font-bold text-slate-950">Comprobante de despacho</h3>
+            <p className="mt-1 text-sm font-bold text-slate-500">{receipt.id}</p>
+            <div className="mt-3 grid gap-2 rounded-lg bg-slate-50 p-3 text-sm font-bold text-slate-700 sm:grid-cols-2">
+              <div>Total envases: {formatNumber(receipt.totalPackages)}</div>
+              <div>Productos: {receipt.items.length}</div>
+              <div>Recibe: {receipt.receiverName}</div>
+              <div>Documento: {receipt.receiverDocument}</div>
+              <div className="sm:col-span-2">Placa: {receipt.vehiclePlate || 'Sin placa'}</div>
+              {receipt.queued > 0 ? (
+                <div className="sm:col-span-2 rounded-lg bg-amber-50 p-2 text-amber-800">
+                  {receipt.queued} salida(s) offline quedan pendientes de revision admin.
+                </div>
+              ) : null}
+            </div>
+            <div className="mt-4 grid grid-cols-2 gap-2">
+              <button className="btn-secondary w-full" type="button" onClick={printReceipt}>
+                Imprimir
+              </button>
+              <button className="btn-primary w-full" type="button" onClick={() => navigate('/operacion')}>
+                Volver a operar
               </button>
             </div>
           </div>

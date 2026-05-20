@@ -15,6 +15,7 @@ import ExpiringLots from './pages/ExpiringLots'
 import OperatorEntry from './pages/OperatorEntry'
 import OperatorService from './pages/OperatorService'
 import DispatchList from './pages/DispatchList'
+import OfflineAudit from './pages/OfflineAudit'
 import { isSupabaseConfigured } from './lib/supabase'
 
 function ProtectedRoute({ children }) {
@@ -62,6 +63,7 @@ function AppRoutes() {
         <Route path="vencimientos" element={<RoleRoute roles={['administrador', 'operador']}><ExpiringLots /></RoleRoute>} />
         <Route path="scanner" element={<Scanner />} />
         <Route path="movimientos" element={<RoleRoute roles={['administrador']}><Movements /></RoleRoute>} />
+        <Route path="offline" element={<RoleRoute roles={['administrador']}><OfflineAudit /></RoleRoute>} />
       </Route>
     </Routes>
   )

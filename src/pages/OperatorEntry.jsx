@@ -6,6 +6,7 @@ import { useAuth } from '../hooks/useAuth.jsx'
 import { supabase } from '../lib/supabase'
 import { formatNumber } from '../lib/format'
 import { cleanProductName, displayLotCode } from '../lib/display'
+import { compressImageFile } from '../lib/image'
 
 const internalLocations = ['Nave 1', 'Nave 2', 'Nave 3', 'Playa']
 
@@ -54,10 +55,11 @@ export default function OperatorEntry() {
   }, [form.package_count, form.package_size])
   const today = new Date().toISOString().slice(0, 10)
 
-  function selectPhoto(file) {
+  async function selectPhoto(file) {
     if (!file) return
-    setPhotoFile(file)
-    setPhotoPreview(URL.createObjectURL(file))
+    const compressed = await compressImageFile(file)
+    setPhotoFile(compressed)
+    setPhotoPreview(URL.createObjectURL(compressed))
   }
 
   function validateStep(currentStep) {
