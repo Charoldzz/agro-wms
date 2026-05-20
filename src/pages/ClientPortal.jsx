@@ -95,6 +95,11 @@ export default function ClientPortal() {
   const clientName = lots[0]?.clients?.name || 'Cliente'
   const dispatchReceipts = movements.filter((movement) => movement.type === 'salida')
   const history = movements.slice(0, 12)
+  const requestTotalPackages = requestItems.reduce((sum, item) => sum + Number(item.quantity || 0), 0)
+  const requestTotalEquivalent = requestItems.reduce(
+    (sum, item) => sum + Number(item.quantity || 0) * Number(item.package_size || 0),
+    0,
+  )
 
   function addRequestItem() {
     setRequestMessage('')
@@ -154,6 +159,11 @@ export default function ClientPortal() {
     const firstItem = requestItems[0]
     const firstLot = lots.find((lot) => lot.id === firstItem.lot_id)
     const totalQuantity = requestItems.reduce((sum, item) => sum + Number(item.quantity || 0), 0)
+
+    if (!firstLot) {
+      setRequestMessage('No se pudo validar el primer lote de la lista. Recarga la pagina e intenta de nuevo.')
+      return
+    }
 
     const { error } = await supabase.from('client_dispatch_requests').insert({
       client_id: firstLot.client_id,
@@ -378,10 +388,10 @@ export default function ClientPortal() {
               <Send size={20} className="text-campo-700" />
               <h3 className="font-bold text-slate-950">Solicitar despacho</h3>
             </div>
-            <form className="space-y-3" onSubmit={createDispatchRequest}>
+            <form className="space-y-3" onSubmit={createDispatchRequest} noValidate>
               <label>
                 <span className="label">Producto / lote</span>
-                <select className="input mt-1" value={requestLotId} onChange={(event) => setRequestLotId(event.target.value)} required>
+                <select className="input mt-1" value={requestLotId} onChange={(event) => setRequestLotId(event.target.value)}>
                   <option value="">Seleccionar</option>
                   {lots.map((lot) => (
                     <option key={lot.id} value={lot.id}>
@@ -408,11 +418,29 @@ export default function ClientPortal() {
               </button>
               {requestItems.length > 0 ? (
                 <div className="space-y-2 rounded-lg bg-slate-50 p-2">
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="rounded-lg bg-campo-50 p-3">
+                      <p className="text-xs font-bold uppercase text-campo-700">Envases solicitados</p>
+                      <p className="mt-1 text-2xl font-black text-campo-800">{formatNumber(requestTotalPackages)}</p>
+                    </div>
+                    <div className="rounded-lg bg-amber-50 p-3">
+                      <p className="text-xs font-bold uppercase text-amber-700">Equivalente litros</p>
+                      <p className="mt-1 text-2xl font-black text-amber-800">{formatNumber(requestTotalEquivalent)} lt</p>
+                    </div>
+                  </div>
                   {requestItems.map((item) => (
                     <div key={item.lot_id} className="flex items-center justify-between gap-2 rounded-lg bg-white p-2">
                       <div className="min-w-0">
                         <p className="truncate text-sm font-bold text-slate-950">{cleanProductName(item.product)}</p>
-                        <p className="text-xs font-semibold text-slate-500">{displayLotCode(item.lot_code)} - {formatNumber(item.quantity)} env.</p>
+                        <p className="text-xs font-semibold text-slate-500">{displayLotCode(item.lot_code)}</p>
+                        <div className="mt-2 flex flex-wrap gap-2">
+                          <span className="rounded-lg bg-campo-50 px-2 py-1 text-sm font-black text-campo-800">
+                            {formatNumber(item.quantity)} env.
+                          </span>
+                          <span className="rounded-lg bg-amber-50 px-2 py-1 text-sm font-black text-amber-800">
+                            {formatNumber(Number(item.quantity || 0) * Number(item.package_size || 0))} lt
+                          </span>
+                        </div>
                       </div>
                       <button className="btn-secondary !min-h-9 !px-2 !py-1" type="button" onClick={() => removeRequestItem(item.lot_id)}>
                         <Trash2 size={15} />
