@@ -213,7 +213,7 @@ export default function Scanner() {
   return (
     <div>
       <PageHeader
-        title={validMovementMode === 'despacho' ? 'Modo despacho' : validMovementMode ? 'Escanear lote' : 'Escanear QR'}
+        title={validMovementMode === 'despacho' ? 'Despacho' : validMovementMode ? 'Escanear lote' : 'Escanear QR'}
         subtitle={validMovementMode === 'despacho' ? 'Escanea el lote para registrar salida' : validMovementMode ? 'Escanea el lote para continuar' : 'Solo consulta la ficha del producto'}
       />
 

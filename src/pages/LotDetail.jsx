@@ -180,7 +180,7 @@ export default function LotDetail() {
     }
 
     if (movement.type === 'salida' && (!scannedAccess || movementMode !== 'despacho')) {
-      setError('Para registrar salida debes entrar por Modo despacho.')
+      setError('Para registrar salida debes entrar por Despacho.')
       return
     }
 
@@ -758,7 +758,7 @@ export default function LotDetail() {
         ) : null}
         {movement.type === 'salida' && movementMode !== 'despacho' ? (
           <div className="rounded-lg bg-red-50 p-3 text-sm font-bold text-red-700">
-            Salida bloqueada: entra por Modo despacho para confirmar que estas frente al lote correcto.
+            Salida bloqueada: entra por Despacho para confirmar que estas frente al lote correcto.
           </div>
         ) : null}
         {error ? <div className="rounded-lg bg-red-50 p-3 text-sm font-bold text-red-700">{error}</div> : null}
@@ -770,7 +770,7 @@ export default function LotDetail() {
       </form>
       ) : (
         <div className="panel mt-4 rounded-lg bg-slate-50 p-4 text-sm font-bold text-slate-600">
-          Scan solo muestra la ficha del producto. Para registrar movimientos usa Nuevo ingreso, Modo despacho o Reparacion / Traslado.
+          Scan solo muestra la ficha del producto. Para registrar movimientos usa Nuevo ingreso, Despacho o Reparacion / Traslado.
         </div>
       )}
 

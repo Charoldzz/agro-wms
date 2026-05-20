@@ -18,7 +18,7 @@ export default function Operation() {
           <span className="flex h-12 w-12 items-center justify-center rounded-lg bg-white/35">
             <LogOut size={28} />
           </span>
-          <span>Modo despacho</span>
+          <span>Despacho</span>
         </Link>
         <Link className="inline-flex min-h-32 flex-col items-start justify-between gap-3 rounded-lg bg-orange-500 px-5 py-5 text-left text-xl font-semibold text-white shadow-soft transition active:scale-[0.99] sm:min-h-40" to="/operacion/reparacion-traslado">
           <span className="flex h-12 w-12 items-center justify-center rounded-lg bg-white/15">

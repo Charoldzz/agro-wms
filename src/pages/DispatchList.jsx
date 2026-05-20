@@ -320,9 +320,10 @@ export default function DispatchList() {
 
   return (
     <div>
-      <PageHeader title="Despacho por lista" subtitle="Escanea varios lotes y confirma una sola salida" />
+      <PageHeader title="Despacho" subtitle="Datos del despacho, carga por QR y comprobante" />
 
       <section className="panel mb-4 grid gap-3 sm:grid-cols-2">
+        <h3 className="text-lg font-bold text-slate-950 sm:col-span-2">Datos del despacho</h3>
         <label>
           <span className="label">Nombre del que recibe</span>
           <input className="input mt-1" value={receiverName} onChange={(event) => setReceiverName(event.target.value)} />
@@ -338,6 +339,7 @@ export default function DispatchList() {
       </section>
 
       <section className="mb-4 grid gap-3 sm:grid-cols-[1fr_220px]">
+        <h3 className="text-lg font-bold text-slate-950 sm:col-span-2">Carga del despacho</h3>
         <button className="btn-primary min-h-14" type="button" onClick={scanLot}>
           <ScanLine size={22} /> Escanear lote
         </button>
