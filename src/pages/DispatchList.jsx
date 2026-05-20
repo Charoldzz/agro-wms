@@ -121,13 +121,19 @@ export default function DispatchList() {
         .order('expiry_date', { ascending: true })
         .limit(1)
 
+      const approvedItems = Array.isArray(approvedRequest?.items) ? approvedRequest.items : []
+      const approvedItem = approvedItems.find((item) => item.lot_id === data.id)
+      const approvedLotId = approvedItems.length > 0 ? null : approvedRequest?.lot_id
       const scannedItem = {
         lot: data,
-        package_count: approvedRequest?.lot_id === data.id ? String(approvedRequest.quantity || '') : '',
+        package_count: approvedItem ? String(approvedItem.quantity || '') : approvedLotId === data.id ? String(approvedRequest.quantity || '') : '',
         fefo_lot: earlierLots?.[0] || null,
       }
 
-      if (approvedRequest?.lot_id && data.id !== approvedRequest.lot_id) {
+      if (approvedItems.length > 0 && !approvedItem) {
+        setError('Este lote no esta en la lista aprobada. Verifica antes de continuar.')
+        vibrateWarning()
+      } else if (approvedLotId && data.id !== approvedLotId) {
         setError(`Este no es el lote asignado. Debia ser ${displayLotCode(approvedRequest.lots?.lot_code)}. Verifica antes de continuar.`)
         vibrateWarning()
       }
@@ -173,12 +179,21 @@ export default function DispatchList() {
     if (!receiverName.trim()) return 'Escribe el nombre de quien recibe.'
     if (!receiverDocument.trim()) return 'Escribe el numero de documento.'
 
+    const approvedItems = Array.isArray(approvedRequest?.items) ? approvedRequest.items : []
+    if (approvedItems.length > 0) {
+      const missing = approvedItems.find((approvedItem) => !items.some((item) => item.lot.id === approvedItem.lot_id))
+      if (missing) return `Falta escanear ${displayLotCode(missing.lot_code)} de la lista aprobada.`
+    }
+
     for (const item of items) {
       const quantity = Number(item.package_count || 0)
       if (quantity <= 0) return `Escribe cantidad para ${displayLotCode(item.lot.lot_code)}.`
       if (quantity > Number(item.lot.current_quantity || 0)) return `No hay inventario suficiente en ${displayLotCode(item.lot.lot_code)}.`
       if (['retenido', 'cerrado'].includes(item.lot.status)) return `${displayLotCode(item.lot.lot_code)} esta ${item.lot.status}.`
       if (expiryDays(item.lot.expiry_date) < 0) return `${displayLotCode(item.lot.lot_code)} esta vencido.`
+      if (approvedItems.length > 0 && !approvedItems.some((approvedItem) => approvedItem.lot_id === item.lot.id)) {
+        return `${displayLotCode(item.lot.lot_code)} no pertenece a la lista aprobada.`
+      }
     }
 
     return ''
@@ -222,21 +237,6 @@ export default function DispatchList() {
         .filter(Boolean)
         .join(' | ')
 
-      const email = {
-        to: 'hgarayd@outlook.com',
-        movement_type: 'salida',
-        quantity,
-        previous_quantity: Number(item.lot.current_quantity || 0),
-        new_quantity: Number(item.lot.current_quantity || 0) - quantity,
-        to_location: vehiclePlate.trim() || null,
-        notes,
-        lot_code: displayLotCode(item.lot.lot_code),
-        product: cleanProductName(item.lot.product),
-        client: item.lot.clients?.name || 'Sin cliente',
-        location: item.lot.location,
-        user_email: user.email,
-      }
-
       const { error: rpcError } = await supabase.rpc('register_movement', {
         p_lot_id: item.lot.id,
         p_type: 'salida',
@@ -255,7 +255,7 @@ export default function DispatchList() {
             to_location: vehiclePlate.trim() || null,
             notes: `[OFFLINE] [REQUIERE REVISION] ${notes}`,
             user_id: user.id,
-            email,
+            email: null,
           })
           queued += 1
           receiptItems.push({ ...item, quantity, pending: true })
@@ -268,7 +268,6 @@ export default function DispatchList() {
         return
       }
 
-      await supabase.functions.invoke('send-movement-email', { body: email })
       receiptItems.push({ ...item, quantity, pending: false })
     }
 
@@ -292,7 +291,35 @@ export default function DispatchList() {
       queued,
     })
     setConfirming(false)
-    setStatus(queued > 0 ? `${queued} salida(s) quedaron pendientes de revision admin al sincronizar.` : 'Despacho guardado y correo enviado a oficina.')
+    if (queued === 0) {
+      await supabase.functions.invoke('send-movement-email', {
+        body: {
+          to: 'hgarayd@outlook.com',
+          movement_type: 'salida_lista',
+          client: receiptItems[0]?.lot?.clients?.name || approvedRequest?.clients?.name || 'Sin cliente',
+          quantity: receiptItems.reduce((sum, item) => sum + Number(item.quantity || 0), 0),
+          to_location: vehiclePlate.trim() || null,
+          notes: [
+            vehiclePlate.trim() ? `Placa: ${vehiclePlate.trim()}` : null,
+            `Recibe: ${receiverName.trim()}`,
+            `Documento: ${receiverDocument.trim()}`,
+            requestId ? `Solicitud: ${requestId}` : null,
+          ].filter(Boolean).join(' | '),
+          user_email: user.email,
+          items: receiptItems.map((item) => ({
+            lot_code: displayLotCode(item.lot.lot_code),
+            product: cleanProductName(item.lot.product),
+            quantity: item.quantity,
+            previous_quantity: Number(item.lot.current_quantity || 0),
+            new_quantity: Number(item.lot.current_quantity || 0) - Number(item.quantity || 0),
+            location: item.lot.location,
+            package_size: item.lot.package_size,
+            package_unit: item.lot.package_unit,
+          })),
+        },
+      })
+    }
+    setStatus(queued > 0 ? `${queued} salida(s) quedaron pendientes de revision admin al sincronizar. El correo se enviara despues de revision.` : 'Despacho guardado y correo resumen enviado a oficina.')
     vibrateSuccess()
     setSaving(false)
   }
@@ -366,9 +393,19 @@ export default function DispatchList() {
         <section className="panel mb-4 border-amber-200 bg-amber-50">
           <p className="text-sm font-bold uppercase text-amber-700">Despacho aprobado</p>
           <p className="mt-1 text-lg font-black text-slate-950">{approvedRequest.clients?.name || 'Cliente'}</p>
-          <p className="text-sm font-semibold text-slate-700">
-            {cleanProductName(approvedRequest.product || approvedRequest.lots?.product)} - {displayLotCode(approvedRequest.lots?.lot_code)} - {formatNumber(approvedRequest.quantity)} env.
-          </p>
+          {Array.isArray(approvedRequest.items) && approvedRequest.items.length > 1 ? (
+            <div className="mt-2 space-y-1">
+              {approvedRequest.items.map((item) => (
+                <p key={item.lot_id} className="text-sm font-semibold text-slate-700">
+                  {displayLotCode(item.lot_code)} - {cleanProductName(item.product)} - {formatNumber(item.quantity)} env.
+                </p>
+              ))}
+            </div>
+          ) : (
+            <p className="text-sm font-semibold text-slate-700">
+              {cleanProductName(approvedRequest.product || approvedRequest.lots?.product)} - {displayLotCode(approvedRequest.lots?.lot_code)} - {formatNumber(approvedRequest.quantity)} env.
+            </p>
+          )}
           <p className="mt-1 text-xs font-bold text-amber-700">
             Escanea el QR del lote asignado. Si escaneas otro lote, la app te advertira.
           </p>

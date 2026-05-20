@@ -21,6 +21,7 @@ create table if not exists public.client_dispatch_requests (
   lot_id uuid references public.lots(id),
   product text,
   quantity numeric(12, 2) not null check (quantity > 0),
+  items jsonb not null default '[]'::jsonb,
   notes text,
   status text not null default 'pendiente' check (status in ('pendiente', 'aprobado', 'rechazado', 'despachado')),
   admin_notes text,
@@ -108,6 +109,9 @@ drop constraint if exists client_dispatch_requests_status_check;
 alter table public.client_dispatch_requests
 add constraint client_dispatch_requests_status_check
 check (status in ('pendiente', 'aprobado', 'rechazado', 'despachado'));
+
+alter table public.client_dispatch_requests
+add column if not exists items jsonb not null default '[]'::jsonb;
 
 create or replace function public.complete_client_dispatch_request(
   p_request_id uuid,

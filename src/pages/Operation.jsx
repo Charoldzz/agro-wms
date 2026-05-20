@@ -155,9 +155,21 @@ export default function Operation() {
                   <p className="font-bold text-slate-950">{request.clients?.name || 'Cliente'}</p>
                   <p className="text-sm font-semibold text-slate-700">{cleanProductName(request.product || request.lots?.product)}</p>
                   <p className="text-sm font-bold text-slate-600">
-                    {displayLotCode(request.lots?.lot_code)} - {formatNumber(request.quantity)} env.
+                    {Array.isArray(request.items) && request.items.length > 1
+                      ? `${request.items.length} productos - ${formatNumber(request.quantity)} env.`
+                      : `${displayLotCode(request.lots?.lot_code)} - ${formatNumber(request.quantity)} env.`}
                   </p>
-                  <p className="text-xs font-semibold text-slate-500">{request.lots?.location || '-'} - disponible {formatNumber(request.lots?.current_quantity)} env.</p>
+                  {Array.isArray(request.items) && request.items.length > 1 ? (
+                    <div className="mt-2 space-y-1">
+                      {request.items.slice(0, 3).map((item) => (
+                        <p key={item.lot_id} className="text-xs font-semibold text-slate-600">
+                          {displayLotCode(item.lot_code)} - {formatNumber(item.quantity)} env.
+                        </p>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-xs font-semibold text-slate-500">{request.lots?.location || '-'} - disponible {formatNumber(request.lots?.current_quantity)} env.</p>
+                  )}
                   <Link className="btn-primary mt-3 w-full !min-h-11 !py-2" to={`/operacion/despacho-lista?request=${request.id}`}>
                     Iniciar despacho
                   </Link>

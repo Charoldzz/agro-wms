@@ -79,7 +79,9 @@ export default function ClientRequestsAdmin() {
                     <p className="font-bold text-slate-950">{request.clients?.name || 'Cliente'}</p>
                   </div>
                   <p className="text-sm font-semibold text-slate-600">
-                    {cleanProductName(request.product || request.lots?.product)} - {displayLotCode(request.lots?.lot_code)}
+                    {Array.isArray(request.items) && request.items.length > 1
+                      ? `${cleanProductName(request.product)}`
+                      : `${cleanProductName(request.product || request.lots?.product)} - ${displayLotCode(request.lots?.lot_code)}`}
                   </p>
                   <p className="mt-1 text-xs font-semibold text-slate-400">
                     Solicitado por {request.requested_by_profile?.full_name || 'Usuario'} - {formatDate(request.created_at)}
@@ -92,9 +94,20 @@ export default function ClientRequestsAdmin() {
 
               <div className="mt-3 grid gap-2 text-sm font-bold text-slate-600 sm:grid-cols-3">
                 <div className="rounded-lg bg-slate-50 p-3">Solicitado: {formatNumber(request.quantity)} envases</div>
-                <div className="rounded-lg bg-slate-50 p-3">Disponible: {formatNumber(request.lots?.current_quantity)} envases</div>
-                <div className="rounded-lg bg-slate-50 p-3">Ubicacion: {request.lots?.location || '-'}</div>
+                <div className="rounded-lg bg-slate-50 p-3">Productos: {Array.isArray(request.items) && request.items.length > 0 ? request.items.length : 1}</div>
+                <div className="rounded-lg bg-slate-50 p-3">Ubicacion: {request.lots?.location || 'Varias'}</div>
               </div>
+
+              {Array.isArray(request.items) && request.items.length > 1 ? (
+                <div className="mt-3 space-y-2 rounded-lg bg-slate-50 p-3">
+                  {request.items.map((item) => (
+                    <div key={item.lot_id} className="flex justify-between gap-3 text-sm font-semibold text-slate-700">
+                      <span>{displayLotCode(item.lot_code)} - {cleanProductName(item.product)}</span>
+                      <span>{formatNumber(item.quantity)} env.</span>
+                    </div>
+                  ))}
+                </div>
+              ) : null}
 
               {request.notes ? <p className="mt-3 rounded-lg bg-slate-50 p-3 text-sm font-semibold text-slate-600">{request.notes}</p> : null}
               {request.admin_notes ? <p className="mt-3 rounded-lg bg-campo-50 p-3 text-sm font-semibold text-campo-700">Respuesta: {request.admin_notes}</p> : null}

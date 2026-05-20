@@ -245,11 +245,23 @@ export default function Dashboard() {
                   <p className="font-bold text-slate-900">Solicitud despacho - {request.clients?.name || 'Cliente'}</p>
                   <p className="text-sm font-semibold text-slate-700">{cleanProductName(request.product || request.lots?.product)}</p>
                   <p className="text-sm font-semibold text-slate-600">
-                    {displayLotCode(request.lots?.lot_code)} - {formatNumber(request.quantity)} env. solicitados
+                    {Array.isArray(request.items) && request.items.length > 1
+                      ? `${request.items.length} productos - ${formatNumber(request.quantity)} env. solicitados`
+                      : `${displayLotCode(request.lots?.lot_code)} - ${formatNumber(request.quantity)} env. solicitados`}
                   </p>
-                  <p className="text-xs text-slate-500">
-                    Disponible: {formatNumber(request.lots?.current_quantity)} env. - {request.lots?.location || '-'}
-                  </p>
+                  {Array.isArray(request.items) && request.items.length > 1 ? (
+                    <div className="mt-2 space-y-1">
+                      {request.items.slice(0, 3).map((item) => (
+                        <p key={item.lot_id} className="text-xs font-semibold text-slate-600">
+                          {displayLotCode(item.lot_code)} - {cleanProductName(item.product)} - {formatNumber(item.quantity)} env.
+                        </p>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-xs text-slate-500">
+                      Disponible: {formatNumber(request.lots?.current_quantity)} env. - {request.lots?.location || '-'}
+                    </p>
+                  )}
                   {request.notes ? <p className="mt-1 text-xs text-slate-600">{request.notes}</p> : null}
                   <div className="mt-2 grid grid-cols-2 gap-2">
                     <button className="btn-secondary !min-h-10 !py-2" type="button" onClick={() => reviewDispatchRequest(request.id, 'rechazado')}>

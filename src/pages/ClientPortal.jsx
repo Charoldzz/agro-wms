@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Boxes, CalendarClock, Download, FileText, History, Mail, PackageCheck, Search, Send, Truck } from 'lucide-react'
+import { Boxes, CalendarClock, Download, FileText, History, Mail, PackageCheck, Plus, Search, Send, Trash2, Truck } from 'lucide-react'
 import PageHeader from '../components/PageHeader'
 import EmptyState from '../components/EmptyState'
 import { useAuth } from '../hooks/useAuth.jsx'
@@ -41,6 +41,7 @@ export default function ClientPortal() {
   const [requestLotId, setRequestLotId] = useState('')
   const [requestQuantity, setRequestQuantity] = useState('')
   const [requestNotes, setRequestNotes] = useState('')
+  const [requestItems, setRequestItems] = useState([])
   const [requestMessage, setRequestMessage] = useState('')
 
   useEffect(() => {
@@ -70,7 +71,7 @@ export default function ClientPortal() {
 
     const { data: requestData } = await supabase
       .from('client_dispatch_requests')
-      .select('id, product, quantity, notes, status, admin_notes, created_at, reviewed_at, lots(lot_code, product)')
+      .select('id, product, quantity, items, notes, status, admin_notes, created_at, reviewed_at, lots(lot_code, product)')
       .order('created_at', { ascending: false })
 
     setRequests(requestData || [])
@@ -95,8 +96,7 @@ export default function ClientPortal() {
   const dispatchReceipts = movements.filter((movement) => movement.type === 'salida')
   const history = movements.slice(0, 12)
 
-  async function createDispatchRequest(event) {
-    event.preventDefault()
+  function addRequestItem() {
     setRequestMessage('')
 
     const selectedLot = lots.find((lot) => lot.id === requestLotId)
@@ -111,11 +111,56 @@ export default function ClientPortal() {
       return
     }
 
+    setRequestItems((current) => {
+      const existing = current.find((item) => item.lot_id === selectedLot.id)
+      if (existing) {
+        return current.map((item) =>
+          item.lot_id === selectedLot.id
+            ? { ...item, quantity: item.quantity + quantity }
+            : item,
+        )
+      }
+      return [
+        ...current,
+        {
+          lot_id: selectedLot.id,
+          lot_code: selectedLot.lot_code,
+          product: selectedLot.product,
+          quantity,
+          package_size: selectedLot.package_size,
+          package_unit: selectedLot.package_unit,
+          location: selectedLot.location,
+          available: selectedLot.current_quantity,
+        },
+      ]
+    })
+    setRequestLotId('')
+    setRequestQuantity('')
+  }
+
+  function removeRequestItem(lotId) {
+    setRequestItems((current) => current.filter((item) => item.lot_id !== lotId))
+  }
+
+  async function createDispatchRequest(event) {
+    event.preventDefault()
+    setRequestMessage('')
+
+    if (requestItems.length === 0) {
+      setRequestMessage('Agrega al menos un producto a la lista.')
+      return
+    }
+
+    const firstItem = requestItems[0]
+    const firstLot = lots.find((lot) => lot.id === firstItem.lot_id)
+    const totalQuantity = requestItems.reduce((sum, item) => sum + Number(item.quantity || 0), 0)
+
     const { error } = await supabase.from('client_dispatch_requests').insert({
-      client_id: selectedLot.client_id,
-      lot_id: selectedLot.id,
-      product: selectedLot.product,
-      quantity,
+      client_id: firstLot.client_id,
+      lot_id: firstLot.id,
+      product: requestItems.length === 1 ? firstItem.product : `Lista de despacho (${requestItems.length} productos)`,
+      quantity: totalQuantity,
+      items: requestItems,
       notes: requestNotes.trim() || null,
       requested_by: user.id,
     })
@@ -127,6 +172,7 @@ export default function ClientPortal() {
 
     setRequestLotId('')
     setRequestQuantity('')
+    setRequestItems([])
     setRequestNotes('')
     setRequestMessage('Solicitud enviada. Administracion la revisara.')
     loadData()
@@ -357,6 +403,24 @@ export default function ClientPortal() {
                   }}
                 />
               </label>
+              <button className="btn-secondary w-full" type="button" onClick={addRequestItem}>
+                <Plus size={20} /> Agregar a la lista
+              </button>
+              {requestItems.length > 0 ? (
+                <div className="space-y-2 rounded-lg bg-slate-50 p-2">
+                  {requestItems.map((item) => (
+                    <div key={item.lot_id} className="flex items-center justify-between gap-2 rounded-lg bg-white p-2">
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-bold text-slate-950">{cleanProductName(item.product)}</p>
+                        <p className="text-xs font-semibold text-slate-500">{displayLotCode(item.lot_code)} - {formatNumber(item.quantity)} env.</p>
+                      </div>
+                      <button className="btn-secondary !min-h-9 !px-2 !py-1" type="button" onClick={() => removeRequestItem(item.lot_id)}>
+                        <Trash2 size={15} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              ) : null}
               <label>
                 <span className="label">Observacion</span>
                 <textarea className="input mt-1" rows="3" value={requestNotes} onChange={(event) => setRequestNotes(event.target.value)} />
@@ -430,13 +494,15 @@ export default function ClientPortal() {
             requests.slice(0, 8).map((request) => (
               <div key={request.id} className="rounded-lg bg-slate-50 p-3">
                 <div className="flex justify-between gap-3">
-                  <p className="font-bold text-slate-950">{cleanProductName(request.product || request.lots?.product)}</p>
+                <p className="font-bold text-slate-950">{cleanProductName(request.product || request.lots?.product)}</p>
                   <span className={`rounded-full px-2 py-1 text-xs font-bold ${request.status === 'aprobado' ? 'bg-campo-50 text-campo-700' : request.status === 'rechazado' ? 'bg-red-50 text-red-700' : 'bg-amber-50 text-amber-800'}`}>
                     {request.status}
                   </span>
                 </div>
                 <p className="text-sm font-semibold text-slate-500">
-                  {displayLotCode(request.lots?.lot_code)} - {formatNumber(request.quantity)} env.
+                  {Array.isArray(request.items) && request.items.length > 1
+                    ? `${request.items.length} productos - ${formatNumber(request.quantity)} env.`
+                    : `${displayLotCode(request.lots?.lot_code)} - ${formatNumber(request.quantity)} env.`}
                 </p>
                 <p className="mt-1 text-xs font-semibold text-slate-400">{formatDate(request.created_at)}</p>
                 {request.admin_notes ? <p className="mt-2 text-xs font-semibold text-slate-600">{request.admin_notes}</p> : null}
