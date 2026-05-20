@@ -43,6 +43,7 @@ drop policy if exists "Clientes ven sus solicitudes" on public.client_dispatch_r
 drop policy if exists "Clientes crean solicitudes propias" on public.client_dispatch_requests;
 drop policy if exists "Administradores ven solicitudes" on public.client_dispatch_requests;
 drop policy if exists "Administradores revisan solicitudes" on public.client_dispatch_requests;
+drop policy if exists "Operadores ven solicitudes aprobadas" on public.client_dispatch_requests;
 
 create policy "Clientes ven sus solicitudes"
 on public.client_dispatch_requests for select
@@ -80,6 +81,19 @@ using (
     from public.profiles p
     where p.id = auth.uid()
       and p.role::text = 'administrador'
+  )
+);
+
+create policy "Operadores ven solicitudes aprobadas"
+on public.client_dispatch_requests for select
+to authenticated
+using (
+  status = 'aprobado'
+  and exists (
+    select 1
+    from public.profiles p
+    where p.id = auth.uid()
+      and p.role::text = 'operador'
   )
 );
 

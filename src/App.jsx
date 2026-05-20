@@ -19,6 +19,7 @@ import OfflineAudit from './pages/OfflineAudit'
 import QrGate from './pages/QrGate'
 import ClientPortal from './pages/ClientPortal'
 import ClientRequestsAdmin from './pages/ClientRequestsAdmin'
+import AdminPending from './pages/AdminPending'
 import { isSupabaseConfigured } from './lib/supabase'
 
 function ProtectedRoute({ children }) {
@@ -69,6 +70,7 @@ function AppRoutes() {
         <Route path="movimientos" element={<RoleRoute roles={['administrador']}><Movements /></RoleRoute>} />
         <Route path="offline" element={<RoleRoute roles={['administrador']}><OfflineAudit /></RoleRoute>} />
         <Route path="solicitudes" element={<RoleRoute roles={['administrador']}><ClientRequestsAdmin /></RoleRoute>} />
+        <Route path="pendientes" element={<RoleRoute roles={['administrador']}><AdminPending /></RoleRoute>} />
       </Route>
     </Routes>
   )

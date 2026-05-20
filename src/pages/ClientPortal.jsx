@@ -131,10 +131,6 @@ export default function ClientPortal() {
   const dispatchReceipts = movements.filter((movement) => movement.type === 'salida')
   const history = movements.slice(0, 12)
   const requestTotalPackages = requestItems.reduce((sum, item) => sum + Number(item.quantity || 0), 0)
-  const requestTotalEquivalent = requestItems.reduce(
-    (sum, item) => sum + Number(item.quantity || 0) * Number(item.package_size || 0),
-    0,
-  )
 
   function addRequestItem() {
     setRequestMessage('')
@@ -463,14 +459,10 @@ export default function ClientPortal() {
               </button>
               {requestItems.length > 0 ? (
                 <div className="space-y-2 rounded-lg bg-slate-50 p-2">
-                  <div className="grid grid-cols-2 gap-2">
+                  <div className="grid gap-2">
                     <div className="rounded-lg bg-campo-50 p-3">
                       <p className="text-xs font-bold uppercase text-campo-700">Envases solicitados</p>
-                      <p className="mt-1 text-2xl font-black text-campo-800">{formatNumber(requestTotalPackages)}</p>
-                    </div>
-                    <div className="rounded-lg bg-amber-50 p-3">
-                      <p className="text-xs font-bold uppercase text-amber-700">Equivalente litros</p>
-                      <p className="mt-1 text-2xl font-black text-amber-800">{formatNumber(requestTotalEquivalent)} lt</p>
+                      <p className="mt-1 text-3xl font-black text-campo-800">{formatNumber(requestTotalPackages)}</p>
                     </div>
                   </div>
                   {requestItems.map((item) => (

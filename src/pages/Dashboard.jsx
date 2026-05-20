@@ -234,6 +234,9 @@ export default function Dashboard() {
           <div className="mb-3 flex items-center gap-2">
             <Wrench size={20} className="text-orange-500" />
             <h3 className="font-bold text-slate-900">Pendientes</h3>
+            <Link className="ml-auto text-sm font-bold text-campo-700" to="/pendientes">
+              Ver todos
+            </Link>
           </div>
           <div className="max-h-[360px] space-y-2 overflow-y-auto pr-1">
             {pendingMovements.length === 0 && dispatchRequests.length === 0 ? (
