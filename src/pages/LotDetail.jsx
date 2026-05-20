@@ -9,6 +9,7 @@ import { supabase } from '../lib/supabase'
 import { cleanProductName, displayLotCode } from '../lib/display'
 import { isNetworkMovementError, queueMovement } from '../lib/offlineQueue'
 import { compressImageFile } from '../lib/image'
+import { vibrateError, vibrateSuccess } from '../lib/haptics'
 
 const initialMovement = {
   type: 'entrada',
@@ -201,66 +202,85 @@ export default function LotDetail() {
     const quantity = movement.type === 'traslado' ? 0 : movement.type === 'ajuste' ? repairQuantity : Number(stockQuantity)
     if (movement.type === 'salida' && blocksSale) {
       setError('No se puede registrar salida porque este lote esta retenido o cerrado.')
+      vibrateError()
       return
     }
 
     if (movement.type === 'salida' && isExpired) {
       setError('No se puede registrar salida porque este lote esta vencido.')
+      vibrateError()
       return
     }
 
     if (movement.type === 'salida' && (!scannedAccess || movementMode !== 'despacho')) {
       setError('Para registrar salida debes entrar por Despacho.')
+      vibrateError()
       return
     }
 
     if (movement.type === 'salida' && quantity > Number(lot.current_quantity)) {
       setError('No hay inventario suficiente.')
+      vibrateError()
       return
     }
 
     if (movement.type === 'salida' && !movement.receiver_name.trim()) {
       setError('Escribe el nombre de la persona que recibe.')
+      vibrateError()
       return
     }
 
     if (movement.type === 'salida' && !movement.receiver_document.trim()) {
       setError('Escribe el numero de documento de la persona que recibe.')
+      vibrateError()
       return
     }
 
     if (quantity < 0 || (!['traslado', 'ajuste'].includes(movement.type) && quantity === 0)) {
       setError('La cantidad debe ser mayor a cero.')
+      vibrateError()
       return
     }
 
     if (movement.type === 'traslado' && !movement.to_location) {
       setError('Selecciona la nueva ubicacion.')
+      vibrateError()
       return
     }
 
     if (movement.type === 'ajuste' && !movement.incident_type) {
       setError('Selecciona que paso con el lote.')
+      vibrateError()
       return
     }
 
     if (movement.type === 'ajuste' && selectedIncident?.needsAffected && Number(movement.affected_packages || 0) <= 0) {
       setError('Escribe cuantos envases estan afectados.')
+      vibrateError()
       return
     }
 
     if (movement.type === 'ajuste' && selectedIncident?.needsPhysicalCount && movement.physical_count === '') {
       setError('Escribe la cantidad fisica contada.')
+      vibrateError()
       return
     }
 
     if (movement.type === 'ajuste' && selectedIncident?.needsPhysicalCount && Number(movement.physical_count || 0) < 0) {
       setError('La cantidad fisica no puede ser negativa.')
+      vibrateError()
       return
     }
 
     if (movement.type === 'ajuste' && !movement.notes.trim()) {
       setError('Escribe un motivo u observacion.')
+      vibrateError()
+      return
+    }
+
+    if (movement.type === 'ajuste' && !movementPhotoFile) {
+      setError('La foto es obligatoria para reparaciones.')
+      vibrateError()
       return
     }
 
@@ -290,6 +310,7 @@ export default function LotDetail() {
         photoUrl = await uploadMovementPhoto(lot.lot_code)
       } catch (photoError) {
         setError(photoError.message || 'No se pudo guardar la foto del movimiento.')
+        vibrateError()
         setSaving(false)
         return
       }
@@ -350,11 +371,14 @@ export default function LotDetail() {
         setMovementPhotoPreview('')
         setPendingMovement(null)
         setEmailStatus('Sin señal: movimiento guardado en cola. Se sincronizara automaticamente al volver internet.')
+        vibrateSuccess()
         setTimeout(() => navigate(isOperator ? '/operacion' : '/'), 1200)
       } else if (rpcError.message.includes('inventario')) {
         setError('No hay inventario suficiente.')
+        vibrateError()
       } else {
         setError(rpcError.message)
+        vibrateError()
       }
     } else {
       if (['entrada', 'salida'].includes(pendingMovement.type)) {
@@ -371,6 +395,7 @@ export default function LotDetail() {
       setMovementPhotoPreview('')
       setPendingMovement(null)
       await loadLot()
+      vibrateSuccess()
       if (canRegisterMovement) {
         setTimeout(() => navigate(isOperator ? '/operacion' : '/'), 900)
       }
@@ -725,6 +750,22 @@ export default function LotDetail() {
             <>
               <label className="sm:col-span-2">
                 <span className="label">¿Que paso?</span>
+                <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-3">
+                  {incidentTypes.map((incident) => (
+                    <button
+                      key={incident.value}
+                      className={`min-h-12 rounded-lg border px-3 py-2 text-sm font-bold ${
+                        movement.incident_type === incident.value
+                          ? 'border-orange-500 bg-orange-50 text-orange-800'
+                          : 'border-slate-200 bg-white text-slate-700'
+                      }`}
+                      type="button"
+                      onClick={() => setMovement({ ...movement, incident_type: incident.value, affected_packages: '', physical_count: '' })}
+                    >
+                      {incident.label}
+                    </button>
+                  ))}
+                </div>
                 <select
                   className="input mt-1"
                   value={movement.incident_type}
@@ -825,7 +866,7 @@ export default function LotDetail() {
           ) : null}
           {['ajuste', 'traslado'].includes(movement.type) ? (
             <label className="block sm:col-span-2">
-              <span className="label">Foto opcional</span>
+              <span className="label">{movement.type === 'ajuste' ? 'Foto obligatoria' : 'Foto opcional'}</span>
               <div className="mt-1 grid gap-3">
                 {movementPhotoPreview ? (
                   <img className="h-44 w-full rounded-lg object-cover" src={movementPhotoPreview} alt="Movimiento" />
@@ -989,7 +1030,7 @@ export default function LotDetail() {
 
       <section className="mt-4">
         <div className="mb-3 flex items-center justify-between gap-3">
-          <h3 className="text-lg font-bold text-slate-950">Ultimos movimientos</h3>
+          <h3 className="text-lg font-bold text-slate-950">{showFullHistory ? 'Historial completo' : 'Historial corto del lote'}</h3>
           {movements.length > 3 ? (
             <button className="text-sm font-bold text-campo-700" type="button" onClick={() => setShowFullHistory((value) => !value)}>
               {showFullHistory ? 'Ver menos' : 'Ver historial completo'}

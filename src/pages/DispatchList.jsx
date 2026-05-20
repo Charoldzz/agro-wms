@@ -8,6 +8,7 @@ import { cleanProductName, displayLotCode } from '../lib/display'
 import { formatDate, formatNumber } from '../lib/format'
 import { isNetworkMovementError, queueMovement } from '../lib/offlineQueue'
 import { supabase } from '../lib/supabase'
+import { vibrateError, vibrateSuccess, vibrateWarning } from '../lib/haptics'
 
 const DISPATCH_DRAFT_KEY = 'todo-agricola-dispatch-list-draft'
 
@@ -65,8 +66,29 @@ export default function DispatchList() {
   const [saving, setSaving] = useState(false)
   const [confirming, setConfirming] = useState(false)
   const [receipt, setReceipt] = useState(null)
+  const [approvedRequest, setApprovedRequest] = useState(null)
 
   const lotId = new URLSearchParams(location.search).get('lot')
+  const requestId = new URLSearchParams(location.search).get('request')
+
+  useEffect(() => {
+    async function loadApprovedRequest() {
+      if (!requestId) {
+        setApprovedRequest(null)
+        return
+      }
+
+      const { data } = await supabase
+        .from('client_dispatch_requests')
+        .select('*, clients(name), lots(id, lot_code, product, current_quantity, location)')
+        .eq('id', requestId)
+        .single()
+
+      setApprovedRequest(data || null)
+    }
+
+    loadApprovedRequest()
+  }, [requestId])
 
   useEffect(() => {
     writeDraft({ items, receiverName, receiverDocument, vehiclePlate })
@@ -84,6 +106,7 @@ export default function DispatchList() {
 
       if (lotError || !data) {
         setError('No se pudo cargar el lote escaneado.')
+        vibrateError()
         return
       }
 
@@ -98,7 +121,16 @@ export default function DispatchList() {
         .order('expiry_date', { ascending: true })
         .limit(1)
 
-      const scannedItem = { lot: data, package_count: '', fefo_lot: earlierLots?.[0] || null }
+      const scannedItem = {
+        lot: data,
+        package_count: approvedRequest?.lot_id === data.id ? String(approvedRequest.quantity || '') : '',
+        fefo_lot: earlierLots?.[0] || null,
+      }
+
+      if (approvedRequest?.lot_id && data.id !== approvedRequest.lot_id) {
+        setError(`Este no es el lote asignado. Debia ser ${displayLotCode(approvedRequest.lots?.lot_code)}. Verifica antes de continuar.`)
+        vibrateWarning()
+      }
 
       setItems((current) => {
         if (current.some((item) => item.lot.id === data.id)) {
@@ -108,11 +140,11 @@ export default function DispatchList() {
         setStatus(`${displayLotCode(data.lot_code)} agregado. Puedes escanear otro QR.`)
         return [...current, scannedItem]
       })
-      navigate('/operacion/despacho-lista', { replace: true })
+      navigate(requestId ? `/operacion/despacho-lista?request=${requestId}` : '/operacion/despacho-lista', { replace: true })
     }
 
     addScannedLot()
-  }, [lotId, navigate])
+  }, [lotId, navigate, approvedRequest, requestId])
 
   const totalPackages = useMemo(
     () => items.reduce((sum, item) => sum + Number(item.package_count || 0), 0),
@@ -120,7 +152,8 @@ export default function DispatchList() {
   )
 
   function scanLot() {
-    navigate(`/scanner?modo=despacho&return=${encodeURIComponent('/operacion/despacho-lista')}`)
+    const returnTo = requestId ? `/operacion/despacho-lista?request=${requestId}` : '/operacion/despacho-lista'
+    navigate(`/scanner?modo=despacho&return=${encodeURIComponent(returnTo)}`)
   }
 
   function updateQuantity(lotIdToUpdate, value) {
@@ -155,6 +188,7 @@ export default function DispatchList() {
     const validationError = validateDispatch()
     if (validationError) {
       setError(validationError)
+      vibrateError()
       return
     }
 
@@ -166,6 +200,7 @@ export default function DispatchList() {
     const validationError = validateDispatch()
     if (validationError) {
       setError(validationError)
+      vibrateError()
       return
     }
 
@@ -228,6 +263,7 @@ export default function DispatchList() {
         }
 
         setError(rpcError.message?.includes('inventario') ? `No hay inventario suficiente en ${displayLotCode(item.lot.lot_code)}.` : rpcError.message)
+        vibrateError()
         setSaving(false)
         return
       }
@@ -238,6 +274,12 @@ export default function DispatchList() {
 
     setItems([])
     clearDraft()
+    if (requestId && queued === 0) {
+      await supabase.rpc('complete_client_dispatch_request', {
+        p_request_id: requestId,
+        p_user_id: user.id,
+      })
+    }
     setReceipt({
       id: `DESP-${new Date().toISOString().replace(/\D/g, '').slice(0, 14)}`,
       createdAt: new Date().toISOString(),
@@ -251,6 +293,7 @@ export default function DispatchList() {
     })
     setConfirming(false)
     setStatus(queued > 0 ? `${queued} salida(s) quedaron pendientes de revision admin al sincronizar.` : 'Despacho guardado y correo enviado a oficina.')
+    vibrateSuccess()
     setSaving(false)
   }
 
@@ -318,6 +361,19 @@ export default function DispatchList() {
   return (
     <div>
       <PageHeader title="Despacho" subtitle="Datos del despacho, carga por QR y comprobante" />
+
+      {approvedRequest ? (
+        <section className="panel mb-4 border-amber-200 bg-amber-50">
+          <p className="text-sm font-bold uppercase text-amber-700">Despacho aprobado</p>
+          <p className="mt-1 text-lg font-black text-slate-950">{approvedRequest.clients?.name || 'Cliente'}</p>
+          <p className="text-sm font-semibold text-slate-700">
+            {cleanProductName(approvedRequest.product || approvedRequest.lots?.product)} - {displayLotCode(approvedRequest.lots?.lot_code)} - {formatNumber(approvedRequest.quantity)} env.
+          </p>
+          <p className="mt-1 text-xs font-bold text-amber-700">
+            Escanea el QR del lote asignado. Si escaneas otro lote, la app te advertira.
+          </p>
+        </section>
+      ) : null}
 
       <section className="panel mb-4 grid gap-3 sm:grid-cols-2">
         <h3 className="text-lg font-bold text-slate-950 sm:col-span-2">Datos del despacho</h3>

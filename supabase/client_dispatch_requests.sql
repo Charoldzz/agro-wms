@@ -22,7 +22,7 @@ create table if not exists public.client_dispatch_requests (
   product text,
   quantity numeric(12, 2) not null check (quantity > 0),
   notes text,
-  status text not null default 'pendiente' check (status in ('pendiente', 'aprobado', 'rechazado')),
+  status text not null default 'pendiente' check (status in ('pendiente', 'aprobado', 'rechazado', 'despachado')),
   admin_notes text,
   requested_by uuid not null constraint client_dispatch_requests_requested_by_fkey references public.profiles(id),
   reviewed_by uuid constraint client_dispatch_requests_reviewed_by_fkey references public.profiles(id),
@@ -101,3 +101,44 @@ with check (
       and p.role::text = 'administrador'
   )
 );
+
+alter table public.client_dispatch_requests
+drop constraint if exists client_dispatch_requests_status_check;
+
+alter table public.client_dispatch_requests
+add constraint client_dispatch_requests_status_check
+check (status in ('pendiente', 'aprobado', 'rechazado', 'despachado'));
+
+create or replace function public.complete_client_dispatch_request(
+  p_request_id uuid,
+  p_user_id uuid
+)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_role text;
+begin
+  if p_user_id <> auth.uid() then
+    raise exception 'El usuario no coincide con la sesion activa.';
+  end if;
+
+  select role::text into v_role
+  from public.profiles
+  where id = auth.uid();
+
+  if v_role not in ('administrador', 'operador') then
+    raise exception 'No tienes permiso para cerrar solicitudes.';
+  end if;
+
+  update public.client_dispatch_requests
+  set
+    status = 'despachado',
+    reviewed_by = p_user_id,
+    reviewed_at = now()
+  where id = p_request_id
+    and status = 'aprobado';
+end;
+$$;

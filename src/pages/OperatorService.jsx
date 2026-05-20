@@ -16,13 +16,25 @@ export default function OperatorService() {
       <PageHeader title="Reparacion / Traslado" subtitle="Elige la operacion y escanea el lote" />
 
       <section className="panel space-y-4">
-        <label className="block">
+        <div>
           <span className="label">Operacion</span>
-          <select className="input mt-1" value={mode} onChange={(event) => setMode(event.target.value)}>
-            <option value="reparo">Reparacion de inventario</option>
-            <option value="traslado">Traslado interno</option>
-          </select>
-        </label>
+          <div className="mt-2 grid grid-cols-2 gap-2">
+            <button
+              className={`min-h-16 rounded-lg border px-4 py-3 text-left text-base font-black ${mode === 'reparo' ? 'border-orange-500 bg-orange-50 text-orange-800' : 'border-slate-200 bg-white text-slate-700'}`}
+              type="button"
+              onClick={() => setMode('reparo')}
+            >
+              Reparacion
+            </button>
+            <button
+              className={`min-h-16 rounded-lg border px-4 py-3 text-left text-base font-black ${mode === 'traslado' ? 'border-orange-500 bg-orange-50 text-orange-800' : 'border-slate-200 bg-white text-slate-700'}`}
+              type="button"
+              onClick={() => setMode('traslado')}
+            >
+              Traslado
+            </button>
+          </div>
+        </div>
 
         <div className="rounded-lg bg-orange-50 p-3 text-sm font-bold text-orange-800">
           Primero selecciona la operacion. Luego escanea el QR del lote para registrar el movimiento correcto.
