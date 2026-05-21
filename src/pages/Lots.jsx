@@ -321,7 +321,10 @@ export default function Lots() {
       {!searchTerm || searchBy === 'producto' ? (
       <section className="panel">
         <div className="mb-3 flex items-center justify-between gap-3">
-          <h3 className="font-bold text-slate-900">Productos</h3>
+          <div>
+            <h3 className="font-bold text-slate-900">Productos</h3>
+            <p className="text-xs font-semibold text-slate-500">Ordenados por movimiento reciente</p>
+          </div>
           {!searchTerm && sortedProductTotals.length > 10 ? (
             <button className="text-sm font-bold text-campo-700" type="button" onClick={() => setShowAllTotals((value) => !value)}>
               {showAllTotals ? 'Ver menos' : 'Ver todos'}

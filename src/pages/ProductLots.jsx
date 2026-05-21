@@ -6,6 +6,15 @@ import { supabase } from '../lib/supabase'
 import { formatDate, formatNumber } from '../lib/format'
 import { cleanProductName, displayLotCode, packageLabel } from '../lib/display'
 
+function lotEquivalent(lot) {
+  const packageSize = Number(lot?.package_size || 0)
+  if (packageSize <= 0 || !lot?.package_unit) return null
+  return {
+    quantity: Number(lot.current_quantity || 0) * packageSize,
+    unit: lot.package_unit,
+  }
+}
+
 export default function ProductLots() {
   const { name } = useParams()
   const productName = decodeURIComponent(name || '')
@@ -25,7 +34,13 @@ export default function ProductLots() {
   }
 
   const productLots = useMemo(
-    () => lots.filter((lot) => cleanProductName(lot.product) === productName),
+    () => lots
+      .filter((lot) => cleanProductName(lot.product) === productName)
+      .sort((a, b) => {
+        const clientOrder = (a.clients?.name || '').localeCompare(b.clients?.name || '', 'es', { numeric: true })
+        if (clientOrder !== 0) return clientOrder
+        return displayLotCode(a.lot_code).localeCompare(displayLotCode(b.lot_code), 'es', { numeric: true })
+      }),
     [lots, productName],
   )
 
@@ -43,21 +58,32 @@ export default function ProductLots() {
           <EmptyState title="Sin lotes" text="No hay lotes disponibles para este producto." />
         ) : (
           productLots.map((lot) => (
-            <Link key={lot.id} to={`/lotes/${lot.id}`} className="panel block transition hover:border-campo-500">
-              <div className="flex items-start justify-between gap-3">
+            <Link key={lot.id} to={`/lotes/${lot.id}`} className="block w-full overflow-hidden rounded-lg bg-slate-50 p-3 text-left shadow-soft transition hover:bg-campo-50">
+              <div className="grid gap-2 sm:grid-cols-[1fr_auto] sm:items-start">
                 <div className="min-w-0">
-                  <p className="text-sm font-bold text-slate-950">{displayLotCode(lot.lot_code)}</p>
-                  <p className="text-sm text-slate-500">
-                    {lot.clients?.name} - {lot.location}
-                    {packageLabel(lot) ? ` - ${packageLabel(lot)}` : ''}
+                  <p className="text-sm font-black leading-snug text-slate-950 [overflow-wrap:anywhere] sm:text-base">
+                    {cleanProductName(lot.product)}
                   </p>
-                  <p className="mt-1 text-xs font-semibold text-amber-700">
+                  <p className="mt-1 text-xs font-semibold leading-snug text-slate-500 [overflow-wrap:anywhere] sm:text-sm">
+                    <span>{displayLotCode(lot.lot_code)}</span>
+                    <span> - </span>
+                    <strong className="font-black text-slate-700">{lot.clients?.name || '-'}</strong>
+                    <span> - {lot.location || '-'}</span>
+                    {packageLabel(lot) ? <span> - {packageLabel(lot)}</span> : null}
+                  </p>
+                  <p className="mt-1 text-xs font-bold text-amber-700">
                     Vence: {lot.expiry_date ? formatDate(lot.expiry_date) : 'Sin dato'}
                   </p>
                 </div>
-                <div className="text-right">
-                  <p className="text-xl font-bold text-slate-950">{formatNumber(lot.current_quantity)}</p>
-                  <p className="text-[11px] font-semibold uppercase text-slate-400">
+                <div className="w-fit rounded-lg bg-campo-50 px-2.5 py-1 text-campo-800 sm:justify-self-end sm:text-right">
+                  <div className="inline-flex items-baseline gap-1">
+                    <span className="text-base font-black sm:text-xl">{formatNumber(lot.current_quantity)}</span>
+                    <span className="text-xs font-bold text-campo-700">env.</span>
+                  </div>
+                  <p className="text-xs font-black text-campo-700">
+                    {lotEquivalent(lot) ? `${formatNumber(lotEquivalent(lot).quantity)} ${lotEquivalent(lot).unit}` : 'Equiv. sin dato'}
+                  </p>
+                  <p className="text-[10px] font-bold uppercase text-slate-500">
                     {lot.status === 'activo' ? 'Disponible' : lot.status}
                   </p>
                 </div>
