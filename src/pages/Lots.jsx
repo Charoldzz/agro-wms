@@ -8,6 +8,13 @@ import { formatDate, formatNumber } from '../lib/format'
 import { cleanProductName, displayLotCode, packageLabel, productTotalKey } from '../lib/display'
 
 const internalLocations = ['Nave 1', 'Nave 2', 'Nave 3', 'Playa']
+const searchOptions = [
+  { value: 'producto', label: 'Producto', placeholder: 'Buscar producto...' },
+  { value: 'empresa', label: 'Empresa', placeholder: 'Buscar empresa o cliente...' },
+  { value: 'ubicacion', label: 'Ubicacion', placeholder: 'Buscar ubicacion...' },
+  { value: 'lote', label: 'Lote', placeholder: 'Buscar lote...' },
+  { value: 'codigo', label: 'Codigo', placeholder: 'Buscar codigo de producto...' },
+]
 
 const initialForm = {
   lot_code: '',
@@ -40,6 +47,7 @@ export default function Lots() {
   const [showForm, setShowForm] = useState(false)
   const [showAllTotals, setShowAllTotals] = useState(false)
   const [search, setSearch] = useState(() => location.state?.restoreSearch || '')
+  const [searchBy, setSearchBy] = useState(() => location.state?.restoreSearchBy || 'producto')
 
   useEffect(() => {
     loadData()
@@ -47,6 +55,7 @@ export default function Lots() {
 
   useEffect(() => {
     if (location.state?.restoreSearch) setSearch(location.state.restoreSearch)
+    if (location.state?.restoreSearchBy) setSearchBy(location.state.restoreSearchBy)
   }, [location.state])
 
   async function loadData() {
@@ -112,22 +121,31 @@ export default function Lots() {
 
   const searchTerm = search.trim().toLowerCase()
   const visibleProductTotals = showAllTotals ? sortedProductTotals : sortedProductTotals.slice(0, 10)
-  const filteredProducts = (searchTerm ? sortedProductTotals : visibleProductTotals).filter((item) => {
+  const filteredProducts = (searchTerm && searchBy === 'producto' ? sortedProductTotals : visibleProductTotals).filter((item) => {
     const term = searchTerm
-    if (!term) return true
+    if (!term || searchBy !== 'producto') return true
     return item.product.toLowerCase().includes(term)
   })
   const filteredLots = useMemo(() => {
     const term = search.trim().toLowerCase()
     if (!term) return []
     return lots
-      .filter((lot) =>
-        [lot.product, cleanProductName(lot.product), lot.lot_code, displayLotCode(lot.lot_code), lot.location, lot.clients?.name]
+      .filter((lot) => {
+        const values = {
+          producto: [cleanProductName(lot.product)],
+          empresa: [lot.clients?.name],
+          ubicacion: [lot.location],
+          lote: [lot.lot_code, displayLotCode(lot.lot_code)],
+          codigo: [lot.product],
+        }[searchBy] || [cleanProductName(lot.product)]
+
+        return values
           .filter(Boolean)
-          .some((value) => value.toLowerCase().includes(term)),
-      )
+          .some((value) => value.toLowerCase().includes(term))
+      })
       .slice(0, 30)
-  }, [lots, search])
+  }, [lots, search, searchBy])
+  const selectedSearchOption = searchOptions.find((option) => option.value === searchBy) || searchOptions[0]
 
   return (
     <div>
@@ -203,12 +221,20 @@ export default function Lots() {
         </form>
       ) : null}
 
-      <section className="mb-4">
+      <section className="mb-4 grid gap-2 sm:grid-cols-[170px_1fr]">
+        <label className="block">
+          <span className="sr-only">Buscar por</span>
+          <select className="input" value={searchBy} onChange={(event) => setSearchBy(event.target.value)}>
+            {searchOptions.map((option) => (
+              <option key={option.value} value={option.value}>{option.label}</option>
+            ))}
+          </select>
+        </label>
         <div className="flex items-center rounded-lg border border-slate-200 bg-white px-3">
           <Search size={20} className="text-slate-400" />
           <input
             className="min-h-12 flex-1 bg-transparent px-2 outline-none"
-            placeholder="Buscar producto..."
+            placeholder={selectedSearchOption.placeholder}
             value={search}
             onChange={(event) => setSearch(event.target.value)}
           />
@@ -230,14 +256,17 @@ export default function Lots() {
                   key={lot.id}
                   className="w-full overflow-hidden rounded-lg bg-slate-50 p-3 text-left transition hover:bg-campo-50"
                   type="button"
-                  onClick={() => navigate(`/lotes/${lot.id}`, { state: { fromLotsSearch: true, search } })}
+                  onClick={() => navigate(`/lotes/${lot.id}`, { state: { fromLotsSearch: true, search, searchBy } })}
                 >
                   <div className="grid gap-2 sm:grid-cols-[1fr_auto] sm:items-start">
                     <div className="min-w-0">
                       <p className="text-sm font-black leading-snug text-slate-950 [overflow-wrap:anywhere] sm:text-base">{cleanProductName(lot.product)}</p>
                       <p className="mt-1 text-xs font-semibold leading-snug text-slate-500 [overflow-wrap:anywhere] sm:text-sm">
-                        {displayLotCode(lot.lot_code)} - {lot.clients?.name || '-'} - {lot.location || '-'}
-                        {packageLabel(lot) ? ` - ${packageLabel(lot)}` : ''}
+                        <span>{displayLotCode(lot.lot_code)}</span>
+                        <span> - </span>
+                        <strong className="font-black text-slate-700">{lot.clients?.name || '-'}</strong>
+                        <span> - {lot.location || '-'}</span>
+                        {packageLabel(lot) ? <span> - {packageLabel(lot)}</span> : null}
                       </p>
                       <p className="mt-1 text-xs font-bold text-amber-700">
                         Vence: {lot.expiry_date ? formatDate(lot.expiry_date) : 'Sin dato'}
@@ -255,6 +284,7 @@ export default function Lots() {
         </section>
       ) : null}
 
+      {!searchTerm || searchBy === 'producto' ? (
       <section className="panel">
         <div className="mb-3 flex items-center justify-between gap-3">
           <h3 className="font-bold text-slate-900">Productos</h3>
@@ -285,6 +315,7 @@ export default function Lots() {
           ))}
         </div>
       </section>
+      ) : null}
     </div>
   )
 }

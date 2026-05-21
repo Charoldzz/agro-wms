@@ -8,11 +8,20 @@ import { formatDate, formatNumber, movementLabel } from '../lib/format'
 import { getQueuedMovementCount } from '../lib/offlineQueue'
 import { supabase } from '../lib/supabase'
 
+const searchOptions = [
+  { value: 'producto', label: 'Producto', placeholder: 'Buscar producto...' },
+  { value: 'empresa', label: 'Empresa', placeholder: 'Buscar empresa o cliente...' },
+  { value: 'ubicacion', label: 'Ubicacion', placeholder: 'Buscar ubicacion...' },
+  { value: 'lote', label: 'Lote', placeholder: 'Buscar lote...' },
+  { value: 'codigo', label: 'Codigo', placeholder: 'Buscar codigo...' },
+]
+
 export default function Operation() {
   const [lots, setLots] = useState([])
   const [approvedRequests, setApprovedRequests] = useState([])
   const [pendingMovements, setPendingMovements] = useState([])
   const [query, setQuery] = useState('')
+  const [searchBy, setSearchBy] = useState('producto')
   const [online, setOnline] = useState(navigator.onLine)
   const [queuedCount, setQueuedCount] = useState(getQueuedMovementCount())
 
@@ -85,13 +94,22 @@ export default function Operation() {
     const term = query.trim().toLowerCase()
     if (!term) return []
     return lots
-      .filter((lot) =>
-        [lot.product, lot.lot_code, displayLotCode(lot.lot_code), lot.location, lot.clients?.name]
+      .filter((lot) => {
+        const values = {
+          producto: [cleanProductName(lot.product)],
+          empresa: [lot.clients?.name],
+          ubicacion: [lot.location],
+          lote: [lot.lot_code, displayLotCode(lot.lot_code)],
+          codigo: [lot.product],
+        }[searchBy] || [cleanProductName(lot.product)]
+
+        return values
           .filter(Boolean)
-          .some((value) => value.toLowerCase().includes(term)),
-      )
+          .some((value) => value.toLowerCase().includes(term))
+      })
       .slice(0, 8)
-  }, [lots, query])
+  }, [lots, query, searchBy])
+  const selectedSearchOption = searchOptions.find((option) => option.value === searchBy) || searchOptions[0]
 
   return (
     <div>
@@ -227,14 +245,24 @@ export default function Operation() {
 
       <section className="mt-5">
         <h3 className="mb-2 text-sm font-bold uppercase text-slate-500">Busqueda rapida en almacen</h3>
-        <div className="flex items-center rounded-lg border border-slate-200 bg-white px-3">
-          <Search size={22} className="text-slate-400" />
-          <input
-            className="min-h-14 flex-1 bg-transparent px-2 text-lg font-semibold outline-none"
-            placeholder="Producto, lote, cliente o ubicacion..."
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-          />
+        <div className="grid gap-2 sm:grid-cols-[170px_1fr]">
+          <label className="block">
+            <span className="sr-only">Buscar por</span>
+            <select className="input min-h-14" value={searchBy} onChange={(event) => setSearchBy(event.target.value)}>
+              {searchOptions.map((option) => (
+                <option key={option.value} value={option.value}>{option.label}</option>
+              ))}
+            </select>
+          </label>
+          <div className="flex items-center rounded-lg border border-slate-200 bg-white px-3">
+            <Search size={22} className="text-slate-400" />
+            <input
+              className="min-h-14 flex-1 bg-transparent px-2 text-lg font-semibold outline-none"
+              placeholder={selectedSearchOption.placeholder}
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+            />
+          </div>
         </div>
         {query ? (
           <div className="mt-3 space-y-2">
@@ -246,7 +274,9 @@ export default function Operation() {
                   <div className="flex items-center justify-between gap-3">
                     <div className="min-w-0">
                       <p className="truncate text-lg font-black text-slate-950">{cleanProductName(lot.product)}</p>
-                      <p className="text-sm font-bold text-slate-500">{displayLotCode(lot.lot_code)} - {lot.clients?.name || '-'} - {lot.location || '-'}</p>
+                      <p className="text-sm font-bold text-slate-500">
+                        {displayLotCode(lot.lot_code)} - <strong className="font-black text-slate-700">{lot.clients?.name || '-'}</strong> - {lot.location || '-'}
+                      </p>
                     </div>
                     <div className="text-right">
                       <p className="text-2xl font-black text-campo-700">{formatNumber(lot.current_quantity)}</p>

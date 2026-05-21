@@ -634,7 +634,7 @@ export default function LotDetail() {
         <button
           className="btn-secondary mb-4 w-full sm:w-auto"
           type="button"
-          onClick={() => navigate('/lotes', { state: { restoreSearch: location.state.search || '' } })}
+          onClick={() => navigate('/lotes', { state: { restoreSearch: location.state.search || '', restoreSearchBy: location.state.searchBy || 'producto' } })}
         >
           Volver al buscador
         </button>
