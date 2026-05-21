@@ -21,7 +21,8 @@ const initialForm = {
   client_id: '',
   product: '',
   entry_boxes: '',
-  current_quantity: '',
+  entry_units_per_box: '',
+  entry_loose_units: '',
   package_size: '',
   package_unit: 'lt',
   location: '',
@@ -53,6 +54,10 @@ function equivalentTotalsLabel(equivalents = {}) {
 
   if (totals.length === 0) return 'Equivalente sin dato'
   return totals.map(([unit, quantity]) => `${formatNumber(quantity)} ${unit}`).join(' / ')
+}
+
+function manualEntryQuantity(form) {
+  return Number(form.entry_boxes || 0) * Number(form.entry_units_per_box || 0) + Number(form.entry_loose_units || 0)
 }
 
 export default function Lots() {
@@ -99,7 +104,7 @@ export default function Lots() {
       ...form,
       lot_code: lotCode,
       entry_boxes: Number(form.entry_boxes),
-      current_quantity: Number(form.current_quantity || 0),
+      current_quantity: manualEntryQuantity(form),
       package_size: form.package_size ? Number(form.package_size) : null,
       package_unit: form.package_size ? form.package_unit : null,
       expiry_date: form.expiry_date || null,
@@ -177,6 +182,7 @@ export default function Lots() {
       .slice(0, 30)
   }, [lots, search, searchBy])
   const selectedSearchOption = searchOptions.find((option) => option.value === searchBy) || searchOptions[0]
+  const manualQuantity = manualEntryQuantity(form)
 
   return (
     <div>
@@ -212,11 +218,18 @@ export default function Lots() {
             <input className="input" value={form.product} onChange={(event) => setForm({ ...form, product: event.target.value })} required />
           </Field>
           <Field label="Cantidad de cajas">
-            <input className="input" type="number" min="0.01" step="0.01" value={form.entry_boxes} onChange={(event) => setForm({ ...form, entry_boxes: event.target.value })} required />
+            <input className="input" type="number" min="0" step="0.01" value={form.entry_boxes} onChange={(event) => setForm({ ...form, entry_boxes: event.target.value })} />
           </Field>
-          <Field label="Envases (opcional)">
-            <input className="input" type="number" min="0" step="0.01" value={form.current_quantity} onChange={(event) => setForm({ ...form, current_quantity: event.target.value })} />
+          <Field label="Envases por caja">
+            <input className="input" type="number" min="0" step="0.01" value={form.entry_units_per_box} onChange={(event) => setForm({ ...form, entry_units_per_box: event.target.value })} />
           </Field>
+          <Field label="Envases sueltos">
+            <input className="input" type="number" min="0" step="0.01" value={form.entry_loose_units} onChange={(event) => setForm({ ...form, entry_loose_units: event.target.value })} placeholder="Opcional" />
+          </Field>
+          <div className="rounded-lg bg-campo-50 p-3">
+            <p className="text-xs font-semibold uppercase text-campo-700">Envases totales</p>
+            <p className="mt-1 text-2xl font-black text-campo-800">{formatNumber(manualQuantity)}</p>
+          </div>
           <Field label="Tamaño presentación">
             <input className="input" type="number" min="0" step="0.01" value={form.package_size} onChange={(event) => setForm({ ...form, package_size: event.target.value })} placeholder="Ej. 5, 20" />
           </Field>

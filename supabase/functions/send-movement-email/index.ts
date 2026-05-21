@@ -23,6 +23,14 @@ function presentationLabel(item: Record<string, unknown>) {
   return `${formatNumber(item.package_size)} ${String(item.package_unit || '')}`.trim()
 }
 
+function entryPackLabel(item: Record<string, unknown>) {
+  const boxes = Number(item.box_count || 0)
+  const unitsPerBox = Number(item.units_per_box || 0)
+  const looseUnits = Number(item.loose_units || 0)
+  const boxText = boxes > 0 ? `${formatNumber(boxes)} cajas x ${formatNumber(unitsPerBox)} env.` : 'Sin cajas'
+  return `${boxText} + ${formatNumber(looseUnits)} sueltos`
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
@@ -44,7 +52,9 @@ Deno.serve(async (req) => {
     const toEmail = Deno.env.get('MOVEMENT_EMAIL_TO') || body.to || 'hgarayd@outlook.com'
     const listItems = Array.isArray(body.items) ? body.items : []
     const isList = body.movement_type === 'salida_lista' || listItems.length > 0
-    const hasBoxes = listItems.some((item: Record<string, unknown>) => Number(item.box_count || 0) > 0)
+    const hasEntryPack = listItems.some((item: Record<string, unknown>) =>
+      Number(item.box_count || 0) > 0 || Number(item.units_per_box || 0) > 0 || Number(item.loose_units || 0) > 0
+    )
     const typeLabel = body.movement_type === 'entrada' ? 'Entrada' : isList ? 'Despacho' : 'Salida'
     const subject = isList
       ? `${typeLabel} de inventario - ${body.client || 'Cliente'} (${listItems.length} productos)`
@@ -52,7 +62,7 @@ Deno.serve(async (req) => {
     const logoUrl = `${appUrl.replace(/\/$/, '')}/images/todo-logo.png`
     const itemRowsText = isList
       ? listItems.map((item: Record<string, unknown>) =>
-        `- ${item.product} | Presentacion ${presentationLabel(item)} | ${Number(item.box_count || 0) > 0 ? `${formatNumber(item.box_count)} cajas | ` : ''}${formatNumber(item.quantity)} env. | Lote ${item.lot_code} | ${item.location || '-'} | stock ${formatNumber(item.previous_quantity)} -> ${formatNumber(item.new_quantity)}`,
+        `- ${item.product} | Presentacion ${presentationLabel(item)} | ${hasEntryPack ? `${entryPackLabel(item)} | ` : ''}${formatNumber(item.quantity)} env. | Lote ${item.lot_code} | ${item.location || '-'} | stock ${formatNumber(item.previous_quantity)} -> ${formatNumber(item.new_quantity)}`,
       )
       : []
     const text = [
@@ -178,7 +188,7 @@ Deno.serve(async (req) => {
                                 <tr>
                                   <th align="left" style="padding:8px;background:#f8fafc;color:#475569;font-size:12px;">Producto</th>
                                   <th align="left" style="padding:8px;background:#f8fafc;color:#475569;font-size:12px;">Present.</th>
-                                  ${hasBoxes ? '<th align="right" style="padding:8px;background:#f8fafc;color:#475569;font-size:12px;">Cajas</th>' : ''}
+                                  ${hasEntryPack ? '<th align="left" style="padding:8px;background:#f8fafc;color:#475569;font-size:12px;">Ingreso</th>' : ''}
                                   <th align="right" style="padding:8px;background:#f8fafc;color:#475569;font-size:12px;">Env.</th>
                                   <th align="left" style="padding:8px;background:#f8fafc;color:#475569;font-size:12px;">Lote</th>
                                   <th align="right" style="padding:8px;background:#f8fafc;color:#475569;font-size:12px;">Equiv.</th>
@@ -191,7 +201,7 @@ Deno.serve(async (req) => {
                                   <tr>
                                     <td style="padding:8px;border-bottom:1px solid #f1f5f9;font-size:13px;font-weight:700;">${escapeHtml(item.product)}</td>
                                     <td style="padding:8px;border-bottom:1px solid #f1f5f9;color:#64748b;font-size:12px;">${escapeHtml(presentationLabel(item))}</td>
-                                    ${hasBoxes ? `<td align="right" style="padding:8px;border-bottom:1px solid #f1f5f9;font-size:12px;">${Number(item.box_count || 0) > 0 ? formatNumber(item.box_count) : '-'}</td>` : ''}
+                                    ${hasEntryPack ? `<td style="padding:8px;border-bottom:1px solid #f1f5f9;font-size:12px;">${escapeHtml(entryPackLabel(item))}</td>` : ''}
                                     <td align="right" style="padding:8px;border-bottom:1px solid #f1f5f9;color:#14532d;font-size:14px;font-weight:800;">${formatNumber(item.quantity)}</td>
                                     <td style="padding:8px;border-bottom:1px solid #f1f5f9;color:#64748b;font-size:12px;">${escapeHtml(item.lot_code)}</td>
                                     <td align="right" style="padding:8px;border-bottom:1px solid #f1f5f9;font-size:12px;">${Number(item.package_size || 0) > 0 ? `${formatNumber(Number(item.quantity || 0) * Number(item.package_size || 0))} ${escapeHtml(item.package_unit || '')}` : '-'}</td>

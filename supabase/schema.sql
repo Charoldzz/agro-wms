@@ -26,6 +26,8 @@ create table public.lots (
   product text not null,
   current_quantity numeric(12, 2) not null default 0 check (current_quantity >= 0),
   entry_boxes numeric(12, 2) not null default 0 check (entry_boxes >= 0),
+  entry_units_per_box numeric(12, 2) not null default 0 check (entry_units_per_box >= 0),
+  entry_loose_units numeric(12, 2) not null default 0 check (entry_loose_units >= 0),
   package_size numeric(12, 2),
   package_unit text,
   location text not null,
@@ -342,7 +344,8 @@ create or replace function public.create_lot_entry(
   p_client_id uuid,
   p_product text,
   p_box_count numeric,
-  p_quantity numeric,
+  p_units_per_box numeric,
+  p_loose_units numeric,
   p_package_size numeric,
   p_package_unit text,
   p_location text,
@@ -360,7 +363,13 @@ as $$
 declare
   v_lot_id uuid;
   v_role public.user_role;
+  v_box_count numeric(12, 2) := greatest(coalesce(p_box_count, 0), 0);
+  v_units_per_box numeric(12, 2) := greatest(coalesce(p_units_per_box, 0), 0);
+  v_loose_units numeric(12, 2) := greatest(coalesce(p_loose_units, 0), 0);
+  v_quantity numeric(12, 2);
 begin
+  v_quantity := v_box_count * v_units_per_box + v_loose_units;
+
   if p_user_id <> auth.uid() then
     raise exception 'El usuario del ingreso no coincide con la sesion activa.';
   end if;
@@ -381,12 +390,20 @@ begin
     raise exception 'El producto es obligatorio.';
   end if;
 
-  if coalesce(p_box_count, 0) <= 0 then
-    raise exception 'La cantidad de cajas debe ser mayor a cero.';
+  if coalesce(p_box_count, 0) < 0 then
+    raise exception 'La cantidad de cajas no puede ser negativa.';
   end if;
 
-  if coalesce(p_quantity, 0) < 0 then
-    raise exception 'La cantidad de envases no puede ser negativa.';
+  if v_box_count > 0 and v_units_per_box <= 0 then
+    raise exception 'Indica cuantos envases vienen por caja.';
+  end if;
+
+  if coalesce(p_units_per_box, 0) < 0 or coalesce(p_loose_units, 0) < 0 then
+    raise exception 'Las cantidades de envases no pueden ser negativas.';
+  end if;
+
+  if v_quantity <= 0 then
+    raise exception 'El ingreso debe tener envases por caja o envases sueltos.';
   end if;
 
   if coalesce(trim(p_location), '') = '' then
@@ -399,6 +416,8 @@ begin
     product,
     current_quantity,
     entry_boxes,
+    entry_units_per_box,
+    entry_loose_units,
     package_size,
     package_unit,
     location,
@@ -412,8 +431,10 @@ begin
     trim(p_lot_code),
     p_client_id,
     trim(p_product),
-    greatest(coalesce(p_quantity, 0), 0),
-    p_box_count,
+    v_quantity,
+    v_box_count,
+    v_units_per_box,
+    v_loose_units,
     p_package_size,
     p_package_unit,
     trim(p_location),
@@ -439,12 +460,21 @@ begin
   values (
     v_lot_id,
     'entrada',
-    greatest(coalesce(p_quantity, 0), 0),
+    v_quantity,
     0,
-    greatest(coalesce(p_quantity, 0), 0),
+    v_quantity,
     null,
     trim(p_location),
-    concat('Cajas ingresadas: ', p_box_count, '. ', coalesce(p_notes, 'Ingreso inicial de lote')),
+    concat(
+      'Ingreso: ',
+      v_box_count,
+      ' cajas x ',
+      v_units_per_box,
+      ' envases + ',
+      v_loose_units,
+      ' envases sueltos. ',
+      coalesce(p_notes, 'Ingreso inicial de lote')
+    ),
     p_user_id
   );
 
