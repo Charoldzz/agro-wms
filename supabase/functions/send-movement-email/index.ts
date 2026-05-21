@@ -46,7 +46,7 @@ Deno.serve(async (req) => {
     const logoUrl = `${appUrl.replace(/\/$/, '')}/images/todo-logo.png`
     const itemRowsText = isList
       ? listItems.map((item: Record<string, unknown>) =>
-        `- ${item.lot_code} | ${item.product} | ${formatNumber(item.quantity)} env. | ${item.location || '-'} | stock ${formatNumber(item.previous_quantity)} -> ${formatNumber(item.new_quantity)}`,
+        `- ${item.product} | ${formatNumber(item.quantity)} env. | Lote ${item.lot_code} | ${item.location || '-'} | stock ${formatNumber(item.previous_quantity)} -> ${formatNumber(item.new_quantity)}`,
       )
       : []
     const text = [
@@ -170,9 +170,9 @@ Deno.serve(async (req) => {
                           ? `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;margin-top:18px;">
                               <thead>
                                 <tr>
-                                  <th align="left" style="padding:8px;background:#f8fafc;color:#475569;font-size:12px;">Lote</th>
                                   <th align="left" style="padding:8px;background:#f8fafc;color:#475569;font-size:12px;">Producto</th>
                                   <th align="right" style="padding:8px;background:#f8fafc;color:#475569;font-size:12px;">Env.</th>
+                                  <th align="left" style="padding:8px;background:#f8fafc;color:#475569;font-size:12px;">Lote</th>
                                   <th align="right" style="padding:8px;background:#f8fafc;color:#475569;font-size:12px;">Equiv.</th>
                                   <th align="right" style="padding:8px;background:#f8fafc;color:#475569;font-size:12px;">Stock antes</th>
                                   <th align="right" style="padding:8px;background:#f8fafc;color:#475569;font-size:12px;">Stock despues</th>
@@ -181,9 +181,9 @@ Deno.serve(async (req) => {
                               <tbody>
                                 ${listItems.map((item: Record<string, unknown>) => `
                                   <tr>
-                                    <td style="padding:8px;border-bottom:1px solid #f1f5f9;font-size:12px;">${escapeHtml(item.lot_code)}</td>
-                                    <td style="padding:8px;border-bottom:1px solid #f1f5f9;font-size:12px;">${escapeHtml(item.product)}</td>
-                                    <td align="right" style="padding:8px;border-bottom:1px solid #f1f5f9;font-size:12px;font-weight:700;">${formatNumber(item.quantity)}</td>
+                                    <td style="padding:8px;border-bottom:1px solid #f1f5f9;font-size:13px;font-weight:700;">${escapeHtml(item.product)}</td>
+                                    <td align="right" style="padding:8px;border-bottom:1px solid #f1f5f9;color:#14532d;font-size:14px;font-weight:800;">${formatNumber(item.quantity)}</td>
+                                    <td style="padding:8px;border-bottom:1px solid #f1f5f9;color:#64748b;font-size:12px;">${escapeHtml(item.lot_code)}</td>
                                     <td align="right" style="padding:8px;border-bottom:1px solid #f1f5f9;font-size:12px;">${Number(item.package_size || 0) > 0 ? `${formatNumber(Number(item.quantity || 0) * Number(item.package_size || 0))} ${escapeHtml(item.package_unit || '')}` : '-'}</td>
                                     <td align="right" style="padding:8px;border-bottom:1px solid #f1f5f9;font-size:12px;">${formatNumber(item.previous_quantity)}</td>
                                     <td align="right" style="padding:8px;border-bottom:1px solid #f1f5f9;font-size:12px;">${formatNumber(item.new_quantity)}</td>

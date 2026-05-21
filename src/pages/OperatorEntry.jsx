@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Camera, CheckCircle2, ChevronLeft, ChevronRight, PackagePlus, Plus, Save, Trash2 } from 'lucide-react'
+import { Camera, CheckCircle2, ChevronLeft, ChevronRight, Edit2, PackagePlus, Plus, Save, Trash2 } from 'lucide-react'
 import PageHeader from '../components/PageHeader'
 import { useAuth } from '../hooks/useAuth.jsx'
 import { supabase } from '../lib/supabase'
@@ -36,6 +36,7 @@ export default function OperatorEntry() {
   const [clients, setClients] = useState([])
   const [form, setForm] = useState(initialForm)
   const [entryItems, setEntryItems] = useState([])
+  const [editingEntryId, setEditingEntryId] = useState('')
   const [photoFile, setPhotoFile] = useState(null)
   const [photoPreview, setPhotoPreview] = useState('')
   const [step, setStep] = useState(1)
@@ -95,20 +96,22 @@ export default function OperatorEntry() {
       return
     }
 
+    const nextItem = {
+      id: editingEntryId || crypto.randomUUID(),
+      lot_code: form.lot_code.trim(),
+      product: form.product.trim(),
+      package_count: form.package_count,
+      package_size: form.package_size,
+      package_unit: form.package_unit,
+      location: form.location,
+      expiry_date: form.expiry_date,
+    }
+
     setError('')
-    setEntryItems((items) => [
-      ...items,
-      {
-        id: crypto.randomUUID(),
-        lot_code: form.lot_code.trim(),
-        product: form.product.trim(),
-        package_count: form.package_count,
-        package_size: form.package_size,
-        package_unit: form.package_unit,
-        location: form.location,
-        expiry_date: form.expiry_date,
-      },
-    ])
+    setEntryItems((items) =>
+      editingEntryId ? items.map((item) => (item.id === editingEntryId ? nextItem : item)) : [...items, nextItem],
+    )
+    setEditingEntryId('')
     setForm((value) => ({
       ...value,
       lot_code: '',
@@ -121,6 +124,22 @@ export default function OperatorEntry() {
 
   function removeEntryProduct(id) {
     setEntryItems((items) => items.filter((item) => item.id !== id))
+    if (editingEntryId === id) setEditingEntryId('')
+  }
+
+  function editEntryProduct(item) {
+    setEditingEntryId(item.id)
+    setForm((value) => ({
+      ...value,
+      lot_code: item.lot_code,
+      product: item.product,
+      package_count: item.package_count,
+      package_size: item.package_size,
+      package_unit: item.package_unit,
+      location: item.location,
+      expiry_date: item.expiry_date,
+    }))
+    setError('')
   }
 
   function goNext() {
@@ -353,7 +372,8 @@ export default function OperatorEntry() {
               </p>
             </div>
             <button className="btn-primary sm:col-span-2" type="button" onClick={addEntryProduct}>
-              <Plus size={20} /> Agregar producto a la lista
+              {editingEntryId ? <Save size={20} /> : <Plus size={20} />}
+              {editingEntryId ? 'Guardar cambios del producto' : 'Agregar producto a la lista'}
             </button>
             <div className="sm:col-span-2 rounded-lg bg-slate-50 p-3">
               <div className="mb-2 flex items-center justify-between gap-2">
@@ -367,17 +387,27 @@ export default function OperatorEntry() {
                   {entryItems.map((item) => (
                     <div key={item.id} className="flex items-start justify-between gap-2 rounded-lg bg-white p-3">
                       <div className="min-w-0">
-                        <p className="font-bold text-slate-950 [overflow-wrap:anywhere]">{cleanProductName(item.product)}</p>
+                        <div className="flex flex-wrap items-start gap-2">
+                          <p className="min-w-0 flex-1 text-base font-black text-slate-950 [overflow-wrap:anywhere]">{cleanProductName(item.product)}</p>
+                          <span className="rounded-lg bg-campo-50 px-2 py-1 text-sm font-black text-campo-800">
+                            {formatNumber(item.package_count)} env.
+                          </span>
+                        </div>
                         <p className="text-xs font-semibold text-slate-500">
-                          {item.lot_code ? displayLotCode(item.lot_code) : 'ID automatico'} - {formatNumber(item.package_count)} env. - {item.location}
+                          {item.lot_code ? displayLotCode(item.lot_code) : 'ID automatico'} - {item.location}
                         </p>
                         <p className="text-xs font-bold text-campo-700">
                           Equiv.: {formatNumber(Number(item.package_count || 0) * Number(item.package_size || 0))} {item.package_unit}
                         </p>
                       </div>
-                      <button className="btn-secondary !min-h-10 !px-3" type="button" onClick={() => removeEntryProduct(item.id)} title="Quitar producto">
-                        <Trash2 size={17} />
-                      </button>
+                      <div className="grid gap-1">
+                        <button className="btn-secondary !min-h-10 !px-3" type="button" onClick={() => editEntryProduct(item)} title="Editar producto">
+                          <Edit2 size={17} />
+                        </button>
+                        <button className="btn-secondary !min-h-10 !px-3" type="button" onClick={() => removeEntryProduct(item.id)} title="Quitar producto">
+                          <Trash2 size={17} />
+                        </button>
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -416,9 +446,12 @@ export default function OperatorEntry() {
               <div className="mt-2 space-y-2">
                 {entryItems.map((item) => (
                   <div key={item.id} className="rounded-lg bg-white p-2">
-                    <p>{cleanProductName(item.product)}</p>
+                    <div className="flex flex-wrap items-start justify-between gap-2">
+                      <p className="font-black text-slate-950 [overflow-wrap:anywhere]">{cleanProductName(item.product)}</p>
+                      <p className="rounded-lg bg-campo-50 px-2 py-1 font-black text-campo-800">{formatNumber(item.package_count)} env.</p>
+                    </div>
                     <p className="text-xs text-slate-500">
-                      {formatNumber(item.package_count)} env. - {formatNumber(Number(item.package_count || 0) * Number(item.package_size || 0))} {item.package_unit} - {item.location}
+                      {formatNumber(Number(item.package_count || 0) * Number(item.package_size || 0))} {item.package_unit} - {item.location}
                     </p>
                     <p className="text-xs text-slate-500">Vence: {item.expiry_date || 'Sin dato'}</p>
                   </div>
@@ -472,9 +505,12 @@ export default function OperatorEntry() {
               <div className="flex justify-between gap-3"><span>Foto</span><span>{photoFile ? 'Adjunta' : 'Sin foto'}</span></div>
               {entryItems.map((item) => (
                 <div key={item.id} className="rounded-lg bg-white p-2">
-                  <p>{cleanProductName(item.product)}</p>
+                  <div className="flex flex-wrap items-start justify-between gap-2">
+                    <p className="font-black text-slate-950 [overflow-wrap:anywhere]">{cleanProductName(item.product)}</p>
+                    <p className="rounded-lg bg-campo-50 px-2 py-1 font-black text-campo-800">{formatNumber(item.package_count)} env.</p>
+                  </div>
                   <p className="text-xs text-slate-500">
-                    {formatNumber(item.package_count)} env. - {item.location} - vence {item.expiry_date || 'Sin dato'}
+                    {item.location} - vence {item.expiry_date || 'Sin dato'}
                   </p>
                 </div>
               ))}

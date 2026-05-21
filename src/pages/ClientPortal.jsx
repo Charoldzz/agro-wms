@@ -461,12 +461,12 @@ export default function ClientPortal() {
                   {requestItems.map((item) => (
                     <div key={item.lot_id} className="flex items-center justify-between gap-2 rounded-lg bg-white p-2">
                       <div className="min-w-0">
-                        <p className="truncate text-sm font-bold text-slate-950">{cleanProductName(item.product)}</p>
+                        <div className="flex flex-wrap items-start gap-2">
+                          <p className="min-w-0 flex-1 text-sm font-black text-slate-950 [overflow-wrap:anywhere]">{cleanProductName(item.product)}</p>
+                          <span className="rounded-lg bg-campo-50 px-2 py-1 text-sm font-black text-campo-800">{formatNumber(item.quantity)} env.</span>
+                        </div>
                         <p className="text-xs font-semibold text-slate-500">{displayLotCode(item.lot_code)}</p>
                         <div className="mt-2 flex flex-wrap gap-2">
-                          <span className="rounded-lg bg-campo-50 px-2 py-1 text-sm font-black text-campo-800">
-                            {formatNumber(item.quantity)} env.
-                          </span>
                           <span className="rounded-lg bg-amber-50 px-2 py-1 text-sm font-black text-amber-800">
                             {formatNumber(Number(item.quantity || 0) * Number(item.package_size || 0))} {item.package_unit || ''}
                           </span>
@@ -519,10 +519,11 @@ export default function ClientPortal() {
           ) : (
             dispatchReceipts.slice(0, 6).map((movement) => (
               <button key={movement.id} className="block w-full rounded-lg bg-slate-50 p-3 text-left transition hover:bg-slate-100" type="button" onClick={() => printMovementReceipt(movement)}>
-                <p className="font-bold text-slate-950">{cleanProductName(movement.lots?.product)}</p>
-                <p className="text-sm font-semibold text-slate-500">
-                  {displayLotCode(movement.lots?.lot_code)} - {formatNumber(movement.quantity)} env.
-                </p>
+                <div className="flex flex-wrap items-start justify-between gap-2">
+                  <p className="min-w-0 flex-1 font-black text-slate-950 [overflow-wrap:anywhere]">{cleanProductName(movement.lots?.product)}</p>
+                  <span className="rounded-lg bg-campo-50 px-2 py-1 text-sm font-black text-campo-800">{formatNumber(movement.quantity)} env.</span>
+                </div>
+                <p className="text-sm font-semibold text-slate-500">{displayLotCode(movement.lots?.lot_code)}</p>
                 <p className="mt-1 text-xs font-bold text-campo-700">{formatDate(movement.created_at)} - Ver comprobante</p>
               </button>
             ))
@@ -535,13 +536,11 @@ export default function ClientPortal() {
           ) : (
             history.map((movement) => (
               <div key={movement.id} className="rounded-lg bg-slate-50 p-3">
-                <div className="flex justify-between gap-3">
-                  <p className="font-bold text-slate-950">{movementLabel(movement.type)}</p>
-                  <p className="font-black text-campo-700">{formatNumber(movement.quantity)} env.</p>
+                <div className="flex flex-wrap items-start justify-between gap-2">
+                  <p className="min-w-0 flex-1 font-black text-slate-950 [overflow-wrap:anywhere]">{cleanProductName(movement.lots?.product)}</p>
+                  <p className="rounded-lg bg-campo-50 px-2 py-1 text-sm font-black text-campo-800">{formatNumber(movement.quantity)} env.</p>
                 </div>
-                <p className="text-sm font-semibold text-slate-500">
-                  {displayLotCode(movement.lots?.lot_code)} - {cleanProductName(movement.lots?.product)}
-                </p>
+                <p className="text-sm font-semibold text-slate-500">{movementLabel(movement.type)} - {displayLotCode(movement.lots?.lot_code)}</p>
                 <p className="mt-1 text-xs font-semibold text-slate-400">{formatDate(movement.created_at)}</p>
               </div>
             ))

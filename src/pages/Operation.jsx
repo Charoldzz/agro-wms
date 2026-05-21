@@ -153,22 +153,39 @@ export default function Operation() {
               approvedRequests.map((request) => (
                 <article key={request.id} className="rounded-lg bg-amber-50 p-3">
                   <p className="font-bold text-slate-950">{request.clients?.name || 'Cliente'}</p>
-                  <p className="text-sm font-semibold text-slate-700">{cleanProductName(request.product || request.lots?.product)}</p>
-                  <p className="text-sm font-bold text-slate-600">
-                    {Array.isArray(request.items) && request.items.length > 1
-                      ? `${request.items.length} productos - ${formatNumber(request.quantity)} env.`
-                      : `${displayLotCode(request.lots?.lot_code)} - ${formatNumber(request.quantity)} env.`}
-                  </p>
                   {Array.isArray(request.items) && request.items.length > 1 ? (
-                    <div className="mt-2 space-y-1">
+                    <div className="mt-2 space-y-2">
                       {request.items.slice(0, 3).map((item) => (
-                        <p key={item.lot_id} className="text-xs font-semibold text-slate-600">
-                          {displayLotCode(item.lot_code)} - {formatNumber(item.quantity)} env.
-                        </p>
+                        <div key={item.lot_id} className="rounded-lg bg-white/80 p-2">
+                          <div className="flex flex-wrap items-start justify-between gap-2">
+                            <p className="min-w-0 flex-1 text-sm font-black text-slate-950 [overflow-wrap:anywhere]">
+                              {cleanProductName(item.product)}
+                            </p>
+                            <span className="rounded-lg bg-campo-50 px-2 py-1 text-xs font-black text-campo-800">
+                              {formatNumber(item.quantity)} env.
+                            </span>
+                          </div>
+                          <p className="text-xs font-semibold text-slate-500">{displayLotCode(item.lot_code)}</p>
+                        </div>
                       ))}
+                      {request.items.length > 3 ? (
+                        <p className="text-xs font-bold text-slate-600">+ {request.items.length - 3} producto{request.items.length - 3 === 1 ? '' : 's'} mas</p>
+                      ) : null}
                     </div>
                   ) : (
-                    <p className="text-xs font-semibold text-slate-500">{request.lots?.location || '-'} - disponible {formatNumber(request.lots?.current_quantity)} env.</p>
+                    <div className="mt-2 rounded-lg bg-white/80 p-2">
+                      <div className="flex flex-wrap items-start justify-between gap-2">
+                        <p className="min-w-0 flex-1 text-sm font-black text-slate-950 [overflow-wrap:anywhere]">
+                          {cleanProductName(request.product || request.lots?.product)}
+                        </p>
+                        <span className="rounded-lg bg-campo-50 px-2 py-1 text-xs font-black text-campo-800">
+                          {formatNumber(request.quantity)} env.
+                        </span>
+                      </div>
+                      <p className="text-xs font-semibold text-slate-500">
+                        {displayLotCode(request.lots?.lot_code)} - {request.lots?.location || '-'} - disponible {formatNumber(request.lots?.current_quantity)} env.
+                      </p>
+                    </div>
                   )}
                   <Link className="btn-primary mt-3 w-full !min-h-11 !py-2" to={`/operacion/despacho-lista?request=${request.id}`}>
                     Iniciar despacho

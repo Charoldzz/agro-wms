@@ -451,15 +451,23 @@ export default function DispatchList() {
           {Array.isArray(approvedRequest.items) && approvedRequest.items.length > 1 ? (
             <div className="mt-2 space-y-1">
               {approvedRequest.items.map((item) => (
-                <p key={item.lot_id} className="text-sm font-semibold text-slate-700">
-                  {displayLotCode(item.lot_code)} - {cleanProductName(item.product)} - {formatNumber(item.quantity)} env.
-                </p>
+                <div key={item.lot_id} className="rounded-lg bg-white/80 p-2">
+                  <div className="flex flex-wrap items-start justify-between gap-2">
+                    <p className="font-black text-slate-950 [overflow-wrap:anywhere]">{cleanProductName(item.product)}</p>
+                    <span className="rounded-lg bg-campo-50 px-2 py-1 text-sm font-black text-campo-800">{formatNumber(item.quantity)} env.</span>
+                  </div>
+                  <p className="text-xs font-semibold text-slate-600">{displayLotCode(item.lot_code)}</p>
+                </div>
               ))}
             </div>
           ) : (
-            <p className="text-sm font-semibold text-slate-700">
-              {cleanProductName(approvedRequest.product || approvedRequest.lots?.product)} - {displayLotCode(approvedRequest.lots?.lot_code)} - {formatNumber(approvedRequest.quantity)} env.
-            </p>
+            <div className="mt-2 rounded-lg bg-white/80 p-2">
+              <div className="flex flex-wrap items-start justify-between gap-2">
+                <p className="font-black text-slate-950 [overflow-wrap:anywhere]">{cleanProductName(approvedRequest.product || approvedRequest.lots?.product)}</p>
+                <span className="rounded-lg bg-campo-50 px-2 py-1 text-sm font-black text-campo-800">{formatNumber(approvedRequest.quantity)} env.</span>
+              </div>
+              <p className="text-xs font-semibold text-slate-600">{displayLotCode(approvedRequest.lots?.lot_code)}</p>
+            </div>
           )}
           <p className="mt-1 text-xs font-bold text-amber-700">
             Escanea el QR del lote asignado. Si escaneas otro lote, la app te advertira.
@@ -511,7 +519,10 @@ export default function DispatchList() {
               <article key={item.lot.id} className="panel">
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0 flex-1">
-                    <p className="font-bold text-slate-950">{cleanProductName(item.lot.product)}</p>
+                    <div className="flex flex-wrap items-start justify-between gap-2">
+                      <p className="min-w-0 flex-1 text-lg font-black text-slate-950 [overflow-wrap:anywhere]">{cleanProductName(item.lot.product)}</p>
+                      <span className="rounded-lg bg-campo-50 px-2.5 py-1 text-base font-black text-campo-800">{formatNumber(item.package_count)} env.</span>
+                    </div>
                     <p className="text-sm font-semibold text-slate-500">
                       {displayLotCode(item.lot.lot_code)} · {item.lot.location || '-'}
                     </p>

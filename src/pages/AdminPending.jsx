@@ -156,8 +156,8 @@ export default function AdminPending() {
                   </div>
                   <p className="mt-1 text-sm font-bold text-slate-700">
                     {Array.isArray(request.items) && request.items.length > 1
-                      ? `${request.items.length} productos - ${formatNumber(request.quantity)} envases`
-                      : `${cleanProductName(request.product || request.lots?.product)} - ${displayLotCode(request.lots?.lot_code)} - ${formatNumber(request.quantity)} envases`}
+                      ? `${request.items.length} productos en la lista`
+                      : displayLotCode(request.lots?.lot_code)}
                   </p>
                   <p className="mt-1 text-xs font-semibold text-slate-500">{formatDate(request.created_at)}</p>
                 </div>
@@ -168,10 +168,12 @@ export default function AdminPending() {
                 <div className="mt-3 grid gap-2 sm:grid-cols-2">
                   {request.items.map((item) => (
                     <div key={item.lot_id} className="rounded-lg bg-white p-3">
-                      <p className="font-bold text-slate-950">{cleanProductName(item.product)}</p>
+                      <div className="flex flex-wrap items-start justify-between gap-2">
+                        <p className="font-black text-slate-950 [overflow-wrap:anywhere]">{cleanProductName(item.product)}</p>
+                        <span className="rounded-lg bg-campo-50 px-2 py-1 text-sm font-black text-campo-800">{formatNumber(item.quantity)} env.</span>
+                      </div>
                       <p className="text-xs font-semibold text-slate-500">{displayLotCode(item.lot_code)} - {item.location || '-'}</p>
                       <div className="mt-2 flex gap-2">
-                        <span className="rounded-lg bg-campo-50 px-2 py-1 text-sm font-black text-campo-800">{formatNumber(item.quantity)} env.</span>
                         <span className="rounded-lg bg-amber-100 px-2 py-1 text-sm font-black text-amber-800">
                           {formatNumber(Number(item.quantity || 0) * Number(item.package_size || 0))} {item.package_unit || ''}
                         </span>
@@ -180,8 +182,18 @@ export default function AdminPending() {
                   ))}
                 </div>
               ) : (
-                <div className="mt-3 rounded-lg bg-white p-3 text-sm font-bold text-slate-600">
-                  Disponible: {formatNumber(request.lots?.current_quantity)} env. - Ubicacion: {request.lots?.location || '-'}
+                <div className="mt-3 rounded-lg bg-white p-3">
+                  <div className="flex flex-wrap items-start justify-between gap-2">
+                    <p className="font-black text-slate-950 [overflow-wrap:anywhere]">
+                      {cleanProductName(request.product || request.lots?.product)}
+                    </p>
+                    <span className="rounded-lg bg-campo-50 px-2 py-1 text-sm font-black text-campo-800">
+                      {formatNumber(request.quantity)} env.
+                    </span>
+                  </div>
+                  <p className="mt-1 text-xs font-semibold text-slate-500">
+                    {displayLotCode(request.lots?.lot_code)} - disponible {formatNumber(request.lots?.current_quantity)} env. - {request.lots?.location || '-'}
+                  </p>
                 </div>
               )}
 
@@ -202,17 +214,19 @@ export default function AdminPending() {
             <article key={movement.id} className="panel border-orange-200 bg-orange-50">
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
-                  <p className="font-black text-slate-950">{movementLabel(movement.type)} - {displayLotCode(movement.lots?.lot_code)}</p>
-                  <p className="mt-1 text-sm font-bold text-slate-700">{cleanProductName(movement.lots?.product)}</p>
+                  <p className="font-black text-slate-950">{movementLabel(movement.type)}</p>
+                  <div className="mt-1 flex flex-wrap items-start gap-2">
+                    <p className="text-sm font-black text-slate-950 [overflow-wrap:anywhere]">{cleanProductName(movement.lots?.product)}</p>
+                    <span className="rounded-lg bg-white px-2 py-1 text-xs font-black text-orange-800">{formatNumber(movement.quantity)} env.</span>
+                  </div>
                   <p className="mt-1 text-xs font-semibold text-slate-500">
-                    {movement.profiles?.full_name || 'Usuario'} - {movement.lots?.clients?.name || '-'} - {formatDate(movement.created_at)}
+                    {displayLotCode(movement.lots?.lot_code)} - {movement.profiles?.full_name || 'Usuario'} - {movement.lots?.clients?.name || '-'} - {formatDate(movement.created_at)}
                   </p>
                 </div>
                 <span className="rounded-full bg-white px-3 py-1 text-xs font-bold text-orange-700">{movementLabel(movement.type)}</span>
               </div>
 
-              <div className="mt-3 grid gap-2 text-sm font-bold text-slate-600 sm:grid-cols-3">
-                <div className="rounded-lg bg-white p-3">Cantidad: {formatNumber(movement.quantity)} env.</div>
+              <div className="mt-3 grid gap-2 text-sm font-bold text-slate-600 sm:grid-cols-2">
                 <div className="rounded-lg bg-white p-3">Stock actual: {formatNumber(movement.lots?.current_quantity)} env.</div>
                 <div className="rounded-lg bg-white p-3">Ubicacion: {movement.lots?.location || '-'}</div>
               </div>

@@ -101,9 +101,12 @@ export default function ClientRequestsAdmin() {
               {Array.isArray(request.items) && request.items.length > 1 ? (
                 <div className="mt-3 space-y-2 rounded-lg bg-slate-50 p-3">
                   {request.items.map((item) => (
-                    <div key={item.lot_id} className="flex justify-between gap-3 text-sm font-semibold text-slate-700">
-                      <span>{displayLotCode(item.lot_code)} - {cleanProductName(item.product)}</span>
-                      <span>{formatNumber(item.quantity)} env.</span>
+                    <div key={item.lot_id} className="rounded-lg bg-white p-3">
+                      <div className="flex flex-wrap items-start justify-between gap-2">
+                        <p className="min-w-0 flex-1 font-black text-slate-950 [overflow-wrap:anywhere]">{cleanProductName(item.product)}</p>
+                        <span className="rounded-lg bg-campo-50 px-2 py-1 text-sm font-black text-campo-800">{formatNumber(item.quantity)} env.</span>
+                      </div>
+                      <p className="mt-1 text-xs font-semibold text-slate-500">{displayLotCode(item.lot_code)}</p>
                     </div>
                   ))}
                 </div>
