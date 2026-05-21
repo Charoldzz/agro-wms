@@ -59,6 +59,11 @@ Deno.serve(async (req) => {
       !isList ? `Cantidad: ${formatNumber(body.quantity)}` : null,
       !isList ? `Stock anterior: ${formatNumber(body.previous_quantity)}` : null,
       !isList ? `Stock nuevo: ${formatNumber(body.new_quantity)}` : null,
+      body.receiver_name ? `Recibe: ${body.receiver_name}` : null,
+      body.receiver_document ? `Documento: ${body.receiver_document}` : null,
+      body.driver_name ? `Chofer: ${body.driver_name}` : null,
+      body.driver_document ? `CI chofer: ${body.driver_document}` : null,
+      body.vehicle_plate ? `Placa: ${body.vehicle_plate}` : null,
       isList ? `` : null,
       ...itemRowsText,
       `Usuario: ${body.user_email || 'Usuario'}`,
@@ -113,6 +118,36 @@ Deno.serve(async (req) => {
                           <tr>
                             <td style="padding:10px 0;color:#64748b;font-size:13px;border-bottom:1px solid #f1f5f9;">Cantidad</td>
                             <td style="padding:10px 0;text-align:right;font-size:18px;font-weight:800;color:#14532d;border-bottom:1px solid #f1f5f9;">${formatNumber(body.quantity)}</td>
+                          </tr>
+                        ` : ''}
+                        ${body.receiver_name ? `
+                          <tr>
+                            <td style="padding:10px 0;color:#64748b;font-size:13px;border-bottom:1px solid #f1f5f9;">Recibe</td>
+                            <td style="padding:10px 0;text-align:right;font-size:14px;font-weight:700;border-bottom:1px solid #f1f5f9;">${escapeHtml(body.receiver_name)}</td>
+                          </tr>
+                        ` : ''}
+                        ${body.receiver_document ? `
+                          <tr>
+                            <td style="padding:10px 0;color:#64748b;font-size:13px;border-bottom:1px solid #f1f5f9;">Documento</td>
+                            <td style="padding:10px 0;text-align:right;font-size:14px;font-weight:700;border-bottom:1px solid #f1f5f9;">${escapeHtml(body.receiver_document)}</td>
+                          </tr>
+                        ` : ''}
+                        ${body.driver_name ? `
+                          <tr>
+                            <td style="padding:10px 0;color:#64748b;font-size:13px;border-bottom:1px solid #f1f5f9;">Chofer</td>
+                            <td style="padding:10px 0;text-align:right;font-size:14px;font-weight:700;border-bottom:1px solid #f1f5f9;">${escapeHtml(body.driver_name)}</td>
+                          </tr>
+                        ` : ''}
+                        ${body.driver_document ? `
+                          <tr>
+                            <td style="padding:10px 0;color:#64748b;font-size:13px;border-bottom:1px solid #f1f5f9;">CI chofer</td>
+                            <td style="padding:10px 0;text-align:right;font-size:14px;font-weight:700;border-bottom:1px solid #f1f5f9;">${escapeHtml(body.driver_document)}</td>
+                          </tr>
+                        ` : ''}
+                        ${body.vehicle_plate ? `
+                          <tr>
+                            <td style="padding:10px 0;color:#64748b;font-size:13px;border-bottom:1px solid #f1f5f9;">Placa</td>
+                            <td style="padding:10px 0;text-align:right;font-size:14px;font-weight:700;border-bottom:1px solid #f1f5f9;">${escapeHtml(body.vehicle_plate)}</td>
                           </tr>
                         ` : ''}
                         ${!isList ? `

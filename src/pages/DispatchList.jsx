@@ -13,7 +13,7 @@ import { vibrateError, vibrateSuccess, vibrateWarning } from '../lib/haptics'
 const DISPATCH_DRAFT_KEY = 'todo-agricola-dispatch-list-draft'
 
 function emptyDraft() {
-  return { items: [], receiverName: '', receiverDocument: '', vehiclePlate: '' }
+  return { items: [], receiverName: '', receiverDocument: '', vehiclePlate: '', dispatchNotes: '' }
 }
 
 function readDraft(key) {
@@ -25,6 +25,7 @@ function readDraft(key) {
       receiverName: draft.receiverName || '',
       receiverDocument: draft.receiverDocument || '',
       vehiclePlate: draft.vehiclePlate || '',
+      dispatchNotes: draft.dispatchNotes || '',
     }
   } catch {
     return emptyDraft()
@@ -66,6 +67,7 @@ export default function DispatchList() {
   const [receiverName, setReceiverName] = useState(initialDraft.receiverName)
   const [receiverDocument, setReceiverDocument] = useState(initialDraft.receiverDocument)
   const [vehiclePlate, setVehiclePlate] = useState(initialDraft.vehiclePlate)
+  const [dispatchNotes, setDispatchNotes] = useState(initialDraft.dispatchNotes)
   const [error, setError] = useState('')
   const [status, setStatus] = useState('')
   const [saving, setSaving] = useState(false)
@@ -89,6 +91,7 @@ export default function DispatchList() {
     setReceiverName(draft.receiverName)
     setReceiverDocument(draft.receiverDocument)
     setVehiclePlate(draft.vehiclePlate)
+    setDispatchNotes(draft.dispatchNotes)
     setReceipt(null)
     setConfirming(false)
     setError('')
@@ -118,8 +121,8 @@ export default function DispatchList() {
   }, [requestId])
 
   useEffect(() => {
-    writeDraft(draftKey, { items, receiverName, receiverDocument, vehiclePlate })
-  }, [draftKey, items, receiverName, receiverDocument, vehiclePlate])
+    writeDraft(draftKey, { items, receiverName, receiverDocument, vehiclePlate, dispatchNotes })
+  }, [draftKey, items, receiverName, receiverDocument, vehiclePlate, dispatchNotes])
 
   useEffect(() => {
     async function addScannedLot() {
@@ -282,6 +285,7 @@ export default function DispatchList() {
         `Recibe: ${receiverName.trim()}`,
         `Documento: ${receiverDocument.trim()}`,
         'Despacho por lista',
+        dispatchNotes.trim() || null,
       ]
         .filter(Boolean)
         .join(' | ')
@@ -324,6 +328,7 @@ export default function DispatchList() {
     setReceiverName('')
     setReceiverDocument('')
     setVehiclePlate('')
+    setDispatchNotes('')
     clearDraft(draftKey)
     if (requestId && queued === 0) {
       await supabase.rpc('complete_client_dispatch_request', {
@@ -351,12 +356,10 @@ export default function DispatchList() {
           client: receiptItems[0]?.lot?.clients?.name || approvedRequest?.clients?.name || 'Sin cliente',
           quantity: receiptItems.reduce((sum, item) => sum + Number(item.quantity || 0), 0),
           to_location: vehiclePlate.trim() || null,
-          notes: [
-            vehiclePlate.trim() ? `Placa: ${vehiclePlate.trim()}` : null,
-            `Recibe: ${receiverName.trim()}`,
-            `Documento: ${receiverDocument.trim()}`,
-            requestId ? `Solicitud: ${requestId}` : null,
-          ].filter(Boolean).join(' | '),
+          receiver_name: receiverName.trim(),
+          receiver_document: receiverDocument.trim(),
+          vehicle_plate: vehiclePlate.trim() || null,
+          notes: dispatchNotes.trim() || null,
           user_email: user.email,
           items: receiptItems.map((item) => ({
             lot_code: displayLotCode(item.lot.lot_code),
@@ -477,6 +480,10 @@ export default function DispatchList() {
         <label className="sm:col-span-2">
           <span className="label">Placa del vehiculo</span>
           <input className="input mt-1 uppercase" autoComplete="off" value={vehiclePlate} onChange={(event) => setVehiclePlate(event.target.value.toUpperCase())} placeholder="Opcional" />
+        </label>
+        <label className="sm:col-span-2">
+          <span className="label">Observaciones</span>
+          <textarea className="input mt-1" rows="2" value={dispatchNotes} onChange={(event) => setDispatchNotes(event.target.value)} placeholder="Opcional" />
         </label>
       </section>
 
