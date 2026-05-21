@@ -1,5 +1,5 @@
 import { Outlet, NavLink, useNavigate } from 'react-router-dom'
-import { Boxes, ClipboardList, Home, LogOut, ScanLine, ShieldAlert, Users, Warehouse } from 'lucide-react'
+import { Boxes, ClipboardList, Home, LogOut, ShieldAlert, Users, Warehouse } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../hooks/useAuth.jsx'
@@ -9,7 +9,6 @@ const navItems = [
   { to: '/', label: 'Inicio', icon: Home },
   { to: '/operacion', label: 'Operar', icon: Warehouse, roles: ['operador'] },
   { to: '/lotes', label: 'Lotes', icon: Boxes, roles: ['administrador', 'operador'] },
-  { to: '/scanner', label: 'Scan', icon: ScanLine, roles: ['administrador'] },
   { to: '/movimientos', label: 'Mov.', icon: ClipboardList },
   { to: '/offline', label: 'Offline', icon: ShieldAlert },
   { to: '/clientes', label: 'Clientes', icon: Users },

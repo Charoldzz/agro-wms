@@ -366,7 +366,7 @@ export default function ClientPortal() {
         }
       />
 
-      <section className="grid gap-3 sm:grid-cols-3">
+      <section className="grid grid-cols-3 gap-2">
         <Metric icon={Boxes} label="Envases disponibles" value={formatNumber(totalStock)} />
         <Metric icon={PackageCheck} label="Productos" value={productCount} />
         <Metric icon={CalendarClock} label="Por vencer" value={expiring.length} accent="text-maiz" />
@@ -577,10 +577,12 @@ export default function ClientPortal() {
 
 function Metric({ icon: Icon, label, value, accent = 'text-campo-700' }) {
   return (
-    <div className="panel">
-      <Icon className={accent} size={24} />
-      <p className="mt-3 text-sm font-medium text-slate-500">{label}</p>
-      <p className="mt-1 text-2xl font-bold text-slate-950">{value}</p>
+    <div className="rounded-lg border border-slate-200 bg-white/80 px-2 py-2 shadow-soft sm:px-3">
+      <div className="flex items-center gap-1.5">
+        <Icon className={`${accent} shrink-0`} size={15} />
+        <p className="min-w-0 text-[10px] font-bold leading-tight text-slate-500 sm:text-xs">{label}</p>
+      </div>
+      <p className="mt-1 text-base font-black leading-tight text-slate-950 sm:text-lg">{value}</p>
     </div>
   )
 }

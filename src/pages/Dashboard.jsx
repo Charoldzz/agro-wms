@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Boxes, CalendarClock, Check, Clock3, Download, LogOut, Mail, PackagePlus, Wrench, X } from 'lucide-react'
+import { Boxes, CalendarClock, Check, Download, LogOut, Mail, PackagePlus, ScanLine, Wrench, X } from 'lucide-react'
 import PageHeader from '../components/PageHeader'
 import { useAuth } from '../hooks/useAuth.jsx'
 import { supabase } from '../lib/supabase'
@@ -144,8 +144,6 @@ export default function Dashboard() {
     return { totalStock, expiringLots, expiredLots, entriesToday, exitsToday, locationCount: locations.size }
   }, [lots, movements])
 
-  const recentMovements = movements.slice(0, 8)
-
   function exportInventoryExcel() {
     const headers = ['Cliente', 'Lote', 'Producto', 'Envases', 'Presentacion', 'Equivalente', 'Ubicacion', 'Ingreso', 'Vencimiento', 'Estado']
     const rows = lots.map((lot) => [
@@ -256,15 +254,30 @@ export default function Dashboard() {
         <StatCard icon={Wrench} label="Pendientes" value={pendingMovements.length + dispatchRequests.length} />
       </section>
 
-      <section className="mt-5 grid gap-3 md:grid-cols-3">
-        <Link className="btn-primary min-h-20 !justify-start !px-5 text-left text-lg" to="/operacion/nuevo-ingreso">
-          <PackagePlus size={28} /> Nuevo ingreso
+      <section className="mt-5 grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <Link className="btn-primary aspect-square min-h-36 !flex-col !items-start !justify-between !px-5 !py-5 text-left text-lg sm:min-h-40" to="/operacion/nuevo-ingreso">
+          <span className="flex h-12 w-12 items-center justify-center rounded-lg bg-white/15">
+            <PackagePlus size={30} />
+          </span>
+          <span>Nuevo ingreso</span>
         </Link>
-        <Link className="min-h-20 !justify-start !px-5 text-left text-lg inline-flex items-center gap-2 rounded-lg bg-maiz px-4 py-3 font-semibold text-slate-950 shadow-soft transition active:scale-[0.99]" to="/operacion/despacho-lista?nuevo=1">
-          <LogOut size={24} /> Despacho
+        <Link className="inline-flex aspect-square min-h-36 flex-col items-start justify-between gap-3 rounded-lg bg-maiz px-5 py-5 text-left text-lg font-semibold text-slate-950 shadow-soft transition active:scale-[0.99] sm:min-h-40" to="/operacion/despacho-lista?nuevo=1">
+          <span className="flex h-12 w-12 items-center justify-center rounded-lg bg-white/35">
+            <LogOut size={28} />
+          </span>
+          <span>Despacho</span>
         </Link>
-        <Link className="min-h-20 !justify-start !px-5 text-left text-lg inline-flex items-center gap-2 rounded-lg bg-orange-500 px-4 py-3 font-semibold text-white shadow-soft transition active:scale-[0.99]" to="/operacion/reparacion-traslado">
-          <Wrench size={24} /> Reparacion / Traslado
+        <Link className="inline-flex aspect-square min-h-36 flex-col items-start justify-between gap-3 rounded-lg bg-orange-500 px-5 py-5 text-left text-lg font-semibold text-white shadow-soft transition active:scale-[0.99] sm:min-h-40" to="/operacion/reparacion-traslado">
+          <span className="flex h-12 w-12 items-center justify-center rounded-lg bg-white/15">
+            <Wrench size={28} />
+          </span>
+          <span>Reparacion / Traslado</span>
+        </Link>
+        <Link className="btn-secondary aspect-square min-h-36 !flex-col !items-start !justify-between !px-5 !py-5 text-left text-lg sm:min-h-40" to="/scanner">
+          <span className="flex h-12 w-12 items-center justify-center rounded-lg bg-campo-50 text-campo-700">
+            <ScanLine size={28} />
+          </span>
+          <span>Consultar QR</span>
         </Link>
       </section>
 
@@ -274,7 +287,7 @@ export default function Dashboard() {
         </div>
       ) : null}
 
-      <section className="mt-5 grid gap-4 lg:grid-cols-3">
+      <section className="mt-5 grid gap-4 lg:grid-cols-2">
         <div className="panel">
           <div className="mb-3 flex items-center gap-2">
             <Wrench size={20} className="text-orange-500" />
@@ -350,33 +363,6 @@ export default function Dashboard() {
         </div>
 
         <div className="panel">
-          <div className="mb-3 flex items-center gap-2">
-            <Clock3 size={20} className="text-campo-700" />
-            <h3 className="font-bold text-slate-900">Movimientos recientes</h3>
-          </div>
-          <div className="max-h-[360px] space-y-2 overflow-y-auto pr-1">
-            {recentMovements.length === 0 ? (
-              <div className="rounded-lg bg-slate-50 p-3 text-sm font-bold text-slate-600">Todavia no hay movimientos registrados.</div>
-            ) : recentMovements.map((movement) => (
-              <div key={movement.id} className="rounded-lg bg-slate-50 p-3">
-                <div className="flex justify-between gap-3">
-                  <p className="font-semibold text-slate-900">{movementLabel(movement.type)}</p>
-                  {movement.type !== 'traslado' ? (
-                    <p className="text-sm font-bold text-campo-700">{formatNumber(movement.quantity)}</p>
-                  ) : null}
-                </div>
-                <p className="text-sm text-slate-500">
-                  {displayLotCode(movement.lots?.lot_code)} - {cleanProductName(movement.lots?.product)}
-                </p>
-                <p className="mt-1 text-xs text-slate-400">
-                  {formatDate(movement.created_at)} - {movement.profiles?.full_name || 'Usuario'}
-                </p>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <div className="panel">
           <div className="mb-3 flex items-center justify-between gap-3">
             <div className="flex items-center gap-2">
               <CalendarClock size={20} className="text-maiz" />
@@ -429,10 +415,14 @@ export default function Dashboard() {
 
 function StatCard({ icon: Icon, label, value }) {
   return (
-    <div className="rounded-lg border border-slate-200 bg-white/90 p-3 shadow-soft sm:p-4">
-      <Icon className="text-campo-700" size={20} />
-      <p className="mt-2 text-xs font-bold text-slate-500 sm:text-sm">{label}</p>
-      <p className="mt-1 text-xl font-black text-slate-950 sm:text-2xl">{value}</p>
+    <div className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white/80 px-2.5 py-2 shadow-soft sm:px-3">
+      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-campo-50 text-campo-700">
+        <Icon size={16} />
+      </span>
+      <div className="min-w-0">
+        <p className="truncate text-[11px] font-bold text-slate-500 sm:text-xs">{label}</p>
+        <p className="text-base font-black leading-tight text-slate-950 sm:text-lg">{value}</p>
+      </div>
     </div>
   )
 }
