@@ -255,25 +255,25 @@ export default function Dashboard() {
       </section>
 
       <section className="mt-5 grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <Link className="btn-primary aspect-square min-h-36 !flex-col !items-start !justify-between !px-5 !py-5 text-left text-lg sm:min-h-40" to="/operacion/nuevo-ingreso">
+        <Link className="btn-primary aspect-square min-h-36 !flex-col !items-start !justify-between !px-4 !py-4 text-left text-base leading-tight sm:min-h-40 sm:!px-5 sm:!py-5 sm:text-lg" to="/operacion/nuevo-ingreso">
           <span className="flex h-12 w-12 items-center justify-center rounded-lg bg-white/15">
             <PackagePlus size={30} />
           </span>
           <span>Nuevo ingreso</span>
         </Link>
-        <Link className="inline-flex aspect-square min-h-36 flex-col items-start justify-between gap-3 rounded-lg bg-maiz px-5 py-5 text-left text-lg font-semibold text-slate-950 shadow-soft transition active:scale-[0.99] sm:min-h-40" to="/operacion/despacho-lista?nuevo=1">
+        <Link className="inline-flex aspect-square min-h-36 flex-col items-start justify-between gap-3 rounded-lg bg-maiz px-4 py-4 text-left text-base font-semibold leading-tight text-slate-950 shadow-soft transition active:scale-[0.99] sm:min-h-40 sm:px-5 sm:py-5 sm:text-lg" to="/operacion/despacho-lista?nuevo=1">
           <span className="flex h-12 w-12 items-center justify-center rounded-lg bg-white/35">
             <LogOut size={28} />
           </span>
           <span>Despacho</span>
         </Link>
-        <Link className="inline-flex aspect-square min-h-36 flex-col items-start justify-between gap-3 rounded-lg bg-orange-500 px-5 py-5 text-left text-lg font-semibold text-white shadow-soft transition active:scale-[0.99] sm:min-h-40" to="/operacion/reparacion-traslado">
+        <Link className="inline-flex aspect-square min-h-36 flex-col items-start justify-between gap-3 rounded-lg bg-orange-500 px-4 py-4 text-left text-base font-semibold leading-tight text-white shadow-soft transition active:scale-[0.99] sm:min-h-40 sm:px-5 sm:py-5 sm:text-lg" to="/operacion/reparacion-traslado">
           <span className="flex h-12 w-12 items-center justify-center rounded-lg bg-white/15">
             <Wrench size={28} />
           </span>
           <span>Reparacion / Traslado</span>
         </Link>
-        <Link className="btn-secondary aspect-square min-h-36 !flex-col !items-start !justify-between !px-5 !py-5 text-left text-lg sm:min-h-40" to="/scanner">
+        <Link className="btn-secondary aspect-square min-h-36 !flex-col !items-start !justify-between !px-4 !py-4 text-left text-base leading-tight sm:min-h-40 sm:!px-5 sm:!py-5 sm:text-lg" to="/scanner">
           <span className="flex h-12 w-12 items-center justify-center rounded-lg bg-campo-50 text-campo-700">
             <ScanLine size={28} />
           </span>
