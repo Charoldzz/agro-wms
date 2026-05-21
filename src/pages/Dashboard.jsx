@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Boxes, CalendarClock, Check, Clock3, Download, LogOut, PackagePlus, Wrench, X } from 'lucide-react'
+import { Boxes, CalendarClock, Check, Clock3, Download, LogOut, Mail, PackagePlus, Wrench, X } from 'lucide-react'
 import PageHeader from '../components/PageHeader'
 import { useAuth } from '../hooks/useAuth.jsx'
 import { supabase } from '../lib/supabase'
@@ -14,6 +14,8 @@ export default function Dashboard() {
   const [pendingMovements, setPendingMovements] = useState([])
   const [dispatchRequests, setDispatchRequests] = useState([])
   const [dashboardError, setDashboardError] = useState('')
+  const [testEmailStatus, setTestEmailStatus] = useState('')
+  const [sendingTestEmail, setSendingTestEmail] = useState(false)
 
   useEffect(() => {
     loadData()
@@ -192,6 +194,49 @@ export default function Dashboard() {
     loadData()
   }
 
+  async function sendTestDispatchEmail() {
+    setSendingTestEmail(true)
+    setTestEmailStatus('')
+
+    const { error } = await supabase.functions.invoke('send-movement-email', {
+      body: {
+        to: 'hgarayd@outlook.com',
+        movement_type: 'salida_lista',
+        client: 'ADILSON SABEC PERES',
+        receiver_name: 'Correo de prueba',
+        receiver_document: '000000',
+        vehicle_plate: 'PRUEBA',
+        notes: 'Correo de prueba. No registra movimiento.',
+        user_email: user.email,
+        items: [
+          {
+            lot_code: 'Lote 20251212',
+            product: 'KOSAKO (Cletodim 240EC) 5L',
+            quantity: 24,
+            previous_quantity: 124,
+            new_quantity: 100,
+            location: 'Deposito Warnes Tagribol',
+            package_size: 5,
+            package_unit: 'lt',
+          },
+          {
+            lot_code: 'Lote 4971024',
+            product: 'K-FOL X 10 Kgs',
+            quantity: 25,
+            previous_quantity: 50,
+            new_quantity: 25,
+            location: 'Deposito Warnes Tagribol',
+            package_size: 10,
+            package_unit: 'kg',
+          },
+        ],
+      },
+    })
+
+    setTestEmailStatus(error ? 'No se pudo enviar el correo de prueba.' : 'Correo de prueba enviado.')
+    setSendingTestEmail(false)
+  }
+
   return (
     <div>
       <PageHeader
@@ -366,6 +411,17 @@ export default function Dashboard() {
             )}
           </div>
         </div>
+      </section>
+
+      <section className="panel mt-4 flex flex-wrap items-center justify-between gap-3 border-dashed">
+        <div>
+          <p className="text-sm font-black text-slate-900">Prueba temporal de correo</p>
+          <p className="text-xs font-semibold text-slate-500">Quitar antes del piloto en planta. No modifica inventario.</p>
+          {testEmailStatus ? <p className="mt-1 text-xs font-bold text-campo-700">{testEmailStatus}</p> : null}
+        </div>
+        <button className="btn-secondary !min-h-10 !py-2" type="button" onClick={sendTestDispatchEmail} disabled={sendingTestEmail}>
+          <Mail size={18} /> {sendingTestEmail ? 'Enviando...' : 'Enviar prueba'}
+        </button>
       </section>
     </div>
   )
