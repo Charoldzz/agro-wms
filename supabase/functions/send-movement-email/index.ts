@@ -37,14 +37,15 @@ Deno.serve(async (req) => {
 
     const body = await req.json()
     const toEmail = Deno.env.get('MOVEMENT_EMAIL_TO') || body.to || 'hgarayd@outlook.com'
-    const isList = Array.isArray(body.items) && body.items.length > 0
-    const typeLabel = body.movement_type === 'entrada' ? 'Entrada' : 'Salida'
+    const listItems = Array.isArray(body.items) ? body.items : []
+    const isList = body.movement_type === 'salida_lista' || listItems.length > 0
+    const typeLabel = body.movement_type === 'entrada' ? 'Entrada' : isList ? 'Despacho' : 'Salida'
     const subject = isList
-      ? `${typeLabel} de inventario - ${body.client || 'Cliente'} (${body.items.length} productos)`
+      ? `${typeLabel} de inventario - ${body.client || 'Cliente'} (${listItems.length} productos)`
       : `${typeLabel} de inventario - ${body.lot_code}`
     const logoUrl = `${appUrl.replace(/\/$/, '')}/images/todo-logo.png`
     const itemRowsText = isList
-      ? body.items.map((item: Record<string, unknown>) =>
+      ? listItems.map((item: Record<string, unknown>) =>
         `- ${item.lot_code} | ${item.product} | ${formatNumber(item.quantity)} env. | ${item.location || '-'} | stock ${formatNumber(item.previous_quantity)} -> ${formatNumber(item.new_quantity)}`,
       )
       : []
@@ -52,10 +53,10 @@ Deno.serve(async (req) => {
       `${typeLabel} registrada en Todo Agricola`,
       ``,
       isList ? `Cliente: ${body.client}` : `Lote: ${body.lot_code}`,
-      isList ? `Productos: ${body.items.length}` : `Producto: ${body.product}`,
+      isList ? `Productos: ${listItems.length}` : `Producto: ${body.product}`,
       !isList ? `Cliente: ${body.client}` : null,
       !isList ? `Ubicacion: ${body.location || '-'}` : null,
-      `Cantidad total: ${formatNumber(body.quantity)}`,
+      !isList ? `Cantidad: ${formatNumber(body.quantity)}` : null,
       !isList ? `Stock anterior: ${formatNumber(body.previous_quantity)}` : null,
       !isList ? `Stock nuevo: ${formatNumber(body.new_quantity)}` : null,
       isList ? `` : null,
@@ -105,13 +106,15 @@ Deno.serve(async (req) => {
                         ` : `
                           <tr>
                             <td style="padding:10px 0;color:#64748b;font-size:13px;border-bottom:1px solid #f1f5f9;">Productos</td>
-                            <td style="padding:10px 0;text-align:right;font-size:14px;font-weight:700;border-bottom:1px solid #f1f5f9;">${body.items.length}</td>
+                            <td style="padding:10px 0;text-align:right;font-size:14px;font-weight:700;border-bottom:1px solid #f1f5f9;">${listItems.length}</td>
                           </tr>
                         `}
-                        <tr>
-                          <td style="padding:10px 0;color:#64748b;font-size:13px;border-bottom:1px solid #f1f5f9;">Cantidad total</td>
-                          <td style="padding:10px 0;text-align:right;font-size:18px;font-weight:800;color:#14532d;border-bottom:1px solid #f1f5f9;">${formatNumber(body.quantity)}</td>
-                        </tr>
+                        ${!isList ? `
+                          <tr>
+                            <td style="padding:10px 0;color:#64748b;font-size:13px;border-bottom:1px solid #f1f5f9;">Cantidad</td>
+                            <td style="padding:10px 0;text-align:right;font-size:18px;font-weight:800;color:#14532d;border-bottom:1px solid #f1f5f9;">${formatNumber(body.quantity)}</td>
+                          </tr>
+                        ` : ''}
                         ${!isList ? `
                           <tr>
                             <td style="padding:10px 0;color:#64748b;font-size:13px;border-bottom:1px solid #f1f5f9;">Stock anterior</td>
@@ -135,15 +138,17 @@ Deno.serve(async (req) => {
                                   <th align="left" style="padding:8px;background:#f8fafc;color:#475569;font-size:12px;">Lote</th>
                                   <th align="left" style="padding:8px;background:#f8fafc;color:#475569;font-size:12px;">Producto</th>
                                   <th align="right" style="padding:8px;background:#f8fafc;color:#475569;font-size:12px;">Env.</th>
+                                  <th align="right" style="padding:8px;background:#f8fafc;color:#475569;font-size:12px;">Equiv.</th>
                                   <th align="right" style="padding:8px;background:#f8fafc;color:#475569;font-size:12px;">Stock nuevo</th>
                                 </tr>
                               </thead>
                               <tbody>
-                                ${body.items.map((item: Record<string, unknown>) => `
+                                ${listItems.map((item: Record<string, unknown>) => `
                                   <tr>
                                     <td style="padding:8px;border-bottom:1px solid #f1f5f9;font-size:12px;">${escapeHtml(item.lot_code)}</td>
                                     <td style="padding:8px;border-bottom:1px solid #f1f5f9;font-size:12px;">${escapeHtml(item.product)}</td>
                                     <td align="right" style="padding:8px;border-bottom:1px solid #f1f5f9;font-size:12px;font-weight:700;">${formatNumber(item.quantity)}</td>
+                                    <td align="right" style="padding:8px;border-bottom:1px solid #f1f5f9;font-size:12px;">${Number(item.package_size || 0) > 0 ? `${formatNumber(Number(item.quantity || 0) * Number(item.package_size || 0))} ${escapeHtml(item.package_unit || '')}` : '-'}</td>
                                     <td align="right" style="padding:8px;border-bottom:1px solid #f1f5f9;font-size:12px;">${formatNumber(item.new_quantity)}</td>
                                   </tr>
                                 `).join('')}

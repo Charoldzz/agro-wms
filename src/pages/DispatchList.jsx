@@ -186,10 +186,10 @@ export default function DispatchList() {
 
       setItems((current) => {
         if (current.some((item) => item.lot.id === data.id)) {
-          setStatus(`${displayLotCode(data.lot_code)} ya esta en la lista. Puedes cambiar la cantidad.`)
+          setStatus(`Producto ${cleanProductName(data.product)} ya esta en la lista.`)
           return current
         }
-        setStatus(`${displayLotCode(data.lot_code)} agregado. Puedes escanear otro QR.`)
+        setStatus(`Producto ${cleanProductName(data.product)} agregado a la lista.`)
         return [...current, scannedItem]
       })
       navigate(requestId ? `/operacion/despacho-lista?request=${requestId}` : '/operacion/despacho-lista', { replace: true })
@@ -480,14 +480,11 @@ export default function DispatchList() {
         </label>
       </section>
 
-      <section className="mb-4 grid gap-3 sm:grid-cols-[1fr_220px]">
-        <h3 className="text-lg font-bold text-slate-950 sm:col-span-2">Carga del despacho</h3>
+      <section className="mb-4 grid gap-3">
+        <h3 className="text-lg font-bold text-slate-950">Carga del despacho</h3>
         <button className="btn-primary min-h-14" type="button" onClick={scanLot}>
           <ScanLine size={22} /> Escanear lote
         </button>
-        <div className="rounded-lg bg-campo-50 p-3 text-sm font-bold text-campo-800">
-          Total: {formatNumber(totalPackages)} envases
-        </div>
       </section>
 
       {items.length > 0 ? (
@@ -588,7 +585,6 @@ export default function DispatchList() {
             <h3 className="text-xl font-bold text-slate-950">Confirmar despacho</h3>
             <div className="mt-3 grid gap-2 rounded-lg bg-slate-50 p-3 text-sm font-bold text-slate-700 sm:grid-cols-2">
               <div>Productos: {items.length}</div>
-              <div>Total envases: {formatNumber(totalPackages)}</div>
               <div>Recibe: {receiverName}</div>
               <div>Documento: {receiverDocument}</div>
               <div className="sm:col-span-2">Placa: {vehiclePlate || 'Sin placa'}</div>
@@ -634,7 +630,6 @@ export default function DispatchList() {
             <h3 className="text-xl font-bold text-slate-950">Comprobante de despacho</h3>
             <p className="mt-1 text-sm font-bold text-slate-500">{receipt.id}</p>
             <div className="mt-3 grid gap-2 rounded-lg bg-slate-50 p-3 text-sm font-bold text-slate-700 sm:grid-cols-2">
-              <div>Total envases: {formatNumber(receipt.totalPackages)}</div>
               <div>Productos: {receipt.items.length}</div>
               <div>Recibe: {receipt.receiverName}</div>
               <div>Documento: {receipt.receiverDocument}</div>
