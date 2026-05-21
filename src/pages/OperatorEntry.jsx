@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Camera, CheckCircle2, ChevronLeft, ChevronRight, PackagePlus, Save } from 'lucide-react'
+import { Camera, CheckCircle2, ChevronLeft, ChevronRight, PackagePlus, Plus, Save, Trash2 } from 'lucide-react'
 import PageHeader from '../components/PageHeader'
 import { useAuth } from '../hooks/useAuth.jsx'
 import { supabase } from '../lib/supabase'
@@ -25,9 +25,9 @@ const initialForm = {
   notes: '',
 }
 
-function createOperatorLotCode() {
+function createOperatorLotCode(index = 0) {
   const stamp = new Date().toISOString().replace(/\D/g, '').slice(0, 14)
-  return `ING-${stamp}`
+  return index ? `ING-${stamp}-${index + 1}` : `ING-${stamp}`
 }
 
 export default function OperatorEntry() {
@@ -35,6 +35,7 @@ export default function OperatorEntry() {
   const { user, isOperator } = useAuth()
   const [clients, setClients] = useState([])
   const [form, setForm] = useState(initialForm)
+  const [entryItems, setEntryItems] = useState([])
   const [photoFile, setPhotoFile] = useState(null)
   const [photoPreview, setPhotoPreview] = useState('')
   const [step, setStep] = useState(1)
@@ -53,9 +54,7 @@ export default function OperatorEntry() {
   }
 
   const selectedClient = clients.find((client) => client.id === form.client_id)
-  const equivalent = useMemo(() => {
-    return Number(form.package_count || 0) * Number(form.package_size || 0)
-  }, [form.package_count, form.package_size])
+  const equivalent = useMemo(() => Number(form.package_count || 0) * Number(form.package_size || 0), [form.package_count, form.package_size])
   const today = new Date().toISOString().slice(0, 10)
 
   async function selectPhoto(file) {
@@ -70,18 +69,58 @@ export default function OperatorEntry() {
 
     if (currentStep === 1) {
       if (!form.client_id) return 'Selecciona el cliente.'
-      if (!form.product.trim()) return 'Escribe el producto.'
       if (!form.driver_name.trim()) return 'Escribe el nombre del chofer.'
       if (!form.driver_document.trim()) return 'Escribe el numero de identidad del chofer.'
       if (!form.vehicle_plate.trim()) return 'Escribe la placa del vehiculo.'
     }
 
     if (currentStep === 2) {
-      if (Number(form.package_count || 0) <= 0) return 'La cantidad de envases debe ser mayor a cero.'
-      if (!form.location) return 'Selecciona la ubicacion.'
+      if (entryItems.length === 0) return 'Agrega al menos un producto a la lista.'
     }
 
     return ''
+  }
+
+  function validateEntryProduct() {
+    if (!form.product.trim()) return 'Escribe el producto.'
+    if (Number(form.package_count || 0) <= 0) return 'La cantidad de envases debe ser mayor a cero.'
+    if (!form.location) return 'Selecciona la ubicacion.'
+    return ''
+  }
+
+  function addEntryProduct() {
+    const productError = validateEntryProduct()
+    if (productError) {
+      setError(productError)
+      return
+    }
+
+    setError('')
+    setEntryItems((items) => [
+      ...items,
+      {
+        id: crypto.randomUUID(),
+        lot_code: form.lot_code.trim(),
+        product: form.product.trim(),
+        package_count: form.package_count,
+        package_size: form.package_size,
+        package_unit: form.package_unit,
+        location: form.location,
+        expiry_date: form.expiry_date,
+      },
+    ])
+    setForm((value) => ({
+      ...value,
+      lot_code: '',
+      product: '',
+      package_count: '',
+      package_size: '',
+      expiry_date: '',
+    }))
+  }
+
+  function removeEntryProduct(id) {
+    setEntryItems((items) => items.filter((item) => item.id !== id))
   }
 
   function goNext() {
@@ -121,9 +160,6 @@ export default function OperatorEntry() {
       return
     }
 
-    const lotCode = form.lot_code.trim() || createOperatorLotCode()
-    const packageCount = Number(form.package_count || 0)
-    const packageSize = Number(form.package_size || 0)
     const entryNotes = [
       'Nuevo ingreso desde almacen.',
       `Chofer: ${form.driver_name.trim()}`,
@@ -137,54 +173,67 @@ export default function OperatorEntry() {
     setSaving(true)
 
     try {
-      const photoUrl = await uploadPhoto(lotCode)
-      const { data: lotId, error: rpcError } = await supabase.rpc('create_lot_entry', {
-        p_lot_code: lotCode,
-        p_client_id: form.client_id,
-        p_product: form.product.trim(),
-        p_quantity: packageCount,
-        p_package_size: packageSize > 0 ? packageSize : null,
-        p_package_unit: packageSize > 0 ? form.package_unit : null,
-        p_location: form.location,
-        p_entry_date: today,
-        p_expiry_date: form.expiry_date || null,
-        p_photo_url: photoUrl,
-        p_notes: entryNotes,
-        p_user_id: user.id,
-      })
+      const photoUrl = await uploadPhoto(createOperatorLotCode())
+      const emailItems = []
 
-      if (rpcError) throw rpcError
+      for (const [index, item] of entryItems.entries()) {
+        const lotCode = item.lot_code || createOperatorLotCode(index)
+        const packageCount = Number(item.package_count || 0)
+        const packageSize = Number(item.package_size || 0)
+        const { error: rpcError } = await supabase.rpc('create_lot_entry', {
+          p_lot_code: lotCode,
+          p_client_id: form.client_id,
+          p_product: item.product,
+          p_quantity: packageCount,
+          p_package_size: packageSize > 0 ? packageSize : null,
+          p_package_unit: packageSize > 0 ? item.package_unit : null,
+          p_location: item.location,
+          p_entry_date: today,
+          p_expiry_date: item.expiry_date || null,
+          p_photo_url: photoUrl,
+          p_notes: entryNotes,
+          p_user_id: user.id,
+        })
+
+        if (rpcError) throw rpcError
+
+        emailItems.push({
+          lot_code: displayLotCode(lotCode),
+          product: cleanProductName(item.product),
+          quantity: packageCount,
+          previous_quantity: 0,
+          new_quantity: packageCount,
+          location: item.location,
+          package_size: packageSize > 0 ? packageSize : null,
+          package_unit: packageSize > 0 ? item.package_unit : null,
+        })
+      }
 
       const { error: emailError } = await supabase.functions.invoke('send-movement-email', {
         body: {
           to: 'hgarayd@outlook.com',
           movement_type: 'entrada',
-          quantity: packageCount,
-          previous_quantity: 0,
-          new_quantity: packageCount,
           notes: form.notes || null,
           driver_name: form.driver_name.trim(),
           driver_document: form.driver_document.trim(),
           vehicle_plate: form.vehicle_plate.trim(),
-          lot_code: displayLotCode(lotCode),
-          product: cleanProductName(form.product),
           client: selectedClient?.name || 'Sin cliente',
-          location: form.location,
           user_email: user.email,
+          items: emailItems,
         },
       })
 
       setStatus(
         emailError
-          ? 'Lote creado. Falta configurar o revisar el envio automatico de correo.'
-          : 'Lote creado y correo enviado a oficina.',
+          ? 'Ingreso creado. Falta configurar o revisar el envio automatico de correo.'
+          : 'Ingreso creado y correo enviado a oficina.',
       )
 
       setTimeout(() => {
         navigate(isOperator ? '/operacion' : '/')
       }, 900)
     } catch (entryError) {
-      setError(entryError.message?.includes('duplicate') ? 'Ese ID de lote ya existe. Usa otro ID.' : entryError.message)
+      setError(entryError.message?.includes('duplicate') ? 'Uno de los ID de lote ya existe. Corrigelo antes de confirmar.' : entryError.message)
       setSaving(false)
       setConfirming(false)
     }
@@ -197,7 +246,7 @@ export default function OperatorEntry() {
       <section className="panel mb-4">
         <div className="grid grid-cols-3 gap-2 text-center text-xs font-bold">
           <StepBadge active={step === 1} done={step > 1} label="Cliente" />
-          <StepBadge active={step === 2} done={step > 2} label="Cantidad" />
+          <StepBadge active={step === 2} done={step > 2} label="Productos" />
           <StepBadge active={step === 3} done={false} label="Foto y revisar" />
         </div>
       </section>
@@ -206,7 +255,7 @@ export default function OperatorEntry() {
         {step === 1 ? (
           <>
             <div className="sm:col-span-2 rounded-lg bg-campo-50 p-3 text-sm font-bold text-campo-700">
-              Paso 1: selecciona el cliente, producto y datos del transporte.
+              Paso 1: selecciona el cliente y los datos del transporte.
             </div>
             <Field label="Cliente">
               <select className="input" value={form.client_id} onChange={(event) => setForm({ ...form, client_id: event.target.value })} required>
@@ -215,17 +264,6 @@ export default function OperatorEntry() {
                   <option key={client.id} value={client.id}>{client.name}</option>
                 ))}
               </select>
-            </Field>
-            <Field label="ID lote">
-              <input
-                className="input"
-                value={form.lot_code}
-                onChange={(event) => setForm({ ...form, lot_code: event.target.value })}
-                placeholder="Opcional, se genera solo"
-              />
-            </Field>
-            <Field label="Producto">
-              <input className="input" value={form.product} onChange={(event) => setForm({ ...form, product: event.target.value })} required />
             </Field>
             <Field label="Nombre del chofer">
               <input className="input" autoComplete="off" value={form.driver_name} onChange={(event) => setForm({ ...form, driver_name: event.target.value })} required />
@@ -247,8 +285,19 @@ export default function OperatorEntry() {
         {step === 2 ? (
           <>
             <div className="sm:col-span-2 rounded-lg bg-campo-50 p-3 text-sm font-bold text-campo-700">
-              Paso 2: registra envases, presentacion, ubicacion y vencimiento.
+              Paso 2: agrega cada producto que llega en este ingreso.
             </div>
+            <Field label="ID lote">
+              <input
+                className="input"
+                value={form.lot_code}
+                onChange={(event) => setForm({ ...form, lot_code: event.target.value })}
+                placeholder="Opcional, se genera solo"
+              />
+            </Field>
+            <Field label="Producto">
+              <input className="input" value={form.product} onChange={(event) => setForm({ ...form, product: event.target.value })} required />
+            </Field>
             <Field label="Cantidad de envases">
               <input
                 className="input"
@@ -303,6 +352,37 @@ export default function OperatorEntry() {
                 {formatNumber(equivalent)} {form.package_unit}
               </p>
             </div>
+            <button className="btn-primary sm:col-span-2" type="button" onClick={addEntryProduct}>
+              <Plus size={20} /> Agregar producto a la lista
+            </button>
+            <div className="sm:col-span-2 rounded-lg bg-slate-50 p-3">
+              <div className="mb-2 flex items-center justify-between gap-2">
+                <p className="font-black text-slate-950">Productos del ingreso</p>
+                <span className="text-xs font-bold text-slate-500">{entryItems.length} agregado{entryItems.length === 1 ? '' : 's'}</span>
+              </div>
+              {entryItems.length === 0 ? (
+                <p className="text-sm font-semibold text-slate-500">Agrega el primer producto para continuar.</p>
+              ) : (
+                <div className="space-y-2">
+                  {entryItems.map((item) => (
+                    <div key={item.id} className="flex items-start justify-between gap-2 rounded-lg bg-white p-3">
+                      <div className="min-w-0">
+                        <p className="font-bold text-slate-950 [overflow-wrap:anywhere]">{cleanProductName(item.product)}</p>
+                        <p className="text-xs font-semibold text-slate-500">
+                          {item.lot_code ? displayLotCode(item.lot_code) : 'ID automatico'} - {formatNumber(item.package_count)} env. - {item.location}
+                        </p>
+                        <p className="text-xs font-bold text-campo-700">
+                          Equiv.: {formatNumber(Number(item.package_count || 0) * Number(item.package_size || 0))} {item.package_unit}
+                        </p>
+                      </div>
+                      <button className="btn-secondary !min-h-10 !px-3" type="button" onClick={() => removeEntryProduct(item.id)} title="Quitar producto">
+                        <Trash2 size={17} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </>
         ) : null}
 
@@ -329,14 +409,21 @@ export default function OperatorEntry() {
             </label>
             <div className="sm:col-span-2 rounded-lg bg-slate-50 p-3 text-sm font-bold text-slate-700">
               <p>Cliente: {selectedClient?.name || '-'}</p>
-              <p>Producto: {form.product || '-'}</p>
               <p>Chofer: {form.driver_name || '-'}</p>
               <p>CI chofer: {form.driver_document || '-'}</p>
               <p>Placa: {form.vehicle_plate || '-'}</p>
-              <p>Envases: {formatNumber(form.package_count)}</p>
-              <p>Equivalente: {formatNumber(equivalent)} {form.package_unit}</p>
-              <p>Ubicacion: {form.location || '-'}</p>
-              <p>Vencimiento: {form.expiry_date || 'Sin dato'}</p>
+              <p>Productos: {entryItems.length}</p>
+              <div className="mt-2 space-y-2">
+                {entryItems.map((item) => (
+                  <div key={item.id} className="rounded-lg bg-white p-2">
+                    <p>{cleanProductName(item.product)}</p>
+                    <p className="text-xs text-slate-500">
+                      {formatNumber(item.package_count)} env. - {formatNumber(Number(item.package_count || 0) * Number(item.package_size || 0))} {item.package_unit} - {item.location}
+                    </p>
+                    <p className="text-xs text-slate-500">Vence: {item.expiry_date || 'Sin dato'}</p>
+                  </div>
+                ))}
+              </div>
             </div>
           </>
         ) : null}
@@ -376,16 +463,21 @@ export default function OperatorEntry() {
           <div className="w-full max-w-md rounded-xl bg-white p-4 shadow-xl">
             <h3 className="text-xl font-bold text-slate-950">Confirmar nuevo ingreso</h3>
             <p className="mt-2 text-sm font-semibold text-slate-500">
-              Vas a ingresar {formatNumber(form.package_count)} envases de {cleanProductName(form.product)} para {selectedClient?.name || 'cliente'}.
+              Vas a ingresar {entryItems.length} producto{entryItems.length === 1 ? '' : 's'} para {selectedClient?.name || 'cliente'}.
             </p>
             <div className="mt-4 space-y-2 rounded-lg bg-slate-50 p-3 text-sm font-bold text-slate-700">
-              <div className="flex justify-between gap-3"><span>Ubicacion</span><span>{form.location}</span></div>
               <div className="flex justify-between gap-3"><span>Chofer</span><span>{form.driver_name}</span></div>
               <div className="flex justify-between gap-3"><span>CI chofer</span><span>{form.driver_document}</span></div>
               <div className="flex justify-between gap-3"><span>Placa</span><span>{form.vehicle_plate}</span></div>
-              <div className="flex justify-between gap-3"><span>Equivalente</span><span>{formatNumber(equivalent)} {form.package_unit}</span></div>
-              <div className="flex justify-between gap-3"><span>Vencimiento</span><span>{form.expiry_date || 'Sin dato'}</span></div>
               <div className="flex justify-between gap-3"><span>Foto</span><span>{photoFile ? 'Adjunta' : 'Sin foto'}</span></div>
+              {entryItems.map((item) => (
+                <div key={item.id} className="rounded-lg bg-white p-2">
+                  <p>{cleanProductName(item.product)}</p>
+                  <p className="text-xs text-slate-500">
+                    {formatNumber(item.package_count)} env. - {item.location} - vence {item.expiry_date || 'Sin dato'}
+                  </p>
+                </div>
+              ))}
             </div>
             <div className="mt-4 grid grid-cols-2 gap-2">
               <button className="btn-secondary w-full" type="button" onClick={() => setConfirming(false)} disabled={saving}>

@@ -152,11 +152,11 @@ Deno.serve(async (req) => {
                         ` : ''}
                         ${!isList ? `
                           <tr>
-                            <td style="padding:10px 0;color:#64748b;font-size:13px;border-bottom:1px solid #f1f5f9;">Stock anterior</td>
+                            <td style="padding:10px 0;color:#64748b;font-size:13px;border-bottom:1px solid #f1f5f9;">Stock antes</td>
                             <td style="padding:10px 0;text-align:right;font-size:14px;font-weight:700;border-bottom:1px solid #f1f5f9;">${formatNumber(body.previous_quantity)}</td>
                           </tr>
                           <tr>
-                            <td style="padding:10px 0;color:#64748b;font-size:13px;border-bottom:1px solid #f1f5f9;">Stock nuevo</td>
+                            <td style="padding:10px 0;color:#64748b;font-size:13px;border-bottom:1px solid #f1f5f9;">Stock despues</td>
                             <td style="padding:10px 0;text-align:right;font-size:14px;font-weight:700;border-bottom:1px solid #f1f5f9;">${formatNumber(body.new_quantity)}</td>
                           </tr>
                         ` : ''}
@@ -174,7 +174,8 @@ Deno.serve(async (req) => {
                                   <th align="left" style="padding:8px;background:#f8fafc;color:#475569;font-size:12px;">Producto</th>
                                   <th align="right" style="padding:8px;background:#f8fafc;color:#475569;font-size:12px;">Env.</th>
                                   <th align="right" style="padding:8px;background:#f8fafc;color:#475569;font-size:12px;">Equiv.</th>
-                                  <th align="right" style="padding:8px;background:#f8fafc;color:#475569;font-size:12px;">Stock nuevo</th>
+                                  <th align="right" style="padding:8px;background:#f8fafc;color:#475569;font-size:12px;">Stock antes</th>
+                                  <th align="right" style="padding:8px;background:#f8fafc;color:#475569;font-size:12px;">Stock despues</th>
                                 </tr>
                               </thead>
                               <tbody>
@@ -184,6 +185,7 @@ Deno.serve(async (req) => {
                                     <td style="padding:8px;border-bottom:1px solid #f1f5f9;font-size:12px;">${escapeHtml(item.product)}</td>
                                     <td align="right" style="padding:8px;border-bottom:1px solid #f1f5f9;font-size:12px;font-weight:700;">${formatNumber(item.quantity)}</td>
                                     <td align="right" style="padding:8px;border-bottom:1px solid #f1f5f9;font-size:12px;">${Number(item.package_size || 0) > 0 ? `${formatNumber(Number(item.quantity || 0) * Number(item.package_size || 0))} ${escapeHtml(item.package_unit || '')}` : '-'}</td>
+                                    <td align="right" style="padding:8px;border-bottom:1px solid #f1f5f9;font-size:12px;">${formatNumber(item.previous_quantity)}</td>
                                     <td align="right" style="padding:8px;border-bottom:1px solid #f1f5f9;font-size:12px;">${formatNumber(item.new_quantity)}</td>
                                   </tr>
                                 `).join('')}
