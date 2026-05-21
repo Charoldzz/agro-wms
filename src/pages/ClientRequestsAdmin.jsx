@@ -3,7 +3,7 @@ import { Check, Clock3, Truck, X } from 'lucide-react'
 import PageHeader from '../components/PageHeader'
 import EmptyState from '../components/EmptyState'
 import { useAuth } from '../hooks/useAuth.jsx'
-import { cleanProductName, displayLotCode } from '../lib/display'
+import { cleanProductName, displayLotCode, packageLabel } from '../lib/display'
 import { formatDate, formatNumber } from '../lib/format'
 import { supabase } from '../lib/supabase'
 
@@ -27,7 +27,7 @@ export default function ClientRequestsAdmin() {
   async function loadRequests() {
     const { data, error: requestError } = await supabase
       .from('client_dispatch_requests')
-      .select('*, clients(name), lots(lot_code, product, current_quantity, location), requested_by_profile:profiles!client_dispatch_requests_requested_by_fkey(full_name)')
+      .select('*, clients(name), lots(lot_code, product, current_quantity, package_size, package_unit, location), requested_by_profile:profiles!client_dispatch_requests_requested_by_fkey(full_name)')
       .order('created_at', { ascending: false })
 
     if (requestError) {
@@ -106,7 +106,9 @@ export default function ClientRequestsAdmin() {
                         <p className="min-w-0 flex-1 font-black text-slate-950 [overflow-wrap:anywhere]">{cleanProductName(item.product)}</p>
                         <span className="rounded-lg bg-campo-50 px-2 py-1 text-sm font-black text-campo-800">{formatNumber(item.quantity)} env.</span>
                       </div>
-                      <p className="mt-1 text-xs font-semibold text-slate-500">{displayLotCode(item.lot_code)}</p>
+                      <p className="mt-1 text-xs font-semibold text-slate-500">
+                        {displayLotCode(item.lot_code)} - Presentacion: {packageLabel(item) || 'Sin dato'}
+                      </p>
                     </div>
                   ))}
                 </div>

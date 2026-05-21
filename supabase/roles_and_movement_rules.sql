@@ -313,11 +313,13 @@ end;
 $$;
 
 drop function if exists public.create_lot_entry(text, uuid, text, numeric, numeric, text, text, date, date, text, uuid);
+drop function if exists public.create_lot_entry(text, uuid, text, numeric, numeric, numeric, text, text, date, date, text, text, uuid);
 
 create or replace function public.create_lot_entry(
   p_lot_code text,
   p_client_id uuid,
   p_product text,
+  p_box_count numeric,
   p_quantity numeric,
   p_package_size numeric,
   p_package_unit text,
@@ -357,8 +359,12 @@ begin
     raise exception 'El producto es obligatorio.';
   end if;
 
-  if p_quantity <= 0 then
-    raise exception 'La cantidad debe ser mayor a cero.';
+  if coalesce(p_box_count, 0) <= 0 then
+    raise exception 'La cantidad de cajas debe ser mayor a cero.';
+  end if;
+
+  if coalesce(p_quantity, 0) < 0 then
+    raise exception 'La cantidad de envases no puede ser negativa.';
   end if;
 
   if coalesce(trim(p_location), '') = '' then
@@ -370,6 +376,7 @@ begin
     client_id,
     product,
     current_quantity,
+    entry_boxes,
     package_size,
     package_unit,
     location,
@@ -383,7 +390,8 @@ begin
     trim(p_lot_code),
     p_client_id,
     trim(p_product),
-    p_quantity,
+    greatest(coalesce(p_quantity, 0), 0),
+    p_box_count,
     p_package_size,
     p_package_unit,
     trim(p_location),
@@ -409,12 +417,12 @@ begin
   values (
     v_lot_id,
     'entrada',
-    p_quantity,
+    greatest(coalesce(p_quantity, 0), 0),
     0,
-    p_quantity,
+    greatest(coalesce(p_quantity, 0), 0),
     null,
     trim(p_location),
-    coalesce(p_notes, 'Ingreso inicial de lote'),
+    concat('Cajas ingresadas: ', p_box_count, '. ', coalesce(p_notes, 'Ingreso inicial de lote')),
     p_user_id
   );
 

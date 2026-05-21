@@ -20,6 +20,7 @@ const initialForm = {
   lot_code: '',
   client_id: '',
   product: '',
+  entry_boxes: '',
   current_quantity: '',
   package_size: '',
   package_unit: 'lt',
@@ -97,7 +98,8 @@ export default function Lots() {
     await supabase.from('lots').insert({
       ...form,
       lot_code: lotCode,
-      current_quantity: Number(form.current_quantity),
+      entry_boxes: Number(form.entry_boxes),
+      current_quantity: Number(form.current_quantity || 0),
       package_size: form.package_size ? Number(form.package_size) : null,
       package_unit: form.package_size ? form.package_unit : null,
       expiry_date: form.expiry_date || null,
@@ -209,8 +211,11 @@ export default function Lots() {
           <Field label="Producto">
             <input className="input" value={form.product} onChange={(event) => setForm({ ...form, product: event.target.value })} required />
           </Field>
-          <Field label="Cantidad actual (envases)">
-            <input className="input" type="number" min="0" step="0.01" value={form.current_quantity} onChange={(event) => setForm({ ...form, current_quantity: event.target.value })} required />
+          <Field label="Cantidad de cajas">
+            <input className="input" type="number" min="0.01" step="0.01" value={form.entry_boxes} onChange={(event) => setForm({ ...form, entry_boxes: event.target.value })} required />
+          </Field>
+          <Field label="Envases (opcional)">
+            <input className="input" type="number" min="0" step="0.01" value={form.current_quantity} onChange={(event) => setForm({ ...form, current_quantity: event.target.value })} />
           </Field>
           <Field label="Tamaño presentación">
             <input className="input" type="number" min="0" step="0.01" value={form.package_size} onChange={(event) => setForm({ ...form, package_size: event.target.value })} placeholder="Ej. 5, 20" />

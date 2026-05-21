@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import { Boxes, CalendarClock, LogOut, PackagePlus, ScanLine, Search, WifiOff, Wrench } from 'lucide-react'
 import PageHeader from '../components/PageHeader'
 import EmptyState from '../components/EmptyState'
-import { cleanProductName, displayLotCode } from '../lib/display'
+import { cleanProductName, displayLotCode, packageLabel } from '../lib/display'
 import { formatDate, formatNumber, movementLabel } from '../lib/format'
 import { getQueuedMovementCount } from '../lib/offlineQueue'
 import { supabase } from '../lib/supabase'
@@ -58,7 +58,7 @@ export default function Operation() {
         .limit(80),
       supabase
         .from('client_dispatch_requests')
-        .select('*, clients(name), lots(lot_code, product, current_quantity, location, expiry_date)')
+        .select('*, clients(name), lots(lot_code, product, current_quantity, package_size, package_unit, location, expiry_date)')
         .eq('status', 'aprobado')
         .order('reviewed_at', { ascending: false })
         .limit(10),
@@ -183,7 +183,9 @@ export default function Operation() {
                               {formatNumber(item.quantity)} env.
                             </span>
                           </div>
-                          <p className="text-xs font-semibold text-slate-500">{displayLotCode(item.lot_code)}</p>
+                          <p className="text-xs font-semibold text-slate-500">
+                            {displayLotCode(item.lot_code)} - Presentacion: {packageLabel(item) || 'Sin dato'}
+                          </p>
                         </div>
                       ))}
                       {request.items.length > 3 ? (
@@ -201,7 +203,7 @@ export default function Operation() {
                         </span>
                       </div>
                       <p className="text-xs font-semibold text-slate-500">
-                        {displayLotCode(request.lots?.lot_code)} - {request.lots?.location || '-'} - disponible {formatNumber(request.lots?.current_quantity)} env.
+                        {displayLotCode(request.lots?.lot_code)} - Presentacion: {packageLabel(request.lots) || 'Sin dato'} - {request.lots?.location || '-'} - disponible {formatNumber(request.lots?.current_quantity)} env.
                       </p>
                     </div>
                   )}

@@ -4,7 +4,7 @@ import { CheckCircle2, LogOut, Plus, ScanLine, Trash2 } from 'lucide-react'
 import PageHeader from '../components/PageHeader'
 import EmptyState from '../components/EmptyState'
 import { useAuth } from '../hooks/useAuth.jsx'
-import { cleanProductName, displayLotCode } from '../lib/display'
+import { cleanProductName, displayLotCode, packageLabel } from '../lib/display'
 import { formatDate, formatNumber } from '../lib/format'
 import { isNetworkMovementError, queueMovement } from '../lib/offlineQueue'
 import { supabase } from '../lib/supabase'
@@ -109,7 +109,7 @@ export default function DispatchList() {
       setApprovedRequestLoaded(false)
       const { data } = await supabase
         .from('client_dispatch_requests')
-        .select('*, clients(name), lots(id, lot_code, product, current_quantity, location)')
+        .select('*, clients(name), lots(id, lot_code, product, current_quantity, package_size, package_unit, location)')
         .eq('id', requestId)
         .single()
 
@@ -456,7 +456,9 @@ export default function DispatchList() {
                     <p className="font-black text-slate-950 [overflow-wrap:anywhere]">{cleanProductName(item.product)}</p>
                     <span className="rounded-lg bg-campo-50 px-2 py-1 text-sm font-black text-campo-800">{formatNumber(item.quantity)} env.</span>
                   </div>
-                  <p className="text-xs font-semibold text-slate-600">{displayLotCode(item.lot_code)}</p>
+                  <p className="text-xs font-semibold text-slate-600">
+                    {displayLotCode(item.lot_code)} - Presentacion: {packageLabel(item) || 'Sin dato'}
+                  </p>
                 </div>
               ))}
             </div>
@@ -466,7 +468,9 @@ export default function DispatchList() {
                 <p className="font-black text-slate-950 [overflow-wrap:anywhere]">{cleanProductName(approvedRequest.product || approvedRequest.lots?.product)}</p>
                 <span className="rounded-lg bg-campo-50 px-2 py-1 text-sm font-black text-campo-800">{formatNumber(approvedRequest.quantity)} env.</span>
               </div>
-              <p className="text-xs font-semibold text-slate-600">{displayLotCode(approvedRequest.lots?.lot_code)}</p>
+              <p className="text-xs font-semibold text-slate-600">
+                {displayLotCode(approvedRequest.lots?.lot_code)} - Presentacion: {packageLabel(approvedRequest.lots) || 'Sin dato'}
+              </p>
             </div>
           )}
           <p className="mt-1 text-xs font-bold text-amber-700">
@@ -526,6 +530,7 @@ export default function DispatchList() {
                     <p className="text-sm font-semibold text-slate-500">
                       {displayLotCode(item.lot.lot_code)} · {item.lot.location || '-'}
                     </p>
+                    <p className="mt-1 text-xs font-bold text-slate-500">Presentacion: {packageLabel(item.lot) || 'Sin dato'}</p>
                     <div className="mt-3 grid gap-2 sm:grid-cols-2">
                       <div className="rounded-lg bg-campo-50 p-3">
                         <p className="text-xs font-semibold uppercase text-campo-700">Disponible</p>
@@ -615,7 +620,9 @@ export default function DispatchList() {
                     <div className="flex justify-between gap-3">
                       <div className="min-w-0">
                         <p className="truncate font-bold text-slate-950">{cleanProductName(item.lot.product)}</p>
-                        <p className="text-xs font-semibold text-slate-500">{displayLotCode(item.lot.lot_code)}</p>
+                        <p className="text-xs font-semibold text-slate-500">
+                          {displayLotCode(item.lot.lot_code)} - Presentacion: {packageLabel(item.lot) || 'Sin dato'}
+                        </p>
                       </div>
                       <p className="text-lg font-black text-campo-700">{formatNumber(quantity)}</p>
                     </div>

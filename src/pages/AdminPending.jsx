@@ -3,7 +3,7 @@ import { Check, ClipboardList, X } from 'lucide-react'
 import PageHeader from '../components/PageHeader'
 import EmptyState from '../components/EmptyState'
 import { useAuth } from '../hooks/useAuth.jsx'
-import { cleanProductName, displayLotCode } from '../lib/display'
+import { cleanProductName, displayLotCode, packageLabel } from '../lib/display'
 import { formatDate, formatNumber, movementLabel } from '../lib/format'
 import { supabase } from '../lib/supabase'
 
@@ -29,7 +29,7 @@ export default function AdminPending() {
     const [requestResult, movementResult] = await Promise.all([
       supabase
         .from('client_dispatch_requests')
-        .select('*, clients(name), lots(lot_code, product, current_quantity, location)')
+        .select('*, clients(name), lots(lot_code, product, current_quantity, package_size, package_unit, location)')
         .eq('status', 'pendiente')
         .order('created_at', { ascending: false }),
       supabase
@@ -83,7 +83,7 @@ export default function AdminPending() {
     const clientIds = [...new Set(rows.map((row) => row.client_id).filter(Boolean))]
     const [{ data: lotRows }, { data: clientRows }] = await Promise.all([
       lotIds.length
-        ? supabase.from('lots').select('id, lot_code, product, current_quantity, location').in('id', lotIds)
+        ? supabase.from('lots').select('id, lot_code, product, current_quantity, package_size, package_unit, location').in('id', lotIds)
         : Promise.resolve({ data: [] }),
       clientIds.length ? supabase.from('clients').select('id, name').in('id', clientIds) : Promise.resolve({ data: [] }),
     ])
@@ -172,7 +172,9 @@ export default function AdminPending() {
                         <p className="font-black text-slate-950 [overflow-wrap:anywhere]">{cleanProductName(item.product)}</p>
                         <span className="rounded-lg bg-campo-50 px-2 py-1 text-sm font-black text-campo-800">{formatNumber(item.quantity)} env.</span>
                       </div>
-                      <p className="text-xs font-semibold text-slate-500">{displayLotCode(item.lot_code)} - {item.location || '-'}</p>
+                      <p className="text-xs font-semibold text-slate-500">
+                        {displayLotCode(item.lot_code)} - Presentacion: {packageLabel(item) || 'Sin dato'} - {item.location || '-'}
+                      </p>
                       <div className="mt-2 flex gap-2">
                         <span className="rounded-lg bg-amber-100 px-2 py-1 text-sm font-black text-amber-800">
                           {formatNumber(Number(item.quantity || 0) * Number(item.package_size || 0))} {item.package_unit || ''}
@@ -192,7 +194,7 @@ export default function AdminPending() {
                     </span>
                   </div>
                   <p className="mt-1 text-xs font-semibold text-slate-500">
-                    {displayLotCode(request.lots?.lot_code)} - disponible {formatNumber(request.lots?.current_quantity)} env. - {request.lots?.location || '-'}
+                    {displayLotCode(request.lots?.lot_code)} - Presentacion: {packageLabel(request.lots) || 'Sin dato'} - disponible {formatNumber(request.lots?.current_quantity)} env. - {request.lots?.location || '-'}
                   </p>
                 </div>
               )}

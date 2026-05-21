@@ -4,7 +4,7 @@ import { Boxes, CalendarClock, Download, FileText, History, Mail, PackageCheck, 
 import PageHeader from '../components/PageHeader'
 import EmptyState from '../components/EmptyState'
 import { useAuth } from '../hooks/useAuth.jsx'
-import { cleanProductName, displayLotCode } from '../lib/display'
+import { cleanProductName, displayLotCode, packageLabel } from '../lib/display'
 import { formatDate, formatNumber, movementLabel } from '../lib/format'
 import { supabase } from '../lib/supabase'
 
@@ -465,7 +465,9 @@ export default function ClientPortal() {
                           <p className="min-w-0 flex-1 text-sm font-black text-slate-950 [overflow-wrap:anywhere]">{cleanProductName(item.product)}</p>
                           <span className="rounded-lg bg-campo-50 px-2 py-1 text-sm font-black text-campo-800">{formatNumber(item.quantity)} env.</span>
                         </div>
-                        <p className="text-xs font-semibold text-slate-500">{displayLotCode(item.lot_code)}</p>
+                        <p className="text-xs font-semibold text-slate-500">
+                          {displayLotCode(item.lot_code)} - Presentacion: {packageLabel(item) || 'Sin dato'}
+                        </p>
                         <div className="mt-2 flex flex-wrap gap-2">
                           <span className="rounded-lg bg-amber-50 px-2 py-1 text-sm font-black text-amber-800">
                             {formatNumber(Number(item.quantity || 0) * Number(item.package_size || 0))} {item.package_unit || ''}

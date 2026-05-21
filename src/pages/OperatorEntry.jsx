@@ -5,7 +5,7 @@ import PageHeader from '../components/PageHeader'
 import { useAuth } from '../hooks/useAuth.jsx'
 import { supabase } from '../lib/supabase'
 import { formatNumber } from '../lib/format'
-import { cleanProductName, displayLotCode } from '../lib/display'
+import { cleanProductName, displayLotCode, packageLabel } from '../lib/display'
 import { compressImageFile } from '../lib/image'
 
 const internalLocations = ['Nave 1', 'Nave 2', 'Nave 3', 'Playa']
@@ -17,6 +17,7 @@ const initialForm = {
   driver_name: '',
   driver_document: '',
   vehicle_plate: '',
+  box_count: '',
   package_count: '',
   package_size: '',
   package_unit: 'lt',
@@ -84,7 +85,7 @@ export default function OperatorEntry() {
 
   function validateEntryProduct() {
     if (!form.product.trim()) return 'Escribe el producto.'
-    if (Number(form.package_count || 0) <= 0) return 'La cantidad de envases debe ser mayor a cero.'
+    if (Number(form.box_count || 0) <= 0) return 'La cantidad de cajas debe ser mayor a cero.'
     if (!form.location) return 'Selecciona la ubicacion.'
     return ''
   }
@@ -100,6 +101,7 @@ export default function OperatorEntry() {
       id: editingEntryId || crypto.randomUUID(),
       lot_code: form.lot_code.trim(),
       product: form.product.trim(),
+      box_count: form.box_count,
       package_count: form.package_count,
       package_size: form.package_size,
       package_unit: form.package_unit,
@@ -116,6 +118,7 @@ export default function OperatorEntry() {
       ...value,
       lot_code: '',
       product: '',
+      box_count: '',
       package_count: '',
       package_size: '',
       expiry_date: '',
@@ -133,6 +136,7 @@ export default function OperatorEntry() {
       ...value,
       lot_code: item.lot_code,
       product: item.product,
+      box_count: item.box_count,
       package_count: item.package_count,
       package_size: item.package_size,
       package_unit: item.package_unit,
@@ -197,12 +201,14 @@ export default function OperatorEntry() {
 
       for (const [index, item] of entryItems.entries()) {
         const lotCode = item.lot_code || createOperatorLotCode(index)
+        const boxCount = Number(item.box_count || 0)
         const packageCount = Number(item.package_count || 0)
         const packageSize = Number(item.package_size || 0)
         const { error: rpcError } = await supabase.rpc('create_lot_entry', {
           p_lot_code: lotCode,
           p_client_id: form.client_id,
           p_product: item.product,
+          p_box_count: boxCount,
           p_quantity: packageCount,
           p_package_size: packageSize > 0 ? packageSize : null,
           p_package_unit: packageSize > 0 ? item.package_unit : null,
@@ -219,6 +225,7 @@ export default function OperatorEntry() {
         emailItems.push({
           lot_code: displayLotCode(lotCode),
           product: cleanProductName(item.product),
+          box_count: boxCount,
           quantity: packageCount,
           previous_quantity: 0,
           new_quantity: packageCount,
@@ -317,7 +324,21 @@ export default function OperatorEntry() {
             <Field label="Producto">
               <input className="input" value={form.product} onChange={(event) => setForm({ ...form, product: event.target.value })} required />
             </Field>
-            <Field label="Cantidad de envases">
+            <Field label="Cantidad de cajas">
+              <input
+                className="input"
+                inputMode="decimal"
+                type="text"
+                value={form.box_count}
+                onChange={(event) => {
+                  const value = event.target.value.replace(',', '.')
+                  if (/^\d*\.?\d*$/.test(value)) setForm({ ...form, box_count: value })
+                }}
+                onWheel={(event) => event.currentTarget.blur()}
+                required
+              />
+            </Field>
+            <Field label="Envases (opcional)">
               <input
                 className="input"
                 inputMode="decimal"
@@ -328,7 +349,6 @@ export default function OperatorEntry() {
                   if (/^\d*\.?\d*$/.test(value)) setForm({ ...form, package_count: value })
                 }}
                 onWheel={(event) => event.currentTarget.blur()}
-                required
               />
             </Field>
             <Field label="Tamano presentacion">
@@ -370,6 +390,7 @@ export default function OperatorEntry() {
               <p className="mt-1 text-2xl font-black text-slate-950">
                 {formatNumber(equivalent)} {form.package_unit}
               </p>
+              <p className="mt-1 text-xs font-semibold text-slate-500">Se calcula con envases si los escribes.</p>
             </div>
             <button className="btn-primary sm:col-span-2" type="button" onClick={addEntryProduct}>
               {editingEntryId ? <Save size={20} /> : <Plus size={20} />}
@@ -390,11 +411,15 @@ export default function OperatorEntry() {
                         <div className="flex flex-wrap items-start gap-2">
                           <p className="min-w-0 flex-1 text-base font-black text-slate-950 [overflow-wrap:anywhere]">{cleanProductName(item.product)}</p>
                           <span className="rounded-lg bg-campo-50 px-2 py-1 text-sm font-black text-campo-800">
-                            {formatNumber(item.package_count)} env.
+                            {formatNumber(item.box_count)} cajas
                           </span>
                         </div>
                         <p className="text-xs font-semibold text-slate-500">
                           {item.lot_code ? displayLotCode(item.lot_code) : 'ID automatico'} - {item.location}
+                        </p>
+                        <p className="text-xs font-bold text-slate-600">
+                          Presentacion: {packageLabel(item) || 'Sin dato'}
+                          {Number(item.package_count || 0) > 0 ? ` - ${formatNumber(item.package_count)} env.` : ' - Envases sin dato'}
                         </p>
                         <p className="text-xs font-bold text-campo-700">
                           Equiv.: {formatNumber(Number(item.package_count || 0) * Number(item.package_size || 0))} {item.package_unit}
@@ -448,10 +473,13 @@ export default function OperatorEntry() {
                   <div key={item.id} className="rounded-lg bg-white p-2">
                     <div className="flex flex-wrap items-start justify-between gap-2">
                       <p className="font-black text-slate-950 [overflow-wrap:anywhere]">{cleanProductName(item.product)}</p>
-                      <p className="rounded-lg bg-campo-50 px-2 py-1 font-black text-campo-800">{formatNumber(item.package_count)} env.</p>
+                      <p className="rounded-lg bg-campo-50 px-2 py-1 font-black text-campo-800">{formatNumber(item.box_count)} cajas</p>
                     </div>
                     <p className="text-xs text-slate-500">
-                      {formatNumber(Number(item.package_count || 0) * Number(item.package_size || 0))} {item.package_unit} - {item.location}
+                      Presentacion: {packageLabel(item) || 'Sin dato'} - {Number(item.package_count || 0) > 0 ? `${formatNumber(item.package_count)} env.` : 'Envases sin dato'}
+                    </p>
+                    <p className="text-xs text-slate-500">
+                      Equiv.: {formatNumber(Number(item.package_count || 0) * Number(item.package_size || 0))} {item.package_unit} - {item.location}
                     </p>
                     <p className="text-xs text-slate-500">Vence: {item.expiry_date || 'Sin dato'}</p>
                   </div>
@@ -507,8 +535,11 @@ export default function OperatorEntry() {
                 <div key={item.id} className="rounded-lg bg-white p-2">
                   <div className="flex flex-wrap items-start justify-between gap-2">
                     <p className="font-black text-slate-950 [overflow-wrap:anywhere]">{cleanProductName(item.product)}</p>
-                    <p className="rounded-lg bg-campo-50 px-2 py-1 font-black text-campo-800">{formatNumber(item.package_count)} env.</p>
+                    <p className="rounded-lg bg-campo-50 px-2 py-1 font-black text-campo-800">{formatNumber(item.box_count)} cajas</p>
                   </div>
+                  <p className="text-xs text-slate-500">
+                    Presentacion: {packageLabel(item) || 'Sin dato'} - {Number(item.package_count || 0) > 0 ? `${formatNumber(item.package_count)} env.` : 'Envases sin dato'}
+                  </p>
                   <p className="text-xs text-slate-500">
                     {item.location} - vence {item.expiry_date || 'Sin dato'}
                   </p>
