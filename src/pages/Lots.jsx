@@ -36,6 +36,24 @@ function createManualLotCode() {
   return `MANUAL-${stamp}`
 }
 
+function lotEquivalent(lot) {
+  const packageSize = Number(lot?.package_size || 0)
+  if (packageSize <= 0 || !lot?.package_unit) return null
+  return {
+    quantity: Number(lot.current_quantity || 0) * packageSize,
+    unit: lot.package_unit,
+  }
+}
+
+function equivalentTotalsLabel(equivalents = {}) {
+  const totals = Object.entries(equivalents)
+    .filter(([, quantity]) => Number(quantity || 0) > 0)
+    .sort(([a], [b]) => a.localeCompare(b, 'es'))
+
+  if (totals.length === 0) return 'Equivalente sin dato'
+  return totals.map(([unit, quantity]) => `${formatNumber(quantity)} ${unit}`).join(' / ')
+}
+
 export default function Lots() {
   const { isAdmin } = useAuth()
   const navigate = useNavigate()
@@ -93,8 +111,12 @@ export default function Lots() {
   const productTotals = useMemo(() => {
     return lots.reduce((acc, lot) => {
       const key = productTotalKey(lot)
-      if (!acc[key]) acc[key] = { product: key, quantity: 0, lots: 0, lastMovementAt: null, movementCount: 0 }
+      if (!acc[key]) acc[key] = { product: key, quantity: 0, equivalents: {}, lots: 0, lastMovementAt: null, movementCount: 0 }
       acc[key].quantity += Number(lot.current_quantity || 0)
+      const equivalent = lotEquivalent(lot)
+      if (equivalent) {
+        acc[key].equivalents[equivalent.unit] = Number(acc[key].equivalents[equivalent.unit] || 0) + equivalent.quantity
+      }
       acc[key].lots += 1
       return acc
     }, {})
@@ -142,6 +164,13 @@ export default function Lots() {
         return values
           .filter(Boolean)
           .some((value) => value.toLowerCase().includes(term))
+      })
+      .sort((a, b) => {
+        const productOrder = cleanProductName(a.product).localeCompare(cleanProductName(b.product), 'es', { numeric: true })
+        if (productOrder !== 0) return productOrder
+        const clientOrder = (a.clients?.name || '').localeCompare(b.clients?.name || '', 'es', { numeric: true })
+        if (clientOrder !== 0) return clientOrder
+        return displayLotCode(a.lot_code).localeCompare(displayLotCode(b.lot_code), 'es', { numeric: true })
       })
       .slice(0, 30)
   }, [lots, search, searchBy])
@@ -272,9 +301,14 @@ export default function Lots() {
                         Vence: {lot.expiry_date ? formatDate(lot.expiry_date) : 'Sin dato'}
                       </p>
                     </div>
-                    <div className="inline-flex w-fit items-baseline gap-1 rounded-lg bg-campo-50 px-2.5 py-1 text-campo-800 sm:justify-self-end">
-                      <span className="text-base font-black sm:text-xl">{formatNumber(lot.current_quantity)}</span>
-                      <span className="text-xs font-bold text-campo-700">env.</span>
+                    <div className="w-fit rounded-lg bg-campo-50 px-2.5 py-1 text-campo-800 sm:justify-self-end sm:text-right">
+                      <div className="inline-flex items-baseline gap-1">
+                        <span className="text-base font-black sm:text-xl">{formatNumber(lot.current_quantity)}</span>
+                        <span className="text-xs font-bold text-campo-700">env.</span>
+                      </div>
+                      <p className="text-xs font-black text-campo-700">
+                        {lotEquivalent(lot) ? `${formatNumber(lotEquivalent(lot).quantity)} ${lotEquivalent(lot).unit}` : 'Equiv. sin dato'}
+                      </p>
                     </div>
                   </div>
                 </button>
@@ -309,7 +343,10 @@ export default function Lots() {
                     {item.lots} lotes{item.movementCount ? ` · ${item.movementCount} mov.` : ''}
                   </p>
                 </div>
-                <p className="w-fit rounded-lg bg-campo-50 px-2.5 py-1 text-sm font-black text-campo-700 sm:justify-self-end">{formatNumber(item.quantity)} env.</p>
+                <div className="w-fit rounded-lg bg-campo-50 px-2.5 py-1 text-campo-700 sm:justify-self-end sm:text-right">
+                  <p className="text-sm font-black">{formatNumber(item.quantity)} env.</p>
+                  <p className="text-xs font-black">{equivalentTotalsLabel(item.equivalents)}</p>
+                </div>
               </div>
             </button>
           ))}
