@@ -523,11 +523,9 @@ export default function DispatchList() {
                       </div>
                     </div>
                   </div>
-                  {!isApprovedDispatch ? (
-                    <button className="btn-secondary !min-h-10 !px-3" type="button" onClick={() => removeItem(item.lot.id)}>
-                      <Trash2 size={17} />
-                    </button>
-                  ) : null}
+                  <button className="btn-secondary !min-h-10 !px-3" type="button" onClick={() => removeItem(item.lot.id)} title="Quitar de la lista">
+                    <Trash2 size={17} />
+                  </button>
                 </div>
                 {days !== null && days <= 90 ? (
                   <div className={`mt-3 rounded-lg p-2 text-xs font-bold ${days < 0 ? 'bg-red-50 text-red-700' : 'bg-amber-50 text-amber-800'}`}>

@@ -228,14 +228,14 @@ export default function Lots() {
               filteredLots.map((lot) => (
                 <button
                   key={lot.id}
-                  className="rounded-lg bg-slate-50 p-3 text-left transition hover:bg-campo-50"
+                  className="w-full overflow-hidden rounded-lg bg-slate-50 p-3 text-left transition hover:bg-campo-50"
                   type="button"
                   onClick={() => navigate(`/lotes/${lot.id}`, { state: { fromLotsSearch: true, search } })}
                 >
-                  <div className="flex items-start justify-between gap-3">
+                  <div className="grid gap-2 sm:grid-cols-[1fr_auto] sm:items-start">
                     <div className="min-w-0">
-                      <p className="truncate font-bold text-slate-950">{cleanProductName(lot.product)}</p>
-                      <p className="text-sm font-semibold text-slate-500">
+                      <p className="text-sm font-black leading-snug text-slate-950 [overflow-wrap:anywhere] sm:text-base">{cleanProductName(lot.product)}</p>
+                      <p className="mt-1 text-xs font-semibold leading-snug text-slate-500 [overflow-wrap:anywhere] sm:text-sm">
                         {displayLotCode(lot.lot_code)} - {lot.clients?.name || '-'} - {lot.location || '-'}
                         {packageLabel(lot) ? ` - ${packageLabel(lot)}` : ''}
                       </p>
@@ -243,9 +243,9 @@ export default function Lots() {
                         Vence: {lot.expiry_date ? formatDate(lot.expiry_date) : 'Sin dato'}
                       </p>
                     </div>
-                    <div className="text-right">
-                      <p className="text-xl font-black text-campo-700">{formatNumber(lot.current_quantity)}</p>
-                      <p className="text-xs font-bold text-slate-500">env.</p>
+                    <div className="inline-flex w-fit items-baseline gap-1 rounded-lg bg-campo-50 px-2.5 py-1 text-campo-800 sm:justify-self-end">
+                      <span className="text-base font-black sm:text-xl">{formatNumber(lot.current_quantity)}</span>
+                      <span className="text-xs font-bold text-campo-700">env.</span>
                     </div>
                   </div>
                 </button>
@@ -268,18 +268,18 @@ export default function Lots() {
           {filteredProducts.map((item) => (
             <button
               key={item.product}
-              className="rounded-lg bg-slate-50 p-3 text-left transition hover:bg-campo-50"
+              className="w-full overflow-hidden rounded-lg bg-slate-50 p-3 text-left transition hover:bg-campo-50"
               type="button"
               onClick={() => navigate(`/productos/${encodeURIComponent(item.product)}`)}
             >
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <p className="text-sm font-bold text-slate-900">{item.product}</p>
+              <div className="grid gap-2 sm:grid-cols-[1fr_auto] sm:items-start">
+                <div className="min-w-0">
+                  <p className="text-sm font-bold leading-snug text-slate-900 [overflow-wrap:anywhere]">{item.product}</p>
                   <p className="mt-1 text-xs text-slate-500">
                     {item.lots} lotes{item.movementCount ? ` · ${item.movementCount} mov.` : ''}
                   </p>
                 </div>
-                <p className="whitespace-nowrap text-base font-bold text-campo-700">{formatNumber(item.quantity)}</p>
+                <p className="w-fit rounded-lg bg-campo-50 px-2.5 py-1 text-sm font-black text-campo-700 sm:justify-self-end">{formatNumber(item.quantity)} env.</p>
               </div>
             </button>
           ))}

@@ -15,6 +15,13 @@ body {
   min-width: 320px;
   min-height: 100vh;
   background: #f6f7f3;
+  overflow-x: hidden;
+  overscroll-behavior-x: none;
+}
+
+#root {
+  min-width: 0;
+  overflow-x: hidden;
 }
 
 .app-bg {
