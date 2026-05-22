@@ -156,18 +156,6 @@ export default function CorrectionRequests() {
                   <p className="rounded-lg bg-campo-50 px-2 py-1 text-sm font-black text-campo-800">
                     {group.items.length === 1 ? `${formatNumber(group.items[0].quantity)} env.` : `${group.items.length} items`}
                   </p>
-                  {group.items.length === 1 ? (
-                    <button
-                      className="mt-2 inline-flex min-h-8 items-center rounded-lg border border-orange-200 bg-white px-2.5 py-1 text-xs font-black text-orange-700 transition hover:bg-orange-50"
-                      type="button"
-                      onClick={(event) => {
-                        event.stopPropagation()
-                        openRequest(group.items[0])
-                      }}
-                    >
-                      Pedir correccion
-                    </button>
-                  ) : null}
                 </div>
               </div>
             </article>
