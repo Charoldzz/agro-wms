@@ -604,8 +604,8 @@ export default function OperatorEntry() {
       {entrySuccess ? (
         <div className="fixed inset-0 z-50 grid place-items-center bg-campo-700 p-6 text-white">
           <section className="w-full max-w-sm text-center">
-            <span className="mx-auto flex h-28 w-28 items-center justify-center rounded-full border border-white/25 bg-white/10 text-white shadow-2xl">
-              <CheckCircle2 size={76} strokeWidth={2.4} />
+            <span className="mx-auto flex h-40 w-40 items-center justify-center rounded-full border border-white/25 text-white">
+              <CheckCircle2 size={118} strokeWidth={1.8} />
             </span>
             <h2 className="mt-5 text-3xl font-black">Ingreso guardado</h2>
             <p className="mt-2 text-base font-semibold text-campo-50">
@@ -615,7 +615,7 @@ export default function OperatorEntry() {
               {entrySuccess.emailError ? 'Ingreso aplicado. Revisa el envio del correo a oficina.' : 'Entrada confirmada y correo enviado a oficina.'}
             </p>
             <button className="mt-6 inline-flex min-h-12 w-full items-center justify-center rounded-lg border border-white/20 bg-white/10 px-4 py-3 font-black text-white backdrop-blur transition active:scale-[0.99]" type="button" onClick={() => navigate(isOperator ? '/operacion' : '/')}>
-              Continuar
+              Volver a operar
             </button>
           </section>
         </div>

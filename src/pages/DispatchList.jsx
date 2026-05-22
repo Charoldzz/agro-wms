@@ -520,12 +520,14 @@ export default function DispatchList() {
           items.map((item) => {
             const days = expiryDays(item.lot.expiry_date)
             const equivalent = Number(item.package_count || 0) * Number(item.lot.package_size || 0)
+            const availableEquivalent = Number(item.lot.current_quantity || 0) * Number(item.lot.package_size || 0)
             return (
               <article key={item.lot.id} className="panel">
                 <ListProductCard
                   title={cleanProductName(item.lot.product)}
-                  envases={item.package_count || 0}
-                  equivalent={Number(item.lot.package_size) > 0 ? equivalent : null}
+                  envases={item.lot.current_quantity || 0}
+                  envasesLabel="env. disponibles"
+                  equivalent={Number(item.lot.package_size) > 0 ? availableEquivalent : null}
                   equivalentUnit={item.lot.package_unit}
                   presentation={packageLabel(item.lot) || 'Sin dato'}
                   secondary={`${displayLotCode(item.lot.lot_code)} - ${item.lot.location || '-'}`}
@@ -585,6 +587,9 @@ export default function DispatchList() {
                 <div className="mt-3 grid gap-3 sm:grid-cols-2">
                   <label>
                     <span className="label">Envases a despachar</span>
+                    <span className="mt-1 block rounded-lg bg-campo-50 px-3 py-2 text-sm font-black text-campo-800">
+                      Disponibles de referencia: {formatNumber(item.lot.current_quantity)} envases
+                    </span>
                     <input
                       className={`input mt-1 ${isApprovedDispatch ? 'bg-slate-100 font-black text-slate-700' : ''}`}
                       inputMode="decimal"
@@ -672,22 +677,16 @@ export default function DispatchList() {
       {receipt ? (
         <div className="fixed inset-0 z-50 grid place-items-center overflow-y-auto bg-campo-700 p-6 text-white">
           <section className="w-full max-w-md text-center">
-            <span className="mx-auto flex h-28 w-28 items-center justify-center rounded-full border border-white/25 bg-white/10 text-white shadow-2xl">
-              <CheckCircle2 size={76} strokeWidth={2.4} />
+            <span className="mx-auto flex h-40 w-40 items-center justify-center rounded-full border border-white/25 text-white">
+              <CheckCircle2 size={118} strokeWidth={1.8} />
             </span>
             <h3 className="mt-5 text-3xl font-black">Despacho guardado</h3>
-            <p className="mt-1 text-sm font-bold text-campo-50">{receipt.id}</p>
-            <div className="mt-4 grid gap-2 text-left text-sm font-bold text-white/90 sm:grid-cols-2">
-              <div>Productos: {receipt.items.length}</div>
-              <div>Recibe: {receipt.receiverName}</div>
-              <div>Documento: {receipt.receiverDocument}</div>
-              <div>Placa: {receipt.vehiclePlate || 'Sin placa'}</div>
-              {receipt.queued > 0 ? (
-                <div className="sm:col-span-2 rounded-lg border border-amber-100/30 bg-amber-100/15 p-2 text-amber-50">
-                  {receipt.queued} salida(s) offline quedan pendientes de revision admin.
-                </div>
-              ) : null}
-            </div>
+            <p className="mt-2 text-sm font-bold text-campo-50">El movimiento quedo registrado.</p>
+            {receipt.queued > 0 ? (
+              <p className="mt-3 rounded-lg border border-amber-100/30 bg-amber-100/15 p-2 text-sm font-bold text-amber-50">
+                {receipt.queued} salida(s) offline quedan pendientes de revision admin.
+              </p>
+            ) : null}
             <div className="mt-6 grid grid-cols-2 gap-2">
               <button className="inline-flex min-h-12 w-full items-center justify-center rounded-lg border border-white/25 bg-white/10 px-4 py-3 font-black text-white backdrop-blur transition active:scale-[0.99]" type="button" onClick={printReceipt}>
                 Imprimir

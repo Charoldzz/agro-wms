@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
-import { Camera, Download, Printer, QrCode, Save } from 'lucide-react'
+import { Camera, CheckCircle2, Download, Printer, QrCode, Save } from 'lucide-react'
 import PageHeader from '../components/PageHeader'
 import ListProductCard from '../components/ListProductCard'
 import { useAuth } from '../hooks/useAuth.jsx'
@@ -65,6 +65,7 @@ export default function LotDetail() {
   const [movementPhotoFile, setMovementPhotoFile] = useState(null)
   const [movementPhotoPreview, setMovementPhotoPreview] = useState('')
   const [showFullHistory, setShowFullHistory] = useState(false)
+  const [movementSuccess, setMovementSuccess] = useState(null)
 
   useEffect(() => {
     loadLot()
@@ -377,7 +378,14 @@ export default function LotDetail() {
         setPendingMovement(null)
         setEmailStatus('Sin señal: movimiento guardado en cola. Se sincronizara automaticamente al volver internet.')
         vibrateSuccess()
-        setTimeout(() => navigate(isOperator ? '/operacion' : '/'), 1200)
+        if (['ajuste', 'traslado'].includes(pendingMovement.type) && canRegisterMovement) {
+          setMovementSuccess({
+            title: pendingMovement.type === 'traslado' ? 'Traslado guardado' : 'Reparacion guardada',
+            text: pendingMovement.type === 'traslado' ? 'Quedo pendiente de revision al volver la senal.' : 'Quedo pendiente de revision al volver la senal.',
+          })
+        } else {
+          setTimeout(() => navigate(isOperator ? '/operacion' : '/'), 1200)
+        }
       } else if (rpcError.message.includes('inventario')) {
         setError('No hay inventario suficiente.')
         vibrateError()
@@ -401,7 +409,14 @@ export default function LotDetail() {
       setPendingMovement(null)
       await loadLot()
       vibrateSuccess()
-      if (canRegisterMovement) {
+      if (['ajuste', 'traslado'].includes(pendingMovement.type) && canRegisterMovement) {
+        setMovementSuccess({
+          title: pendingMovement.type === 'traslado' ? 'Traslado guardado' : 'Reparacion guardada',
+          text: isOperator
+            ? `${pendingMovement.type === 'traslado' ? 'Traslado' : 'Reparacion'} enviada a aprobacion.`
+            : `${pendingMovement.type === 'traslado' ? 'Traslado' : 'Reparacion'} aplicada.`,
+        })
+      } else if (canRegisterMovement) {
         setTimeout(() => navigate(isOperator ? '/operacion' : '/'), 900)
       }
     }
@@ -1063,6 +1078,21 @@ export default function LotDetail() {
               </button>
             </div>
           </div>
+        </div>
+      ) : null}
+
+      {movementSuccess ? (
+        <div className="fixed inset-0 z-50 grid place-items-center bg-campo-700 p-6 text-white">
+          <section className="w-full max-w-sm text-center">
+            <span className="mx-auto flex h-40 w-40 items-center justify-center rounded-full border border-white/25 text-white">
+              <CheckCircle2 size={118} strokeWidth={1.8} />
+            </span>
+            <h2 className="mt-5 text-3xl font-black">{movementSuccess.title}</h2>
+            <p className="mt-2 text-base font-semibold text-campo-50">{movementSuccess.text}</p>
+            <button className="mt-6 inline-flex min-h-12 w-full items-center justify-center rounded-lg border border-white/20 bg-white/10 px-4 py-3 font-black text-white backdrop-blur transition active:scale-[0.99]" type="button" onClick={() => navigate(isOperator ? '/operacion' : '/')}>
+              Volver a operar
+            </button>
+          </section>
         </div>
       ) : null}
 
