@@ -3,7 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom'
 import { BrowserQRCodeReader } from '@zxing/browser'
 import { BarcodeFormat, DecodeHintType } from '@zxing/library'
 import { Html5Qrcode } from 'html5-qrcode'
-import { Camera, ImagePlus, RefreshCcw } from 'lucide-react'
+import { Camera, ImagePlus, Search, TriangleAlert, RefreshCcw } from 'lucide-react'
 import PageHeader from '../components/PageHeader'
 import { supabase } from '../lib/supabase'
 
@@ -295,6 +295,14 @@ export default function Scanner() {
         </div>
 
         {error ? <p className="mt-4 rounded-lg bg-red-50 p-3 text-sm font-bold text-red-700">{error}</p> : null}
+        <button
+          className="btn-secondary mt-3 w-full justify-between"
+          type="button"
+          onClick={() => navigate('/lotes', { state: { qrFallback: true } })}
+        >
+          <span className="inline-flex items-center gap-2"><TriangleAlert size={18} /> QR no se puede leer</span>
+          <Search size={18} />
+        </button>
       </div>
 
       <div className="panel mt-4 space-y-3">

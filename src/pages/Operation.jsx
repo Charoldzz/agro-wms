@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { LogOut, PackagePlus, ScanLine, WifiOff, Wrench } from 'lucide-react'
+import { ClipboardPenLine, LogOut, PackagePlus, ScanLine, WifiOff, Wrench } from 'lucide-react'
 import PageHeader from '../components/PageHeader'
 import { cleanProductName, displayLotCode, packageLabel } from '../lib/display'
 import { formatDate, formatNumber, movementLabel } from '../lib/format'
@@ -187,6 +187,11 @@ export default function Operation() {
           <span>Consultar QR</span>
         </Link>
       </section>
+
+      <Link className="btn-secondary mt-3 w-full justify-between" to="/operacion/correcciones">
+        <span className="inline-flex items-center gap-2"><ClipboardPenLine size={20} /> Solicitar correccion operativa</span>
+        <span className="text-xs font-black text-slate-500">Sin borrar auditoria</span>
+      </Link>
 
       <section className="mt-5">
         <div className="mb-3 flex items-center justify-between gap-3">

@@ -1,5 +1,5 @@
 import { Outlet, NavLink, useLocation, useNavigate } from 'react-router-dom'
-import { ArrowLeft, Boxes, ClipboardList, Home, LogOut, ShieldAlert, Truck, Users, Warehouse } from 'lucide-react'
+import { ArrowLeft, Boxes, ClipboardList, Home, LogOut, RefreshCcw, ShieldAlert, Truck, Users, Warehouse, Wifi, WifiOff } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../hooks/useAuth.jsx'
@@ -21,6 +21,9 @@ export default function AppLayout() {
   const location = useLocation()
   const { profile, user } = useAuth()
   const [queuedMovements, setQueuedMovements] = useState(getQueuedMovementCount())
+  const [online, setOnline] = useState(navigator.onLine)
+  const [syncing, setSyncing] = useState(false)
+  const [lastSync, setLastSync] = useState('')
   const visibleNavItems =
     profile?.role === 'operador'
       ? navItems.filter((item) => item.roles?.includes('operador'))
@@ -48,20 +51,36 @@ export default function AppLayout() {
     if (!user) return undefined
 
     async function syncQueue() {
+      setOnline(navigator.onLine)
+      setSyncing(true)
       const result = await syncQueuedMovements()
       setQueuedMovements(result.remaining)
+      if (navigator.onLine) setLastSync(result.remaining ? 'Aun hay pendientes' : 'Sincronizado')
+      setSyncing(false)
     }
 
     syncQueue()
+    const offlineListener = () => setOnline(false)
     window.addEventListener('online', syncQueue)
+    window.addEventListener('offline', offlineListener)
     const queueListener = (event) => setQueuedMovements(event.detail || getQueuedMovementCount())
     window.addEventListener('offline-movement-queue', queueListener)
 
     return () => {
       window.removeEventListener('online', syncQueue)
+      window.removeEventListener('offline', offlineListener)
       window.removeEventListener('offline-movement-queue', queueListener)
     }
   }, [user])
+
+  async function syncNow() {
+    setSyncing(true)
+    const result = await syncQueuedMovements()
+    setQueuedMovements(result.remaining)
+    setOnline(navigator.onLine)
+    setLastSync(navigator.onLine && result.remaining === 0 ? 'Sincronizado' : result.remaining ? 'Pendiente de sincronizar' : '')
+    setSyncing(false)
+  }
 
   return (
     <div className="app-bg min-h-screen pb-[calc(6.5rem+env(safe-area-inset-bottom))]">
@@ -91,10 +110,30 @@ export default function AppLayout() {
             Volver
           </button>
         ) : null}
-        {queuedMovements > 0 ? (
-          <div className="mb-4 rounded-lg bg-amber-50 p-3 text-sm font-bold text-amber-800">
-            {queuedMovements} movimiento{queuedMovements === 1 ? '' : 's'} pendiente{queuedMovements === 1 ? '' : 's'} por sincronizar.
-          </div>
+        {!online || queuedMovements > 0 || lastSync ? (
+          <section className={`mb-4 rounded-lg border p-3 ${!online || queuedMovements > 0 ? 'border-amber-200 bg-amber-50 text-amber-900' : 'border-campo-100 bg-campo-50 text-campo-800'}`}>
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div className="flex min-w-0 items-start gap-2">
+                {!online ? <WifiOff className="mt-0.5 shrink-0" size={20} /> : <Wifi className="mt-0.5 shrink-0" size={20} />}
+                <div>
+                  <p className="font-black">{!online ? 'Sin internet' : queuedMovements > 0 ? 'Guardado pendiente de sincronizar' : 'Sincronizado'}</p>
+                  <p className="text-xs font-bold">
+                    {queuedMovements > 0
+                      ? `${queuedMovements} movimiento${queuedMovements === 1 ? '' : 's'} pendiente${queuedMovements === 1 ? '' : 's'}. No hagas salidas criticas sin revision.`
+                      : !online
+                        ? 'La app conserva borradores y cola offline cuando corresponde.'
+                        : 'Con senal estable puedes continuar operando.'}
+                  </p>
+                </div>
+              </div>
+              {online ? (
+                <button className="btn-secondary !min-h-10 !px-3 !py-2 text-xs" type="button" onClick={syncNow} disabled={syncing}>
+                  <RefreshCcw size={16} className={syncing ? 'animate-spin' : ''} />
+                  {syncing ? 'Sincronizando' : 'Sincronizar'}
+                </button>
+              ) : null}
+            </div>
+          </section>
         ) : null}
         <Outlet />
       </main>

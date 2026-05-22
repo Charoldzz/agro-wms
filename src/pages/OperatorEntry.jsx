@@ -9,6 +9,8 @@ import { formatNumber } from '../lib/format'
 import { cleanProductName, displayLotCode, packageLabel } from '../lib/display'
 import { vibrateSuccess } from '../lib/haptics'
 import { compressImageFile } from '../lib/image'
+import ConfirmChecks, { allConfirmChecksDone, emptyConfirmChecks } from '../components/ConfirmChecks'
+import { clearDraft, readDraft, writeDraft } from '../lib/drafts'
 
 const internalLocations = ['Nave 1', 'Nave 2', 'Nave 3', 'Playa']
 
@@ -28,6 +30,7 @@ const initialForm = {
   expiry_date: '',
   notes: '',
 }
+const ENTRY_DRAFT_KEY = 'todo-agricola-operator-entry-draft'
 
 function createOperatorLotCode(index = 0) {
   const stamp = new Date().toISOString().replace(/\D/g, '').slice(0, 14)
@@ -52,21 +55,27 @@ export default function OperatorEntry() {
   const navigate = useNavigate()
   const { user, isOperator } = useAuth()
   const [clients, setClients] = useState([])
-  const [form, setForm] = useState(initialForm)
-  const [entryItems, setEntryItems] = useState([])
+  const initialDraft = readDraft(ENTRY_DRAFT_KEY, { form: initialForm, entryItems: [], step: 1 })
+  const [form, setForm] = useState(initialDraft.form)
+  const [entryItems, setEntryItems] = useState(initialDraft.entryItems)
   const [editingEntryId, setEditingEntryId] = useState('')
   const [photoFile, setPhotoFile] = useState(null)
   const [photoPreview, setPhotoPreview] = useState('')
-  const [step, setStep] = useState(1)
+  const [step, setStep] = useState(initialDraft.step)
   const [confirming, setConfirming] = useState(false)
   const [error, setError] = useState('')
   const [status, setStatus] = useState('')
   const [saving, setSaving] = useState(false)
   const [entrySuccess, setEntrySuccess] = useState(null)
+  const [confirmChecks, setConfirmChecks] = useState(emptyConfirmChecks())
 
   useEffect(() => {
     loadClients()
   }, [])
+
+  useEffect(() => {
+    writeDraft(ENTRY_DRAFT_KEY, { form, entryItems, step })
+  }, [form, entryItems, step])
 
   async function loadClients() {
     const { data } = await supabase.from('clients').select('id, name, contact').order('name')
@@ -281,6 +290,7 @@ export default function OperatorEntry() {
       })
 
       vibrateSuccess()
+      clearDraft(ENTRY_DRAFT_KEY)
       setConfirming(false)
       setEntrySuccess({
         products: entryItems.length,
@@ -555,7 +565,7 @@ export default function OperatorEntry() {
               Siguiente <ChevronRight size={20} />
             </button>
           ) : (
-            <button className="btn-primary" type="button" onClick={() => setConfirming(true)} disabled={saving}>
+              <button className="btn-primary" type="button" onClick={() => setConfirming(true)} disabled={saving}>
               <Save size={20} /> Revisar ingreso
             </button>
           )}
@@ -593,11 +603,20 @@ export default function OperatorEntry() {
                 </div>
               ))}
             </div>
+            <ConfirmChecks
+              checks={confirmChecks}
+              onChange={setConfirmChecks}
+              items={[
+                { key: 'product', label: 'Productos correctos' },
+                { key: 'client', label: 'Cliente correcto' },
+                { key: 'quantity', label: 'Cantidades correctas' },
+              ]}
+            />
             <div className="mt-4 grid grid-cols-2 gap-2">
               <button className="btn-secondary w-full" type="button" onClick={() => setConfirming(false)} disabled={saving}>
                 Cancelar
               </button>
-              <button className="btn-primary w-full" type="button" onClick={createEntry} disabled={saving}>
+              <button className="btn-primary w-full" type="button" onClick={createEntry} disabled={saving || !allConfirmChecksDone(confirmChecks)}>
                 {saving ? <PackagePlus size={20} /> : <CheckCircle2 size={20} />}
                 {saving ? 'Guardando...' : 'Confirmar'}
               </button>

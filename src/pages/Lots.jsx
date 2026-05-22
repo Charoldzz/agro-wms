@@ -198,6 +198,12 @@ export default function Lots() {
         }
       />
 
+      {location.state?.qrFallback ? (
+        <div className="mb-4 rounded-lg border border-orange-200 bg-orange-50 p-3 text-sm font-bold text-orange-900">
+          Si el QR no se lee, busca el lote por producto, empresa, ubicacion, lote o codigo y reporta el problema desde la ficha.
+        </div>
+      ) : null}
+
       {showForm && isAdmin ? (
         <form className="panel mb-4 grid gap-3 sm:grid-cols-2" onSubmit={handleSubmit}>
           <Field label="ID lote">

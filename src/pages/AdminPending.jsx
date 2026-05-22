@@ -11,6 +11,8 @@ export default function AdminPending() {
   const { user } = useAuth()
   const [requests, setRequests] = useState([])
   const [movements, setMovements] = useState([])
+  const [corrections, setCorrections] = useState([])
+  const [issues, setIssues] = useState([])
   const [error, setError] = useState('')
 
   useEffect(() => {
@@ -20,13 +22,15 @@ export default function AdminPending() {
       .channel('admin-pending')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'client_dispatch_requests' }, loadPending)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'movements' }, loadPending)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'movement_correction_requests' }, loadPending)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'operational_issue_reports' }, loadPending)
       .subscribe()
 
     return () => supabase.removeChannel(channel)
   }, [])
 
   async function loadPending() {
-    const [requestResult, movementResult] = await Promise.all([
+    const [requestResult, movementResult, correctionResult, issueResult] = await Promise.all([
       supabase
         .from('client_dispatch_requests')
         .select('*, clients(name), lots(lot_code, product, current_quantity, package_size, package_unit, location)')
@@ -37,6 +41,16 @@ export default function AdminPending() {
         .select('*, lots(product, lot_code, current_quantity, location, clients(name)), profiles(full_name)')
         .in('type', ['ajuste', 'traslado', 'salida'])
         .eq('approval_status', 'pendiente')
+        .order('created_at', { ascending: false }),
+      supabase
+        .from('movement_correction_requests')
+        .select('*, movements(type, quantity, lots(lot_code, product, clients(name))), profiles!movement_correction_requests_requested_by_fkey(full_name)')
+        .eq('status', 'pendiente')
+        .order('created_at', { ascending: false }),
+      supabase
+        .from('operational_issue_reports')
+        .select('*, lots(lot_code, product, location, clients(name)), profiles!operational_issue_reports_reported_by_fkey(full_name)')
+        .eq('status', 'pendiente')
         .order('created_at', { ascending: false }),
     ])
 
@@ -71,6 +85,20 @@ export default function AdminPending() {
       } else {
         movementRows = await enrichMovements(data || [])
       }
+    }
+
+    if (correctionResult.error) {
+      if (!String(correctionResult.error.message || '').includes('movement_correction_requests')) loadErrors.push('correcciones')
+      setCorrections([])
+    } else {
+      setCorrections(correctionResult.data || [])
+    }
+
+    if (issueResult.error) {
+      if (!String(issueResult.error.message || '').includes('operational_issue_reports')) loadErrors.push('reportes operativos')
+      setIssues([])
+    } else {
+      setIssues(issueResult.data || [])
     }
 
     setError(loadErrors.length ? `No se pudieron cargar: ${loadErrors.join(', ')}.` : '')
@@ -134,7 +162,23 @@ export default function AdminPending() {
     loadPending()
   }
 
-  const total = requests.length + movements.length
+  async function reviewCorrection(id, action) {
+    await supabase.rpc(action === 'approve' ? 'approve_movement_correction' : 'reject_movement_correction', {
+      p_request_id: id,
+      p_user_id: user.id,
+    })
+    loadPending()
+  }
+
+  async function resolveIssue(id) {
+    await supabase
+      .from('operational_issue_reports')
+      .update({ status: 'resuelto', resolved_by: user.id, resolved_at: new Date().toISOString() })
+      .eq('id', id)
+    loadPending()
+  }
+
+  const total = requests.length + movements.length + corrections.length + issues.length
 
   return (
     <div>
@@ -242,6 +286,53 @@ export default function AdminPending() {
                   <Check size={18} /> Aprobar
                 </button>
               </div>
+            </article>
+          ))}
+
+          {corrections.map((correction) => (
+            <article key={correction.id} className="panel border-red-200 bg-red-50">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <p className="font-black text-slate-950">Solicitud de correccion</p>
+                  <p className="mt-1 font-black text-slate-900 [overflow-wrap:anywhere]">{cleanProductName(correction.movements?.lots?.product)}</p>
+                  <p className="text-xs font-semibold text-slate-500">
+                    {displayLotCode(correction.movements?.lots?.lot_code)} - {correction.movements?.lots?.clients?.name || '-'} - {correction.profiles?.full_name || 'Usuario'}
+                  </p>
+                </div>
+                <span className="rounded-full bg-white px-3 py-1 text-xs font-black text-red-700">Auditoria</span>
+              </div>
+              <div className="mt-3 grid gap-2 text-sm font-bold sm:grid-cols-2">
+                <p className="rounded-lg bg-white p-3">Registrado: {formatNumber(correction.movements?.quantity)} env.</p>
+                <p className="rounded-lg bg-white p-3">Correcto: {formatNumber(correction.requested_quantity)} env.</p>
+              </div>
+              <p className="mt-2 rounded-lg bg-white p-3 text-sm font-semibold text-slate-700">{correction.reason}</p>
+              <div className="mt-3 grid grid-cols-2 gap-2">
+                <button className="btn-secondary w-full" type="button" onClick={() => reviewCorrection(correction.id, 'reject')}>
+                  <X size={18} /> Rechazar
+                </button>
+                <button className="btn-primary w-full" type="button" onClick={() => reviewCorrection(correction.id, 'approve')}>
+                  <Check size={18} /> Aprobar
+                </button>
+              </div>
+            </article>
+          ))}
+
+          {issues.map((issue) => (
+            <article key={issue.id} className="panel border-slate-200 bg-white">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <p className="font-black text-slate-950">Reporte operativo: {issue.issue_type?.replaceAll('_', ' ')}</p>
+                  <p className="mt-1 font-black text-slate-900 [overflow-wrap:anywhere]">{cleanProductName(issue.lots?.product)}</p>
+                  <p className="text-xs font-semibold text-slate-500">
+                    {displayLotCode(issue.lots?.lot_code)} - {issue.lots?.clients?.name || '-'} - {issue.lots?.location || '-'}
+                  </p>
+                </div>
+                <span className="rounded-full bg-orange-50 px-3 py-1 text-xs font-black text-orange-700">Reporte</span>
+              </div>
+              {issue.notes ? <p className="mt-2 rounded-lg bg-slate-50 p-3 text-sm font-semibold text-slate-700">{issue.notes}</p> : null}
+              <button className="btn-primary mt-3 w-full" type="button" onClick={() => resolveIssue(issue.id)}>
+                <Check size={18} /> Marcar revisado
+              </button>
             </article>
           ))}
         </div>

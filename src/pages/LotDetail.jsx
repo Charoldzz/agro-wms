@@ -11,6 +11,9 @@ import { cleanProductName, displayLotCode } from '../lib/display'
 import { isNetworkMovementError, queueMovement } from '../lib/offlineQueue'
 import { compressImageFile } from '../lib/image'
 import { vibrateError, vibrateSuccess } from '../lib/haptics'
+import ConfirmChecks, { allConfirmChecksDone, emptyConfirmChecks } from '../components/ConfirmChecks'
+import OperationalIssueModal from '../components/OperationalIssueModal'
+import { clearDraft, readDraft, writeDraft } from '../lib/drafts'
 
 const initialMovement = {
   type: 'entrada',
@@ -66,6 +69,8 @@ export default function LotDetail() {
   const [movementPhotoPreview, setMovementPhotoPreview] = useState('')
   const [showFullHistory, setShowFullHistory] = useState(false)
   const [movementSuccess, setMovementSuccess] = useState(null)
+  const [confirmChecks, setConfirmChecks] = useState(emptyConfirmChecks())
+  const [showIssueReport, setShowIssueReport] = useState(false)
 
   useEffect(() => {
     loadLot()
@@ -200,6 +205,18 @@ export default function LotDetail() {
 
   const currentEquivalent = lot ? Number(lot.current_quantity || 0) * Number(lot.package_size || 0) : 0
   const visibleMovements = showFullHistory ? movements : movements.slice(0, 3)
+  const movementDraftKey = canRegisterMovement ? `todo-agricola-lot-movement-draft:${id}:${movementMode}` : ''
+
+  useEffect(() => {
+    if (!movementDraftKey) return
+    const draft = readDraft(movementDraftKey, { movement: initialMovement })
+    if (draft.movement) setMovement((value) => ({ ...value, ...draft.movement }))
+  }, [movementDraftKey])
+
+  useEffect(() => {
+    if (!movementDraftKey) return
+    writeDraft(movementDraftKey, { movement })
+  }, [movementDraftKey, movement])
 
   async function handleSubmit(event) {
     event.preventDefault()
@@ -376,6 +393,7 @@ export default function LotDetail() {
           email: emailPayload,
         })
         setMovement(initialMovement)
+        clearDraft(movementDraftKey)
         setMovementPhotoFile(null)
         setMovementPhotoPreview('')
         setPendingMovement(null)
@@ -407,6 +425,7 @@ export default function LotDetail() {
         setEmailStatus('Movimiento guardado.')
       }
       setMovement(initialMovement)
+      clearDraft(movementDraftKey)
       setMovementPhotoFile(null)
       setMovementPhotoPreview('')
       setPendingMovement(null)
@@ -706,7 +725,11 @@ export default function LotDetail() {
             <ConsultInfo label="Vencimiento" value={lot.expiry_date ? formatDate(lot.expiry_date) : 'Sin dato'} />
             <ConsultInfo label="Fecha ingreso" value={lot.entry_date ? formatDate(lot.entry_date) : 'Sin dato'} />
           </div>
+          <button className="btn-secondary mt-4 w-full" type="button" onClick={() => setShowIssueReport(true)}>
+            Reportar problema
+          </button>
         </section>
+        {showIssueReport ? <OperationalIssueModal lot={lot} userId={user.id} onClose={() => setShowIssueReport(false)} /> : null}
       </div>
     )
   }
@@ -901,6 +924,12 @@ export default function LotDetail() {
         <div className="mb-4 rounded-lg bg-amber-50 p-4 text-sm font-bold text-amber-800">
           Alerta: este lote esta {lot.status}. Las salidas quedan bloqueadas si el lote esta retenido o cerrado.
         </div>
+      ) : null}
+
+      {isOperator ? (
+        <button className="btn-secondary mb-4 w-full sm:w-auto" type="button" onClick={() => setShowIssueReport(true)}>
+          Reportar problema
+        </button>
       ) : null}
 
       {isExpired ? (
@@ -1294,12 +1323,13 @@ export default function LotDetail() {
                 FEFO advierte que hay un lote con vencimiento anterior.
               </div>
             ) : null}
+            <ConfirmChecks checks={confirmChecks} onChange={setConfirmChecks} />
 
             <div className="mt-4 grid grid-cols-2 gap-2">
               <button className="btn-secondary w-full" type="button" onClick={() => setPendingMovement(null)} disabled={saving}>
                 Cancelar
               </button>
-              <button className="btn-primary w-full" type="button" onClick={confirmMovement} disabled={saving}>
+              <button className="btn-primary w-full" type="button" onClick={confirmMovement} disabled={saving || !allConfirmChecksDone(confirmChecks)}>
                 {saving ? 'Guardando...' : 'Confirmar'}
               </button>
             </div>
@@ -1365,6 +1395,7 @@ export default function LotDetail() {
           ))}
         </div>
       </section>
+      {showIssueReport ? <OperationalIssueModal lot={lot} userId={user.id} onClose={() => setShowIssueReport(false)} /> : null}
     </div>
   )
 }

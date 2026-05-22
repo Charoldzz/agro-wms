@@ -21,6 +21,7 @@ import QrGate from './pages/QrGate'
 import ClientPortal from './pages/ClientPortal'
 import ClientRequestsAdmin from './pages/ClientRequestsAdmin'
 import AdminPending from './pages/AdminPending'
+import CorrectionRequests from './pages/CorrectionRequests'
 import { isSupabaseConfigured } from './lib/supabase'
 
 function ProtectedRoute({ children }) {
@@ -62,6 +63,7 @@ function AppRoutes() {
         <Route path="operacion/nuevo-ingreso" element={<RoleRoute roles={['administrador', 'operador']}><OperatorEntry /></RoleRoute>} />
         <Route path="operacion/despacho-lista" element={<RoleRoute roles={['administrador', 'operador']}><DispatchList /></RoleRoute>} />
         <Route path="operacion/reparacion-traslado" element={<RoleRoute roles={['administrador', 'operador']}><OperatorService /></RoleRoute>} />
+        <Route path="operacion/correcciones" element={<RoleRoute roles={['administrador', 'operador']}><CorrectionRequests /></RoleRoute>} />
         <Route path="clientes" element={<RoleRoute roles={['administrador']}><Clients /></RoleRoute>} />
         <Route path="lotes" element={<RoleRoute roles={['administrador', 'operador', 'cliente']}><Lots /></RoleRoute>} />
         <Route path="lotes/:id" element={<LotDetail />} />

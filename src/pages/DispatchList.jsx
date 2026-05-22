@@ -10,35 +10,13 @@ import { formatDate, formatNumber } from '../lib/format'
 import { isNetworkMovementError, queueMovement } from '../lib/offlineQueue'
 import { supabase } from '../lib/supabase'
 import { vibrateError, vibrateSuccess, vibrateWarning } from '../lib/haptics'
+import ConfirmChecks, { allConfirmChecksDone, emptyConfirmChecks } from '../components/ConfirmChecks'
+import { clearDraft, readDraft, writeDraft } from '../lib/drafts'
 
 const DISPATCH_DRAFT_KEY = 'todo-agricola-dispatch-list-draft'
 
 function emptyDraft() {
   return { items: [], receiverName: '', receiverDocument: '', vehiclePlate: '', dispatchNotes: '' }
-}
-
-function readDraft(key) {
-  try {
-    const draft = JSON.parse(sessionStorage.getItem(key) || 'null')
-    if (!draft) return emptyDraft()
-    return {
-      items: Array.isArray(draft.items) ? draft.items : [],
-      receiverName: draft.receiverName || '',
-      receiverDocument: draft.receiverDocument || '',
-      vehiclePlate: draft.vehiclePlate || '',
-      dispatchNotes: draft.dispatchNotes || '',
-    }
-  } catch {
-    return emptyDraft()
-  }
-}
-
-function writeDraft(key, draft) {
-  sessionStorage.setItem(key, JSON.stringify(draft))
-}
-
-function clearDraft(key) {
-  sessionStorage.removeItem(key)
 }
 
 function expiryDays(expiryDate) {
@@ -63,7 +41,7 @@ export default function DispatchList() {
   const requestId = new URLSearchParams(location.search).get('request')
   const startNew = new URLSearchParams(location.search).get('nuevo') === '1'
   const draftKey = requestId ? `${DISPATCH_DRAFT_KEY}:${requestId}` : `${DISPATCH_DRAFT_KEY}:manual`
-  const initialDraft = startNew ? emptyDraft() : readDraft(draftKey)
+  const initialDraft = startNew ? emptyDraft() : readDraft(draftKey, emptyDraft())
   const [items, setItems] = useState(initialDraft.items)
   const [receiverName, setReceiverName] = useState(initialDraft.receiverName)
   const [receiverDocument, setReceiverDocument] = useState(initialDraft.receiverDocument)
@@ -77,6 +55,7 @@ export default function DispatchList() {
   const [approvedRequest, setApprovedRequest] = useState(null)
   const [approvedRequestLoaded, setApprovedRequestLoaded] = useState(false)
   const [focusedLotId, setFocusedLotId] = useState('')
+  const [confirmChecks, setConfirmChecks] = useState(emptyConfirmChecks())
 
   const isApprovedDispatch = Boolean(requestId)
 
@@ -88,7 +67,7 @@ export default function DispatchList() {
       return
     }
 
-    const draft = readDraft(draftKey)
+    const draft = readDraft(draftKey, emptyDraft())
     setItems(draft.items)
     setReceiverName(draft.receiverName)
     setReceiverDocument(draft.receiverDocument)
@@ -679,12 +658,13 @@ export default function DispatchList() {
                 )
               })}
             </div>
+            <ConfirmChecks checks={confirmChecks} onChange={setConfirmChecks} />
 
             <div className="mt-4 grid grid-cols-2 gap-2">
               <button className="btn-secondary w-full" type="button" onClick={() => setConfirming(false)} disabled={saving}>
                 Cancelar
               </button>
-              <button className="btn-primary w-full" type="button" onClick={confirmDispatch} disabled={saving}>
+              <button className="btn-primary w-full" type="button" onClick={confirmDispatch} disabled={saving || !allConfirmChecksDone(confirmChecks)}>
                 {saving ? <LogOut size={20} /> : <CheckCircle2 size={20} />}
                 {saving ? 'Guardando...' : 'Confirmar'}
               </button>
