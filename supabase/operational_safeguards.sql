@@ -153,6 +153,10 @@ begin
     raise exception 'La correccion de cantidad requiere cantidad correcta.';
   end if;
 
+  if p_correction_type = 'cantidad' and v_movement.type = 'salida' and p_requested_quantity > v_movement.previous_quantity then
+    raise exception 'No hay inventario suficiente para esa correccion.';
+  end if;
+
   if p_correction_type = 'ficha' and coalesce(p_lot_patch, '{}'::jsonb) = '{}'::jsonb then
     raise exception 'La correccion de ficha requiere cambios.';
   end if;
@@ -205,6 +209,10 @@ begin
   select * into v_lot from public.lots where id = v_movement.lot_id for update;
 
   if v_request.correction_type = 'cantidad' then
+    if v_movement.type = 'salida' and v_request.requested_quantity > v_movement.previous_quantity then
+      raise exception 'No hay inventario suficiente para esa correccion.';
+    end if;
+
     v_delta := case
       when v_movement.type = 'entrada' then v_request.requested_quantity - v_movement.quantity
       when v_movement.type = 'salida' then v_movement.quantity - v_request.requested_quantity

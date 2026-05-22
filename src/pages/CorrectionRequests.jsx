@@ -59,6 +59,10 @@ export default function CorrectionRequests() {
       setError('Escribe la cantidad correcta.')
       return
     }
+    if (correctionType === 'cantidad' && exceedsCorrectionStock(selected, quantity)) {
+      setError('No hay inventario suficiente para esa correccion.')
+      return
+    }
     const requestedPatch = changedLotPatch(selected, lotPatch)
     if (correctionType === 'ficha' && Object.keys(requestedPatch).length === 0) {
       setError('Cambia al menos un dato de la ficha.')
@@ -204,11 +208,7 @@ export default function CorrectionRequests() {
               </button>
             </div>
             {correctionType === 'cantidad' ? (
-              <label className="mt-3 block">
-                <span className="label">Cantidad correcta</span>
-                <input className="input mt-1" inputMode="decimal" value={quantity} onChange={(event) => setQuantity(event.target.value.replace(',', '.'))} />
-                <span className="mt-1 block text-xs font-semibold text-slate-500">Registrado: {formatNumber(selected.quantity)} env.</span>
-              </label>
+              <QuantityCorrectionFields movement={selected} quantity={quantity} onChange={setQuantity} />
             ) : (
               <LotPatchForm patch={lotPatch} clients={clients} onChange={setLotPatch} />
             )}
@@ -228,6 +228,29 @@ export default function CorrectionRequests() {
           </section>
         </div>
       ) : null}
+    </div>
+  )
+}
+
+function QuantityCorrectionFields({ movement, quantity, onChange }) {
+  const stockReference = correctionStockReference(movement)
+
+  return (
+    <div className="mt-3">
+      <div className="rounded-lg bg-campo-50 px-3 py-2">
+        <p className="text-xs font-black uppercase text-campo-700">{stockReference.label}</p>
+        <p className="mt-0.5 text-lg font-black text-slate-950">{formatNumber(stockReference.quantity)} env.</p>
+      </div>
+      <div className="mt-2 grid grid-cols-[minmax(0,0.82fr)_minmax(0,1fr)] gap-2">
+        <label className="block min-w-0">
+          <span className="label">Cantidad previa</span>
+          <input className="input mt-1 bg-slate-50 text-slate-500" value={formatNumber(movement.quantity)} readOnly />
+        </label>
+        <label className="block min-w-0">
+          <span className="label">Cantidad correcta</span>
+          <input className="input mt-1" inputMode="decimal" value={quantity} onChange={(event) => onChange(event.target.value.replace(',', '.'))} />
+        </label>
+      </div>
     </div>
   )
 }
@@ -299,6 +322,24 @@ function changedLotPatch(movement, patch) {
   return Object.fromEntries(
     Object.entries(patch).filter(([key, value]) => String(value ?? '').trim() !== String(original[key] ?? '').trim()),
   )
+}
+
+function correctionStockReference(movement) {
+  if (movement.type === 'salida') {
+    return {
+      label: 'Disponible al registrar la salida',
+      quantity: Number(movement.previous_quantity || 0),
+    }
+  }
+
+  return {
+    label: 'Stock despues del ingreso',
+    quantity: Number(movement.new_quantity || 0),
+  }
+}
+
+function exceedsCorrectionStock(movement, value) {
+  return movement.type === 'salida' && Number(value || 0) > Number(movement.previous_quantity || 0)
 }
 
 function MovementDetail({ group, onClose, onRequest }) {
