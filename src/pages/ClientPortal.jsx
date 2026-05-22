@@ -69,6 +69,7 @@ export default function ClientPortal() {
   const [requestQuantity, setRequestQuantity] = useState(initialDraft.quantity)
   const [requestNotes, setRequestNotes] = useState(initialDraft.notes)
   const [requestItems, setRequestItems] = useState(initialDraft.items)
+  const [editingRequestLotId, setEditingRequestLotId] = useState('')
   const [requestMessage, setRequestMessage] = useState('')
 
   useEffect(() => {
@@ -131,11 +132,12 @@ export default function ClientPortal() {
   const clientName = lots[0]?.clients?.name || 'Cliente'
   const dispatchReceipts = movements.filter((movement) => movement.type === 'salida')
   const history = movements.slice(0, 12)
+  const selectedRequestLot = lots.find((lot) => lot.id === requestLotId)
 
   function addRequestItem() {
     setRequestMessage('')
 
-    const selectedLot = lots.find((lot) => lot.id === requestLotId)
+    const selectedLot = selectedRequestLot
     const quantity = Number(requestQuantity || 0)
 
     if (!selectedLot) {
@@ -146,13 +148,30 @@ export default function ClientPortal() {
       setRequestMessage('Escribe una cantidad mayor a cero.')
       return
     }
+    if (quantity > Number(selectedLot.current_quantity || 0)) {
+      setRequestMessage('La cantidad solicitada supera los envases disponibles en ese lote.')
+      return
+    }
+    if (lotStatus(selectedLot).label !== 'Disponible' && lotStatus(selectedLot).label !== 'Por vencer') {
+      setRequestMessage('Este lote no esta disponible para solicitar despacho.')
+      return
+    }
 
     setRequestItems((current) => {
       const existing = current.find((item) => item.lot_id === selectedLot.id)
       if (existing) {
+        const nextQuantity = editingRequestLotId === selectedLot.id ? quantity : Number(existing.quantity || 0) + quantity
+        if (nextQuantity > Number(selectedLot.current_quantity || 0)) {
+          setRequestMessage('Ese lote no tiene suficientes envases disponibles para sumar esa cantidad.')
+          return current
+        }
         return current.map((item) =>
           item.lot_id === selectedLot.id
-            ? { ...item, quantity: item.quantity + quantity }
+            ? {
+                ...item,
+                quantity: nextQuantity,
+                available: selectedLot.current_quantity,
+              }
             : item,
         )
       }
@@ -172,10 +191,23 @@ export default function ClientPortal() {
     })
     setRequestLotId('')
     setRequestQuantity('')
+    setEditingRequestLotId('')
   }
 
   function removeRequestItem(lotId) {
     setRequestItems((current) => current.filter((item) => item.lot_id !== lotId))
+    if (editingRequestLotId === lotId) {
+      setEditingRequestLotId('')
+      setRequestLotId('')
+      setRequestQuantity('')
+    }
+  }
+
+  function editRequestItem(item) {
+    setEditingRequestLotId(item.lot_id)
+    setRequestLotId(item.lot_id)
+    setRequestQuantity(String(item.quantity || ''))
+    setRequestMessage('Editando producto de la solicitud.')
   }
 
   function clearRequestCart() {
@@ -183,6 +215,7 @@ export default function ClientPortal() {
     setRequestQuantity('')
     setRequestItems([])
     setRequestNotes('')
+    setEditingRequestLotId('')
     setRequestMessage('')
     clearRequestDraft()
   }
@@ -212,6 +245,7 @@ export default function ClientPortal() {
       quantity: totalQuantity,
       items: requestItems,
       notes: requestNotes.trim() || null,
+      status: 'aprobado',
       requested_by: user.id,
     })
 
@@ -224,8 +258,9 @@ export default function ClientPortal() {
     setRequestQuantity('')
     setRequestItems([])
     setRequestNotes('')
+    setEditingRequestLotId('')
     clearRequestDraft()
-    setRequestMessage('Solicitud enviada. Administracion la revisara.')
+    setRequestMessage('Solicitud enviada a almacen. Ya aparece como despacho pendiente para el operario.')
     loadData()
   }
 
@@ -425,9 +460,12 @@ export default function ClientPortal() {
 
         <aside className="space-y-4">
           <section className="panel">
-            <div className="mb-3 flex items-center gap-2">
-              <Send size={20} className="text-campo-700" />
-              <h3 className="font-bold text-slate-950">Solicitar despacho</h3>
+            <div className="mb-3 flex items-start gap-2">
+              <Send size={20} className="mt-0.5 text-campo-700" />
+              <div>
+                <h3 className="font-bold text-slate-950">Solicitar despacho</h3>
+                <p className="text-xs font-semibold text-slate-500">Arma una lista por producto. Al enviarla, almacen la recibe directamente.</p>
+              </div>
             </div>
             <form className="space-y-3" onSubmit={createDispatchRequest} noValidate>
               <label>
@@ -441,6 +479,24 @@ export default function ClientPortal() {
                   ))}
                 </select>
               </label>
+              {selectedRequestLot ? (
+                <div className="rounded-lg border border-campo-100 bg-campo-50/80 p-3">
+                  <div className="flex flex-wrap items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <p className="font-black text-slate-950 [overflow-wrap:anywhere]">{cleanProductName(selectedRequestLot.product)}</p>
+                      <p className="text-xs font-bold text-slate-600">
+                        Presentacion: {packageLabel(selectedRequestLot) || 'Sin dato'} - Lote {displayLotCode(selectedRequestLot.lot_code)}
+                      </p>
+                    </div>
+                    <span className="rounded-lg bg-white px-2 py-1 text-sm font-black text-campo-800">
+                      {formatNumber(selectedRequestLot.current_quantity)} env. disponibles
+                    </span>
+                  </div>
+                  <p className="mt-2 text-xs font-semibold text-slate-500">
+                    {selectedRequestLot.location || '-'} - {lotStatus(selectedRequestLot).label}
+                  </p>
+                </div>
+              ) : null}
               <label>
                 <span className="label">Envases solicitados</span>
                 <input
@@ -455,10 +511,16 @@ export default function ClientPortal() {
                 />
               </label>
               <button className="btn-secondary w-full" type="button" onClick={addRequestItem}>
-                <Plus size={20} /> Agregar a la lista
+                <Plus size={20} /> {editingRequestLotId ? 'Guardar cambio en lista' : 'Agregar a la lista'}
               </button>
               {requestItems.length > 0 ? (
                 <div className="space-y-2 rounded-lg bg-slate-50 p-2">
+                  <div className="rounded-lg bg-white p-3">
+                    <p className="text-xs font-bold uppercase text-campo-700">Lista de despacho</p>
+                    <p className="text-sm font-semibold text-slate-600">
+                      {requestItems.length} producto{requestItems.length === 1 ? '' : 's'} agregado{requestItems.length === 1 ? '' : 's'}. Revisa cada cantidad antes de enviar.
+                    </p>
+                  </div>
                   {requestItems.map((item) => (
                     <ListProductCard
                       key={item.lot_id}
@@ -477,6 +539,7 @@ export default function ClientPortal() {
                         { label: 'Ubicacion', value: item.location || '-' },
                         { label: 'Disponible', value: `${formatNumber(item.available)} env.` },
                       ]}
+                      onEdit={() => editRequestItem(item)}
                       onRemove={() => removeRequestItem(item.lot_id)}
                     />
                   ))}
@@ -510,7 +573,7 @@ export default function ClientPortal() {
           </section>
 
           <section className="rounded-lg border border-slate-200 bg-white/80 p-3 text-xs font-semibold text-slate-500">
-            La informacion del portal es referencial y queda sujeta a validacion operativa de Todo Agricola. Las solicitudes de despacho requieren aprobacion antes de ejecutarse.
+            La informacion del portal es referencial y queda sujeta a validacion operativa de Todo Agricola. La solicitud pasa directo a almacen para preparar el despacho.
           </section>
         </aside>
       </section>
@@ -558,13 +621,13 @@ export default function ClientPortal() {
               <div key={request.id} className="rounded-lg bg-slate-50 p-3">
                 <div className="flex justify-between gap-3">
                 <p className="font-bold text-slate-950">{cleanProductName(request.product || request.lots?.product)}</p>
-                  <span className={`rounded-full px-2 py-1 text-xs font-bold ${request.status === 'aprobado' ? 'bg-campo-50 text-campo-700' : request.status === 'rechazado' ? 'bg-red-50 text-red-700' : 'bg-amber-50 text-amber-800'}`}>
-                    {request.status}
+                  <span className={`rounded-full px-2 py-1 text-xs font-bold ${request.status === 'aprobado' ? 'bg-campo-50 text-campo-700' : request.status === 'rechazado' ? 'bg-red-50 text-red-700' : request.status === 'despachado' ? 'bg-slate-100 text-slate-700' : 'bg-amber-50 text-amber-800'}`}>
+                    {clientRequestStatusLabel(request.status)}
                   </span>
                 </div>
                 <p className="text-sm font-semibold text-slate-500">
                   {Array.isArray(request.items) && request.items.length > 1
-                    ? `${request.items.length} productos - ${formatNumber(request.quantity)} env.`
+                    ? `${request.items.length} productos en la solicitud`
                     : `${displayLotCode(request.lots?.lot_code)} - ${formatNumber(request.quantity)} env.`}
                 </p>
                 <p className="mt-1 text-xs font-semibold text-slate-400">{formatDate(request.created_at)}</p>
@@ -600,4 +663,11 @@ function Panel({ title, icon: Icon, children }) {
       <div className="max-h-[360px] space-y-2 overflow-y-auto pr-1">{children}</div>
     </section>
   )
+}
+
+function clientRequestStatusLabel(status) {
+  if (status === 'aprobado') return 'En almacen'
+  if (status === 'despachado') return 'Despachado'
+  if (status === 'rechazado') return 'No atendido'
+  return 'Recibido'
 }

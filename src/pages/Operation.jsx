@@ -9,7 +9,7 @@ import { supabase } from '../lib/supabase'
 
 export default function Operation() {
   const [lots, setLots] = useState([])
-  const [approvedRequests, setApprovedRequests] = useState([])
+  const [dispatchRequests, setDispatchRequests] = useState([])
   const [pendingMovements, setPendingMovements] = useState([])
   const [online, setOnline] = useState(navigator.onLine)
   const [queuedCount, setQueuedCount] = useState(getQueuedMovementCount())
@@ -50,7 +50,7 @@ export default function Operation() {
         .from('client_dispatch_requests')
         .select('*, clients(name), lots(lot_code, product, current_quantity, package_size, package_unit, location, expiry_date)')
         .eq('status', 'aprobado')
-        .order('reviewed_at', { ascending: false })
+        .order('created_at', { ascending: false })
         .limit(40),
       supabase
         .from('movements')
@@ -62,7 +62,7 @@ export default function Operation() {
     ])
 
     setLots(lotData || [])
-    setApprovedRequests(requestData || [])
+    setDispatchRequests(requestData || [])
     setPendingMovements(movementData || [])
   }
 
@@ -79,8 +79,8 @@ export default function Operation() {
       .sort((a, b) => a.daysLeft - b.daysLeft)
   }, [lots])
 
-  function renderApprovedRequests(requests, fullDetails = false) {
-    if (requests.length === 0) return <p className="rounded-lg bg-slate-50 p-3 text-sm font-bold text-slate-500">Sin despachos aprobados.</p>
+  function renderDispatchRequests(requests, fullDetails = false) {
+    if (requests.length === 0) return <p className="rounded-lg bg-slate-50 p-3 text-sm font-bold text-slate-500">Sin despachos solicitados.</p>
     return requests.map((request) => (
       <article key={request.id} className="rounded-lg bg-amber-50 p-3">
         <p className="font-bold text-slate-950">{request.clients?.name || 'Cliente'}</p>
@@ -192,12 +192,12 @@ export default function Operation() {
         <div className="mb-3 flex items-center justify-between gap-3">
           <h3 className="text-sm font-bold uppercase text-slate-500">Trabajo del dia</h3>
           <span className="rounded-full bg-campo-50 px-3 py-1 text-xs font-bold text-campo-700">
-            {approvedRequests.length + pendingMovements.length + expiringLots.length} avisos
+            {dispatchRequests.length + pendingMovements.length + expiringLots.length} avisos
           </span>
         </div>
         <div className="grid gap-3 lg:grid-cols-3">
-          <WorkPanel title="Despachos aprobados" count={approvedRequests.length} onViewAll={() => setWorkModal('despachos')}>
-            {renderApprovedRequests(approvedRequests.slice(0, 3))}
+          <WorkPanel title="Despachos pendientes" count={dispatchRequests.length} onViewAll={() => setWorkModal('despachos')}>
+            {renderDispatchRequests(dispatchRequests.slice(0, 3))}
           </WorkPanel>
 
           <WorkPanel title="Revisiones pendientes" count={pendingMovements.length} onViewAll={() => setWorkModal('revisiones')}>
@@ -211,8 +211,8 @@ export default function Operation() {
       </section>
 
       {workModal ? (
-        <WorkModal title={workModal === 'despachos' ? 'Despachos aprobados' : workModal === 'revisiones' ? 'Revisiones pendientes' : 'Alertas de vencimiento'} onClose={() => setWorkModal('')}>
-          {workModal === 'despachos' ? renderApprovedRequests(approvedRequests, true) : null}
+        <WorkModal title={workModal === 'despachos' ? 'Despachos pendientes' : workModal === 'revisiones' ? 'Revisiones pendientes' : 'Alertas de vencimiento'} onClose={() => setWorkModal('')}>
+          {workModal === 'despachos' ? renderDispatchRequests(dispatchRequests, true) : null}
           {workModal === 'revisiones' ? renderPendingMovements(pendingMovements) : null}
           {workModal === 'vencimientos' ? renderExpiringLots(expiringLots) : null}
         </WorkModal>

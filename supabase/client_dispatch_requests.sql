@@ -23,7 +23,7 @@ create table if not exists public.client_dispatch_requests (
   quantity numeric(12, 2) not null check (quantity > 0),
   items jsonb not null default '[]'::jsonb,
   notes text,
-  status text not null default 'pendiente' check (status in ('pendiente', 'aprobado', 'rechazado', 'despachado')),
+  status text not null default 'aprobado' check (status in ('pendiente', 'aprobado', 'rechazado', 'despachado')),
   admin_notes text,
   requested_by uuid not null constraint client_dispatch_requests_requested_by_fkey references public.profiles(id),
   reviewed_by uuid constraint client_dispatch_requests_reviewed_by_fkey references public.profiles(id),
@@ -63,6 +63,9 @@ on public.client_dispatch_requests for insert
 to authenticated
 with check (
   requested_by = auth.uid()
+  and status = 'aprobado'
+  and reviewed_by is null
+  and reviewed_at is null
   and exists (
     select 1
     from public.profiles p
@@ -126,6 +129,13 @@ check (status in ('pendiente', 'aprobado', 'rechazado', 'despachado'));
 
 alter table public.client_dispatch_requests
 add column if not exists items jsonb not null default '[]'::jsonb;
+
+alter table public.client_dispatch_requests
+alter column status set default 'aprobado';
+
+update public.client_dispatch_requests
+set status = 'aprobado'
+where status = 'pendiente';
 
 create or replace function public.complete_client_dispatch_request(
   p_request_id uuid,
