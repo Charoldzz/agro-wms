@@ -51,6 +51,10 @@ function entryPackageBreakdown(item) {
   return pieces.join(' - ') || 'Sin empaque'
 }
 
+function isMissingOperationRpc(error) {
+  return String(error?.message || '').includes('create_entry_operation')
+}
+
 export default function OperatorEntry() {
   const navigate = useNavigate()
   const { user, isOperator } = useAuth()
@@ -232,35 +236,43 @@ export default function OperatorEntry() {
 
     try {
       const photoUrl = await uploadPhoto(createOperatorLotCode())
-      const emailItems = []
+      const operationItems = entryItems.map((item, index) => ({
+        lot_code: item.lot_code || createOperatorLotCode(index),
+        product: item.product,
+        box_count: Number(item.box_count || 0),
+        units_per_box: Number(item.units_per_box || 0),
+        loose_units: Number(item.loose_units || 0),
+        package_size: Number(item.package_size || 0) > 0 ? Number(item.package_size) : null,
+        package_unit: Number(item.package_size || 0) > 0 ? item.package_unit : null,
+        location: item.location,
+        expiry_date: item.expiry_date || null,
+      }))
+      const { data: operation, error: operationError } = await supabase.rpc('create_entry_operation', {
+        p_client_id: form.client_id,
+        p_driver_name: form.driver_name.trim(),
+        p_driver_document: form.driver_document.trim(),
+        p_vehicle_plate: form.vehicle_plate.trim(),
+        p_entry_date: today,
+        p_photo_url: photoUrl,
+        p_notes: form.notes || null,
+        p_items: operationItems,
+        p_user_id: user.id,
+      })
 
-      for (const [index, item] of entryItems.entries()) {
-        const lotCode = item.lot_code || createOperatorLotCode(index)
+      if (operationError) {
+        if (!isMissingOperationRpc(operationError)) throw operationError
+        await createLegacyEntry(operationItems, photoUrl, entryNotes)
+      }
+
+      const emailItems = operationItems.map((item) => {
+        const lotCode = item.lot_code
         const boxCount = Number(item.box_count || 0)
         const unitsPerBox = Number(item.units_per_box || 0)
         const looseUnits = Number(item.loose_units || 0)
         const packageCount = entryPackageCount(item)
         const packageSize = Number(item.package_size || 0)
-        const { error: rpcError } = await supabase.rpc('create_lot_entry', {
-          p_lot_code: lotCode,
-          p_client_id: form.client_id,
-          p_product: item.product,
-          p_box_count: boxCount,
-          p_units_per_box: unitsPerBox,
-          p_loose_units: looseUnits,
-          p_package_size: packageSize > 0 ? packageSize : null,
-          p_package_unit: packageSize > 0 ? item.package_unit : null,
-          p_location: item.location,
-          p_entry_date: today,
-          p_expiry_date: item.expiry_date || null,
-          p_photo_url: photoUrl,
-          p_notes: entryNotes,
-          p_user_id: user.id,
-        })
 
-        if (rpcError) throw rpcError
-
-        emailItems.push({
+        return {
           lot_code: displayLotCode(lotCode),
           product: cleanProductName(item.product),
           box_count: boxCount,
@@ -272,8 +284,8 @@ export default function OperatorEntry() {
           location: item.location,
           package_size: packageSize > 0 ? packageSize : null,
           package_unit: packageSize > 0 ? item.package_unit : null,
-        })
-      }
+        }
+      })
 
       const { error: emailError } = await supabase.functions.invoke('send-movement-email', {
         body: {
@@ -295,6 +307,7 @@ export default function OperatorEntry() {
       setEntrySuccess({
         products: entryItems.length,
         client: selectedClient?.name || 'cliente',
+        operationCode: operation?.operation_code || null,
         emailError: Boolean(emailError),
       })
       setStatus(
@@ -309,6 +322,29 @@ export default function OperatorEntry() {
       setError(entryError.message?.includes('duplicate') ? 'Uno de los ID de lote ya existe. Corrigelo antes de confirmar.' : entryError.message)
       setSaving(false)
       setConfirming(false)
+    }
+  }
+
+  async function createLegacyEntry(operationItems, photoUrl, entryNotes) {
+    for (const item of operationItems) {
+      const { error: rpcError } = await supabase.rpc('create_lot_entry', {
+        p_lot_code: item.lot_code,
+        p_client_id: form.client_id,
+        p_product: item.product,
+        p_box_count: item.box_count,
+        p_units_per_box: item.units_per_box,
+        p_loose_units: item.loose_units,
+        p_package_size: item.package_size,
+        p_package_unit: item.package_unit,
+        p_location: item.location,
+        p_entry_date: today,
+        p_expiry_date: item.expiry_date,
+        p_photo_url: photoUrl,
+        p_notes: entryNotes,
+        p_user_id: user.id,
+      })
+
+      if (rpcError) throw rpcError
     }
   }
 

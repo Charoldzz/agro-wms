@@ -33,6 +33,10 @@ function escapeHtml(value) {
     .replaceAll('>', '&gt;')
 }
 
+function isMissingDispatchOperationRpc(error) {
+  return String(error?.message || '').includes('create_dispatch_operation')
+}
+
 export default function DispatchList() {
   const navigate = useNavigate()
   const location = useLocation()
@@ -277,52 +281,36 @@ export default function DispatchList() {
     setStatus('')
 
     let queued = 0
-    const receiptItems = []
+    let operationCode = ''
+    let receiptItems = items.map((item) => ({ ...item, quantity: Number(item.package_count), pending: false }))
+    const operationItems = items.map((item) => ({
+      lot_id: item.lot.id,
+      quantity: Number(item.package_count),
+    }))
+    const operationNotes = dispatchNotes.trim() || null
+    const { data: operation, error: operationError } = await supabase.rpc('create_dispatch_operation', {
+      p_client_id: approvedRequest?.client_id || items[0]?.lot?.client_id || null,
+      p_receiver_name: receiverName.trim(),
+      p_receiver_document: receiverDocument.trim(),
+      p_vehicle_plate: vehiclePlate.trim() || null,
+      p_notes: operationNotes,
+      p_items: operationItems,
+      p_request_id: requestId || null,
+      p_user_id: user.id,
+    })
 
-    for (const item of items) {
-      const quantity = Number(item.package_count)
-      const notes = [
-        vehiclePlate.trim() ? `Placa: ${vehiclePlate.trim()}` : null,
-        `Recibe: ${receiverName.trim()}`,
-        `Documento: ${receiverDocument.trim()}`,
-        'Despacho por lista',
-        dispatchNotes.trim() || null,
-      ]
-        .filter(Boolean)
-        .join(' | ')
-
-      const { error: rpcError } = await supabase.rpc('register_movement', {
-        p_lot_id: item.lot.id,
-        p_type: 'salida',
-        p_quantity: quantity,
-        p_to_location: vehiclePlate.trim() || null,
-        p_notes: notes,
-        p_user_id: user.id,
-      })
-
-      if (rpcError) {
-        if (isNetworkMovementError(rpcError)) {
-          queueMovement({
-            lot_id: item.lot.id,
-            type: 'salida',
-            quantity,
-            to_location: vehiclePlate.trim() || null,
-            notes: `[OFFLINE] [REQUIERE REVISION] ${notes}`,
-            user_id: user.id,
-            email: null,
-          })
-          queued += 1
-          receiptItems.push({ ...item, quantity, pending: true })
-          continue
-        }
-
-        setError(rpcError.message?.includes('inventario') ? `No hay inventario suficiente en ${displayLotCode(item.lot.lot_code)}.` : rpcError.message)
-        vibrateError()
-        setSaving(false)
-        return
-      }
-
-      receiptItems.push({ ...item, quantity, pending: false })
+    if (!operationError) {
+      operationCode = operation?.operation_code || ''
+    } else if (isMissingDispatchOperationRpc(operationError) || isNetworkMovementError(operationError)) {
+      const legacyResult = await registerLegacyDispatch(operationError)
+      if (!legacyResult) return
+      queued = legacyResult.queued
+      receiptItems = legacyResult.receiptItems
+    } else {
+      setError(operationError.message?.includes('inventario') ? 'No hay inventario suficiente para completar este despacho.' : operationError.message)
+      vibrateError()
+      setSaving(false)
+      return
     }
 
     setItems([])
@@ -338,7 +326,7 @@ export default function DispatchList() {
       })
     }
     setReceipt({
-      id: `DESP-${new Date().toISOString().replace(/\D/g, '').slice(0, 14)}`,
+      id: operationCode || `DESP-${new Date().toISOString().replace(/\D/g, '').slice(0, 14)}`,
       createdAt: new Date().toISOString(),
       receiverName: receiverName.trim(),
       receiverDocument: receiverDocument.trim(),
@@ -378,6 +366,59 @@ export default function DispatchList() {
     setStatus(queued > 0 ? `${queued} salida(s) quedaron pendientes de revision admin al sincronizar. El correo se enviara despues de revision.` : 'Despacho guardado y correo resumen enviado a oficina.')
     vibrateSuccess()
     setSaving(false)
+  }
+
+  async function registerLegacyDispatch(operationError) {
+    let queued = 0
+    const receiptItems = []
+
+    for (const item of items) {
+      const quantity = Number(item.package_count)
+      const notes = [
+        vehiclePlate.trim() ? `Placa: ${vehiclePlate.trim()}` : null,
+        `Recibe: ${receiverName.trim()}`,
+        `Documento: ${receiverDocument.trim()}`,
+        'Despacho por lista',
+        dispatchNotes.trim() || null,
+      ]
+        .filter(Boolean)
+        .join(' | ')
+      const { error: rpcError } = await supabase.rpc('register_movement', {
+        p_lot_id: item.lot.id,
+        p_type: 'salida',
+        p_quantity: quantity,
+        p_to_location: vehiclePlate.trim() || null,
+        p_notes: notes,
+        p_user_id: user.id,
+      })
+
+      if (!rpcError) {
+        receiptItems.push({ ...item, quantity, pending: false })
+        continue
+      }
+
+      if (isNetworkMovementError(rpcError) || isNetworkMovementError(operationError)) {
+        queueMovement({
+          lot_id: item.lot.id,
+          type: 'salida',
+          quantity,
+          to_location: vehiclePlate.trim() || null,
+          notes: `[OFFLINE] [REQUIERE REVISION] ${notes}`,
+          user_id: user.id,
+          email: null,
+        })
+        queued += 1
+        receiptItems.push({ ...item, quantity, pending: true })
+        continue
+      }
+
+      setError(rpcError.message?.includes('inventario') ? `No hay inventario suficiente en ${displayLotCode(item.lot.lot_code)}.` : rpcError.message)
+      vibrateError()
+      setSaving(false)
+      return null
+    }
+
+    return { queued, receiptItems }
   }
 
   function printReceipt() {

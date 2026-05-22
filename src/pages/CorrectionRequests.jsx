@@ -27,10 +27,10 @@ export default function CorrectionRequests() {
 
   useEffect(() => {
     async function loadRecentMovements() {
-      const [{ data }, { data: clientRows }] = await Promise.all([
+      const [{ data, error: operationError }, { data: clientRows }] = await Promise.all([
         supabase
           .from('movements')
-          .select('id, type, quantity, previous_quantity, new_quantity, from_location, to_location, notes, created_at, approval_status, lots(id, client_id, lot_code, product, package_size, package_unit, location, expiry_date, clients(name))')
+          .select('id, operation_id, type, quantity, previous_quantity, new_quantity, from_location, to_location, notes, created_at, approval_status, warehouse_operations(operation_code, type, receiver_name, receiver_document, vehicle_plate, driver_name, driver_document), lots(id, client_id, lot_code, product, package_size, package_unit, location, expiry_date, clients(name))')
           .eq('user_id', user.id)
           .in('type', ['entrada', 'salida'])
           .eq('approval_status', 'aprobado')
@@ -38,7 +38,19 @@ export default function CorrectionRequests() {
           .limit(30),
         supabase.from('clients').select('id, name').order('name'),
       ])
-      setMovements(data || [])
+      if (!operationError) {
+        setMovements(data || [])
+      } else {
+        const { data: legacyRows } = await supabase
+          .from('movements')
+          .select('id, type, quantity, previous_quantity, new_quantity, from_location, to_location, notes, created_at, approval_status, lots(id, client_id, lot_code, product, package_size, package_unit, location, expiry_date, clients(name))')
+          .eq('user_id', user.id)
+          .in('type', ['entrada', 'salida'])
+          .eq('approval_status', 'aprobado')
+          .order('created_at', { ascending: false })
+          .limit(30)
+        setMovements(legacyRows || [])
+      }
       setClients(clientRows || [])
     }
 
@@ -535,11 +547,12 @@ function MovementLine({ movement, onRequest }) {
 }
 
 function operationMetadata(group) {
+  const operation = group.operation
   const notes = group.items[0]?.notes || ''
   return {
-    vehiclePlate: noteValue(notes, 'Placa'),
-    receiverName: noteValue(notes, 'Recibe'),
-    receiverDocument: noteValue(notes, 'Documento'),
+    vehiclePlate: operation?.vehicle_plate || noteValue(notes, 'Placa'),
+    receiverName: operation?.receiver_name || noteValue(notes, 'Recibe'),
+    receiverDocument: operation?.receiver_document || noteValue(notes, 'Documento'),
   }
 }
 
@@ -569,7 +582,9 @@ function groupMovements(movements) {
     const minuteStamp = String(movement.created_at || '').slice(0, 16)
     const isListDispatch = movement.type === 'salida' && movement.notes?.includes('Despacho por lista')
     const isEntryBatch = movement.type === 'entrada' && movement.notes?.includes('Nuevo ingreso desde almacen')
-    const groupingKey = isListDispatch
+    const groupingKey = movement.operation_id
+      ? `operation:${movement.operation_id}`
+      : isListDispatch
       ? `dispatch:${clientName}:${minuteStamp}:${movement.notes || ''}`
       : isEntryBatch
         ? `entry:${clientName}:${minuteStamp}`
@@ -582,6 +597,7 @@ function groupMovements(movements) {
         clientName,
         createdAt: movement.created_at,
         label: correctionGroupLabel(movement.type),
+        operation: movement.warehouse_operations || null,
         items: [],
       })
     }
