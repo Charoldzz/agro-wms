@@ -295,14 +295,16 @@ export default function Scanner() {
         </div>
 
         {error ? <p className="mt-4 rounded-lg bg-red-50 p-3 text-sm font-bold text-red-700">{error}</p> : null}
-        <button
-          className="btn-secondary mt-3 w-full justify-between"
-          type="button"
-          onClick={() => navigate('/lotes', { state: { qrFallback: true } })}
-        >
-          <span className="inline-flex items-center gap-2"><TriangleAlert size={18} /> QR no se puede leer</span>
-          <Search size={18} />
-        </button>
+        {error ? (
+          <button
+            className="btn-secondary mt-3 w-full justify-between"
+            type="button"
+            onClick={() => navigate('/lotes', { state: { qrFallback: true } })}
+          >
+            <span className="inline-flex items-center gap-2"><TriangleAlert size={18} /> QR no se puede leer</span>
+            <Search size={18} />
+          </button>
+        ) : null}
       </div>
 
       <div className="panel mt-4 space-y-3">
