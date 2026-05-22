@@ -12,6 +12,7 @@ export default function AdminPending() {
   const [requests, setRequests] = useState([])
   const [movements, setMovements] = useState([])
   const [corrections, setCorrections] = useState([])
+  const [clients, setClients] = useState([])
   const [issues, setIssues] = useState([])
   const [error, setError] = useState('')
 
@@ -30,7 +31,7 @@ export default function AdminPending() {
   }, [])
 
   async function loadPending() {
-    const [requestResult, movementResult, correctionResult, issueResult] = await Promise.all([
+    const [requestResult, movementResult, correctionResult, issueResult, clientResult] = await Promise.all([
       supabase
         .from('client_dispatch_requests')
         .select('*, clients(name), lots(lot_code, product, current_quantity, package_size, package_unit, location)')
@@ -52,6 +53,7 @@ export default function AdminPending() {
         .select('*, lots(lot_code, product, location, clients(name)), profiles!operational_issue_reports_reported_by_fkey(full_name)')
         .eq('status', 'pendiente')
         .order('created_at', { ascending: false }),
+      supabase.from('clients').select('id, name').order('name'),
     ])
 
     let requestRows = requestResult.data || []
@@ -101,6 +103,7 @@ export default function AdminPending() {
       setIssues(issueResult.data || [])
     }
 
+    if (!clientResult.error) setClients(clientResult.data || [])
     setError(loadErrors.length ? `No se pudieron cargar: ${loadErrors.join(', ')}.` : '')
     setRequests(requestRows)
     setMovements(movementRows)
@@ -293,7 +296,9 @@ export default function AdminPending() {
             <article key={correction.id} className="panel border-red-200 bg-red-50">
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
-                  <p className="font-black text-slate-950">Solicitud de correccion</p>
+                  <p className="font-black text-slate-950">
+                    Correccion de {correction.correction_type === 'ficha' ? 'ficha' : 'cantidad'}
+                  </p>
                   <p className="mt-1 font-black text-slate-900 [overflow-wrap:anywhere]">{cleanProductName(correction.movements?.lots?.product)}</p>
                   <p className="text-xs font-semibold text-slate-500">
                     {displayLotCode(correction.movements?.lots?.lot_code)} - {correction.movements?.lots?.clients?.name || '-'} - {correction.profiles?.full_name || 'Usuario'}
@@ -301,10 +306,7 @@ export default function AdminPending() {
                 </div>
                 <span className="rounded-full bg-white px-3 py-1 text-xs font-black text-red-700">Auditoria</span>
               </div>
-              <div className="mt-3 grid gap-2 text-sm font-bold sm:grid-cols-2">
-                <p className="rounded-lg bg-white p-3">Registrado: {formatNumber(correction.movements?.quantity)} env.</p>
-                <p className="rounded-lg bg-white p-3">Correcto: {formatNumber(correction.requested_quantity)} env.</p>
-              </div>
+              <CorrectionReviewDetails correction={correction} clients={clients} />
               <p className="mt-2 rounded-lg bg-white p-3 text-sm font-semibold text-slate-700">{correction.reason}</p>
               <div className="mt-3 grid grid-cols-2 gap-2">
                 <button className="btn-secondary w-full" type="button" onClick={() => reviewCorrection(correction.id, 'reject')}>
@@ -339,4 +341,50 @@ export default function AdminPending() {
       )}
     </div>
   )
+}
+
+function CorrectionReviewDetails({ correction, clients }) {
+  if (correction.correction_type !== 'ficha') {
+    return (
+      <div className="mt-3 grid gap-2 text-sm font-bold sm:grid-cols-2">
+        <p className="rounded-lg bg-white p-3">Registrado: {formatNumber(correction.movements?.quantity)} env.</p>
+        <p className="rounded-lg bg-white p-3">Correcto: {formatNumber(correction.requested_quantity)} env.</p>
+      </div>
+    )
+  }
+
+  const patchRows = lotPatchRows(correction.lot_patch, clients)
+
+  return (
+    <div className="mt-3 rounded-lg bg-white p-3">
+      <p className="text-xs font-black uppercase text-slate-500">Cambios solicitados en ficha</p>
+      <div className="mt-2 grid gap-2 sm:grid-cols-2">
+        {patchRows.map((row) => (
+          <div key={row.label} className="rounded-lg bg-slate-50 p-2">
+            <p className="text-xs font-bold text-slate-500">{row.label}</p>
+            <p className="mt-0.5 font-black text-slate-950 [overflow-wrap:anywhere]">{row.value}</p>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function lotPatchRows(patch, clients) {
+  const values = patch && typeof patch === 'object' ? patch : {}
+  const clientMap = new Map((clients || []).map((client) => [client.id, client.name]))
+  const labels = {
+    client_id: 'Cliente',
+    lot_code: 'ID lote',
+    product: 'Producto',
+    location: 'Ubicacion',
+    package_size: 'Tamano presentacion',
+    package_unit: 'Unidad',
+    expiry_date: 'Vencimiento',
+  }
+
+  return Object.entries(values).map(([key, value]) => ({
+    label: labels[key] || key,
+    value: key === 'client_id' ? clientMap.get(value) || 'Cliente seleccionado' : String(value || '-'),
+  }))
 }

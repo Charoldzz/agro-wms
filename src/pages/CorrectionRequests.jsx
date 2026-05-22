@@ -10,9 +10,12 @@ import { supabase } from '../lib/supabase'
 export default function CorrectionRequests() {
   const { user } = useAuth()
   const [movements, setMovements] = useState([])
+  const [clients, setClients] = useState([])
   const [selected, setSelected] = useState(null)
   const [detailGroup, setDetailGroup] = useState(null)
+  const [correctionType, setCorrectionType] = useState('cantidad')
   const [quantity, setQuantity] = useState('')
+  const [lotPatch, setLotPatch] = useState({})
   const [reason, setReason] = useState('')
   const [status, setStatus] = useState('')
   const [error, setError] = useState('')
@@ -20,15 +23,19 @@ export default function CorrectionRequests() {
 
   useEffect(() => {
     async function loadRecentMovements() {
-      const { data } = await supabase
-        .from('movements')
-        .select('id, type, quantity, previous_quantity, new_quantity, from_location, to_location, notes, created_at, approval_status, lots(lot_code, product, package_size, package_unit, location, clients(name))')
-        .eq('user_id', user.id)
-        .in('type', ['entrada', 'salida'])
-        .eq('approval_status', 'aprobado')
-        .order('created_at', { ascending: false })
-        .limit(30)
+      const [{ data }, { data: clientRows }] = await Promise.all([
+        supabase
+          .from('movements')
+          .select('id, type, quantity, previous_quantity, new_quantity, from_location, to_location, notes, created_at, approval_status, lots(id, client_id, lot_code, product, package_size, package_unit, location, expiry_date, clients(name))')
+          .eq('user_id', user.id)
+          .in('type', ['entrada', 'salida'])
+          .eq('approval_status', 'aprobado')
+          .order('created_at', { ascending: false })
+          .limit(30),
+        supabase.from('clients').select('id, name').order('name'),
+      ])
       setMovements(data || [])
+      setClients(clientRows || [])
     }
 
     loadRecentMovements()
@@ -36,7 +43,9 @@ export default function CorrectionRequests() {
 
   function openRequest(movement) {
     setSelected(movement)
+    setCorrectionType('cantidad')
     setQuantity(String(movement.quantity || ''))
+    setLotPatch(createLotPatch(movement))
     setReason('')
     setError('')
     setStatus('')
@@ -46,8 +55,13 @@ export default function CorrectionRequests() {
 
   async function submitCorrection() {
     if (!selected) return
-    if (Number(quantity) < 0 || quantity === '') {
+    if (correctionType === 'cantidad' && (Number(quantity) < 0 || quantity === '')) {
       setError('Escribe la cantidad correcta.')
+      return
+    }
+    const requestedPatch = changedLotPatch(selected, lotPatch)
+    if (correctionType === 'ficha' && Object.keys(requestedPatch).length === 0) {
+      setError('Cambia al menos un dato de la ficha.')
       return
     }
     if (!reason.trim()) {
@@ -59,7 +73,9 @@ export default function CorrectionRequests() {
     setError('')
     const { error: requestError } = await supabase.rpc('request_movement_correction', {
       p_movement_id: selected.id,
-      p_requested_quantity: Number(quantity),
+      p_requested_quantity: correctionType === 'cantidad' ? Number(quantity) : Number(selected.quantity || 0),
+      p_correction_type: correctionType,
+      p_lot_patch: correctionType === 'ficha' ? requestedPatch : {},
       p_reason: reason.trim(),
       p_user_id: user.id,
     })
@@ -169,16 +185,36 @@ export default function CorrectionRequests() {
               </button>
             </div>
             <p className="mt-2 text-sm font-bold text-slate-500">
-              Cantidad registrada: {formatNumber(selected.quantity)} env. Indica la cantidad correcta.
+              Elige si el error es de cantidad o de ficha.
             </p>
-            <label className="mt-3 block">
-              <span className="label">Cantidad correcta</span>
-              <input className="input mt-1" inputMode="decimal" value={quantity} onChange={(event) => setQuantity(event.target.value.replace(',', '.'))} />
-              <span className="mt-1 block text-xs font-semibold text-slate-500">Si el error es de ficha, deja la cantidad igual.</span>
-            </label>
+            <div className="mt-3 grid grid-cols-2 gap-2">
+              <button
+                className={`min-h-11 rounded-lg border px-3 py-2 text-sm font-black ${correctionType === 'cantidad' ? 'border-orange-500 bg-orange-50 text-orange-800' : 'border-slate-200 bg-white text-slate-700'}`}
+                type="button"
+                onClick={() => setCorrectionType('cantidad')}
+              >
+                Cantidad
+              </button>
+              <button
+                className={`min-h-11 rounded-lg border px-3 py-2 text-sm font-black ${correctionType === 'ficha' ? 'border-orange-500 bg-orange-50 text-orange-800' : 'border-slate-200 bg-white text-slate-700'}`}
+                type="button"
+                onClick={() => setCorrectionType('ficha')}
+              >
+                Ficha
+              </button>
+            </div>
+            {correctionType === 'cantidad' ? (
+              <label className="mt-3 block">
+                <span className="label">Cantidad correcta</span>
+                <input className="input mt-1" inputMode="decimal" value={quantity} onChange={(event) => setQuantity(event.target.value.replace(',', '.'))} />
+                <span className="mt-1 block text-xs font-semibold text-slate-500">Registrado: {formatNumber(selected.quantity)} env.</span>
+              </label>
+            ) : (
+              <LotPatchForm patch={lotPatch} clients={clients} onChange={setLotPatch} />
+            )}
             <label className="mt-3 block">
               <span className="label">Motivo</span>
-              <textarea className="input mt-1" rows="3" value={reason} onChange={(event) => setReason(event.target.value)} placeholder="Ej. se escribio 120 envases y eran 102." />
+              <textarea className="input mt-1" rows="3" value={reason} onChange={(event) => setReason(event.target.value)} placeholder={correctionType === 'cantidad' ? 'Ej. se escribio 120 envases y eran 102.' : 'Ej. el producto era otro o el vencimiento estaba mal.'} />
             </label>
             {error ? <p className="mt-3 rounded-lg bg-red-50 p-3 text-sm font-bold text-red-700">{error}</p> : null}
             {status ? (
@@ -193,6 +229,75 @@ export default function CorrectionRequests() {
         </div>
       ) : null}
     </div>
+  )
+}
+
+function LotPatchForm({ patch, clients, onChange }) {
+  return (
+    <div className="mt-3 grid gap-2 rounded-lg bg-slate-50 p-3 sm:grid-cols-2">
+      <PatchField label="Cliente">
+        <select className="input" value={patch.client_id || ''} onChange={(event) => onChange({ ...patch, client_id: event.target.value })}>
+          {clients.map((client) => <option key={client.id} value={client.id}>{client.name}</option>)}
+        </select>
+      </PatchField>
+      <PatchField label="ID lote">
+        <input className="input" value={patch.lot_code || ''} onChange={(event) => onChange({ ...patch, lot_code: event.target.value })} />
+      </PatchField>
+      <PatchField label="Producto">
+        <input className="input" value={patch.product || ''} onChange={(event) => onChange({ ...patch, product: event.target.value })} />
+      </PatchField>
+      <PatchField label="Ubicacion">
+        <select className="input" value={patch.location || ''} onChange={(event) => onChange({ ...patch, location: event.target.value })}>
+          <option value="Nave 1">Nave 1</option>
+          <option value="Nave 2">Nave 2</option>
+          <option value="Nave 3">Nave 3</option>
+          <option value="Playa">Playa</option>
+        </select>
+      </PatchField>
+      <PatchField label="Tamano presentacion">
+        <input className="input" inputMode="decimal" value={patch.package_size || ''} onChange={(event) => onChange({ ...patch, package_size: event.target.value.replace(',', '.') })} />
+      </PatchField>
+      <PatchField label="Unidad">
+        <select className="input" value={patch.package_unit || ''} onChange={(event) => onChange({ ...patch, package_unit: event.target.value })}>
+          <option value="gr">Gramos</option>
+          <option value="kg">Kilos</option>
+          <option value="ml">Mililitros</option>
+          <option value="lt">Litros</option>
+          <option value="un">Unidades</option>
+        </select>
+      </PatchField>
+      <PatchField label="Vencimiento">
+        <input className="input date-input" type="date" value={patch.expiry_date || ''} onChange={(event) => onChange({ ...patch, expiry_date: event.target.value })} />
+      </PatchField>
+    </div>
+  )
+}
+
+function PatchField({ label, children }) {
+  return (
+    <label className="block">
+      <span className="label">{label}</span>
+      <div className="mt-1">{children}</div>
+    </label>
+  )
+}
+
+function createLotPatch(movement) {
+  return {
+    client_id: movement.lots?.client_id || '',
+    lot_code: movement.lots?.lot_code || '',
+    product: movement.lots?.product || '',
+    location: movement.lots?.location || '',
+    package_size: movement.lots?.package_size ?? '',
+    package_unit: movement.lots?.package_unit || '',
+    expiry_date: movement.lots?.expiry_date || '',
+  }
+}
+
+function changedLotPatch(movement, patch) {
+  const original = createLotPatch(movement)
+  return Object.fromEntries(
+    Object.entries(patch).filter(([key, value]) => String(value ?? '').trim() !== String(original[key] ?? '').trim()),
   )
 }
 
