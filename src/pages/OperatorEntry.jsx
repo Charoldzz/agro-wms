@@ -6,6 +6,7 @@ import { useAuth } from '../hooks/useAuth.jsx'
 import { supabase } from '../lib/supabase'
 import { formatNumber } from '../lib/format'
 import { cleanProductName, displayLotCode, packageLabel } from '../lib/display'
+import { vibrateSuccess } from '../lib/haptics'
 import { compressImageFile } from '../lib/image'
 
 const internalLocations = ['Nave 1', 'Nave 2', 'Nave 3', 'Playa']
@@ -59,6 +60,7 @@ export default function OperatorEntry() {
   const [error, setError] = useState('')
   const [status, setStatus] = useState('')
   const [saving, setSaving] = useState(false)
+  const [detailItem, setDetailItem] = useState(null)
 
   useEffect(() => {
     loadClients()
@@ -276,15 +278,18 @@ export default function OperatorEntry() {
         },
       })
 
+      vibrateSuccess()
+      setConfirming(false)
       setStatus(
         emailError
           ? 'Ingreso creado. Falta configurar o revisar el envio automatico de correo.'
           : 'Ingreso creado y correo enviado a oficina.',
       )
+      window.scrollTo({ top: 0, behavior: 'smooth' })
 
       setTimeout(() => {
         navigate(isOperator ? '/operacion' : '/')
-      }, 900)
+      }, 1800)
     } catch (entryError) {
       setError(entryError.message?.includes('duplicate') ? 'Uno de los ID de lote ya existe. Corrigelo antes de confirmar.' : entryError.message)
       setSaving(false)
@@ -425,7 +430,7 @@ export default function OperatorEntry() {
               </select>
             </Field>
             <Field label="Fecha vencimiento">
-              <input className="input" type="date" value={form.expiry_date} onChange={(event) => setForm({ ...form, expiry_date: event.target.value })} />
+              <input className="input date-input" type="date" value={form.expiry_date} onChange={(event) => setForm({ ...form, expiry_date: event.target.value })} />
             </Field>
             <div className="grid gap-2 sm:col-span-2 sm:grid-cols-2">
               <div className="rounded-lg bg-campo-50 p-3">
@@ -453,34 +458,13 @@ export default function OperatorEntry() {
               ) : (
                 <div className="space-y-2">
                   {entryItems.map((item) => (
-                    <div key={item.id} className="flex items-start justify-between gap-2 rounded-lg bg-white p-3">
-                      <div className="min-w-0">
-                        <div className="flex flex-wrap items-start gap-2">
-                          <p className="min-w-0 flex-1 text-base font-black text-slate-950 [overflow-wrap:anywhere]">{cleanProductName(item.product)}</p>
-                          <span className="rounded-lg bg-campo-50 px-2 py-1 text-sm font-black text-campo-800">
-                            {formatNumber(item.box_count)} cajas
-                          </span>
-                        </div>
-                        <p className="text-xs font-semibold text-slate-500">
-                          {item.lot_code ? displayLotCode(item.lot_code) : 'ID automatico'} - {item.location}
-                        </p>
-                        <p className="text-xs font-bold text-slate-600">
-                          Presentacion: {packageLabel(item) || 'Sin dato'}
-                          {' - '}{entryPackageBreakdown(item)}
-                        </p>
-                        <p className="text-xs font-bold text-campo-700">
-                          Total: {formatNumber(item.package_count)} env. - Equiv.: {formatNumber(Number(item.package_count || 0) * Number(item.package_size || 0))} {item.package_unit}
-                        </p>
-                      </div>
-                      <div className="grid gap-1">
-                        <button className="btn-secondary !min-h-10 !px-3" type="button" onClick={() => editEntryProduct(item)} title="Editar producto">
-                          <Edit2 size={17} />
-                        </button>
-                        <button className="btn-secondary !min-h-10 !px-3" type="button" onClick={() => removeEntryProduct(item.id)} title="Quitar producto">
-                          <Trash2 size={17} />
-                        </button>
-                      </div>
-                    </div>
+                    <EntryItemCard
+                      key={item.id}
+                      item={item}
+                      onDetail={setDetailItem}
+                      onEdit={editEntryProduct}
+                      onRemove={removeEntryProduct}
+                    />
                   ))}
                 </div>
               )}
@@ -537,7 +521,15 @@ export default function OperatorEntry() {
         ) : null}
 
         {error ? <div className="rounded-lg bg-red-50 p-3 text-sm font-bold text-red-700 sm:col-span-2">{error}</div> : null}
-        {status ? <div className="rounded-lg bg-campo-50 p-3 text-sm font-bold text-campo-700 sm:col-span-2">{status}</div> : null}
+        {status ? (
+          <div className="rounded-lg border border-campo-100 bg-campo-50 p-4 text-sm font-bold text-campo-800 sm:col-span-2" role="status" aria-live="polite">
+            <div className="flex items-center gap-2">
+              <CheckCircle2 size={20} />
+              <span>Entrada guardada con exito.</span>
+            </div>
+            <p className="mt-1 font-semibold">{status}</p>
+          </div>
+        ) : null}
 
         <div className="grid grid-cols-2 gap-2 sm:col-span-2">
           <button
@@ -605,6 +597,74 @@ export default function OperatorEntry() {
           </div>
         </div>
       ) : null}
+
+      {detailItem ? <EntryItemDetail item={detailItem} onClose={() => setDetailItem(null)} /> : null}
+    </div>
+  )
+}
+
+function EntryItemCard({ item, onDetail, onEdit, onRemove }) {
+  const equivalentTotal = Number(item.package_count || 0) * Number(item.package_size || 0)
+
+  return (
+    <article className="grid gap-2 rounded-lg bg-white p-3 sm:grid-cols-[1fr_auto]">
+      <button className="min-w-0 text-left" type="button" onClick={() => onDetail(item)} title="Ver detalle del producto">
+        <p className="text-base font-black leading-snug text-slate-950 [overflow-wrap:anywhere]">{cleanProductName(item.product)}</p>
+        <div className="mt-2 flex flex-wrap gap-1.5">
+          <strong className="rounded-lg bg-campo-50 px-2 py-1 text-sm font-black text-campo-800">{formatNumber(item.box_count)} cajas</strong>
+          <strong className="rounded-lg bg-slate-100 px-2 py-1 text-sm font-black text-slate-800">{formatNumber(item.package_count)} env.</strong>
+          <strong className="rounded-lg bg-maiz/25 px-2 py-1 text-sm font-black text-slate-900">{formatNumber(equivalentTotal)} {item.package_unit}</strong>
+        </div>
+        <p className="mt-2 text-xs font-bold text-slate-600">Presentacion: {packageLabel(item) || 'Sin dato'}</p>
+        <p className="text-xs font-semibold text-slate-500">
+          {item.lot_code ? displayLotCode(item.lot_code) : 'ID automatico'} - {item.location}
+        </p>
+      </button>
+      <div className="flex gap-1 sm:grid sm:self-start">
+        <button className="btn-secondary !min-h-10 !px-3" type="button" onClick={() => onEdit(item)} title="Editar producto">
+          <Edit2 size={17} />
+        </button>
+        <button className="btn-secondary !min-h-10 !px-3" type="button" onClick={() => onRemove(item.id)} title="Quitar producto">
+          <Trash2 size={17} />
+        </button>
+      </div>
+    </article>
+  )
+}
+
+function EntryItemDetail({ item, onClose }) {
+  const equivalentTotal = Number(item.package_count || 0) * Number(item.package_size || 0)
+
+  return (
+    <div className="fixed inset-0 z-40 flex items-end bg-slate-950/45 p-4 sm:items-center sm:justify-center" onClick={onClose}>
+      <section className="w-full max-w-md rounded-xl bg-white p-4 shadow-xl" onClick={(event) => event.stopPropagation()}>
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <p className="text-xs font-bold uppercase text-campo-700">Producto del ingreso</p>
+            <h3 className="mt-1 text-lg font-black leading-snug text-slate-950 [overflow-wrap:anywhere]">{cleanProductName(item.product)}</h3>
+          </div>
+          <button className="btn-secondary !min-h-10 !px-3" type="button" onClick={onClose}>Cerrar</button>
+        </div>
+        <dl className="mt-4 grid gap-2 rounded-lg bg-slate-50 p-3 text-sm font-bold text-slate-700">
+          <DetailRow label="Cajas" value={`${formatNumber(item.box_count)} cajas`} />
+          <DetailRow label="Envases" value={`${formatNumber(item.package_count)} env.`} />
+          <DetailRow label="Equivalente" value={`${formatNumber(equivalentTotal)} ${item.package_unit}`} />
+          <DetailRow label="Presentacion" value={packageLabel(item) || 'Sin dato'} />
+          <DetailRow label="Empaque" value={entryPackageBreakdown(item)} />
+          <DetailRow label="Lote" value={item.lot_code ? displayLotCode(item.lot_code) : 'ID automatico'} />
+          <DetailRow label="Ubicacion" value={item.location || '-'} />
+          <DetailRow label="Vencimiento" value={item.expiry_date || 'Sin dato'} />
+        </dl>
+      </section>
+    </div>
+  )
+}
+
+function DetailRow({ label, value }) {
+  return (
+    <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-3">
+      <dt className="text-slate-500">{label}</dt>
+      <dd className="max-w-[13rem] text-right text-slate-950 [overflow-wrap:anywhere]">{value}</dd>
     </div>
   )
 }

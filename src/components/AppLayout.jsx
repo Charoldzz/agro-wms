@@ -1,5 +1,5 @@
-import { Outlet, NavLink, useNavigate } from 'react-router-dom'
-import { Boxes, ClipboardList, Home, LogOut, ShieldAlert, Users, Warehouse } from 'lucide-react'
+import { Outlet, NavLink, useLocation, useNavigate } from 'react-router-dom'
+import { ArrowLeft, Boxes, ClipboardList, Home, LogOut, ShieldAlert, Users, Warehouse } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../hooks/useAuth.jsx'
@@ -16,6 +16,7 @@ const navItems = [
 
 export default function AppLayout() {
   const navigate = useNavigate()
+  const location = useLocation()
   const { profile, user } = useAuth()
   const [queuedMovements, setQueuedMovements] = useState(getQueuedMovementCount())
   const visibleNavItems =
@@ -28,6 +29,14 @@ export default function AppLayout() {
   async function signOut() {
     await supabase.auth.signOut()
     navigate('/login')
+  }
+
+  function goBackInsideApp() {
+    const path = location.pathname
+    if (path.startsWith('/operacion/')) return navigate('/operacion')
+    if (path.startsWith('/productos/') || path.startsWith('/vencimientos') || path.match(/^\/lotes\/[^/]+$/)) return navigate('/lotes')
+    if (path.startsWith('/pendientes') || path.startsWith('/solicitudes')) return navigate('/')
+    return navigate('/')
   }
 
   useEffect(() => {
@@ -71,6 +80,12 @@ export default function AppLayout() {
       </header>
 
       <main className="mx-auto max-w-5xl overflow-x-hidden px-4 py-5">
+        {location.pathname !== '/' ? (
+          <button className="btn-secondary mb-4 !min-h-10 !px-3 !py-2 text-sm" type="button" onClick={goBackInsideApp}>
+            <ArrowLeft size={18} />
+            Volver
+          </button>
+        ) : null}
         {queuedMovements > 0 ? (
           <div className="mb-4 rounded-lg bg-amber-50 p-3 text-sm font-bold text-amber-800">
             {queuedMovements} movimiento{queuedMovements === 1 ? '' : 's'} pendiente{queuedMovements === 1 ? '' : 's'} por sincronizar.

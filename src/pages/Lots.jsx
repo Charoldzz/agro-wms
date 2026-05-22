@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
-import { Plus, Search } from 'lucide-react'
+import { CalendarClock, Plus, Search } from 'lucide-react'
 import PageHeader from '../components/PageHeader'
 import { useAuth } from '../hooks/useAuth.jsx'
 import { supabase } from '../lib/supabase'
@@ -267,6 +267,23 @@ export default function Lots() {
           <button className="btn-primary sm:col-span-2">Crear lote y QR</button>
         </form>
       ) : null}
+
+      <button
+        className="panel mb-4 flex w-full items-center justify-between gap-3 text-left transition hover:bg-amber-50"
+        type="button"
+        onClick={() => navigate('/vencimientos')}
+      >
+        <span className="flex min-w-0 items-center gap-3">
+          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-amber-50 text-amber-700">
+            <CalendarClock size={22} />
+          </span>
+          <span className="min-w-0">
+            <strong className="block text-sm font-black text-slate-950">Vencimientos</strong>
+            <span className="block text-xs font-semibold text-slate-500">Ver lotes vencidos o proximos a vencer</span>
+          </span>
+        </span>
+        <span className="rounded-lg bg-white px-2 py-1 text-xs font-black text-amber-700">Abrir</span>
+      </button>
 
       <section className="mb-4 grid gap-2 sm:grid-cols-[170px_1fr]">
         <label className="block">

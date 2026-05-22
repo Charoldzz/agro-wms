@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Boxes, CalendarClock, LogOut, PackagePlus, ScanLine, WifiOff, Wrench } from 'lucide-react'
+import { LogOut, PackagePlus, ScanLine, WifiOff, Wrench } from 'lucide-react'
 import PageHeader from '../components/PageHeader'
 import { cleanProductName, displayLotCode, packageLabel } from '../lib/display'
 import { formatDate, formatNumber, movementLabel } from '../lib/format'
@@ -210,18 +210,6 @@ export default function Operation() {
               ))
             )}
           </WorkPanel>
-        </div>
-      </section>
-
-      <section className="mt-5">
-        <h3 className="mb-2 text-sm font-bold uppercase text-slate-500">Consulta rapida</h3>
-        <div className="grid gap-3 sm:grid-cols-2">
-          <Link className="btn-secondary min-h-14 !justify-start !px-4 text-left" to="/lotes">
-            <Boxes size={22} /> Stock por producto
-          </Link>
-          <Link className="btn-secondary min-h-14 !justify-start !px-4 text-left" to="/vencimientos">
-            <CalendarClock size={22} /> Vencimientos
-          </Link>
         </div>
       </section>
 
