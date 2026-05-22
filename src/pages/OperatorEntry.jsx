@@ -42,9 +42,10 @@ function entryPackageBreakdown(item) {
   const boxes = Number(item.box_count || 0)
   const unitsPerBox = Number(item.units_per_box || 0)
   const looseUnits = Number(item.loose_units || 0)
-  const boxText = boxes > 0 ? `${formatNumber(boxes)} cajas, ${formatNumber(unitsPerBox)} env. por caja` : 'Sin cajas'
-  const looseText = looseUnits > 0 ? `${formatNumber(looseUnits)} env. sueltos` : 'sin sueltos'
-  return `${boxText}, ${looseText}`
+  const pieces = []
+  if (boxes > 0) pieces.push(`${formatNumber(unitsPerBox)} env x caja`)
+  if (looseUnits > 0) pieces.push(`${formatNumber(looseUnits)} env sueltos`)
+  return pieces.join(' - ') || 'Sin empaque'
 }
 
 export default function OperatorEntry() {
@@ -465,7 +466,6 @@ export default function OperatorEntry() {
                     <EntryItemCard
                       key={item.id}
                       item={item}
-                      selected={editingEntryId === item.id}
                       onEdit={editEntryProduct}
                       onRemove={removeEntryProduct}
                     />
@@ -567,7 +567,8 @@ export default function OperatorEntry() {
           <div className="w-full max-w-md rounded-xl bg-white p-4 shadow-xl">
             <h3 className="text-xl font-bold text-slate-950">Confirmar nuevo ingreso</h3>
             <p className="mt-2 text-sm font-semibold text-slate-500">
-              Vas a ingresar {entryItems.length} producto{entryItems.length === 1 ? '' : 's'} para {selectedClient?.name || 'cliente'}.
+              Vas a ingresar {entryItems.length} producto{entryItems.length === 1 ? '' : 's'} para{' '}
+              <strong className="font-black text-slate-950">{selectedClient?.name || 'cliente'}</strong>.
             </p>
             <div className="mt-4 space-y-2 rounded-lg bg-slate-50 p-3 text-sm font-bold text-slate-700">
               <div className="flex justify-between gap-3"><span>Chofer</span><span>{form.driver_name}</span></div>
@@ -578,13 +579,16 @@ export default function OperatorEntry() {
                 <div key={item.id} className="rounded-lg bg-white p-2">
                   <div className="flex flex-wrap items-start justify-between gap-2">
                     <p className="font-black text-slate-950 [overflow-wrap:anywhere]">{cleanProductName(item.product)}</p>
-                    <p className="rounded-lg bg-campo-50 px-2 py-1 font-black text-campo-800">{formatNumber(item.box_count)} cajas</p>
+                    <div className="rounded-lg bg-campo-50 px-2 py-1 text-right text-campo-800">
+                      <p className="font-black">{formatNumber(item.box_count)} cajas</p>
+                      <p className="text-xs font-black">{formatNumber(item.package_count)} env.</p>
+                    </div>
                   </div>
                   <p className="text-xs text-slate-500">
                     Presentacion: {packageLabel(item) || 'Sin dato'} - {entryPackageBreakdown(item)}
                   </p>
                   <p className="text-xs text-slate-500">
-                    Total: {formatNumber(item.package_count)} env. - {item.location} - vence {item.expiry_date || 'Sin dato'}
+                    {item.location} - vence {item.expiry_date || 'Sin dato'}
                   </p>
                 </div>
               ))}
@@ -625,7 +629,7 @@ export default function OperatorEntry() {
   )
 }
 
-function EntryItemCard({ item, selected, onEdit, onRemove }) {
+function EntryItemCard({ item, onEdit, onRemove }) {
   const equivalentTotal = Number(item.package_count || 0) * Number(item.package_size || 0)
 
   return (
@@ -648,7 +652,6 @@ function EntryItemCard({ item, selected, onEdit, onRemove }) {
         { label: 'Ubicacion', value: item.location || '-' },
         { label: 'Vencimiento', value: item.expiry_date || 'Sin dato' },
       ]}
-      selected={selected}
       onEdit={() => onEdit(item)}
       onRemove={() => onRemove(item.id)}
     />

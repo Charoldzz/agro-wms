@@ -544,7 +544,6 @@ export default function DispatchList() {
               >
                 <ListProductCard
                   title={cleanProductName(item.lot.product)}
-                  selected={focusedLotId === item.lot.id}
                   envases={item.lot.current_quantity || 0}
                   envasesLabel="env. disponibles"
                   equivalent={Number(item.lot.package_size) > 0 ? availableEquivalent : null}

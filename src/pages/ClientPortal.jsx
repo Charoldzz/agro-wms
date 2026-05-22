@@ -656,7 +656,6 @@ export default function ClientPortal({ view = 'inventory' }) {
                       ]}
                       onEdit={() => editRequestItem(item)}
                       onRemove={() => removeRequestItem(item.lot_id)}
-                      selected={editingRequestLotId === item.lot_id}
                     />
                   ))}
                   <button className="btn-secondary w-full !min-h-10 !py-2" type="button" onClick={clearRequestCart}>
