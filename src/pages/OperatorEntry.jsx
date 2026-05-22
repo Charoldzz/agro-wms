@@ -465,6 +465,7 @@ export default function OperatorEntry() {
                     <EntryItemCard
                       key={item.id}
                       item={item}
+                      selected={editingEntryId === item.id}
                       onEdit={editEntryProduct}
                       onRemove={removeEntryProduct}
                     />
@@ -624,7 +625,7 @@ export default function OperatorEntry() {
   )
 }
 
-function EntryItemCard({ item, onEdit, onRemove }) {
+function EntryItemCard({ item, selected, onEdit, onRemove }) {
   const equivalentTotal = Number(item.package_count || 0) * Number(item.package_size || 0)
 
   return (
@@ -647,6 +648,7 @@ function EntryItemCard({ item, onEdit, onRemove }) {
         { label: 'Ubicacion', value: item.location || '-' },
         { label: 'Vencimiento', value: item.expiry_date || 'Sin dato' },
       ]}
+      selected={selected}
       onEdit={() => onEdit(item)}
       onRemove={() => onRemove(item.id)}
     />

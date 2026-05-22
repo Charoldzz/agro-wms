@@ -10,6 +10,7 @@ const navItems = [
   { to: '/operacion', label: 'Operar', icon: Warehouse, roles: ['operador'] },
   { to: '/lotes', label: 'Lotes', icon: Boxes, roles: ['administrador', 'operador'] },
   { to: '/despachos', label: 'Solicitudes', icon: Truck, roles: ['cliente'] },
+  { to: '/historial', label: 'Movimientos', icon: ClipboardList, roles: ['cliente'] },
   { to: '/movimientos', label: 'Mov.', icon: ClipboardList },
   { to: '/offline', label: 'Offline', icon: ShieldAlert },
   { to: '/clientes', label: 'Clientes', icon: Users },

@@ -91,7 +91,6 @@ export default function ClientPortal({ view = 'inventory' }) {
   const [requestMessage, setRequestMessage] = useState('')
   const [expandedInventoryProduct, setExpandedInventoryProduct] = useState('')
   const [showAllInventoryProducts, setShowAllInventoryProducts] = useState(false)
-  const [showAllHistory, setShowAllHistory] = useState(false)
   const [selectedMovement, setSelectedMovement] = useState(null)
 
   useEffect(() => {
@@ -152,9 +151,10 @@ export default function ClientPortal({ view = 'inventory' }) {
   })
   const productCount = new Set(lots.map((lot) => lot.product).filter(Boolean)).size
   const clientName = lots[0]?.clients?.name || 'Cliente'
-  const history = showAllHistory ? movements : movements.slice(0, 4)
   const selectedRequestLot = lots.find((lot) => lot.id === requestLotId)
   const requestsView = view === 'requests'
+  const movementsView = view === 'movements'
+  const inventoryView = !requestsView && !movementsView
   const inventoryProducts = useMemo(() => {
     const groups = filteredLots.reduce((acc, lot) => {
       const product = cleanProductName(lot.product)
@@ -455,9 +455,9 @@ export default function ClientPortal({ view = 'inventory' }) {
   return (
     <div>
       <PageHeader
-        title={requestsView ? 'Solicitudes de despacho' : clientName}
-        subtitle={requestsView ? 'Arma listas para almacen y revisa tus solicitudes enviadas' : 'Inventario e historial de almacen'}
-        action={!requestsView ? (
+        title={requestsView ? 'Solicitudes de despacho' : movementsView ? 'Movimientos' : clientName}
+        subtitle={requestsView ? 'Arma listas para almacen y revisa tus solicitudes enviadas' : movementsView ? 'Historial visible de tus productos en almacen' : 'Inventario disponible en almacen'}
+        action={inventoryView ? (
           <div className="flex gap-2">
             <button className="btn-secondary !min-h-11 !px-3" type="button" onClick={exportInventoryExcel}>
               <Download size={20} /> Excel
@@ -469,7 +469,7 @@ export default function ClientPortal({ view = 'inventory' }) {
         ) : null}
       />
 
-      {!requestsView ? (
+      {inventoryView ? (
       <section className="grid grid-cols-3 gap-1.5 sm:gap-2">
         <Metric icon={Boxes} label="Envases disponibles" value={formatNumber(totalStock)} />
         <Metric icon={PackageCheck} label="Productos" value={productCount} />
@@ -477,7 +477,7 @@ export default function ClientPortal({ view = 'inventory' }) {
       </section>
       ) : null}
 
-      {!requestsView ? (
+      {inventoryView ? (
       <section className="my-4 flex items-center rounded-lg border border-slate-200 bg-white px-3">
         <Search size={20} className="text-slate-400" />
         <input
@@ -489,8 +489,9 @@ export default function ClientPortal({ view = 'inventory' }) {
       </section>
       ) : null}
 
+      {inventoryView || requestsView ? (
       <section className={`grid gap-4 ${requestsView ? '' : 'lg:grid-cols-[1.3fr_.7fr]'}`}>
-        {!requestsView ? (
+        {inventoryView ? (
         <div className="panel">
           <div className="mb-3 flex flex-wrap items-start justify-between gap-2">
             <div>
@@ -655,6 +656,7 @@ export default function ClientPortal({ view = 'inventory' }) {
                       ]}
                       onEdit={() => editRequestItem(item)}
                       onRemove={() => removeRequestItem(item.lot_id)}
+                      selected={editingRequestLotId === item.lot_id}
                     />
                   ))}
                   <button className="btn-secondary w-full !min-h-10 !py-2" type="button" onClick={clearRequestCart}>
@@ -674,20 +676,7 @@ export default function ClientPortal({ view = 'inventory' }) {
               </button>
             </form>
           </section>
-          ) : (
-            <Link className="panel block border-campo-100 bg-white/90 transition hover:bg-campo-50" to="/despachos">
-              <div className="flex items-start justify-between gap-3">
-                <div className="flex items-start gap-2">
-                  <Truck size={20} className="mt-0.5 shrink-0 text-campo-700" />
-                  <div>
-                    <h3 className="font-bold text-slate-950">Solicitudes de despacho</h3>
-                    <p className="mt-1 text-sm font-semibold text-slate-500">Prepara una lista para almacen y revisa lo enviado.</p>
-                  </div>
-                </div>
-                <span className="rounded-lg bg-campo-50 px-2 py-1 text-xs font-black text-campo-800">Abrir</span>
-              </div>
-            </Link>
-          )}
+          ) : null}
 
           <section className="panel">
             <div className="mb-3 flex items-center gap-2">
@@ -705,24 +694,24 @@ export default function ClientPortal({ view = 'inventory' }) {
           </section>
         </aside>
       </section>
+      ) : null}
 
-      <section className={`mt-5 grid gap-4 ${requestsView ? 'lg:grid-cols-2' : ''}`}>
-        <Panel title="Historial simple" icon={History}>
-          {history.length === 0 ? (
+      {movementsView ? (
+      <section className="mt-5 grid gap-4">
+        <Panel title="Historial de movimientos" icon={History} scroll={false}>
+          {movements.length === 0 ? (
             <p className="rounded-lg bg-slate-50 p-3 text-sm font-bold text-slate-600">Sin movimientos visibles.</p>
           ) : (
-            history.map((movement) => (
+            movements.map((movement) => (
               <MovementHistoryCard key={movement.id} movement={movement} onOpen={setSelectedMovement} onPrint={printMovementReceipt} />
             ))
           )}
-          {movements.length > 4 ? (
-            <button className="btn-secondary mt-2 w-full !min-h-10 !py-2" type="button" onClick={() => setShowAllHistory((value) => !value)}>
-              {showAllHistory ? 'Ver historial corto' : `Ver mas historial (${movements.length})`}
-            </button>
-          ) : null}
         </Panel>
+      </section>
+      ) : null}
 
-        {requestsView ? (
+      {requestsView ? (
+      <section className="mt-5 grid gap-4">
         <Panel title="Solicitudes" icon={Truck}>
           {requests.length === 0 ? (
             <p className="rounded-lg bg-slate-50 p-3 text-sm font-bold text-slate-600">Todavia no hay solicitudes.</p>
@@ -746,8 +735,8 @@ export default function ClientPortal({ view = 'inventory' }) {
             ))
           )}
         </Panel>
-        ) : null}
       </section>
+      ) : null}
 
       {selectedMovement ? (
         <MovementDetail
@@ -772,14 +761,14 @@ function Metric({ icon: Icon, label, value, accent = 'text-campo-700' }) {
   )
 }
 
-function Panel({ title, icon: Icon, children }) {
+function Panel({ title, icon: Icon, children, scroll = true }) {
   return (
     <section className="panel">
       <div className="mb-3 flex items-center gap-2">
         <Icon size={20} className="text-campo-700" />
         <h3 className="font-bold text-slate-950">{title}</h3>
       </div>
-      <div className="max-h-[360px] space-y-2 overflow-y-auto pr-1">{children}</div>
+      <div className={`${scroll ? 'max-h-[360px] overflow-y-auto pr-1' : ''} space-y-2`}>{children}</div>
     </section>
   )
 }

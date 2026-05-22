@@ -92,6 +92,6 @@ export default function AppVersion() {
 function isSafeRefreshRoute(pathname, role) {
   if (pathname === '/login') return true
   if (pathname === '/') return ['administrador', 'operador'].includes(role)
-  if (['/operacion', '/lotes', '/clientes', '/movimientos', '/offline', '/pendientes', '/vencimientos'].includes(pathname)) return true
+  if (['/operacion', '/lotes', '/clientes', '/movimientos', '/offline', '/pendientes', '/vencimientos', '/historial'].includes(pathname)) return true
   return pathname.startsWith('/productos/')
 }

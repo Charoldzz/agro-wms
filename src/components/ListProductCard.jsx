@@ -15,6 +15,7 @@ export default function ListProductCard({
   detailRows = [],
   onEdit,
   onRemove,
+  selected = false,
   children,
 }) {
   const [open, setOpen] = useState(false)
@@ -33,7 +34,11 @@ export default function ListProductCard({
   return (
     <>
       <article
-        className="grid cursor-pointer gap-2 rounded-lg bg-white p-3 transition hover:bg-campo-50/40 active:scale-[0.995] sm:grid-cols-[1fr_auto]"
+        className={`grid cursor-pointer gap-2 rounded-lg border-2 bg-white p-3 transition focus:border-maiz focus:bg-maiz/10 focus:outline-none focus:ring-2 focus:ring-maiz/40 active:scale-[0.995] sm:grid-cols-[1fr_auto] ${
+          open || selected
+            ? 'border-maiz bg-maiz/10 shadow-sm hover:bg-maiz/15'
+            : 'border-campo-200 hover:border-campo-300 hover:bg-campo-50/40'
+        }`}
         role="button"
         tabIndex={0}
         onClick={openDetail}
