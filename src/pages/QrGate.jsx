@@ -33,6 +33,8 @@ export default function QrGate() {
       sessionStorage.setItem(`scanned-lot-${lotId}`, '1')
       if (location.state?.movementMode) {
         sessionStorage.setItem(`lot-mode-${lotId}`, location.state.movementMode)
+      } else {
+        sessionStorage.removeItem(`lot-mode-${lotId}`)
       }
 
       if (location.state?.returnTo) {
