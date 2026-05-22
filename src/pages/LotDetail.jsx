@@ -178,6 +178,7 @@ export default function LotDetail() {
   const scannedAccess = Boolean(location.state?.scanned) || sessionStorage.getItem(`scanned-lot-${id}`) === '1'
   const movementMode = location.state?.movementMode || sessionStorage.getItem(`lot-mode-${id}`) || ''
   const canRegisterMovement = ['despacho', 'reparo', 'traslado'].includes(movementMode)
+  const compactRepairView = canRegisterMovement && movementMode === 'reparo'
   const expiryDaysLeft = useMemo(() => {
     if (!lot?.expiry_date) return null
     const today = new Date()
@@ -628,7 +629,15 @@ export default function LotDetail() {
 
   return (
     <div>
-      <PageHeader title={displayLotCode(lot.lot_code)} subtitle={`${cleanProductName(lot.product)} - ${lot.clients?.name}`} />
+      <PageHeader
+        title={cleanProductName(lot.product)}
+        subtitle={
+          <span>
+            <strong className="font-black text-slate-700">{lot.clients?.name || 'Cliente sin nombre'}</strong>
+            <span className="block text-xs font-semibold text-slate-500">Lote {displayLotCode(lot.lot_code)}</span>
+          </span>
+        }
+      />
 
       {location.state?.fromLotsSearch ? (
         <button
@@ -658,6 +667,26 @@ export default function LotDetail() {
         </div>
       ) : null}
 
+      {compactRepairView ? (
+        <section className="panel mb-4 border-orange-200 bg-white/95">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div className="min-w-0">
+              <p className="text-xs font-bold uppercase text-orange-700">Lote para reparacion</p>
+              <p className="mt-1 text-sm font-bold text-slate-500">
+                {lot.location || '-'} - {lot.package_size ? `${formatNumber(lot.package_size)} ${lot.package_unit || ''}` : 'Presentacion sin dato'}
+              </p>
+            </div>
+            <div className="rounded-lg bg-campo-50 px-3 py-2 text-right">
+              <p className="text-xs font-bold uppercase text-campo-700">Disponible</p>
+              <p className="text-2xl font-black text-campo-800">{formatNumber(lot.current_quantity)} env.</p>
+            </div>
+          </div>
+          <div className="mt-3 grid gap-2 text-xs font-bold text-slate-600 sm:grid-cols-2">
+            <div className="rounded-lg bg-slate-50 p-2">Vence: {lot.expiry_date ? formatDate(lot.expiry_date) : 'Sin dato'}</div>
+            <div className="rounded-lg bg-slate-50 p-2">Estado: {lot.status || '-'}</div>
+          </div>
+        </section>
+      ) : (
       <section className="panel mb-4 border-campo-200 bg-white/95">
         <div className="grid gap-3 sm:grid-cols-[1.5fr_1fr_1fr]">
           <div>
@@ -683,7 +712,9 @@ export default function LotDetail() {
           <div className="rounded-lg bg-slate-50 p-3">Estado: {lot.status}</div>
         </div>
       </section>
+      )}
 
+      {!compactRepairView ? (
       <section className="grid gap-4 lg:grid-cols-[1.2fr_0.8fr]">
         <div className="panel">
           {lot.photo_url ? <img className="mb-4 h-48 w-full rounded-lg object-cover" src={lot.photo_url} alt={cleanProductName(lot.product)} /> : null}
@@ -723,6 +754,7 @@ export default function LotDetail() {
           </div>
         ) : null}
       </section>
+      ) : null}
 
       {canRegisterMovement ? (
       <form className="panel mt-4 space-y-3" onSubmit={handleSubmit}>

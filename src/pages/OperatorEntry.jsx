@@ -40,9 +40,9 @@ function entryPackageBreakdown(item) {
   const boxes = Number(item.box_count || 0)
   const unitsPerBox = Number(item.units_per_box || 0)
   const looseUnits = Number(item.loose_units || 0)
-  const boxText = boxes > 0 ? `${formatNumber(boxes)} cajas x ${formatNumber(unitsPerBox)} env.` : 'Sin cajas'
-  const looseText = looseUnits > 0 ? `${formatNumber(looseUnits)} sueltos` : '0 sueltos'
-  return `${boxText} + ${looseText}`
+  const boxText = boxes > 0 ? `${formatNumber(boxes)} cajas, ${formatNumber(unitsPerBox)} env. por caja` : 'Sin cajas'
+  const looseText = looseUnits > 0 ? `${formatNumber(looseUnits)} env. sueltos` : 'sin sueltos'
+  return `${boxText}, ${looseText}`
 }
 
 export default function OperatorEntry() {
@@ -431,14 +431,12 @@ export default function OperatorEntry() {
               <div className="rounded-lg bg-campo-50 p-3">
                 <p className="text-xs font-semibold uppercase text-campo-700">Envases totales</p>
                 <p className="mt-1 text-2xl font-black text-campo-800">{formatNumber(totalEntryPackages)} env.</p>
-                <p className="mt-1 text-xs font-semibold text-campo-700">{entryPackageBreakdown(form)}</p>
               </div>
               <div className="rounded-lg bg-slate-50 p-3">
                 <p className="text-xs font-semibold uppercase text-slate-500">Equivalente</p>
                 <p className="mt-1 text-2xl font-black text-slate-950">
                   {formatNumber(equivalent)} {form.package_unit}
                 </p>
-                <p className="mt-1 text-xs font-semibold text-slate-500">Envases totales x presentacion.</p>
               </div>
             </div>
             <button className="btn-primary sm:col-span-2" type="button" onClick={addEntryProduct}>
