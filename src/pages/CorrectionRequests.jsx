@@ -15,6 +15,7 @@ export default function CorrectionRequests() {
   const [movements, setMovements] = useState([])
   const [clients, setClients] = useState([])
   const [selected, setSelected] = useState(null)
+  const [selectedOperation, setSelectedOperation] = useState(null)
   const [detailGroup, setDetailGroup] = useState(null)
   const [correctionType, setCorrectionType] = useState('cantidad')
   const [quantity, setQuantity] = useState('')
@@ -49,6 +50,13 @@ export default function CorrectionRequests() {
     setCorrectionType('cantidad')
     setQuantity(String(movement.quantity || ''))
     setLotPatch(createLotPatch(movement))
+    setReason('')
+    setError('')
+  }
+
+  function openOperationRequest(group) {
+    setSelectedOperation(group)
+    setLotPatch(createOperationPatch(group))
     setReason('')
     setError('')
   }
@@ -89,6 +97,42 @@ export default function CorrectionRequests() {
       p_requested_quantity: correctionType === 'cantidad' ? Number(quantity) : Number(selected.quantity || 0),
       p_correction_type: correctionType,
       p_lot_patch: correctionType === 'ficha' ? requestedPatch : {},
+      p_reason: reason.trim(),
+      p_user_id: user.id,
+    })
+
+    if (requestError) {
+      setError(requestError.message?.includes('request_movement_correction') ? 'Falta correr el SQL de correcciones operativas.' : requestError.message)
+      setSaving(false)
+      return
+    }
+
+    vibrateSuccess()
+    setSuccess(true)
+    setSaving(false)
+  }
+
+  async function submitOperationCorrection() {
+    if (!selectedOperation) return
+    const requestedPatch = changedOperationPatch(selectedOperation, lotPatch)
+
+    if (Object.keys(requestedPatch).length === 1) {
+      setError('Cambia al menos un dato de la operacion.')
+      return
+    }
+    if (!reason.trim()) {
+      setError('Explica brevemente el error.')
+      return
+    }
+
+    setSaving(true)
+    setError('')
+    const anchorMovement = selectedOperation.items[0]
+    const { error: requestError } = await supabase.rpc('request_movement_correction', {
+      p_movement_id: anchorMovement.id,
+      p_requested_quantity: Number(anchorMovement.quantity || 0),
+      p_correction_type: 'operacion',
+      p_lot_patch: requestedPatch,
       p_reason: reason.trim(),
       p_user_id: user.id,
     })
@@ -164,7 +208,11 @@ export default function CorrectionRequests() {
       </div>
 
       {detailGroup ? (
-        <MovementDetail group={detailGroup} onClose={() => setDetailGroup(null)} onRequest={(movement) => {
+        <MovementDetail group={detailGroup} onClose={() => setDetailGroup(null)} onOperationRequest={() => {
+          const group = detailGroup
+          setDetailGroup(null)
+          openOperationRequest(group)
+        }} onRequest={(movement) => {
           setDetailGroup(null)
           openRequest(movement)
         }} />
@@ -212,6 +260,32 @@ export default function CorrectionRequests() {
             </label>
             {error ? <p className="mt-3 rounded-lg bg-red-50 p-3 text-sm font-bold text-red-700">{error}</p> : null}
             <button className="btn-primary mt-4 w-full" type="button" onClick={submitCorrection} disabled={saving}>
+              <Send size={18} /> {saving ? 'Enviando...' : 'Enviar solicitud'}
+            </button>
+          </section>
+        </div>
+      ) : null}
+
+      {selectedOperation ? (
+        <div className="fixed inset-0 z-50 flex items-end bg-slate-950/45 p-4 sm:items-center sm:justify-center" onClick={() => setSelectedOperation(null)}>
+          <section className="w-full max-w-md rounded-xl bg-white p-4 shadow-xl" onClick={(event) => event.stopPropagation()}>
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="text-xs font-black uppercase text-orange-700">Correccion de operacion</p>
+                <h3 className="text-xl font-black text-slate-950">{selectedOperation.label}</h3>
+                <p className="mt-1 text-sm font-bold text-slate-500">{selectedOperation.items.length} producto{selectedOperation.items.length === 1 ? '' : 's'}</p>
+              </div>
+              <button className="btn-secondary !min-h-10 !px-3" type="button" onClick={() => setSelectedOperation(null)}>
+                <X size={18} />
+              </button>
+            </div>
+            <OperationPatchForm group={selectedOperation} patch={lotPatch} clients={clients} onChange={setLotPatch} />
+            <label className="mt-3 block">
+              <span className="label">Motivo</span>
+              <textarea className="input mt-1" rows="3" value={reason} onChange={(event) => setReason(event.target.value)} placeholder="Ej. la placa o el cliente del despacho estaba mal." />
+            </label>
+            {error ? <p className="mt-3 rounded-lg bg-red-50 p-3 text-sm font-bold text-red-700">{error}</p> : null}
+            <button className="btn-primary mt-4 w-full" type="button" onClick={submitOperationCorrection} disabled={saving}>
               <Send size={18} /> {saving ? 'Enviando...' : 'Enviar solicitud'}
             </button>
           </section>
@@ -298,6 +372,31 @@ function LotPatchForm({ patch, clients, onChange }) {
   )
 }
 
+function OperationPatchForm({ group, patch, clients, onChange }) {
+  return (
+    <div className="mt-3 grid gap-2 rounded-lg bg-slate-50 p-3 sm:grid-cols-2">
+      <PatchField label="Cliente">
+        <select className="input" value={patch.client_id || ''} onChange={(event) => onChange({ ...patch, client_id: event.target.value })}>
+          {clients.map((client) => <option key={client.id} value={client.id}>{client.name}</option>)}
+        </select>
+      </PatchField>
+      {group.type === 'salida' ? (
+        <>
+          <PatchField label="Placa">
+            <input className="input" value={patch.vehicle_plate || ''} onChange={(event) => onChange({ ...patch, vehicle_plate: event.target.value })} />
+          </PatchField>
+          <PatchField label="Recibe">
+            <input className="input" value={patch.receiver_name || ''} onChange={(event) => onChange({ ...patch, receiver_name: event.target.value })} />
+          </PatchField>
+          <PatchField label="Documento">
+            <input className="input" value={patch.receiver_document || ''} onChange={(event) => onChange({ ...patch, receiver_document: event.target.value })} />
+          </PatchField>
+        </>
+      ) : null}
+    </div>
+  )
+}
+
 function PatchField({ label, children }) {
   return (
     <label className="block">
@@ -326,6 +425,24 @@ function changedLotPatch(movement, patch) {
   )
 }
 
+function createOperationPatch(group) {
+  const operationMeta = operationMetadata(group)
+  return {
+    movement_ids: group.items.map((movement) => movement.id),
+    client_id: group.items[0]?.lots?.client_id || '',
+    vehicle_plate: operationMeta.vehiclePlate || '',
+    receiver_name: operationMeta.receiverName || '',
+    receiver_document: operationMeta.receiverDocument || '',
+  }
+}
+
+function changedOperationPatch(group, patch) {
+  const original = createOperationPatch(group)
+  return Object.fromEntries(
+    Object.entries(patch).filter(([key, value]) => key === 'movement_ids' || String(value ?? '').trim() !== String(original[key] ?? '').trim()),
+  )
+}
+
 function correctionStockReference(movement) {
   if (movement.type === 'salida') {
     return {
@@ -344,7 +461,9 @@ function exceedsCorrectionStock(movement, value) {
   return movement.type === 'salida' && Number(value || 0) > Number(movement.previous_quantity || 0)
 }
 
-function MovementDetail({ group, onClose, onRequest }) {
+function MovementDetail({ group, onClose, onRequest, onOperationRequest }) {
+  const operationMeta = operationMetadata(group)
+
   return (
     <div className="fixed inset-0 z-50 flex items-end bg-slate-950/45 p-4 sm:items-center sm:justify-center" onClick={onClose}>
       <section className="w-full max-w-xl rounded-xl bg-white p-4 shadow-xl" onClick={(event) => event.stopPropagation()}>
@@ -355,11 +474,22 @@ function MovementDetail({ group, onClose, onRequest }) {
             <p className="mt-1 text-xs font-bold text-slate-500">
               {formatDate(group.createdAt)} - {group.items.length} producto{group.items.length === 1 ? '' : 's'}
             </p>
+            {group.type === 'salida' ? (
+              <div className="mt-2 flex flex-wrap gap-1.5 text-xs font-bold text-slate-600">
+                {operationMeta.receiverName ? <span className="rounded-lg bg-slate-50 px-2 py-1">Recibe: {operationMeta.receiverName}</span> : null}
+                {operationMeta.receiverDocument ? <span className="rounded-lg bg-slate-50 px-2 py-1">Documento: {operationMeta.receiverDocument}</span> : null}
+                {operationMeta.vehiclePlate ? <span className="rounded-lg bg-slate-50 px-2 py-1">Placa: {operationMeta.vehiclePlate}</span> : null}
+              </div>
+            ) : null}
           </div>
           <button className="btn-secondary !min-h-10 !px-3" type="button" onClick={onClose}>
             <X size={18} />
           </button>
         </div>
+
+        <button className="mt-3 inline-flex min-h-9 items-center rounded-lg border border-orange-200 bg-orange-50 px-3 py-2 text-sm font-black text-orange-800 transition hover:bg-orange-100" type="button" onClick={onOperationRequest}>
+          Corregir operacion
+        </button>
 
         <div className="mt-4 max-h-[68vh] space-y-2 overflow-y-auto pr-1">
           {group.items.map((movement) => (
@@ -398,11 +528,37 @@ function MovementLine({ movement, onRequest }) {
         <DetailRow label="Equivalente" value={Number(movement.lots?.package_size) > 0 ? `${formatNumber(equivalent)} ${movement.lots?.package_unit || ''}` : 'Sin dato'} />
         <DetailRow label="Stock anterior" value={`${formatNumber(movement.previous_quantity)} env.`} />
         <DetailRow label="Stock despues" value={`${formatNumber(movement.new_quantity)} env.`} />
-        {movement.to_location ? <DetailRow label={movement.type === 'salida' ? 'Placa / destino' : 'Hacia'} value={movement.to_location} /> : null}
       </dl>
-      {movement.notes ? <p className="mt-2 text-xs font-semibold text-slate-500 [overflow-wrap:anywhere]">{movement.notes}</p> : null}
+      {visibleMovementNotes(movement.notes) ? <p className="mt-2 text-xs font-semibold text-slate-500 [overflow-wrap:anywhere]">{visibleMovementNotes(movement.notes)}</p> : null}
     </article>
   )
+}
+
+function operationMetadata(group) {
+  const notes = group.items[0]?.notes || ''
+  return {
+    vehiclePlate: noteValue(notes, 'Placa'),
+    receiverName: noteValue(notes, 'Recibe'),
+    receiverDocument: noteValue(notes, 'Documento'),
+  }
+}
+
+function noteValue(notes, label) {
+  const prefix = `${label}:`
+  return String(notes || '')
+    .split('|')
+    .map((part) => part.trim())
+    .find((part) => part.startsWith(prefix))
+    ?.slice(prefix.length)
+    .trim() || ''
+}
+
+function visibleMovementNotes(notes) {
+  return String(notes || '')
+    .split('|')
+    .map((part) => part.trim())
+    .filter((part) => part && !part.startsWith('Placa:') && !part.startsWith('Recibe:') && !part.startsWith('Documento:') && part !== 'Despacho por lista')
+    .join(' | ')
 }
 
 function groupMovements(movements) {

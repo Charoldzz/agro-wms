@@ -297,7 +297,7 @@ export default function AdminPending() {
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
                   <p className="font-black text-slate-950">
-                    Correccion de {correction.correction_type === 'ficha' ? 'ficha' : 'cantidad'}
+                    Correccion de {correctionTypeLabel(correction.correction_type)}
                   </p>
                   <p className="mt-1 font-black text-slate-900 [overflow-wrap:anywhere]">{cleanProductName(correction.movements?.lots?.product)}</p>
                   <p className="text-xs font-semibold text-slate-500">
@@ -344,7 +344,7 @@ export default function AdminPending() {
 }
 
 function CorrectionReviewDetails({ correction, clients }) {
-  if (correction.correction_type !== 'ficha') {
+  if (correction.correction_type === 'cantidad') {
     return (
       <div className="mt-3 grid gap-2 text-sm font-bold sm:grid-cols-2">
         <p className="rounded-lg bg-white p-3">Registrado: {formatNumber(correction.movements?.quantity)} env.</p>
@@ -357,7 +357,9 @@ function CorrectionReviewDetails({ correction, clients }) {
 
   return (
     <div className="mt-3 rounded-lg bg-white p-3">
-      <p className="text-xs font-black uppercase text-slate-500">Cambios solicitados en ficha</p>
+      <p className="text-xs font-black uppercase text-slate-500">
+        Cambios solicitados en {correction.correction_type === 'operacion' ? 'operacion' : 'ficha'}
+      </p>
       <div className="mt-2 grid gap-2 sm:grid-cols-2">
         {patchRows.map((row) => (
           <div key={row.label} className="rounded-lg bg-slate-50 p-2">
@@ -381,10 +383,19 @@ function lotPatchRows(patch, clients) {
     package_size: 'Tamano presentacion',
     package_unit: 'Unidad',
     expiry_date: 'Vencimiento',
+    vehicle_plate: 'Placa',
+    receiver_name: 'Recibe',
+    receiver_document: 'Documento',
   }
 
-  return Object.entries(values).map(([key, value]) => ({
+  return Object.entries(values).filter(([key]) => key !== 'movement_ids').map(([key, value]) => ({
     label: labels[key] || key,
     value: key === 'client_id' ? clientMap.get(value) || 'Cliente seleccionado' : String(value || '-'),
   }))
+}
+
+function correctionTypeLabel(type) {
+  if (type === 'ficha') return 'ficha'
+  if (type === 'operacion') return 'operacion'
+  return 'cantidad'
 }
