@@ -183,6 +183,7 @@ export default function LotDetail() {
   const compactServiceView = canRegisterMovement && ['reparo', 'traslado'].includes(movementMode)
   const operatorQrConsultation = isOperator && scannedAccess && !canRegisterMovement
   const adminLotConsultation = isAdmin && !canRegisterMovement
+  const clientLotConsultation = !isAdmin && !isOperator && !canRegisterMovement
   const expiryDaysLeft = useMemo(() => {
     if (!lot?.expiry_date) return null
     const today = new Date()
@@ -800,6 +801,68 @@ export default function LotDetail() {
                 </button>
               </div>
             ) : null}
+          </div>
+        </section>
+      </div>
+    )
+  }
+
+  if (clientLotConsultation) {
+    return (
+      <div>
+        <PageHeader title="Ficha del lote" subtitle="Detalle visible para cliente" />
+
+        {statusWarning ? (
+          <div className="mb-4 rounded-lg bg-amber-50 p-4 text-sm font-bold text-amber-800">
+            Alerta: este lote esta {lot.status}.
+          </div>
+        ) : null}
+
+        {isExpired ? (
+          <div className="mb-4 rounded-lg bg-red-50 p-4 text-sm font-bold text-red-700">
+            Lote vencido.
+          </div>
+        ) : null}
+
+        <section className="panel overflow-hidden border-campo-100 bg-white/95">
+          <div className="flex flex-col gap-3 border-b border-slate-100 pb-4 sm:flex-row sm:items-start sm:justify-between">
+            <div className="min-w-0">
+              <p className="text-xs font-bold uppercase text-campo-700">Producto</p>
+              <h2 className="mt-1 text-2xl font-black leading-tight text-slate-950 [overflow-wrap:anywhere]">
+                {cleanProductName(lot.product)}
+              </h2>
+              <div className="mt-2 flex flex-wrap gap-2 text-xs font-black">
+                <span className="rounded-lg bg-campo-50 px-2.5 py-1 text-campo-800">
+                  Presentacion: {lot.package_size ? `${formatNumber(lot.package_size)} ${lot.package_unit || ''}` : 'Sin dato'}
+                </span>
+                <span className="rounded-lg bg-slate-100 px-2.5 py-1 text-slate-700">
+                  Lote {displayLotCode(lot.lot_code)}
+                </span>
+              </div>
+            </div>
+            <div className="rounded-lg bg-slate-50 px-3 py-2 text-sm font-black text-slate-700">
+              {lot.status === 'activo' ? 'Disponible' : lot.status || 'Sin estado'}
+            </div>
+          </div>
+
+          <div className="mt-4 grid gap-3 sm:grid-cols-2">
+            <div className="rounded-lg bg-campo-50 p-4">
+              <p className="text-xs font-bold uppercase text-campo-700">Envases disponibles</p>
+              <p className="mt-1 text-4xl font-black text-campo-800">{formatNumber(lot.current_quantity)}</p>
+            </div>
+            <div className="rounded-lg bg-slate-50 p-4">
+              <p className="text-xs font-bold uppercase text-slate-500">Equivalente actual</p>
+              <p className="mt-1 text-3xl font-black text-slate-950">
+                {Number(lot.package_size) > 0 ? `${formatNumber(currentEquivalent)} ${lot.package_unit || ''}` : 'Sin dato'}
+              </p>
+            </div>
+          </div>
+
+          <div className="mt-3 grid gap-2 text-sm sm:grid-cols-2">
+            <ConsultInfo label="Ubicacion" value={lot.location || '-'} />
+            <ConsultInfo label="Vencimiento" value={lot.expiry_date ? formatDate(lot.expiry_date) : 'Sin dato'} />
+            <ConsultInfo label="Fecha ingreso" value={lot.entry_date ? formatDate(lot.entry_date) : 'Sin dato'} />
+            <ConsultInfo label="Estado" value={lot.status === 'activo' ? 'Disponible' : lot.status || '-'} />
           </div>
         </section>
       </div>

@@ -1,5 +1,5 @@
 import { Outlet, NavLink, useLocation, useNavigate } from 'react-router-dom'
-import { ArrowLeft, Boxes, ClipboardList, Home, LogOut, ShieldAlert, Users, Warehouse } from 'lucide-react'
+import { ArrowLeft, Boxes, ClipboardList, Home, LogOut, ShieldAlert, Truck, Users, Warehouse } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../hooks/useAuth.jsx'
@@ -9,6 +9,7 @@ const navItems = [
   { to: '/', label: 'Inicio', icon: Home },
   { to: '/operacion', label: 'Operar', icon: Warehouse, roles: ['operador'] },
   { to: '/lotes', label: 'Lotes', icon: Boxes, roles: ['administrador', 'operador'] },
+  { to: '/despachos', label: 'Solicitudes', icon: Truck, roles: ['cliente'] },
   { to: '/movimientos', label: 'Mov.', icon: ClipboardList },
   { to: '/offline', label: 'Offline', icon: ShieldAlert },
   { to: '/clientes', label: 'Clientes', icon: Users },
@@ -36,6 +37,7 @@ export default function AppLayout() {
   function goBackInsideApp() {
     const path = location.pathname
     if (path.startsWith('/operacion/')) return navigate('/operacion')
+    if (profile?.role === 'cliente' && path.match(/^\/lotes\/[^/]+$/)) return navigate('/')
     if (path.startsWith('/productos/') || path.startsWith('/vencimientos') || path.match(/^\/lotes\/[^/]+$/)) return navigate('/lotes')
     if (path.startsWith('/pendientes') || path.startsWith('/solicitudes')) return navigate('/')
     return navigate('/')

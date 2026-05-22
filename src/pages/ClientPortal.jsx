@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Boxes, CalendarClock, ChevronDown, Download, FileText, History, Mail, PackageCheck, Plus, Search, Send, Truck } from 'lucide-react'
+import { Boxes, CalendarClock, ChevronDown, Download, FileText, History, Mail, PackageCheck, Plus, Printer, Search, Send, Truck } from 'lucide-react'
 import PageHeader from '../components/PageHeader'
 import EmptyState from '../components/EmptyState'
 import ListProductCard from '../components/ListProductCard'
@@ -76,7 +76,7 @@ function clearRequestDraft() {
   localStorage.removeItem(REQUEST_DRAFT_KEY)
 }
 
-export default function ClientPortal() {
+export default function ClientPortal({ view = 'inventory' }) {
   const { user } = useAuth()
   const initialDraft = useMemo(readRequestDraft, [])
   const [lots, setLots] = useState([])
@@ -91,6 +91,8 @@ export default function ClientPortal() {
   const [requestMessage, setRequestMessage] = useState('')
   const [expandedInventoryProduct, setExpandedInventoryProduct] = useState('')
   const [showAllInventoryProducts, setShowAllInventoryProducts] = useState(false)
+  const [showAllHistory, setShowAllHistory] = useState(false)
+  const [selectedMovement, setSelectedMovement] = useState(null)
 
   useEffect(() => {
     loadData()
@@ -150,9 +152,9 @@ export default function ClientPortal() {
   })
   const productCount = new Set(lots.map((lot) => lot.product).filter(Boolean)).size
   const clientName = lots[0]?.clients?.name || 'Cliente'
-  const dispatchReceipts = movements.filter((movement) => movement.type === 'salida')
-  const history = movements.slice(0, 12)
+  const history = showAllHistory ? movements : movements.slice(0, 4)
   const selectedRequestLot = lots.find((lot) => lot.id === requestLotId)
+  const requestsView = view === 'requests'
   const inventoryProducts = useMemo(() => {
     const groups = filteredLots.reduce((acc, lot) => {
       const product = cleanProductName(lot.product)
@@ -411,6 +413,7 @@ export default function ClientPortal() {
   function printMovementReceipt(movement) {
     const lot = movement.lots || {}
     const equivalent = Number(movement.quantity || 0) * Number(lot.package_size || 0)
+    const receiptType = movement.type === 'salida' ? 'despacho' : movementLabel(movement.type).toLowerCase()
     const printWindow = window.open('', '_blank')
     if (!printWindow) return
 
@@ -431,9 +434,10 @@ export default function ClientPortal() {
         </head>
         <body>
           <h1>Todo Agricola Boliviana Ltda</h1>
-          <p>Comprobante de despacho para ${escapeHtml(clientName)}</p>
+          <p>Comprobante de ${escapeHtml(receiptType)} para ${escapeHtml(clientName)}</p>
           <div class="box grid">
             <div><strong>Fecha</strong>${escapeHtml(formatDate(movement.created_at))}</div>
+            <div><strong>Movimiento</strong>${escapeHtml(movementLabel(movement.type))}</div>
             <div><strong>Lote</strong>${escapeHtml(displayLotCode(lot.lot_code))}</div>
             <div><strong>Producto</strong>${escapeHtml(cleanProductName(lot.product))}</div>
             <div><strong>Cantidad</strong>${escapeHtml(formatNumber(movement.quantity))} envases</div>
@@ -451,9 +455,9 @@ export default function ClientPortal() {
   return (
     <div>
       <PageHeader
-        title={clientName}
-        subtitle="Inventario, comprobantes y solicitudes de despacho"
-        action={
+        title={requestsView ? 'Solicitudes de despacho' : clientName}
+        subtitle={requestsView ? 'Arma listas para almacen y revisa tus solicitudes enviadas' : 'Inventario e historial de almacen'}
+        action={!requestsView ? (
           <div className="flex gap-2">
             <button className="btn-secondary !min-h-11 !px-3" type="button" onClick={exportInventoryExcel}>
               <Download size={20} /> Excel
@@ -462,15 +466,18 @@ export default function ClientPortal() {
               <FileText size={20} /> PDF
             </button>
           </div>
-        }
+        ) : null}
       />
 
+      {!requestsView ? (
       <section className="grid grid-cols-3 gap-1.5 sm:gap-2">
         <Metric icon={Boxes} label="Envases disponibles" value={formatNumber(totalStock)} />
         <Metric icon={PackageCheck} label="Productos" value={productCount} />
         <Metric icon={CalendarClock} label="Por vencer" value={expiring.length} accent="text-maiz" />
       </section>
+      ) : null}
 
+      {!requestsView ? (
       <section className="my-4 flex items-center rounded-lg border border-slate-200 bg-white px-3">
         <Search size={20} className="text-slate-400" />
         <input
@@ -480,8 +487,10 @@ export default function ClientPortal() {
           onChange={(event) => setSearch(event.target.value)}
         />
       </section>
+      ) : null}
 
-      <section className="grid gap-4 lg:grid-cols-[1.3fr_.7fr]">
+      <section className={`grid gap-4 ${requestsView ? '' : 'lg:grid-cols-[1.3fr_.7fr]'}`}>
+        {!requestsView ? (
         <div className="panel">
           <div className="mb-3 flex flex-wrap items-start justify-between gap-2">
             <div>
@@ -560,8 +569,10 @@ export default function ClientPortal() {
             </div>
           )}
         </div>
+        ) : null}
 
         <aside className="space-y-4">
+          {requestsView ? (
           <section className="panel">
             <div className="mb-3 flex items-start gap-2">
               <Send size={20} className="mt-0.5 text-campo-700" />
@@ -663,6 +674,20 @@ export default function ClientPortal() {
               </button>
             </form>
           </section>
+          ) : (
+            <Link className="panel block border-campo-100 bg-white/90 transition hover:bg-campo-50" to="/despachos">
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex items-start gap-2">
+                  <Truck size={20} className="mt-0.5 shrink-0 text-campo-700" />
+                  <div>
+                    <h3 className="font-bold text-slate-950">Solicitudes de despacho</h3>
+                    <p className="mt-1 text-sm font-semibold text-slate-500">Prepara una lista para almacen y revisa lo enviado.</p>
+                  </div>
+                </div>
+                <span className="rounded-lg bg-campo-50 px-2 py-1 text-xs font-black text-campo-800">Abrir</span>
+              </div>
+            </Link>
+          )}
 
           <section className="panel">
             <div className="mb-3 flex items-center gap-2">
@@ -681,41 +706,23 @@ export default function ClientPortal() {
         </aside>
       </section>
 
-      <section className="mt-5 grid gap-4 lg:grid-cols-3">
-        <Panel title="Comprobantes de despacho" icon={FileText}>
-          {dispatchReceipts.length === 0 ? (
-            <p className="rounded-lg bg-slate-50 p-3 text-sm font-bold text-slate-600">Sin despachos registrados.</p>
-          ) : (
-            dispatchReceipts.slice(0, 6).map((movement) => (
-              <button key={movement.id} className="block w-full rounded-lg bg-slate-50 p-3 text-left transition hover:bg-slate-100" type="button" onClick={() => printMovementReceipt(movement)}>
-                <div className="flex flex-wrap items-start justify-between gap-2">
-                  <p className="min-w-0 flex-1 font-black text-slate-950 [overflow-wrap:anywhere]">{cleanProductName(movement.lots?.product)}</p>
-                  <span className="rounded-lg bg-campo-50 px-2 py-1 text-sm font-black text-campo-800">{formatNumber(movement.quantity)} env.</span>
-                </div>
-                <p className="text-sm font-semibold text-slate-500">{displayLotCode(movement.lots?.lot_code)}</p>
-                <p className="mt-1 text-xs font-bold text-campo-700">{formatDate(movement.created_at)} - Ver comprobante</p>
-              </button>
-            ))
-          )}
-        </Panel>
-
+      <section className={`mt-5 grid gap-4 ${requestsView ? 'lg:grid-cols-2' : ''}`}>
         <Panel title="Historial simple" icon={History}>
           {history.length === 0 ? (
             <p className="rounded-lg bg-slate-50 p-3 text-sm font-bold text-slate-600">Sin movimientos visibles.</p>
           ) : (
             history.map((movement) => (
-              <div key={movement.id} className="rounded-lg bg-slate-50 p-3">
-                <div className="flex flex-wrap items-start justify-between gap-2">
-                  <p className="min-w-0 flex-1 font-black text-slate-950 [overflow-wrap:anywhere]">{cleanProductName(movement.lots?.product)}</p>
-                  <p className="rounded-lg bg-campo-50 px-2 py-1 text-sm font-black text-campo-800">{formatNumber(movement.quantity)} env.</p>
-                </div>
-                <p className="text-sm font-semibold text-slate-500">{movementLabel(movement.type)} - {displayLotCode(movement.lots?.lot_code)}</p>
-                <p className="mt-1 text-xs font-semibold text-slate-400">{formatDate(movement.created_at)}</p>
-              </div>
+              <MovementHistoryCard key={movement.id} movement={movement} onOpen={setSelectedMovement} onPrint={printMovementReceipt} />
             ))
           )}
+          {movements.length > 4 ? (
+            <button className="btn-secondary mt-2 w-full !min-h-10 !py-2" type="button" onClick={() => setShowAllHistory((value) => !value)}>
+              {showAllHistory ? 'Ver historial corto' : `Ver mas historial (${movements.length})`}
+            </button>
+          ) : null}
         </Panel>
 
+        {requestsView ? (
         <Panel title="Solicitudes" icon={Truck}>
           {requests.length === 0 ? (
             <p className="rounded-lg bg-slate-50 p-3 text-sm font-bold text-slate-600">Todavia no hay solicitudes.</p>
@@ -739,7 +746,16 @@ export default function ClientPortal() {
             ))
           )}
         </Panel>
+        ) : null}
       </section>
+
+      {selectedMovement ? (
+        <MovementDetail
+          movement={selectedMovement}
+          onClose={() => setSelectedMovement(null)}
+          onPrint={() => printMovementReceipt(selectedMovement)}
+        />
+      ) : null}
     </div>
   )
 }
@@ -765,6 +781,89 @@ function Panel({ title, icon: Icon, children }) {
       </div>
       <div className="max-h-[360px] space-y-2 overflow-y-auto pr-1">{children}</div>
     </section>
+  )
+}
+
+function MovementHistoryCard({ movement, onOpen, onPrint }) {
+  const lot = movement.lots || {}
+  const equivalent = Number(movement.quantity || 0) * Number(lot.package_size || 0)
+
+  return (
+    <article
+      className="grid cursor-pointer gap-2 rounded-lg bg-slate-50 p-3 transition hover:bg-campo-50/70 sm:grid-cols-[1fr_auto]"
+      role="button"
+      tabIndex={0}
+      onClick={() => onOpen(movement)}
+      onKeyDown={(event) => {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault()
+          onOpen(movement)
+        }
+      }}
+      title="Ver movimiento"
+    >
+      <div className="min-w-0">
+        <div className="flex flex-wrap items-start gap-2">
+          <p className="min-w-0 flex-1 font-black text-slate-950 [overflow-wrap:anywhere]">{cleanProductName(lot.product)}</p>
+          <span className="rounded-lg bg-campo-50 px-2 py-1 text-sm font-black text-campo-800">{formatNumber(movement.quantity)} env.</span>
+        </div>
+        <p className="text-sm font-semibold text-slate-500">{movementLabel(movement.type)} - {displayLotCode(lot.lot_code)}</p>
+        <p className="text-xs font-semibold text-slate-400">
+          {formatDate(movement.created_at)}
+          {Number(lot.package_size) > 0 ? ` - ${formatNumber(equivalent)} ${lot.package_unit || ''}` : ''}
+        </p>
+      </div>
+      <button
+        className="btn-secondary !min-h-10 !px-3 self-start"
+        type="button"
+        title="Imprimir comprobante"
+        onClick={(event) => {
+          event.stopPropagation()
+          onPrint(movement)
+        }}
+      >
+        <Printer size={17} />
+      </button>
+    </article>
+  )
+}
+
+function MovementDetail({ movement, onClose, onPrint }) {
+  const lot = movement.lots || {}
+  const equivalent = Number(movement.quantity || 0) * Number(lot.package_size || 0)
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end bg-slate-950/45 p-4 sm:items-center sm:justify-center" onClick={onClose}>
+      <section className="w-full max-w-md rounded-xl bg-white p-4 shadow-xl" onClick={(event) => event.stopPropagation()}>
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <p className="text-xs font-bold uppercase text-campo-700">Movimiento en almacen</p>
+            <h3 className="mt-1 text-lg font-black leading-snug text-slate-950 [overflow-wrap:anywhere]">{cleanProductName(lot.product)}</h3>
+          </div>
+          <button className="btn-secondary !min-h-10 !px-3" type="button" onClick={onClose}>Cerrar</button>
+        </div>
+        <dl className="mt-4 grid gap-2 rounded-lg bg-slate-50 p-3 text-sm font-bold text-slate-700">
+          <DetailRow label="Movimiento" value={movementLabel(movement.type)} />
+          <DetailRow label="Fecha" value={formatDate(movement.created_at)} />
+          <DetailRow label="Lote" value={displayLotCode(lot.lot_code)} />
+          <DetailRow label="Envases" value={`${formatNumber(movement.quantity)} env.`} />
+          <DetailRow label="Equivalente" value={Number(lot.package_size) > 0 ? `${formatNumber(equivalent)} ${lot.package_unit || ''}` : 'Sin dato'} />
+          <DetailRow label="Ubicacion" value={lot.location || '-'} />
+        </dl>
+        <button className="btn-primary mt-3 w-full" type="button" onClick={onPrint}>
+          <Printer size={18} /> Imprimir comprobante
+        </button>
+      </section>
+    </div>
+  )
+}
+
+function DetailRow({ label, value }) {
+  return (
+    <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-3">
+      <dt className="text-slate-500">{label}</dt>
+      <dd className="max-w-[13rem] text-right text-slate-950 [overflow-wrap:anywhere]">{value || '-'}</dd>
+    </div>
   )
 }
 
