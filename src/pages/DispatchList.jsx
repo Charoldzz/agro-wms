@@ -76,6 +76,7 @@ export default function DispatchList() {
   const [receipt, setReceipt] = useState(null)
   const [approvedRequest, setApprovedRequest] = useState(null)
   const [approvedRequestLoaded, setApprovedRequestLoaded] = useState(false)
+  const [focusedLotId, setFocusedLotId] = useState('')
 
   const isApprovedDispatch = Boolean(requestId)
 
@@ -124,6 +125,25 @@ export default function DispatchList() {
   useEffect(() => {
     writeDraft(draftKey, { items, receiverName, receiverDocument, vehiclePlate, dispatchNotes })
   }, [draftKey, items, receiverName, receiverDocument, vehiclePlate, dispatchNotes])
+
+  useEffect(() => {
+    if (!focusedLotId || !items.some((item) => item.lot.id === focusedLotId)) return
+
+    const frame = window.requestAnimationFrame(() => {
+      document.getElementById(`dispatch-lot-${focusedLotId}`)?.scrollIntoView({
+        behavior: 'smooth',
+        block: 'center',
+      })
+    })
+    const clearFocus = window.setTimeout(() => {
+      setFocusedLotId((current) => (current === focusedLotId ? '' : current))
+    }, 1800)
+
+    return () => {
+      window.cancelAnimationFrame(frame)
+      window.clearTimeout(clearFocus)
+    }
+  }, [focusedLotId, items])
 
   useEffect(() => {
     async function addScannedLot() {
@@ -188,6 +208,7 @@ export default function DispatchList() {
         return
       }
 
+      setFocusedLotId(data.id)
       setItems((current) => {
         if (current.some((item) => item.lot.id === data.id)) {
           setStatus(`Producto ${cleanProductName(data.product)} ya esta en la lista.`)
@@ -507,12 +528,6 @@ export default function DispatchList() {
         </button>
       </section>
 
-      {items.length > 0 ? (
-        <button className="btn-primary mb-4 min-h-16 w-full text-lg" type="button" onClick={scanLot}>
-          <ScanLine size={24} /> Escanear otro QR
-        </button>
-      ) : null}
-
       <div className="space-y-3">
         {items.length === 0 ? (
           <EmptyState title="Sin lotes en despacho" text="Escanea el primer QR para agregarlo a la lista." />
@@ -522,7 +537,11 @@ export default function DispatchList() {
             const equivalent = Number(item.package_count || 0) * Number(item.lot.package_size || 0)
             const availableEquivalent = Number(item.lot.current_quantity || 0) * Number(item.lot.package_size || 0)
             return (
-              <article key={item.lot.id} className="panel">
+              <article
+                key={item.lot.id}
+                id={`dispatch-lot-${item.lot.id}`}
+                className={`panel scroll-mt-28 transition ${focusedLotId === item.lot.id ? 'ring-2 ring-campo-100 ring-offset-2' : ''}`}
+              >
                 <ListProductCard
                   title={cleanProductName(item.lot.product)}
                   envases={item.lot.current_quantity || 0}
