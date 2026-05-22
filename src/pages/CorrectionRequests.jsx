@@ -1,14 +1,17 @@
 import { useEffect, useMemo, useState } from 'react'
-import { AlertCircle, ChevronRight, Send, X } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
+import { CheckCircle2, Send, X } from 'lucide-react'
 import PageHeader from '../components/PageHeader'
 import EmptyState from '../components/EmptyState'
 import { useAuth } from '../hooks/useAuth.jsx'
 import { cleanProductName, displayLotCode } from '../lib/display'
 import { formatDate, formatNumber, movementLabel } from '../lib/format'
+import { vibrateSuccess } from '../lib/haptics'
 import { supabase } from '../lib/supabase'
 
 export default function CorrectionRequests() {
   const { user } = useAuth()
+  const navigate = useNavigate()
   const [movements, setMovements] = useState([])
   const [clients, setClients] = useState([])
   const [selected, setSelected] = useState(null)
@@ -17,7 +20,7 @@ export default function CorrectionRequests() {
   const [quantity, setQuantity] = useState('')
   const [lotPatch, setLotPatch] = useState({})
   const [reason, setReason] = useState('')
-  const [status, setStatus] = useState('')
+  const [success, setSuccess] = useState(false)
   const [error, setError] = useState('')
   const [saving, setSaving] = useState(false)
 
@@ -48,10 +51,16 @@ export default function CorrectionRequests() {
     setLotPatch(createLotPatch(movement))
     setReason('')
     setError('')
-    setStatus('')
   }
 
   const movementGroups = useMemo(() => groupMovements(movements), [movements])
+
+  useEffect(() => {
+    if (!success) return undefined
+
+    const redirect = window.setTimeout(() => navigate('/operacion', { replace: true }), 1400)
+    return () => window.clearTimeout(redirect)
+  }, [navigate, success])
 
   async function submitCorrection() {
     if (!selected) return
@@ -90,7 +99,8 @@ export default function CorrectionRequests() {
       return
     }
 
-    setStatus('Solicitud enviada. Un administrador debe aprobarla.')
+    vibrateSuccess()
+    setSuccess(true)
     setSaving(false)
   }
 
@@ -160,10 +170,6 @@ export default function CorrectionRequests() {
                   ) : null}
                 </div>
               </div>
-              <div className="mt-3 flex items-center justify-between rounded-lg bg-slate-50 px-3 py-2 text-xs font-bold text-slate-500">
-                <span>Ver detalle de la operacion</span>
-                <ChevronRight size={16} />
-              </div>
             </article>
           ))
         )}
@@ -217,14 +223,22 @@ export default function CorrectionRequests() {
               <textarea className="input mt-1" rows="3" value={reason} onChange={(event) => setReason(event.target.value)} placeholder={correctionType === 'cantidad' ? 'Ej. se escribio 120 envases y eran 102.' : 'Ej. el producto era otro o el vencimiento estaba mal.'} />
             </label>
             {error ? <p className="mt-3 rounded-lg bg-red-50 p-3 text-sm font-bold text-red-700">{error}</p> : null}
-            {status ? (
-              <p className="mt-3 rounded-lg bg-campo-50 p-3 text-sm font-bold text-campo-700">
-                <AlertCircle className="mr-2 inline" size={18} /> {status}
-              </p>
-            ) : null}
-            <button className="btn-primary mt-4 w-full" type="button" onClick={submitCorrection} disabled={saving || Boolean(status)}>
+            <button className="btn-primary mt-4 w-full" type="button" onClick={submitCorrection} disabled={saving}>
               <Send size={18} /> {saving ? 'Enviando...' : 'Enviar solicitud'}
             </button>
+          </section>
+        </div>
+      ) : null}
+
+      {success ? (
+        <div className="fixed inset-0 z-[60] grid place-items-center bg-campo-700 p-6 text-white">
+          <section className="w-full max-w-sm text-center">
+            <span className="mx-auto flex h-40 w-40 items-center justify-center rounded-full border border-white/25 text-white">
+              <CheckCircle2 size={118} strokeWidth={1.8} />
+            </span>
+            <h2 className="mt-5 text-3xl font-black">Solicitud enviada</h2>
+            <p className="mt-2 text-base font-semibold text-campo-50">La correccion quedo pendiente de revision.</p>
+            <p className="mt-3 text-sm font-bold text-white/80">Volviendo a operar...</p>
           </section>
         </div>
       ) : null}
