@@ -45,20 +45,20 @@ export default function Operation() {
         .from('lots')
         .select('id, lot_code, product, current_quantity, location, expiry_date, status, clients(name)')
         .order('updated_at', { ascending: false })
-        .limit(80),
+        .limit(200),
       supabase
         .from('client_dispatch_requests')
         .select('*, clients(name), lots(lot_code, product, current_quantity, package_size, package_unit, location, expiry_date)')
         .eq('status', 'aprobado')
         .order('reviewed_at', { ascending: false })
-        .limit(10),
+        .limit(40),
       supabase
         .from('movements')
         .select('*, lots(lot_code, product, location, clients(name))')
         .in('type', ['ajuste', 'traslado', 'salida'])
         .eq('approval_status', 'pendiente')
         .order('created_at', { ascending: false })
-        .limit(8),
+        .limit(40),
     ])
 
     setLots(lotData || [])
@@ -79,14 +79,14 @@ export default function Operation() {
       .sort((a, b) => a.daysLeft - b.daysLeft)
   }, [lots])
 
-  function renderApprovedRequests(requests) {
+  function renderApprovedRequests(requests, fullDetails = false) {
     if (requests.length === 0) return <p className="rounded-lg bg-slate-50 p-3 text-sm font-bold text-slate-500">Sin despachos aprobados.</p>
     return requests.map((request) => (
       <article key={request.id} className="rounded-lg bg-amber-50 p-3">
         <p className="font-bold text-slate-950">{request.clients?.name || 'Cliente'}</p>
         {Array.isArray(request.items) && request.items.length > 1 ? (
           <div className="mt-2 space-y-2">
-            {request.items.slice(0, 3).map((item) => (
+            {(fullDetails ? request.items : request.items.slice(0, 3)).map((item) => (
               <div key={item.lot_id} className="rounded-lg bg-white/80 p-2">
                 <div className="flex flex-wrap items-start justify-between gap-2">
                   <p className="min-w-0 flex-1 text-sm font-black text-slate-950 [overflow-wrap:anywhere]">{cleanProductName(item.product)}</p>
@@ -95,7 +95,7 @@ export default function Operation() {
                 <p className="text-xs font-semibold text-slate-500">{displayLotCode(item.lot_code)} - Presentacion: {packageLabel(item) || 'Sin dato'}</p>
               </div>
             ))}
-            {request.items.length > 3 ? <p className="text-xs font-bold text-slate-600">+ {request.items.length - 3} producto{request.items.length - 3 === 1 ? '' : 's'} mas</p> : null}
+            {!fullDetails && request.items.length > 3 ? <p className="text-xs font-bold text-slate-600">+ {request.items.length - 3} producto{request.items.length - 3 === 1 ? '' : 's'} mas</p> : null}
           </div>
         ) : (
           <div className="mt-2 rounded-lg bg-white/80 p-2">
@@ -117,9 +117,13 @@ export default function Operation() {
     if (movements.length === 0) return <p className="rounded-lg bg-slate-50 p-3 text-sm font-bold text-slate-500">Sin reparaciones, traslados o salidas pendientes.</p>
     return movements.map((movement) => (
       <article key={movement.id} className="rounded-lg bg-orange-50 p-3">
-        <p className="font-bold text-slate-950">{movementLabel(movement.type)} - {displayLotCode(movement.lots?.lot_code)}</p>
-        <p className="text-sm font-semibold text-slate-700">{cleanProductName(movement.lots?.product)}</p>
-        <p className="text-xs font-semibold text-slate-500">{movement.lots?.clients?.name || '-'} - {movement.lots?.location || '-'}</p>
+        <div className="flex flex-wrap items-start justify-between gap-2">
+          <p className="font-bold text-slate-950">{movementLabel(movement.type)} - {displayLotCode(movement.lots?.lot_code)}</p>
+          <span className="rounded-lg bg-white px-2 py-1 text-xs font-black text-orange-800">{formatNumber(movement.quantity)} env.</span>
+        </div>
+        <p className="text-sm font-semibold text-slate-700 [overflow-wrap:anywhere]">{cleanProductName(movement.lots?.product)}</p>
+        <p className="text-xs font-semibold text-slate-500 [overflow-wrap:anywhere]">{movement.lots?.clients?.name || '-'} - {movement.lots?.location || '-'}</p>
+        <p className="mt-1 text-xs font-bold text-orange-700">{movement.created_at ? formatDate(movement.created_at) : 'Pendiente de revision'}</p>
       </article>
     ))
   }
@@ -128,9 +132,13 @@ export default function Operation() {
     if (alerts.length === 0) return <p className="rounded-lg bg-campo-50 p-3 text-sm font-bold text-campo-700">Sin vencimientos cercanos.</p>
     return alerts.map((lot) => (
       <Link key={lot.id} className="block rounded-lg bg-amber-50 p-3" to={`/lotes/${lot.id}`}>
-        <p className="font-bold text-slate-950">{cleanProductName(lot.product)}</p>
-        <p className="text-sm font-semibold text-slate-600">{displayLotCode(lot.lot_code)} - {formatNumber(lot.current_quantity)} env.</p>
-        <p className="text-xs font-bold text-amber-700">{lot.daysLeft < 0 ? 'Vencido' : `Vence en ${lot.daysLeft} dias`}</p>
+        <div className="flex flex-wrap items-start justify-between gap-2">
+          <p className="min-w-0 flex-1 font-bold text-slate-950 [overflow-wrap:anywhere]">{cleanProductName(lot.product)}</p>
+          <span className="rounded-lg bg-white px-2 py-1 text-xs font-black text-amber-800">{formatNumber(lot.current_quantity)} env.</span>
+        </div>
+        <p className="text-sm font-semibold text-slate-600 [overflow-wrap:anywhere]">{displayLotCode(lot.lot_code)} - {lot.clients?.name || '-'}</p>
+        <p className="text-xs font-semibold text-slate-500 [overflow-wrap:anywhere]">{lot.location || '-'} - {lot.expiry_date ? formatDate(lot.expiry_date) : 'Sin fecha'}</p>
+        <p className="mt-1 text-xs font-bold text-amber-700">{lot.daysLeft < 0 ? 'Vencido' : `Vence en ${lot.daysLeft} dias`}</p>
       </Link>
     ))
   }
@@ -204,7 +212,7 @@ export default function Operation() {
 
       {workModal ? (
         <WorkModal title={workModal === 'despachos' ? 'Despachos aprobados' : workModal === 'revisiones' ? 'Revisiones pendientes' : 'Alertas de vencimiento'} onClose={() => setWorkModal('')}>
-          {workModal === 'despachos' ? renderApprovedRequests(approvedRequests) : null}
+          {workModal === 'despachos' ? renderApprovedRequests(approvedRequests, true) : null}
           {workModal === 'revisiones' ? renderPendingMovements(pendingMovements) : null}
           {workModal === 'vencimientos' ? renderExpiringLots(expiringLots) : null}
         </WorkModal>
@@ -215,11 +223,17 @@ export default function Operation() {
 }
 
 function WorkPanel({ title, count, onViewAll, children }) {
+  const hiddenCount = Math.max(count - 3, 0)
+
   return (
     <section className="panel">
       <div className="mb-3 flex items-center justify-between gap-2">
         <h4 className="font-bold text-slate-950">{title}</h4>
-        {count > 3 ? <button className="text-xs font-black text-campo-700" type="button" onClick={onViewAll}>Ver todo</button> : null}
+        {hiddenCount > 0 ? (
+          <button className="rounded-lg bg-campo-50 px-2.5 py-1.5 text-xs font-black text-campo-700 transition hover:bg-campo-100" type="button" onClick={onViewAll}>
+            Ver mas
+          </button>
+        ) : null}
       </div>
       <div className="max-h-80 space-y-2 overflow-y-auto pr-1">{children}</div>
     </section>
@@ -230,8 +244,11 @@ function WorkModal({ title, onClose, children }) {
   return (
     <div className="fixed inset-0 z-50 flex items-end bg-slate-950/45 p-4 sm:items-center sm:justify-center" onClick={onClose}>
       <section className="w-full max-w-2xl rounded-xl bg-white p-4 shadow-xl" onClick={(event) => event.stopPropagation()}>
-        <div className="mb-3 flex items-center justify-between gap-3">
-          <h3 className="text-xl font-black text-slate-950">{title}</h3>
+        <div className="mb-3 flex items-start justify-between gap-3">
+          <div>
+            <p className="text-xs font-bold uppercase text-campo-700">Trabajo del dia</p>
+            <h3 className="text-xl font-black text-slate-950">{title}</h3>
+          </div>
           <button className="btn-secondary !min-h-10 !px-3" type="button" onClick={onClose}>Cerrar</button>
         </div>
         <div className="max-h-[70vh] space-y-2 overflow-y-auto pr-1">{children}</div>
