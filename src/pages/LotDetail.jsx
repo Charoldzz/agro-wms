@@ -808,17 +808,6 @@ export default function LotDetail() {
                     </button>
                   ))}
                 </div>
-                <select
-                  className="input mt-1"
-                  value={movement.incident_type}
-                  onChange={(event) => setMovement({ ...movement, incident_type: event.target.value, affected_packages: '', physical_count: '' })}
-                  required
-                >
-                  <option value="">Seleccionar incidencia</option>
-                  {incidentTypes.map((incident) => (
-                    <option key={incident.value} value={incident.value}>{incident.label}</option>
-                  ))}
-                </select>
               </label>
               {selectedIncident?.needsAffected ? (
                 <label>
