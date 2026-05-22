@@ -190,7 +190,6 @@ export default function Operation() {
 
       <Link className="btn-secondary mt-3 w-full justify-between" to="/operacion/correcciones">
         <span className="inline-flex items-center gap-2"><ClipboardPenLine size={20} /> Solicitar correccion operativa</span>
-        <span className="text-xs font-black text-slate-500">Sin borrar auditoria</span>
       </Link>
 
       <section className="mt-5">

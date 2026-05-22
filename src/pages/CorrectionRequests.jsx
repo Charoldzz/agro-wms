@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { AlertCircle, ChevronRight, Send, X } from 'lucide-react'
 import PageHeader from '../components/PageHeader'
 import EmptyState from '../components/EmptyState'
@@ -11,7 +11,7 @@ export default function CorrectionRequests() {
   const { user } = useAuth()
   const [movements, setMovements] = useState([])
   const [selected, setSelected] = useState(null)
-  const [detailMovement, setDetailMovement] = useState(null)
+  const [detailGroup, setDetailGroup] = useState(null)
   const [quantity, setQuantity] = useState('')
   const [reason, setReason] = useState('')
   const [status, setStatus] = useState('')
@@ -41,6 +41,8 @@ export default function CorrectionRequests() {
     setError('')
     setStatus('')
   }
+
+  const movementGroups = useMemo(() => groupMovements(movements), [movements])
 
   async function submitCorrection() {
     if (!selected) return
@@ -74,57 +76,72 @@ export default function CorrectionRequests() {
 
   return (
     <div>
-      <PageHeader title="Solicitar correccion" subtitle="Corrige errores sin borrar auditoria" />
+      <PageHeader title="Solicitar correccion" subtitle="Entradas y despachos recientes" />
 
       <div className="mb-4 rounded-lg border border-orange-200 bg-orange-50 p-3 text-sm font-bold text-orange-900">
-        Si una entrada o despacho quedo con cantidad incorrecta, solicita la correccion. El movimiento original queda registrado.
+        Si una entrada o despacho tiene un error, solicita correccion de cantidad o datos de la ficha.
       </div>
 
       <div className="space-y-2">
-        {movements.length === 0 ? (
+        {movementGroups.length === 0 ? (
           <EmptyState title="Sin movimientos recientes" text="Tus entradas y salidas recientes apareceran aqui." />
         ) : (
-          movements.map((movement) => (
+          movementGroups.map((group) => (
             <article
-              key={movement.id}
+              key={group.id}
               className="panel cursor-pointer transition hover:border-campo-200 hover:bg-campo-50/30 active:scale-[0.995]"
               role="button"
               tabIndex={0}
-              onClick={() => setDetailMovement(movement)}
+              onClick={() => setDetailGroup(group)}
               onKeyDown={(event) => {
                 if (event.key === 'Enter' || event.key === ' ') {
                   event.preventDefault()
-                  setDetailMovement(movement)
+                  setDetailGroup(group)
                 }
               }}
-              title="Ver detalle del movimiento"
+              title="Ver detalle de la operacion"
             >
               <div className="grid gap-3 sm:grid-cols-[1fr_auto]">
                 <div className="min-w-0">
-                  <p className="text-xs font-black uppercase text-orange-700">{movementLabel(movement.type)}</p>
-                  <p className="mt-1 text-base font-black leading-snug text-slate-950 [overflow-wrap:anywhere]">{cleanProductName(movement.lots?.product)}</p>
-                  <p className="text-xs font-semibold text-slate-500">
-                    <strong className="font-black text-slate-700">{movement.lots?.clients?.name || '-'}</strong>
-                    <span> - {displayLotCode(movement.lots?.lot_code)} - {formatDate(movement.created_at)}</span>
+                  <p className="text-xs font-black uppercase text-orange-700">{group.label}</p>
+                  <p className="mt-1 text-base font-black leading-snug text-slate-950 [overflow-wrap:anywhere]">
+                    {group.clientName}
                   </p>
-                  {movement.notes?.includes('Despacho por lista') ? <p className="mt-1 text-xs font-black text-campo-700">Registrado desde despacho por lista</p> : null}
+                  <p className="text-xs font-semibold text-slate-500">
+                    {formatDate(group.createdAt)}
+                  </p>
+                  <p className="mt-1 text-xs font-black text-campo-700">
+                    {group.items.length} producto{group.items.length === 1 ? '' : 's'}
+                  </p>
+                  <div className="mt-2 flex flex-wrap gap-1.5">
+                    {group.items.slice(0, 2).map((movement) => (
+                      <span key={movement.id} className="max-w-full truncate rounded-lg bg-slate-50 px-2 py-1 text-xs font-bold text-slate-600">
+                        {cleanProductName(movement.lots?.product)}
+                      </span>
+                    ))}
+                    {group.items.length > 2 ? <span className="rounded-lg bg-slate-50 px-2 py-1 text-xs font-black text-slate-500">+{group.items.length - 2}</span> : null}
+                  </div>
                 </div>
                 <div className="flex items-start justify-between gap-2 sm:block sm:text-right">
-                  <p className="rounded-lg bg-campo-50 px-2 py-1 text-lg font-black text-campo-800">{formatNumber(movement.quantity)} env.</p>
-                  <button
-                    className="mt-2 inline-flex min-h-8 items-center rounded-lg border border-orange-200 bg-white px-2.5 py-1 text-xs font-black text-orange-700 transition hover:bg-orange-50"
-                    type="button"
-                    onClick={(event) => {
-                      event.stopPropagation()
-                      openRequest(movement)
-                    }}
-                  >
-                    Pedir correccion
-                  </button>
+                  <p className="rounded-lg bg-campo-50 px-2 py-1 text-sm font-black text-campo-800">
+                    {group.items.length === 1 ? `${formatNumber(group.items[0].quantity)} env.` : `${group.items.length} items`}
+                  </p>
+                  {group.items.length === 1 ? (
+                    <button
+                      className="mt-2 inline-flex min-h-8 items-center rounded-lg border border-orange-200 bg-white px-2.5 py-1 text-xs font-black text-orange-700 transition hover:bg-orange-50"
+                      type="button"
+                      onClick={(event) => {
+                        event.stopPropagation()
+                        openRequest(group.items[0])
+                      }}
+                    >
+                      Pedir correccion
+                    </button>
+                  ) : null}
                 </div>
               </div>
               <div className="mt-3 flex items-center justify-between rounded-lg bg-slate-50 px-3 py-2 text-xs font-bold text-slate-500">
-                <span>Ver detalle del movimiento</span>
+                <span>Ver detalle de la operacion</span>
                 <ChevronRight size={16} />
               </div>
             </article>
@@ -132,10 +149,10 @@ export default function CorrectionRequests() {
         )}
       </div>
 
-      {detailMovement ? (
-        <MovementDetail movement={detailMovement} onClose={() => setDetailMovement(null)} onRequest={() => {
-          setDetailMovement(null)
-          openRequest(detailMovement)
+      {detailGroup ? (
+        <MovementDetail group={detailGroup} onClose={() => setDetailGroup(null)} onRequest={(movement) => {
+          setDetailGroup(null)
+          openRequest(movement)
         }} />
       ) : null}
 
@@ -157,6 +174,7 @@ export default function CorrectionRequests() {
             <label className="mt-3 block">
               <span className="label">Cantidad correcta</span>
               <input className="input mt-1" inputMode="decimal" value={quantity} onChange={(event) => setQuantity(event.target.value.replace(',', '.'))} />
+              <span className="mt-1 block text-xs font-semibold text-slate-500">Si el error es de ficha, deja la cantidad igual.</span>
             </label>
             <label className="mt-3 block">
               <span className="label">Motivo</span>
@@ -178,19 +196,16 @@ export default function CorrectionRequests() {
   )
 }
 
-function MovementDetail({ movement, onClose, onRequest }) {
-  const equivalent = Number(movement.quantity || 0) * Number(movement.lots?.package_size || 0)
-
+function MovementDetail({ group, onClose, onRequest }) {
   return (
     <div className="fixed inset-0 z-50 flex items-end bg-slate-950/45 p-4 sm:items-center sm:justify-center" onClick={onClose}>
-      <section className="w-full max-w-md rounded-xl bg-white p-4 shadow-xl" onClick={(event) => event.stopPropagation()}>
+      <section className="w-full max-w-xl rounded-xl bg-white p-4 shadow-xl" onClick={(event) => event.stopPropagation()}>
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
-            <p className="text-xs font-black uppercase text-orange-700">{movementLabel(movement.type)}</p>
-            <h3 className="mt-1 text-xl font-black leading-snug text-slate-950 [overflow-wrap:anywhere]">{cleanProductName(movement.lots?.product)}</h3>
+            <p className="text-xs font-black uppercase text-orange-700">{group.label}</p>
+            <h3 className="mt-1 text-xl font-black leading-snug text-slate-950 [overflow-wrap:anywhere]">{group.clientName}</h3>
             <p className="mt-1 text-xs font-bold text-slate-500">
-              <strong className="font-black text-slate-700">{movement.lots?.clients?.name || '-'}</strong>
-              <span> - Lote {displayLotCode(movement.lots?.lot_code)}</span>
+              {formatDate(group.createdAt)} - {group.items.length} producto{group.items.length === 1 ? '' : 's'}
             </p>
           </div>
           <button className="btn-secondary !min-h-10 !px-3" type="button" onClick={onClose}>
@@ -198,39 +213,79 @@ function MovementDetail({ movement, onClose, onRequest }) {
           </button>
         </div>
 
-        <dl className="mt-4 grid gap-2 rounded-lg bg-slate-50 p-3 text-sm font-bold text-slate-700">
-          <DetailRow label="Fecha" value={formatDate(movement.created_at)} />
-          <DetailRow label="Cantidad registrada" value={`${formatNumber(movement.quantity)} env.`} strong />
-          <DetailRow
-            label="Equivalente"
-            value={Number(movement.lots?.package_size) > 0 ? `${formatNumber(equivalent)} ${movement.lots?.package_unit || ''}` : 'Sin dato'}
-          />
-          <DetailRow label="Stock anterior" value={`${formatNumber(movement.previous_quantity)} env.`} />
-          <DetailRow label="Stock despues" value={`${formatNumber(movement.new_quantity)} env.`} />
-          <DetailRow label="Ubicacion actual" value={movement.lots?.location || '-'} />
-          {movement.from_location ? <DetailRow label="Desde" value={movement.from_location} /> : null}
-          {movement.to_location ? <DetailRow label={movement.type === 'salida' ? 'Placa / destino' : 'Hacia'} value={movement.to_location} /> : null}
-        </dl>
-
-        {movement.notes ? (
-          <div className="mt-3 rounded-lg border border-slate-100 bg-white p-3">
-            <p className="text-xs font-black uppercase text-slate-400">Observaciones registradas</p>
-            <p className="mt-1 text-sm font-semibold text-slate-700 [overflow-wrap:anywhere]">{movement.notes}</p>
-          </div>
-        ) : null}
-
-        {movement.notes?.includes('Despacho por lista') ? (
-          <p className="mt-3 rounded-lg bg-campo-50 p-3 text-xs font-bold text-campo-700">
-            Este producto fue parte de un despacho por lista. La correccion se solicita por lote y movimiento para no perder auditoria.
-          </p>
-        ) : null}
-
-        <button className="btn-primary mt-4 w-full" type="button" onClick={onRequest}>
-          Pedir correccion
-        </button>
+        <div className="mt-4 max-h-[68vh] space-y-2 overflow-y-auto pr-1">
+          {group.items.map((movement) => (
+            <MovementLine key={movement.id} movement={movement} onRequest={() => onRequest(movement)} />
+          ))}
+        </div>
       </section>
     </div>
   )
+}
+
+function MovementLine({ movement, onRequest }) {
+  const equivalent = Number(movement.quantity || 0) * Number(movement.lots?.package_size || 0)
+
+  return (
+    <article className="rounded-lg border border-slate-100 bg-slate-50 p-3">
+      <div className="grid gap-2 sm:grid-cols-[1fr_auto]">
+        <div className="min-w-0">
+          <p className="font-black leading-snug text-slate-950 [overflow-wrap:anywhere]">{cleanProductName(movement.lots?.product)}</p>
+          <p className="text-xs font-bold text-slate-500">
+            Lote {displayLotCode(movement.lots?.lot_code)} - {movement.lots?.location || '-'}
+          </p>
+        </div>
+        <div className="text-left sm:text-right">
+          <p className="inline-flex rounded-lg bg-campo-50 px-2 py-1 text-base font-black text-campo-800">{formatNumber(movement.quantity)} env.</p>
+          <button
+            className="mt-1 block min-h-7 rounded-lg border border-orange-200 bg-white px-2 py-1 text-xs font-black text-orange-700 transition hover:bg-orange-50 sm:ml-auto"
+            type="button"
+            onClick={onRequest}
+          >
+            Pedir correccion
+          </button>
+        </div>
+      </div>
+      <dl className="mt-2 grid gap-1.5 rounded-lg bg-white p-2 text-xs font-bold text-slate-600 sm:grid-cols-2">
+        <DetailRow label="Equivalente" value={Number(movement.lots?.package_size) > 0 ? `${formatNumber(equivalent)} ${movement.lots?.package_unit || ''}` : 'Sin dato'} />
+        <DetailRow label="Stock anterior" value={`${formatNumber(movement.previous_quantity)} env.`} />
+        <DetailRow label="Stock despues" value={`${formatNumber(movement.new_quantity)} env.`} />
+        {movement.to_location ? <DetailRow label={movement.type === 'salida' ? 'Placa / destino' : 'Hacia'} value={movement.to_location} /> : null}
+      </dl>
+      {movement.notes ? <p className="mt-2 text-xs font-semibold text-slate-500 [overflow-wrap:anywhere]">{movement.notes}</p> : null}
+    </article>
+  )
+}
+
+function groupMovements(movements) {
+  const groups = new Map()
+
+  movements.forEach((movement) => {
+    const clientName = movement.lots?.clients?.name || 'Cliente sin nombre'
+    const minuteStamp = String(movement.created_at || '').slice(0, 16)
+    const isListDispatch = movement.type === 'salida' && movement.notes?.includes('Despacho por lista')
+    const isEntryBatch = movement.type === 'entrada' && movement.notes?.includes('Nuevo ingreso desde almacen')
+    const groupingKey = isListDispatch
+      ? `dispatch:${clientName}:${minuteStamp}:${movement.notes || ''}`
+      : isEntryBatch
+        ? `entry:${clientName}:${minuteStamp}`
+        : `movement:${movement.id}`
+
+    if (!groups.has(groupingKey)) {
+      groups.set(groupingKey, {
+        id: groupingKey,
+        type: movement.type,
+        clientName,
+        createdAt: movement.created_at,
+        label: isListDispatch ? 'Despacho por lista' : isEntryBatch ? 'Nuevo ingreso' : movementLabel(movement.type),
+        items: [],
+      })
+    }
+
+    groups.get(groupingKey).items.push(movement)
+  })
+
+  return [...groups.values()].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
 }
 
 function DetailRow({ label, value, strong }) {
