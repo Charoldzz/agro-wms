@@ -82,6 +82,8 @@ export default function AppLayout() {
     setSyncing(false)
   }
 
+  const hasSyncRisk = !online || queuedMovements > 0
+
   return (
     <div className="app-bg min-h-screen pb-[calc(6.5rem+env(safe-area-inset-bottom))]">
       <header className="sticky top-0 z-20 border-b border-slate-200 bg-white/95 backdrop-blur">
@@ -110,30 +112,46 @@ export default function AppLayout() {
             Volver
           </button>
         ) : null}
-        {!online || queuedMovements > 0 || lastSync ? (
-          <section className={`mb-4 rounded-lg border p-3 ${!online || queuedMovements > 0 ? 'border-amber-200 bg-amber-50 text-amber-900' : 'border-campo-100 bg-campo-50 text-campo-800'}`}>
+        {hasSyncRisk ? (
+          <section className="mb-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-amber-900">
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div className="flex min-w-0 items-start gap-2">
                 {!online ? <WifiOff className="mt-0.5 shrink-0" size={20} /> : <Wifi className="mt-0.5 shrink-0" size={20} />}
                 <div>
-                  <p className="font-black">{!online ? 'Sin internet' : queuedMovements > 0 ? 'Guardado pendiente de sincronizar' : 'Sincronizado'}</p>
+                  <p className="font-black">{!online ? 'Sin internet' : 'Guardado pendiente de sincronizar'}</p>
                   <p className="text-xs font-bold">
                     {queuedMovements > 0
                       ? `${queuedMovements} movimiento${queuedMovements === 1 ? '' : 's'} pendiente${queuedMovements === 1 ? '' : 's'}. No hagas salidas criticas sin revision.`
-                      : !online
-                        ? 'La app conserva borradores y cola offline cuando corresponde.'
-                        : 'Con senal estable puedes continuar operando.'}
+                      : 'La app conserva borradores y cola offline cuando corresponde.'}
                   </p>
                 </div>
               </div>
               {online ? (
-                <button className="btn-secondary !min-h-10 !px-3 !py-2 text-xs" type="button" onClick={syncNow} disabled={syncing}>
+                <button className="btn-secondary !min-h-10 !px-3 !py-2" type="button" onClick={syncNow} disabled={syncing} title="Sincronizar">
                   <RefreshCcw size={16} className={syncing ? 'animate-spin' : ''} />
-                  {syncing ? 'Sincronizando' : 'Sincronizar'}
+                  <span className="sr-only">{syncing ? 'Sincronizando' : 'Sincronizar'}</span>
                 </button>
               ) : null}
             </div>
           </section>
+        ) : lastSync ? (
+          <div className="mb-3 flex items-center justify-between gap-2 px-1 text-xs font-black text-campo-800">
+            <div className="inline-flex items-center gap-2 rounded-full bg-white/70 px-2.5 py-1.5 shadow-sm backdrop-blur">
+              <Wifi size={15} />
+              <span className="h-2.5 w-2.5 rounded-full bg-emerald-500 shadow-[0_0_0_3px_rgba(16,185,129,0.13)]" />
+              <span>Sincronizado</span>
+            </div>
+            <button
+              className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-slate-200 bg-white/80 text-slate-600 shadow-sm transition hover:text-campo-700"
+              type="button"
+              onClick={syncNow}
+              disabled={syncing}
+              title="Sincronizar"
+            >
+              <RefreshCcw size={15} className={syncing ? 'animate-spin' : ''} />
+              <span className="sr-only">{syncing ? 'Sincronizando' : 'Sincronizar'}</span>
+            </button>
+          </div>
         ) : null}
         <Outlet />
       </main>
