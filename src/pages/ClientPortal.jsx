@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Boxes, CalendarClock, Download, FileText, History, Mail, PackageCheck, Plus, Search, Send, Truck } from 'lucide-react'
+import { Boxes, CalendarClock, ChevronDown, Download, FileText, History, Mail, PackageCheck, Plus, Search, Send, Truck } from 'lucide-react'
 import PageHeader from '../components/PageHeader'
 import EmptyState from '../components/EmptyState'
 import ListProductCard from '../components/ListProductCard'
@@ -31,6 +31,24 @@ function lotStatus(lot) {
   if (lot.status === 'cerrado') return { label: 'Cerrado', className: 'bg-slate-100 text-slate-600' }
   if (days !== null && days <= 90) return { label: 'Por vencer', className: 'bg-amber-50 text-amber-800' }
   return { label: 'Disponible', className: 'bg-campo-50 text-campo-700' }
+}
+
+function lotEquivalent(lot) {
+  const packageSize = Number(lot?.package_size || 0)
+  if (packageSize <= 0 || !lot?.package_unit) return null
+  return {
+    quantity: Number(lot.current_quantity || 0) * packageSize,
+    unit: lot.package_unit,
+  }
+}
+
+function equivalentTotalsLabel(equivalents = {}) {
+  const totals = Object.entries(equivalents)
+    .filter(([, quantity]) => Number(quantity || 0) > 0)
+    .sort(([a], [b]) => a.localeCompare(b, 'es'))
+
+  if (totals.length === 0) return 'Equivalente sin dato'
+  return totals.map(([unit, quantity]) => `${formatNumber(quantity)} ${unit}`).join(' / ')
 }
 
 const REQUEST_DRAFT_KEY = 'todo-agricola-client-dispatch-draft'
@@ -71,6 +89,8 @@ export default function ClientPortal() {
   const [requestItems, setRequestItems] = useState(initialDraft.items)
   const [editingRequestLotId, setEditingRequestLotId] = useState('')
   const [requestMessage, setRequestMessage] = useState('')
+  const [expandedInventoryProduct, setExpandedInventoryProduct] = useState('')
+  const [showAllInventoryProducts, setShowAllInventoryProducts] = useState(false)
 
   useEffect(() => {
     loadData()
@@ -133,6 +153,49 @@ export default function ClientPortal() {
   const dispatchReceipts = movements.filter((movement) => movement.type === 'salida')
   const history = movements.slice(0, 12)
   const selectedRequestLot = lots.find((lot) => lot.id === requestLotId)
+  const inventoryProducts = useMemo(() => {
+    const groups = filteredLots.reduce((acc, lot) => {
+      const product = cleanProductName(lot.product)
+      if (!acc[product]) {
+        acc[product] = {
+          product,
+          quantity: 0,
+          equivalents: {},
+          lots: [],
+          expiring: 0,
+          retained: 0,
+        }
+      }
+
+      acc[product].quantity += Number(lot.current_quantity || 0)
+      acc[product].lots.push(lot)
+
+      const equivalent = lotEquivalent(lot)
+      if (equivalent) {
+        acc[product].equivalents[equivalent.unit] = Number(acc[product].equivalents[equivalent.unit] || 0) + equivalent.quantity
+      }
+
+      const status = lotStatus(lot).label
+      if (status === 'Por vencer' || status === 'Vencido') acc[product].expiring += 1
+      if (status === 'Retenido') acc[product].retained += 1
+
+      return acc
+    }, {})
+
+    return Object.values(groups)
+      .map((group) => ({
+        ...group,
+        lots: group.lots.sort((a, b) => {
+          const expiryOrder = (a.expiry_date || '9999-12-31').localeCompare(b.expiry_date || '9999-12-31')
+          if (expiryOrder !== 0) return expiryOrder
+          return displayLotCode(a.lot_code).localeCompare(displayLotCode(b.lot_code), 'es', { numeric: true })
+        }),
+      }))
+      .sort((a, b) => a.product.localeCompare(b.product, 'es', { numeric: true }))
+  }, [filteredLots])
+  const visibleInventoryProducts = showAllInventoryProducts || search.trim()
+    ? inventoryProducts
+    : inventoryProducts.slice(0, 8)
 
   function addRequestItem() {
     setRequestMessage('')
@@ -260,7 +323,7 @@ export default function ClientPortal() {
     setRequestNotes('')
     setEditingRequestLotId('')
     clearRequestDraft()
-    setRequestMessage('Solicitud enviada a almacen. Ya aparece como despacho pendiente para el operario.')
+    setRequestMessage('Solicitud enviada a almacen.')
     loadData()
   }
 
@@ -419,42 +482,82 @@ export default function ClientPortal() {
       </section>
 
       <section className="grid gap-4 lg:grid-cols-[1.3fr_.7fr]">
-        <div className="space-y-3">
+        <div className="panel">
+          <div className="mb-3 flex flex-wrap items-start justify-between gap-2">
+            <div>
+              <h2 className="font-black text-slate-950">Productos almacenados</h2>
+              <p className="text-sm font-semibold text-slate-500">Resumen ordenado por producto. Abre uno para revisar sus lotes.</p>
+            </div>
+            <span className="rounded-lg bg-slate-50 px-2 py-1 text-xs font-black text-slate-500">
+              {inventoryProducts.length} producto{inventoryProducts.length === 1 ? '' : 's'}
+            </span>
+          </div>
           {filteredLots.length === 0 ? (
             <EmptyState title="Sin lotes visibles" text="No hay inventario autorizado para este usuario." />
           ) : (
-            filteredLots.map((lot) => {
-              const equivalent = Number(lot.current_quantity || 0) * Number(lot.package_size || 0)
-              const status = lotStatus(lot)
-              return (
-                <Link key={lot.id} className="panel block" to={`/lotes/${lot.id}`}>
-                  <div className="flex justify-between gap-3">
-                    <div className="min-w-0">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <p className="truncate font-bold text-slate-950">{cleanProductName(lot.product)}</p>
-                        <span className={`rounded-full px-2 py-1 text-xs font-bold ${status.className}`}>{status.label}</span>
+            <div className="space-y-2">
+              {visibleInventoryProducts.map((group) => {
+                const isExpanded = expandedInventoryProduct === group.product
+                return (
+                  <article key={group.product} className="overflow-hidden rounded-lg border border-slate-100 bg-slate-50/90">
+                    <button
+                      className="flex w-full flex-col gap-3 p-3 text-left transition hover:bg-campo-50/70 sm:flex-row sm:items-center sm:justify-between"
+                      type="button"
+                      onClick={() => setExpandedInventoryProduct(isExpanded ? '' : group.product)}
+                    >
+                      <div className="min-w-0">
+                        <p className="font-black text-slate-950 [overflow-wrap:anywhere]">{group.product}</p>
+                        <div className="mt-1 flex flex-wrap gap-1.5 text-xs font-bold text-slate-500">
+                          <span>{group.lots.length} lote{group.lots.length === 1 ? '' : 's'}</span>
+                          {group.expiring ? <span className="rounded-full bg-amber-50 px-2 py-0.5 text-amber-800">{group.expiring} por vencer</span> : null}
+                          {group.retained ? <span className="rounded-full bg-orange-50 px-2 py-0.5 text-orange-700">{group.retained} retenido{group.retained === 1 ? '' : 's'}</span> : null}
+                        </div>
                       </div>
-                      <p className="text-sm font-semibold text-slate-500">{displayLotCode(lot.lot_code)} - {lot.location || '-'}</p>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-2xl font-black text-campo-700">{formatNumber(lot.current_quantity)}</p>
-                      <p className="text-xs font-bold text-slate-500">envases</p>
-                    </div>
-                  </div>
-                  <div className="mt-3 grid gap-2 text-xs font-bold text-slate-600 sm:grid-cols-3">
-                    <span className="rounded-lg bg-slate-50 p-2">
-                      Equivalente: {Number(lot.package_size) > 0 ? `${formatNumber(equivalent)} ${lot.package_unit || ''}` : 'Sin dato'}
-                    </span>
-                    <span className="rounded-lg bg-slate-50 p-2">
-                      Ingreso: {lot.entry_date ? formatDate(lot.entry_date) : 'Sin dato'}
-                    </span>
-                    <span className="rounded-lg bg-slate-50 p-2">
-                      Vence: {lot.expiry_date ? formatDate(lot.expiry_date) : 'Sin dato'}
-                    </span>
-                  </div>
-                </Link>
-              )
-            })
+                      <div className="flex w-full items-center justify-between gap-2 sm:w-auto sm:justify-end">
+                        <div className="rounded-lg bg-white px-3 py-2 text-right shadow-sm">
+                          <p className="text-lg font-black leading-none text-campo-800">{formatNumber(group.quantity)} env.</p>
+                          <p className="mt-1 text-xs font-bold text-slate-500">{equivalentTotalsLabel(group.equivalents)}</p>
+                        </div>
+                        <ChevronDown className={`shrink-0 text-slate-400 transition ${isExpanded ? 'rotate-180' : ''}`} size={20} />
+                      </div>
+                    </button>
+
+                    {isExpanded ? (
+                      <div className="grid gap-2 border-t border-slate-100 bg-white p-2">
+                        {group.lots.map((lot) => {
+                          const status = lotStatus(lot)
+                          const equivalent = lotEquivalent(lot)
+                          return (
+                            <Link key={lot.id} className="rounded-lg border border-slate-100 p-3 transition hover:border-campo-100 hover:bg-campo-50/60" to={`/lotes/${lot.id}`}>
+                              <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                                <div className="min-w-0">
+                                  <div className="flex flex-wrap items-center gap-2">
+                                    <p className="font-black text-slate-900">{displayLotCode(lot.lot_code)}</p>
+                                    <span className={`rounded-full px-2 py-1 text-xs font-bold ${status.className}`}>{status.label}</span>
+                                  </div>
+                                  <p className="text-sm font-semibold text-slate-500">{lot.location || '-'} - Vence: {lot.expiry_date ? formatDate(lot.expiry_date) : 'Sin dato'}</p>
+                                </div>
+                                <div className="flex flex-wrap gap-2 text-xs font-black">
+                                  <span className="rounded-lg bg-campo-50 px-2 py-1 text-campo-800">{formatNumber(lot.current_quantity)} env.</span>
+                                  <span className="rounded-lg bg-slate-50 px-2 py-1 text-slate-600">
+                                    {equivalent ? `${formatNumber(equivalent.quantity)} ${equivalent.unit}` : 'Equivalente sin dato'}
+                                  </span>
+                                </div>
+                              </div>
+                            </Link>
+                          )
+                        })}
+                      </div>
+                    ) : null}
+                  </article>
+                )
+              })}
+              {!search.trim() && inventoryProducts.length > 8 ? (
+                <button className="btn-secondary w-full !min-h-11" type="button" onClick={() => setShowAllInventoryProducts((value) => !value)}>
+                  {showAllInventoryProducts ? 'Ver menos productos' : `Ver todos los productos (${inventoryProducts.length})`}
+                </button>
+              ) : null}
+            </div>
           )}
         </div>
 
