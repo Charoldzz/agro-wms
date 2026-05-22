@@ -602,19 +602,19 @@ export default function OperatorEntry() {
       ) : null}
 
       {entrySuccess ? (
-        <div className="fixed inset-0 z-50 grid place-items-center bg-campo-700 p-5 text-white">
-          <section className="w-full max-w-md rounded-xl border border-white/20 bg-campo-600/95 p-6 text-center shadow-2xl">
-            <span className="mx-auto flex h-28 w-28 items-center justify-center rounded-full bg-white text-campo-700 shadow-xl">
+        <div className="fixed inset-0 z-50 grid place-items-center bg-campo-700 p-6 text-white">
+          <section className="w-full max-w-sm text-center">
+            <span className="mx-auto flex h-28 w-28 items-center justify-center rounded-full border border-white/25 bg-white/10 text-white shadow-2xl">
               <CheckCircle2 size={76} strokeWidth={2.4} />
             </span>
             <h2 className="mt-5 text-3xl font-black">Ingreso guardado</h2>
-            <p className="mt-2 text-base font-bold text-campo-50">
+            <p className="mt-2 text-base font-semibold text-campo-50">
               {entrySuccess.products} producto{entrySuccess.products === 1 ? '' : 's'} registrado{entrySuccess.products === 1 ? '' : 's'} para {entrySuccess.client}.
             </p>
-            <p className="mt-3 rounded-lg bg-white/15 p-3 text-sm font-bold">
+            <p className="mt-3 text-sm font-bold text-white/85">
               {entrySuccess.emailError ? 'Ingreso aplicado. Revisa el envio del correo a oficina.' : 'Entrada confirmada y correo enviado a oficina.'}
             </p>
-            <button className="mt-5 inline-flex min-h-12 w-full items-center justify-center rounded-lg bg-white px-4 py-3 font-black text-campo-800" type="button" onClick={() => navigate(isOperator ? '/operacion' : '/')}>
+            <button className="mt-6 inline-flex min-h-12 w-full items-center justify-center rounded-lg border border-white/20 bg-white/10 px-4 py-3 font-black text-white backdrop-blur transition active:scale-[0.99]" type="button" onClick={() => navigate(isOperator ? '/operacion' : '/')}>
               Continuar
             </button>
           </section>

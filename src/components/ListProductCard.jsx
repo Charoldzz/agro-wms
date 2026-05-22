@@ -18,10 +18,28 @@ export default function ListProductCard({
 }) {
   const [open, setOpen] = useState(false)
 
+  function openDetail() {
+    setOpen(true)
+  }
+
+  function openDetailWithKeyboard(event) {
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault()
+      openDetail()
+    }
+  }
+
   return (
     <>
-      <article className="grid gap-2 rounded-lg bg-white p-3 sm:grid-cols-[1fr_auto]">
-        <button className="min-w-0 text-left" type="button" onClick={() => setOpen(true)} title="Ver detalle del producto">
+      <article
+        className="grid cursor-pointer gap-2 rounded-lg bg-white p-3 transition hover:bg-campo-50/40 active:scale-[0.995] sm:grid-cols-[1fr_auto]"
+        role="button"
+        tabIndex={0}
+        onClick={openDetail}
+        onKeyDown={openDetailWithKeyboard}
+        title="Ver detalle del producto"
+      >
+        <div className="min-w-0 text-left">
           <p className="text-base font-black leading-snug text-slate-950 [overflow-wrap:anywhere]">{title}</p>
           <div className="mt-2 flex flex-wrap gap-1.5">
             {boxes !== undefined && boxes !== null ? (
@@ -38,9 +56,9 @@ export default function ListProductCard({
           </div>
           {presentation ? <p className="mt-2 text-xs font-bold text-slate-600">Presentacion: {presentation}</p> : null}
           {secondary ? <p className="text-xs font-semibold text-slate-500 [overflow-wrap:anywhere]">{secondary}</p> : null}
-        </button>
+        </div>
         {onEdit || onRemove ? (
-          <div className="flex gap-1 sm:grid sm:self-start">
+          <div className="flex gap-1 sm:grid sm:self-start" onClick={(event) => event.stopPropagation()} onKeyDown={(event) => event.stopPropagation()}>
             {onEdit ? (
               <button className="btn-secondary !min-h-10 !px-3" type="button" onClick={onEdit} title="Editar producto">
                 <Edit2 size={17} />
@@ -53,7 +71,7 @@ export default function ListProductCard({
             ) : null}
           </div>
         ) : null}
-        {children ? <div className="sm:col-span-2">{children}</div> : null}
+        {children ? <div className="sm:col-span-2" onClick={(event) => event.stopPropagation()} onKeyDown={(event) => event.stopPropagation()}>{children}</div> : null}
       </article>
 
       {open ? (

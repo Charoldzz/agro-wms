@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { Camera, Download, Printer, QrCode, Save } from 'lucide-react'
 import PageHeader from '../components/PageHeader'
+import ListProductCard from '../components/ListProductCard'
 import { useAuth } from '../hooks/useAuth.jsx'
 import { formatDate, formatNumber, movementLabel } from '../lib/format'
 import { createLotQrDataUrl } from '../lib/qr'
@@ -178,7 +179,7 @@ export default function LotDetail() {
   const scannedAccess = Boolean(location.state?.scanned) || sessionStorage.getItem(`scanned-lot-${id}`) === '1'
   const movementMode = location.state?.movementMode || sessionStorage.getItem(`lot-mode-${id}`) || ''
   const canRegisterMovement = ['despacho', 'reparo', 'traslado'].includes(movementMode)
-  const compactRepairView = canRegisterMovement && movementMode === 'reparo'
+  const compactServiceView = canRegisterMovement && ['reparo', 'traslado'].includes(movementMode)
   const expiryDaysLeft = useMemo(() => {
     if (!lot?.expiry_date) return null
     const today = new Date()
@@ -667,24 +668,30 @@ export default function LotDetail() {
         </div>
       ) : null}
 
-      {compactRepairView ? (
+      {compactServiceView ? (
         <section className="panel mb-4 border-orange-200 bg-white/95">
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div className="min-w-0">
-              <p className="text-xs font-bold uppercase text-orange-700">Lote para reparacion</p>
-              <p className="mt-1 text-sm font-bold text-slate-500">
-                {lot.location || '-'} - {lot.package_size ? `${formatNumber(lot.package_size)} ${lot.package_unit || ''}` : 'Presentacion sin dato'}
-              </p>
-            </div>
-            <div className="rounded-lg bg-campo-50 px-3 py-2 text-right">
-              <p className="text-xs font-bold uppercase text-campo-700">Disponible</p>
-              <p className="text-2xl font-black text-campo-800">{formatNumber(lot.current_quantity)} env.</p>
-            </div>
-          </div>
-          <div className="mt-3 grid gap-2 text-xs font-bold text-slate-600 sm:grid-cols-2">
-            <div className="rounded-lg bg-slate-50 p-2">Vence: {lot.expiry_date ? formatDate(lot.expiry_date) : 'Sin dato'}</div>
-            <div className="rounded-lg bg-slate-50 p-2">Estado: {lot.status || '-'}</div>
-          </div>
+          <p className="mb-2 text-xs font-bold uppercase text-orange-700">
+            Lote para {movementMode === 'traslado' ? 'traslado' : 'reparacion'}
+          </p>
+          <ListProductCard
+            title={cleanProductName(lot.product)}
+            envases={lot.current_quantity}
+            equivalent={Number(lot.package_size) > 0 ? currentEquivalent : null}
+            equivalentUnit={lot.package_unit}
+            presentation={lot.package_size ? `${formatNumber(lot.package_size)} ${lot.package_unit || ''}` : 'Sin dato'}
+            secondary={`${displayLotCode(lot.lot_code)} - ${lot.location || '-'}`}
+            detailTitle={movementMode === 'traslado' ? 'Producto para traslado' : 'Producto para reparacion'}
+            detailRows={[
+              { label: 'Cliente', value: lot.clients?.name || '-' },
+              { label: 'Lote', value: displayLotCode(lot.lot_code) },
+              { label: 'Disponible', value: `${formatNumber(lot.current_quantity)} env.` },
+              { label: 'Equivalente', value: Number(lot.package_size) > 0 ? `${formatNumber(currentEquivalent)} ${lot.package_unit || ''}` : 'Sin dato' },
+              { label: 'Presentacion', value: lot.package_size ? `${formatNumber(lot.package_size)} ${lot.package_unit || ''}` : 'Sin dato' },
+              { label: 'Ubicacion', value: lot.location || '-' },
+              { label: 'Vencimiento', value: lot.expiry_date ? formatDate(lot.expiry_date) : 'Sin dato' },
+              { label: 'Estado', value: lot.status || '-' },
+            ]}
+          />
         </section>
       ) : (
       <section className="panel mb-4 border-campo-200 bg-white/95">
@@ -714,7 +721,7 @@ export default function LotDetail() {
       </section>
       )}
 
-      {!compactRepairView ? (
+      {!compactServiceView ? (
       <section className="grid gap-4 lg:grid-cols-[1.2fr_0.8fr]">
         <div className="panel">
           {lot.photo_url ? <img className="mb-4 h-48 w-full rounded-lg object-cover" src={lot.photo_url} alt={cleanProductName(lot.product)} /> : null}

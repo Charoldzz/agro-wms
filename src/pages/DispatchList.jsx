@@ -670,30 +670,33 @@ export default function DispatchList() {
       ) : null}
 
       {receipt ? (
-        <div className="fixed inset-0 z-40 flex items-end bg-slate-950/45 p-4 sm:items-center sm:justify-center">
-          <div className="w-full max-w-lg rounded-xl bg-white p-4 shadow-xl">
-            <h3 className="text-xl font-bold text-slate-950">Comprobante de despacho</h3>
-            <p className="mt-1 text-sm font-bold text-slate-500">{receipt.id}</p>
-            <div className="mt-3 grid gap-2 rounded-lg bg-slate-50 p-3 text-sm font-bold text-slate-700 sm:grid-cols-2">
+        <div className="fixed inset-0 z-50 grid place-items-center overflow-y-auto bg-campo-700 p-6 text-white">
+          <section className="w-full max-w-md text-center">
+            <span className="mx-auto flex h-28 w-28 items-center justify-center rounded-full border border-white/25 bg-white/10 text-white shadow-2xl">
+              <CheckCircle2 size={76} strokeWidth={2.4} />
+            </span>
+            <h3 className="mt-5 text-3xl font-black">Despacho guardado</h3>
+            <p className="mt-1 text-sm font-bold text-campo-50">{receipt.id}</p>
+            <div className="mt-4 grid gap-2 text-left text-sm font-bold text-white/90 sm:grid-cols-2">
               <div>Productos: {receipt.items.length}</div>
               <div>Recibe: {receipt.receiverName}</div>
               <div>Documento: {receipt.receiverDocument}</div>
-              <div className="sm:col-span-2">Placa: {receipt.vehiclePlate || 'Sin placa'}</div>
+              <div>Placa: {receipt.vehiclePlate || 'Sin placa'}</div>
               {receipt.queued > 0 ? (
-                <div className="sm:col-span-2 rounded-lg bg-amber-50 p-2 text-amber-800">
+                <div className="sm:col-span-2 rounded-lg border border-amber-100/30 bg-amber-100/15 p-2 text-amber-50">
                   {receipt.queued} salida(s) offline quedan pendientes de revision admin.
                 </div>
               ) : null}
             </div>
-            <div className="mt-4 grid grid-cols-2 gap-2">
-              <button className="btn-secondary w-full" type="button" onClick={printReceipt}>
+            <div className="mt-6 grid grid-cols-2 gap-2">
+              <button className="inline-flex min-h-12 w-full items-center justify-center rounded-lg border border-white/25 bg-white/10 px-4 py-3 font-black text-white backdrop-blur transition active:scale-[0.99]" type="button" onClick={printReceipt}>
                 Imprimir
               </button>
-              <button className="btn-primary w-full" type="button" onClick={() => navigate('/operacion')}>
+              <button className="inline-flex min-h-12 w-full items-center justify-center rounded-lg bg-white/15 px-4 py-3 font-black text-white shadow-soft transition active:scale-[0.99]" type="button" onClick={() => navigate('/operacion')}>
                 Volver a operar
               </button>
             </div>
-          </div>
+          </section>
         </div>
       ) : null}
     </div>
