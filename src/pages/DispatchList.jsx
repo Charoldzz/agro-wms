@@ -3,6 +3,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { CheckCircle2, LogOut, Plus, ScanLine, Trash2 } from 'lucide-react'
 import PageHeader from '../components/PageHeader'
 import EmptyState from '../components/EmptyState'
+import ListProductCard from '../components/ListProductCard'
 import { useAuth } from '../hooks/useAuth.jsx'
 import { cleanProductName, displayLotCode, packageLabel } from '../lib/display'
 import { formatDate, formatNumber } from '../lib/format'
@@ -521,7 +522,28 @@ export default function DispatchList() {
             const equivalent = Number(item.package_count || 0) * Number(item.lot.package_size || 0)
             return (
               <article key={item.lot.id} className="panel">
-                <div className="flex items-start justify-between gap-3">
+                <ListProductCard
+                  title={cleanProductName(item.lot.product)}
+                  envases={item.package_count || 0}
+                  equivalent={Number(item.lot.package_size) > 0 ? equivalent : null}
+                  equivalentUnit={item.lot.package_unit}
+                  presentation={packageLabel(item.lot) || 'Sin dato'}
+                  secondary={`${displayLotCode(item.lot.lot_code)} - ${item.lot.location || '-'}`}
+                  detailTitle="Producto del despacho"
+                  detailRows={[
+                    { label: 'Envases a despachar', value: `${formatNumber(item.package_count || 0)} env.` },
+                    { label: 'Equivalente', value: Number(item.lot.package_size) > 0 ? `${formatNumber(equivalent)} ${item.lot.package_unit || ''}` : 'Sin dato' },
+                    { label: 'Presentacion', value: packageLabel(item.lot) || 'Sin dato' },
+                    { label: 'Lote', value: displayLotCode(item.lot.lot_code) },
+                    { label: 'Cliente', value: item.lot.clients?.name || '-' },
+                    { label: 'Ubicacion', value: item.lot.location || '-' },
+                    { label: 'Disponible', value: `${formatNumber(item.lot.current_quantity)} env.` },
+                    { label: 'Vencimiento', value: item.lot.expiry_date ? formatDate(item.lot.expiry_date) : 'Sin dato' },
+                    { label: 'Estado', value: item.lot.status || 'activo' },
+                  ]}
+                  onRemove={() => removeItem(item.lot.id)}
+                />
+                <div className="hidden">
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-start justify-between gap-2">
                       <p className="min-w-0 flex-1 text-lg font-black text-slate-950 [overflow-wrap:anywhere]">{cleanProductName(item.lot.product)}</p>

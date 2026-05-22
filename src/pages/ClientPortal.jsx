@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Boxes, CalendarClock, Download, FileText, History, Mail, PackageCheck, Plus, Search, Send, Trash2, Truck } from 'lucide-react'
+import { Boxes, CalendarClock, Download, FileText, History, Mail, PackageCheck, Plus, Search, Send, Truck } from 'lucide-react'
 import PageHeader from '../components/PageHeader'
 import EmptyState from '../components/EmptyState'
+import ListProductCard from '../components/ListProductCard'
 import { useAuth } from '../hooks/useAuth.jsx'
 import { cleanProductName, displayLotCode, packageLabel } from '../lib/display'
 import { formatDate, formatNumber, movementLabel } from '../lib/format'
@@ -459,25 +460,25 @@ export default function ClientPortal() {
               {requestItems.length > 0 ? (
                 <div className="space-y-2 rounded-lg bg-slate-50 p-2">
                   {requestItems.map((item) => (
-                    <div key={item.lot_id} className="flex items-center justify-between gap-2 rounded-lg bg-white p-2">
-                      <div className="min-w-0">
-                        <div className="flex flex-wrap items-start gap-2">
-                          <p className="min-w-0 flex-1 text-sm font-black text-slate-950 [overflow-wrap:anywhere]">{cleanProductName(item.product)}</p>
-                          <span className="rounded-lg bg-campo-50 px-2 py-1 text-sm font-black text-campo-800">{formatNumber(item.quantity)} env.</span>
-                        </div>
-                        <p className="text-xs font-semibold text-slate-500">
-                          {displayLotCode(item.lot_code)} - Presentacion: {packageLabel(item) || 'Sin dato'}
-                        </p>
-                        <div className="mt-2 flex flex-wrap gap-2">
-                          <span className="rounded-lg bg-amber-50 px-2 py-1 text-sm font-black text-amber-800">
-                            {formatNumber(Number(item.quantity || 0) * Number(item.package_size || 0))} {item.package_unit || ''}
-                          </span>
-                        </div>
-                      </div>
-                      <button className="btn-secondary !min-h-9 !px-2 !py-1" type="button" onClick={() => removeRequestItem(item.lot_id)}>
-                        <Trash2 size={15} />
-                      </button>
-                    </div>
+                    <ListProductCard
+                      key={item.lot_id}
+                      title={cleanProductName(item.product)}
+                      envases={item.quantity}
+                      equivalent={Number(item.package_size) > 0 ? Number(item.quantity || 0) * Number(item.package_size || 0) : null}
+                      equivalentUnit={item.package_unit}
+                      presentation={packageLabel(item) || 'Sin dato'}
+                      secondary={`${displayLotCode(item.lot_code)} - ${item.location || '-'}`}
+                      detailTitle="Producto solicitado"
+                      detailRows={[
+                        { label: 'Envases solicitados', value: `${formatNumber(item.quantity)} env.` },
+                        { label: 'Equivalente', value: Number(item.package_size) > 0 ? `${formatNumber(Number(item.quantity || 0) * Number(item.package_size || 0))} ${item.package_unit || ''}` : 'Sin dato' },
+                        { label: 'Presentacion', value: packageLabel(item) || 'Sin dato' },
+                        { label: 'Lote', value: displayLotCode(item.lot_code) },
+                        { label: 'Ubicacion', value: item.location || '-' },
+                        { label: 'Disponible', value: `${formatNumber(item.available)} env.` },
+                      ]}
+                      onRemove={() => removeRequestItem(item.lot_id)}
+                    />
                   ))}
                   <button className="btn-secondary w-full !min-h-10 !py-2" type="button" onClick={clearRequestCart}>
                     Vaciar carrito

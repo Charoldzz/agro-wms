@@ -13,6 +13,7 @@ export default function Operation() {
   const [pendingMovements, setPendingMovements] = useState([])
   const [online, setOnline] = useState(navigator.onLine)
   const [queuedCount, setQueuedCount] = useState(getQueuedMovementCount())
+  const [workModal, setWorkModal] = useState('')
 
   useEffect(() => {
     loadWork()
@@ -76,8 +77,63 @@ export default function Operation() {
       })
       .filter((lot) => lot.daysLeft <= 90)
       .sort((a, b) => a.daysLeft - b.daysLeft)
-      .slice(0, 4)
   }, [lots])
+
+  function renderApprovedRequests(requests) {
+    if (requests.length === 0) return <p className="rounded-lg bg-slate-50 p-3 text-sm font-bold text-slate-500">Sin despachos aprobados.</p>
+    return requests.map((request) => (
+      <article key={request.id} className="rounded-lg bg-amber-50 p-3">
+        <p className="font-bold text-slate-950">{request.clients?.name || 'Cliente'}</p>
+        {Array.isArray(request.items) && request.items.length > 1 ? (
+          <div className="mt-2 space-y-2">
+            {request.items.slice(0, 3).map((item) => (
+              <div key={item.lot_id} className="rounded-lg bg-white/80 p-2">
+                <div className="flex flex-wrap items-start justify-between gap-2">
+                  <p className="min-w-0 flex-1 text-sm font-black text-slate-950 [overflow-wrap:anywhere]">{cleanProductName(item.product)}</p>
+                  <span className="rounded-lg bg-campo-50 px-2 py-1 text-xs font-black text-campo-800">{formatNumber(item.quantity)} env.</span>
+                </div>
+                <p className="text-xs font-semibold text-slate-500">{displayLotCode(item.lot_code)} - Presentacion: {packageLabel(item) || 'Sin dato'}</p>
+              </div>
+            ))}
+            {request.items.length > 3 ? <p className="text-xs font-bold text-slate-600">+ {request.items.length - 3} producto{request.items.length - 3 === 1 ? '' : 's'} mas</p> : null}
+          </div>
+        ) : (
+          <div className="mt-2 rounded-lg bg-white/80 p-2">
+            <div className="flex flex-wrap items-start justify-between gap-2">
+              <p className="min-w-0 flex-1 text-sm font-black text-slate-950 [overflow-wrap:anywhere]">{cleanProductName(request.product || request.lots?.product)}</p>
+              <span className="rounded-lg bg-campo-50 px-2 py-1 text-xs font-black text-campo-800">{formatNumber(request.quantity)} env.</span>
+            </div>
+            <p className="text-xs font-semibold text-slate-500">
+              {displayLotCode(request.lots?.lot_code)} - Presentacion: {packageLabel(request.lots) || 'Sin dato'} - {request.lots?.location || '-'} - disponible {formatNumber(request.lots?.current_quantity)} env.
+            </p>
+          </div>
+        )}
+        <Link className="btn-primary mt-3 w-full !min-h-11 !py-2" to={`/operacion/despacho-lista?request=${request.id}`}>Iniciar despacho</Link>
+      </article>
+    ))
+  }
+
+  function renderPendingMovements(movements) {
+    if (movements.length === 0) return <p className="rounded-lg bg-slate-50 p-3 text-sm font-bold text-slate-500">Sin reparaciones, traslados o salidas pendientes.</p>
+    return movements.map((movement) => (
+      <article key={movement.id} className="rounded-lg bg-orange-50 p-3">
+        <p className="font-bold text-slate-950">{movementLabel(movement.type)} - {displayLotCode(movement.lots?.lot_code)}</p>
+        <p className="text-sm font-semibold text-slate-700">{cleanProductName(movement.lots?.product)}</p>
+        <p className="text-xs font-semibold text-slate-500">{movement.lots?.clients?.name || '-'} - {movement.lots?.location || '-'}</p>
+      </article>
+    ))
+  }
+
+  function renderExpiringLots(alerts) {
+    if (alerts.length === 0) return <p className="rounded-lg bg-campo-50 p-3 text-sm font-bold text-campo-700">Sin vencimientos cercanos.</p>
+    return alerts.map((lot) => (
+      <Link key={lot.id} className="block rounded-lg bg-amber-50 p-3" to={`/lotes/${lot.id}`}>
+        <p className="font-bold text-slate-950">{cleanProductName(lot.product)}</p>
+        <p className="text-sm font-semibold text-slate-600">{displayLotCode(lot.lot_code)} - {formatNumber(lot.current_quantity)} env.</p>
+        <p className="text-xs font-bold text-amber-700">{lot.daysLeft < 0 ? 'Vencido' : `Vence en ${lot.daysLeft} dias`}</p>
+      </Link>
+    ))
+  }
 
   return (
     <div>
@@ -132,96 +188,54 @@ export default function Operation() {
           </span>
         </div>
         <div className="grid gap-3 lg:grid-cols-3">
-          <WorkPanel title="Despachos aprobados">
-            {approvedRequests.length === 0 ? (
-              <p className="rounded-lg bg-slate-50 p-3 text-sm font-bold text-slate-500">Sin despachos aprobados.</p>
-            ) : (
-              approvedRequests.map((request) => (
-                <article key={request.id} className="rounded-lg bg-amber-50 p-3">
-                  <p className="font-bold text-slate-950">{request.clients?.name || 'Cliente'}</p>
-                  {Array.isArray(request.items) && request.items.length > 1 ? (
-                    <div className="mt-2 space-y-2">
-                      {request.items.slice(0, 3).map((item) => (
-                        <div key={item.lot_id} className="rounded-lg bg-white/80 p-2">
-                          <div className="flex flex-wrap items-start justify-between gap-2">
-                            <p className="min-w-0 flex-1 text-sm font-black text-slate-950 [overflow-wrap:anywhere]">
-                              {cleanProductName(item.product)}
-                            </p>
-                            <span className="rounded-lg bg-campo-50 px-2 py-1 text-xs font-black text-campo-800">
-                              {formatNumber(item.quantity)} env.
-                            </span>
-                          </div>
-                          <p className="text-xs font-semibold text-slate-500">
-                            {displayLotCode(item.lot_code)} - Presentacion: {packageLabel(item) || 'Sin dato'}
-                          </p>
-                        </div>
-                      ))}
-                      {request.items.length > 3 ? (
-                        <p className="text-xs font-bold text-slate-600">+ {request.items.length - 3} producto{request.items.length - 3 === 1 ? '' : 's'} mas</p>
-                      ) : null}
-                    </div>
-                  ) : (
-                    <div className="mt-2 rounded-lg bg-white/80 p-2">
-                      <div className="flex flex-wrap items-start justify-between gap-2">
-                        <p className="min-w-0 flex-1 text-sm font-black text-slate-950 [overflow-wrap:anywhere]">
-                          {cleanProductName(request.product || request.lots?.product)}
-                        </p>
-                        <span className="rounded-lg bg-campo-50 px-2 py-1 text-xs font-black text-campo-800">
-                          {formatNumber(request.quantity)} env.
-                        </span>
-                      </div>
-                      <p className="text-xs font-semibold text-slate-500">
-                        {displayLotCode(request.lots?.lot_code)} - Presentacion: {packageLabel(request.lots) || 'Sin dato'} - {request.lots?.location || '-'} - disponible {formatNumber(request.lots?.current_quantity)} env.
-                      </p>
-                    </div>
-                  )}
-                  <Link className="btn-primary mt-3 w-full !min-h-11 !py-2" to={`/operacion/despacho-lista?request=${request.id}`}>
-                    Iniciar despacho
-                  </Link>
-                </article>
-              ))
-            )}
+          <WorkPanel title="Despachos aprobados" count={approvedRequests.length} onViewAll={() => setWorkModal('despachos')}>
+            {renderApprovedRequests(approvedRequests.slice(0, 3))}
           </WorkPanel>
 
-          <WorkPanel title="Revisiones pendientes">
-            {pendingMovements.length === 0 ? (
-              <p className="rounded-lg bg-slate-50 p-3 text-sm font-bold text-slate-500">Sin reparaciones, traslados o salidas pendientes.</p>
-            ) : (
-              pendingMovements.map((movement) => (
-                <article key={movement.id} className="rounded-lg bg-orange-50 p-3">
-                  <p className="font-bold text-slate-950">{movementLabel(movement.type)} - {displayLotCode(movement.lots?.lot_code)}</p>
-                  <p className="text-sm font-semibold text-slate-700">{cleanProductName(movement.lots?.product)}</p>
-                  <p className="text-xs font-semibold text-slate-500">{movement.lots?.clients?.name || '-'} - {movement.lots?.location || '-'}</p>
-                </article>
-              ))
-            )}
+          <WorkPanel title="Revisiones pendientes" count={pendingMovements.length} onViewAll={() => setWorkModal('revisiones')}>
+            {renderPendingMovements(pendingMovements.slice(0, 3))}
           </WorkPanel>
 
-          <WorkPanel title="Alertas de vencimiento">
-            {expiringLots.length === 0 ? (
-              <p className="rounded-lg bg-campo-50 p-3 text-sm font-bold text-campo-700">Sin vencimientos cercanos.</p>
-            ) : (
-              expiringLots.map((lot) => (
-                <Link key={lot.id} className="block rounded-lg bg-amber-50 p-3" to={`/lotes/${lot.id}`}>
-                  <p className="font-bold text-slate-950">{cleanProductName(lot.product)}</p>
-                  <p className="text-sm font-semibold text-slate-600">{displayLotCode(lot.lot_code)} - {formatNumber(lot.current_quantity)} env.</p>
-                  <p className="text-xs font-bold text-amber-700">{lot.daysLeft < 0 ? 'Vencido' : `Vence en ${lot.daysLeft} dias`}</p>
-                </Link>
-              ))
-            )}
+          <WorkPanel title="Alertas de vencimiento" count={expiringLots.length} onViewAll={() => setWorkModal('vencimientos')}>
+            {renderExpiringLots(expiringLots.slice(0, 3))}
           </WorkPanel>
         </div>
       </section>
+
+      {workModal ? (
+        <WorkModal title={workModal === 'despachos' ? 'Despachos aprobados' : workModal === 'revisiones' ? 'Revisiones pendientes' : 'Alertas de vencimiento'} onClose={() => setWorkModal('')}>
+          {workModal === 'despachos' ? renderApprovedRequests(approvedRequests) : null}
+          {workModal === 'revisiones' ? renderPendingMovements(pendingMovements) : null}
+          {workModal === 'vencimientos' ? renderExpiringLots(expiringLots) : null}
+        </WorkModal>
+      ) : null}
 
     </div>
   )
 }
 
-function WorkPanel({ title, children }) {
+function WorkPanel({ title, count, onViewAll, children }) {
   return (
     <section className="panel">
-      <h4 className="mb-3 font-bold text-slate-950">{title}</h4>
+      <div className="mb-3 flex items-center justify-between gap-2">
+        <h4 className="font-bold text-slate-950">{title}</h4>
+        {count > 3 ? <button className="text-xs font-black text-campo-700" type="button" onClick={onViewAll}>Ver todo</button> : null}
+      </div>
       <div className="max-h-80 space-y-2 overflow-y-auto pr-1">{children}</div>
     </section>
+  )
+}
+
+function WorkModal({ title, onClose, children }) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-end bg-slate-950/45 p-4 sm:items-center sm:justify-center" onClick={onClose}>
+      <section className="w-full max-w-2xl rounded-xl bg-white p-4 shadow-xl" onClick={(event) => event.stopPropagation()}>
+        <div className="mb-3 flex items-center justify-between gap-3">
+          <h3 className="text-xl font-black text-slate-950">{title}</h3>
+          <button className="btn-secondary !min-h-10 !px-3" type="button" onClick={onClose}>Cerrar</button>
+        </div>
+        <div className="max-h-[70vh] space-y-2 overflow-y-auto pr-1">{children}</div>
+      </section>
+    </div>
   )
 }

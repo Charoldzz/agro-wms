@@ -1,0 +1,88 @@
+import { useState } from 'react'
+import { Edit2, Trash2 } from 'lucide-react'
+import { formatNumber } from '../lib/format'
+
+export default function ListProductCard({
+  title,
+  boxes,
+  envases,
+  equivalent,
+  equivalentUnit,
+  presentation,
+  secondary,
+  detailTitle = 'Producto en la lista',
+  detailRows = [],
+  onEdit,
+  onRemove,
+  children,
+}) {
+  const [open, setOpen] = useState(false)
+
+  return (
+    <>
+      <article className="grid gap-2 rounded-lg bg-white p-3 sm:grid-cols-[1fr_auto]">
+        <button className="min-w-0 text-left" type="button" onClick={() => setOpen(true)} title="Ver detalle del producto">
+          <p className="text-base font-black leading-snug text-slate-950 [overflow-wrap:anywhere]">{title}</p>
+          <div className="mt-2 flex flex-wrap gap-1.5">
+            {boxes !== undefined && boxes !== null ? (
+              <strong className="rounded-lg bg-campo-50 px-2 py-1 text-sm font-black text-campo-800">{formatNumber(boxes)} cajas</strong>
+            ) : null}
+            {envases !== undefined && envases !== null ? (
+              <strong className="rounded-lg bg-slate-100 px-2 py-1 text-sm font-black text-slate-800">{formatNumber(envases)} env.</strong>
+            ) : null}
+            {equivalent !== undefined && equivalent !== null && Number.isFinite(Number(equivalent)) ? (
+              <strong className="rounded-lg bg-maiz/25 px-2 py-1 text-sm font-black text-slate-900">
+                {formatNumber(equivalent)} {equivalentUnit || ''}
+              </strong>
+            ) : null}
+          </div>
+          {presentation ? <p className="mt-2 text-xs font-bold text-slate-600">Presentacion: {presentation}</p> : null}
+          {secondary ? <p className="text-xs font-semibold text-slate-500 [overflow-wrap:anywhere]">{secondary}</p> : null}
+        </button>
+        {onEdit || onRemove ? (
+          <div className="flex gap-1 sm:grid sm:self-start">
+            {onEdit ? (
+              <button className="btn-secondary !min-h-10 !px-3" type="button" onClick={onEdit} title="Editar producto">
+                <Edit2 size={17} />
+              </button>
+            ) : null}
+            {onRemove ? (
+              <button className="btn-secondary !min-h-10 !px-3" type="button" onClick={onRemove} title="Quitar producto">
+                <Trash2 size={17} />
+              </button>
+            ) : null}
+          </div>
+        ) : null}
+        {children ? <div className="sm:col-span-2">{children}</div> : null}
+      </article>
+
+      {open ? (
+        <div className="fixed inset-0 z-50 flex items-end bg-slate-950/45 p-4 sm:items-center sm:justify-center" onClick={() => setOpen(false)}>
+          <section className="w-full max-w-md rounded-xl bg-white p-4 shadow-xl" onClick={(event) => event.stopPropagation()}>
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-xs font-bold uppercase text-campo-700">{detailTitle}</p>
+                <h3 className="mt-1 text-lg font-black leading-snug text-slate-950 [overflow-wrap:anywhere]">{title}</h3>
+              </div>
+              <button className="btn-secondary !min-h-10 !px-3" type="button" onClick={() => setOpen(false)}>Cerrar</button>
+            </div>
+            <dl className="mt-4 grid gap-2 rounded-lg bg-slate-50 p-3 text-sm font-bold text-slate-700">
+              {detailRows.map((row) => (
+                <DetailRow key={`${row.label}-${row.value}`} label={row.label} value={row.value} />
+              ))}
+            </dl>
+          </section>
+        </div>
+      ) : null}
+    </>
+  )
+}
+
+function DetailRow({ label, value }) {
+  return (
+    <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-3">
+      <dt className="text-slate-500">{label}</dt>
+      <dd className="max-w-[13rem] text-right text-slate-950 [overflow-wrap:anywhere]">{value || '-'}</dd>
+    </div>
+  )
+}
