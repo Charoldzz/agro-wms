@@ -25,6 +25,8 @@ export default function AppLayout() {
       : profile?.role === 'cliente'
         ? navItems.filter((item) => item.to === '/' || item.roles?.includes('cliente'))
         : navItems.filter((item) => !item.roles || item.roles.includes('administrador'))
+  const isOperatorHome = profile?.role === 'operador' && location.pathname === '/operacion'
+  const showBackButton = location.pathname !== '/' && !isOperatorHome
 
   async function signOut() {
     await supabase.auth.signOut()
@@ -80,7 +82,7 @@ export default function AppLayout() {
       </header>
 
       <main className="mx-auto max-w-5xl overflow-x-hidden px-4 py-5">
-        {location.pathname !== '/' ? (
+        {showBackButton ? (
           <button className="btn-secondary mb-4 !min-h-10 !px-3 !py-2 text-sm" type="button" onClick={goBackInsideApp}>
             <ArrowLeft size={18} />
             Volver
