@@ -5,7 +5,7 @@ import PageHeader from '../components/PageHeader'
 import EmptyState from '../components/EmptyState'
 import { useAuth } from '../hooks/useAuth.jsx'
 import { cleanProductName, displayLotCode } from '../lib/display'
-import { formatDate, formatNumber, movementLabel } from '../lib/format'
+import { formatDate, formatNumber } from '../lib/format'
 import { vibrateSuccess } from '../lib/haptics'
 import { supabase } from '../lib/supabase'
 
@@ -106,7 +106,7 @@ export default function CorrectionRequests() {
 
   return (
     <div>
-      <PageHeader title="Solicitar correccion" subtitle="Entradas y despachos recientes" />
+      <PageHeader title="Solicitar correccion" subtitle="Ingresos y despachos recientes" />
 
       <div className="mb-4 rounded-lg border border-orange-200 bg-orange-50 p-3 text-sm font-bold text-orange-900">
         Si una entrada o despacho tiene un error, solicita correccion de cantidad o datos de la ficha.
@@ -437,7 +437,7 @@ function groupMovements(movements) {
         type: movement.type,
         clientName,
         createdAt: movement.created_at,
-        label: isListDispatch ? 'Despacho por lista' : isEntryBatch ? 'Nuevo ingreso' : movementLabel(movement.type),
+        label: correctionGroupLabel(movement.type),
         items: [],
       })
     }
@@ -446,6 +446,12 @@ function groupMovements(movements) {
   })
 
   return [...groups.values()].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+}
+
+function correctionGroupLabel(type) {
+  if (type === 'entrada') return 'Ingreso'
+  if (type === 'salida') return 'Despacho'
+  return type
 }
 
 function DetailRow({ label, value, strong }) {
