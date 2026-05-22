@@ -89,9 +89,7 @@ export default function LotDetail() {
   }, [lot?.qr_token])
 
   useEffect(() => {
-    const mode = Object.prototype.hasOwnProperty.call(location.state || {}, 'movementMode')
-      ? location.state.movementMode
-      : sessionStorage.getItem(`lot-mode-${id}`)
+    const mode = location.state?.movementMode || ''
     if (mode === 'despacho') {
       setMovement((value) => ({ ...value, type: 'salida' }))
     } else if (mode === 'reparo') {
@@ -180,12 +178,11 @@ export default function LotDetail() {
   const statusWarning = lot && lot.status !== 'activo'
   const blocksSale = lot && ['retenido', 'cerrado'].includes(lot.status)
   const scannedAccess = Boolean(location.state?.scanned) || sessionStorage.getItem(`scanned-lot-${id}`) === '1'
-  const movementMode = Object.prototype.hasOwnProperty.call(location.state || {}, 'movementMode')
-    ? location.state.movementMode || ''
-    : sessionStorage.getItem(`lot-mode-${id}`) || ''
+  const movementMode = location.state?.movementMode || ''
   const canRegisterMovement = ['despacho', 'reparo', 'traslado'].includes(movementMode)
   const compactServiceView = canRegisterMovement && ['reparo', 'traslado'].includes(movementMode)
   const operatorQrConsultation = isOperator && scannedAccess && !canRegisterMovement
+  const adminLotConsultation = isAdmin && !canRegisterMovement
   const expiryDaysLeft = useMemo(() => {
     if (!lot?.expiry_date) return null
     const today = new Date()
@@ -707,6 +704,102 @@ export default function LotDetail() {
             <ConsultInfo label="Ubicacion" value={lot.location || '-'} />
             <ConsultInfo label="Vencimiento" value={lot.expiry_date ? formatDate(lot.expiry_date) : 'Sin dato'} />
             <ConsultInfo label="Fecha ingreso" value={lot.entry_date ? formatDate(lot.entry_date) : 'Sin dato'} />
+          </div>
+        </section>
+      </div>
+    )
+  }
+
+  if (adminLotConsultation) {
+    return (
+      <div>
+        <PageHeader title="Ficha del lote" subtitle="Inventario y QR" />
+
+        {location.state?.fromLotsSearch ? (
+          <button
+            className="btn-secondary mb-4 w-full sm:w-auto"
+            type="button"
+            onClick={() => navigate('/lotes', { state: { restoreSearch: location.state.search || '', restoreSearchBy: location.state.searchBy || 'producto' } })}
+          >
+            Volver al buscador
+          </button>
+        ) : null}
+
+        {statusWarning ? (
+          <div className="mb-4 rounded-lg bg-amber-50 p-4 text-sm font-bold text-amber-800">
+            Alerta: este lote esta {lot.status}.
+          </div>
+        ) : null}
+
+        {isExpired ? (
+          <div className="mb-4 rounded-lg bg-red-50 p-4 text-sm font-bold text-red-700">
+            Lote vencido.
+          </div>
+        ) : null}
+
+        <section className="grid gap-4 lg:grid-cols-[1.15fr_.85fr]">
+          <div className="panel overflow-hidden border-campo-100 bg-white/95">
+            <div className="flex flex-col gap-3 border-b border-slate-100 pb-4 sm:flex-row sm:items-start sm:justify-between">
+              <div className="min-w-0">
+                <p className="text-xs font-bold uppercase text-campo-700">Producto</p>
+                <h2 className="mt-1 text-2xl font-black leading-tight text-slate-950 [overflow-wrap:anywhere]">
+                  {cleanProductName(lot.product)}
+                </h2>
+                <div className="mt-2 flex flex-wrap gap-2 text-xs font-black">
+                  <span className="rounded-lg bg-campo-50 px-2.5 py-1 text-campo-800">
+                    Presentacion: {lot.package_size ? `${formatNumber(lot.package_size)} ${lot.package_unit || ''}` : 'Sin dato'}
+                  </span>
+                  <span className="rounded-lg bg-slate-100 px-2.5 py-1 text-slate-700">
+                    Lote {displayLotCode(lot.lot_code)}
+                  </span>
+                </div>
+              </div>
+              <div className="rounded-lg bg-slate-50 px-3 py-2 text-sm font-black text-slate-700">
+                {lot.status === 'activo' ? 'Disponible' : lot.status || 'Sin estado'}
+              </div>
+            </div>
+
+            <div className="mt-4 grid gap-3 sm:grid-cols-2">
+              <div className="rounded-lg bg-campo-50 p-4">
+                <p className="text-xs font-bold uppercase text-campo-700">Envases disponibles</p>
+                <p className="mt-1 text-4xl font-black text-campo-800">{formatNumber(lot.current_quantity)}</p>
+              </div>
+              <div className="rounded-lg bg-slate-50 p-4">
+                <p className="text-xs font-bold uppercase text-slate-500">Equivalente actual</p>
+                <p className="mt-1 text-3xl font-black text-slate-950">
+                  {Number(lot.package_size) > 0 ? `${formatNumber(currentEquivalent)} ${lot.package_unit || ''}` : 'Sin dato'}
+                </p>
+              </div>
+            </div>
+
+            <div className="mt-3 grid gap-2 text-sm sm:grid-cols-2">
+              <ConsultInfo label="Cliente" value={lot.clients?.name || '-'} strong />
+              <ConsultInfo label="Ubicacion" value={lot.location || '-'} />
+              <ConsultInfo label="Vencimiento" value={lot.expiry_date ? formatDate(lot.expiry_date) : 'Sin dato'} />
+              <ConsultInfo label="Fecha ingreso" value={lot.entry_date ? formatDate(lot.entry_date) : 'Sin dato'} />
+            </div>
+          </div>
+
+          <div className="panel text-center">
+            <div className="mb-3 flex items-center justify-center gap-2">
+              <QrCode className="text-campo-700" />
+              <h3 className="font-bold text-slate-900">QR del lote</h3>
+            </div>
+            {qrDataUrl ? (
+              <button className="mx-auto block" type="button" onClick={openQrImage} title="Abrir QR">
+                <img src={qrDataUrl} alt={`QR ${lot.lot_code}`} className="h-56 w-56" />
+              </button>
+            ) : null}
+            {qrDataUrl ? (
+              <div className="mt-3 grid gap-2">
+                <button className="btn-primary w-full" type="button" onClick={printQrLabels}>
+                  <Printer size={20} /> QR Pallets
+                </button>
+                <button className="btn-secondary w-full" type="button" onClick={saveQrImage}>
+                  <Download size={20} /> Descargar QR
+                </button>
+              </div>
+            ) : null}
           </div>
         </section>
       </div>
