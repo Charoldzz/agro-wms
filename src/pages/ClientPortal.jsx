@@ -149,6 +149,8 @@ export default function ClientPortal({ view = 'inventory' }) {
     const days = daysUntil(lot.expiry_date)
     return days !== null && days <= 90
   })
+  const retainedLots = lots.filter((lot) => ['retenido', 'cerrado'].includes(lot.status) || lotStatus(lot).label === 'Vencido')
+  const activeRequests = requests.filter((request) => !['despachado', 'rechazado'].includes(request.status))
   const productCount = new Set(lots.map((lot) => lot.product).filter(Boolean)).size
   const clientName = lots[0]?.clients?.name || 'Cliente'
   const selectedRequestLot = lots.find((lot) => lot.id === requestLotId)
@@ -478,6 +480,56 @@ export default function ClientPortal({ view = 'inventory' }) {
       ) : null}
 
       {inventoryView ? (
+      <section className="panel mt-4">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <p className="text-xs font-black uppercase text-campo-700">Estado de cuenta</p>
+            <h2 className="mt-1 text-xl font-black text-slate-950">{clientName}</h2>
+            <p className="mt-1 text-sm font-semibold text-slate-500">
+              Resumen ejecutivo del inventario disponible y movimientos visibles.
+            </p>
+          </div>
+          <div className="rounded-lg bg-campo-50 px-3 py-2 text-right text-campo-800">
+            <p className="text-xs font-black uppercase">Inventario actual</p>
+            <p className="text-2xl font-black">{formatNumber(totalStock)} env.</p>
+          </div>
+        </div>
+        <div className="mt-4 grid gap-2 sm:grid-cols-4">
+          <StatementItem label="Lotes visibles" value={lots.length} />
+          <StatementItem label="Solicitudes activas" value={activeRequests.length} />
+          <StatementItem label="Por vencer" value={expiring.length} tone="amber" />
+          <StatementItem label="Observados" value={retainedLots.length} tone={retainedLots.length ? 'red' : 'campo'} />
+        </div>
+        <div className="mt-4 grid gap-2 lg:grid-cols-2">
+          <div className="rounded-lg bg-slate-50 p-3">
+            <p className="text-xs font-black uppercase text-slate-400">Ultimos movimientos</p>
+            <div className="mt-2 space-y-1.5">
+              {movements.slice(0, 3).length === 0 ? (
+                <p className="text-sm font-bold text-slate-500">Sin movimientos visibles.</p>
+              ) : movements.slice(0, 3).map((movement) => (
+                <p key={movement.id} className="text-sm font-bold text-slate-700 [overflow-wrap:anywhere]">
+                  {movementLabel(movement.type)} - {cleanProductName(movement.lots?.product)} - {formatNumber(movement.quantity)} env.
+                </p>
+              ))}
+            </div>
+          </div>
+          <div className="rounded-lg bg-slate-50 p-3">
+            <p className="text-xs font-black uppercase text-slate-400">Solicitudes</p>
+            <div className="mt-2 space-y-1.5">
+              {activeRequests.slice(0, 3).length === 0 ? (
+                <p className="text-sm font-bold text-slate-500">Sin solicitudes activas.</p>
+              ) : activeRequests.slice(0, 3).map((request) => (
+                <p key={request.id} className="text-sm font-bold text-slate-700 [overflow-wrap:anywhere]">
+                  {clientRequestStatusLabel(request.status)} - {Array.isArray(request.items) ? `${request.items.length} productos` : cleanProductName(request.product)}
+                </p>
+              ))}
+            </div>
+          </div>
+        </div>
+      </section>
+      ) : null}
+
+      {inventoryView ? (
       <section className="my-4 flex items-center rounded-lg border border-slate-200 bg-white px-3">
         <Search size={20} className="text-slate-400" />
         <input
@@ -756,6 +808,21 @@ function Metric({ icon: Icon, label, value, accent = 'text-campo-700' }) {
         <p className="min-w-0 text-[10px] font-bold leading-tight text-slate-500 [overflow-wrap:anywhere] sm:text-xs">{label}</p>
       </div>
       <p className="mt-1 text-base font-black leading-tight text-slate-950 tabular-nums sm:text-lg">{value}</p>
+    </div>
+  )
+}
+
+function StatementItem({ label, value, tone = 'campo' }) {
+  const toneClass = {
+    campo: 'bg-campo-50 text-campo-800',
+    amber: 'bg-amber-50 text-amber-800',
+    red: 'bg-red-50 text-red-700',
+  }[tone]
+
+  return (
+    <div className={`rounded-lg px-3 py-2 ${toneClass}`}>
+      <p className="text-xs font-black uppercase opacity-70">{label}</p>
+      <p className="mt-1 text-xl font-black">{formatNumber(value)}</p>
     </div>
   )
 }

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Boxes, CalendarClock, Check, Download, LogOut, Mail, PackagePlus, ScanLine, Wrench, X } from 'lucide-react'
+import { Boxes, CalendarClock, Check, DatabaseBackup, Download, FileText, LogOut, Mail, PackagePlus, ScanLine, Wrench, X } from 'lucide-react'
 import PageHeader from '../components/PageHeader'
 import { useAuth } from '../hooks/useAuth.jsx'
 import { supabase } from '../lib/supabase'
@@ -241,9 +241,14 @@ export default function Dashboard() {
         title="Dashboard"
         subtitle="Estado actual del almacen"
         action={
-          <button className="btn-secondary !min-h-11 !px-3" type="button" onClick={exportInventoryExcel}>
-            <Download size={20} /> Excel
-          </button>
+          <div className="flex flex-wrap gap-2">
+            <Link className="btn-secondary !min-h-11 !px-3" to="/exportes">
+              <FileText size={20} /> Exportes
+            </Link>
+            <Link className="btn-secondary !min-h-11 !px-3" to="/backups">
+              <DatabaseBackup size={20} /> Backups
+            </Link>
+          </div>
         }
       />
 
