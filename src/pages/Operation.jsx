@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { ClipboardPenLine, LogOut, PackagePlus, ScanLine, WifiOff, Wrench } from 'lucide-react'
+import { ArrowLeft, ClipboardPenLine, LogOut, PackagePlus, ScanLine, WifiOff, Wrench } from 'lucide-react'
 import PageHeader from '../components/PageHeader'
 import { cleanProductName, displayLotCode, packageLabel } from '../lib/display'
 import { formatDate, formatNumber, movementLabel } from '../lib/format'
@@ -248,12 +248,14 @@ function WorkModal({ title, onClose, children }) {
   return (
     <div className="fixed inset-0 z-50 flex items-end bg-slate-950/45 p-4 sm:items-center sm:justify-center" onClick={onClose}>
       <section className="w-full max-w-2xl rounded-xl bg-white p-4 shadow-xl" onClick={(event) => event.stopPropagation()}>
+        <button className="mb-3 inline-flex min-h-9 items-center gap-1 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-black text-slate-700 transition hover:bg-slate-50" type="button" onClick={onClose}>
+          <ArrowLeft size={16} /> Volver
+        </button>
         <div className="mb-3 flex items-start justify-between gap-3">
           <div>
             <p className="text-xs font-bold uppercase text-campo-700">Trabajo del dia</p>
             <h3 className="text-xl font-black text-slate-950">{title}</h3>
           </div>
-          <button className="btn-secondary !min-h-10 !px-3" type="button" onClick={onClose}>Cerrar</button>
         </div>
         <div className="max-h-[70vh] space-y-2 overflow-y-auto pr-1">{children}</div>
       </section>

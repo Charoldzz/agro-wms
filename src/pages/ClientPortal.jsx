@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Boxes, CalendarClock, ChevronDown, Download, FileText, History, Mail, PackageCheck, Plus, Printer, Search, Send, Truck } from 'lucide-react'
+import { ArrowLeft, Boxes, CalendarClock, ChevronDown, Download, FileText, History, Mail, PackageCheck, Plus, Printer, Search, Send, Truck } from 'lucide-react'
 import PageHeader from '../components/PageHeader'
 import EmptyState from '../components/EmptyState'
 import ListProductCard from '../components/ListProductCard'
@@ -823,12 +823,14 @@ function MovementDetail({ movement, onClose, onPrint }) {
   return (
     <div className="fixed inset-0 z-50 flex items-end bg-slate-950/45 p-4 sm:items-center sm:justify-center" onClick={onClose}>
       <section className="w-full max-w-md rounded-xl bg-white p-4 shadow-xl" onClick={(event) => event.stopPropagation()}>
+        <button className="mb-3 inline-flex min-h-9 items-center gap-1 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-black text-slate-700 transition hover:bg-slate-50" type="button" onClick={onClose}>
+          <ArrowLeft size={16} /> Volver
+        </button>
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
             <p className="text-xs font-bold uppercase text-campo-700">Movimiento en almacen</p>
             <h3 className="mt-1 text-lg font-black leading-snug text-slate-950 [overflow-wrap:anywhere]">{cleanProductName(lot.product)}</h3>
           </div>
-          <button className="btn-secondary !min-h-10 !px-3" type="button" onClick={onClose}>Cerrar</button>
         </div>
         <dl className="mt-4 grid gap-2 rounded-lg bg-slate-50 p-3 text-sm font-bold text-slate-700">
           <DetailRow label="Movimiento" value={movementLabel(movement.type)} />
