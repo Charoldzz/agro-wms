@@ -397,6 +397,19 @@ function OperationPatchForm({ group, patch, clients, onChange }) {
           </PatchField>
         </>
       ) : null}
+      {group.type === 'entrada' ? (
+        <>
+          <PatchField label="Chofer">
+            <input className="input" value={patch.driver_name || ''} onChange={(event) => onChange({ ...patch, driver_name: event.target.value })} />
+          </PatchField>
+          <PatchField label="CI chofer">
+            <input className="input" value={patch.driver_document || ''} onChange={(event) => onChange({ ...patch, driver_document: event.target.value })} />
+          </PatchField>
+          <PatchField label="Placa">
+            <input className="input" value={patch.vehicle_plate || ''} onChange={(event) => onChange({ ...patch, vehicle_plate: event.target.value })} />
+          </PatchField>
+        </>
+      ) : null}
     </div>
   )
 }
@@ -436,6 +449,8 @@ function createOperationPatch(group) {
     vehicle_plate: operationMeta.vehiclePlate || '',
     receiver_name: operationMeta.receiverName || '',
     receiver_document: operationMeta.receiverDocument || '',
+    driver_name: operationMeta.driverName || '',
+    driver_document: operationMeta.driverDocument || '',
   }
 }
 
@@ -481,6 +496,13 @@ function MovementDetail({ group, onClose, onRequest, onOperationRequest }) {
               <div className="mt-2 flex flex-wrap gap-1.5 text-xs font-bold text-slate-600">
                 {operationMeta.receiverName ? <span className="rounded-lg bg-slate-50 px-2 py-1">Recibe: {operationMeta.receiverName}</span> : null}
                 {operationMeta.receiverDocument ? <span className="rounded-lg bg-slate-50 px-2 py-1">Documento: {operationMeta.receiverDocument}</span> : null}
+                {operationMeta.vehiclePlate ? <span className="rounded-lg bg-slate-50 px-2 py-1">Placa: {operationMeta.vehiclePlate}</span> : null}
+              </div>
+            ) : null}
+            {group.type === 'entrada' ? (
+              <div className="mt-2 flex flex-wrap gap-1.5 text-xs font-bold text-slate-600">
+                {operationMeta.driverName ? <span className="rounded-lg bg-slate-50 px-2 py-1">Chofer: {operationMeta.driverName}</span> : null}
+                {operationMeta.driverDocument ? <span className="rounded-lg bg-slate-50 px-2 py-1">CI: {operationMeta.driverDocument}</span> : null}
                 {operationMeta.vehiclePlate ? <span className="rounded-lg bg-slate-50 px-2 py-1">Placa: {operationMeta.vehiclePlate}</span> : null}
               </div>
             ) : null}
@@ -544,6 +566,8 @@ function operationMetadata(group) {
     vehiclePlate: operation?.vehicle_plate || noteValue(notes, 'Placa'),
     receiverName: operation?.receiver_name || noteValue(notes, 'Recibe'),
     receiverDocument: operation?.receiver_document || noteValue(notes, 'Documento'),
+    driverName: operation?.driver_name || noteValue(notes, 'Chofer'),
+    driverDocument: operation?.driver_document || noteValue(notes, 'CI chofer'),
   }
 }
 
@@ -561,7 +585,7 @@ function visibleMovementNotes(notes) {
   return String(notes || '')
     .split('|')
     .map((part) => part.trim())
-    .filter((part) => part && !part.startsWith('Placa:') && !part.startsWith('Recibe:') && !part.startsWith('Documento:') && part !== 'Despacho por lista')
+    .filter((part) => part && !part.startsWith('Placa:') && !part.startsWith('Recibe:') && !part.startsWith('Documento:') && !part.startsWith('Chofer:') && !part.startsWith('CI chofer:') && part !== 'Despacho por lista' && part !== 'Nuevo ingreso desde almacen.')
     .join(' | ')
 }
 
