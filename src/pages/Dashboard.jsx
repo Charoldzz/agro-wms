@@ -241,7 +241,7 @@ export default function Dashboard() {
         title="Dashboard"
         subtitle="Estado actual del almacen"
         action={
-          <div className="flex flex-wrap gap-2">
+          <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto sm:flex-wrap">
             <Link className="btn-secondary !min-h-11 !px-3" to="/exportes">
               <FileText size={20} /> Exportes
             </Link>

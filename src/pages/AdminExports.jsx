@@ -220,7 +220,7 @@ function ExportPanel({ title, description, children, onExcel, onPdf }) {
           <h3 className="font-black text-slate-950">{title}</h3>
           <p className="mt-1 text-sm font-semibold text-slate-500">{description}</p>
         </div>
-        <div className="flex gap-2">
+        <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto">
           <button className="btn-secondary !min-h-10 !px-3 !py-2" type="button" onClick={onExcel}>
             <Download size={18} /> Excel
           </button>

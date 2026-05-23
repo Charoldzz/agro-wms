@@ -5,7 +5,7 @@ export default function PageHeader({ title, subtitle, action }) {
         <h2 className="text-xl font-bold tracking-normal text-slate-950 sm:text-2xl">{title}</h2>
         {subtitle ? <p className="mt-1 text-sm text-slate-500">{subtitle}</p> : null}
       </div>
-      {action ? <div className="shrink-0">{action}</div> : null}
+      {action ? <div className="w-full shrink-0 sm:w-auto">{action}</div> : null}
     </div>
   )
 }

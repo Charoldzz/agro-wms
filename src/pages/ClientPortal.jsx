@@ -460,7 +460,7 @@ export default function ClientPortal({ view = 'inventory' }) {
         title={requestsView ? 'Solicitudes de despacho' : movementsView ? 'Movimientos' : clientName}
         subtitle={requestsView ? 'Arma listas para almacen y revisa tus solicitudes enviadas' : movementsView ? 'Historial visible de tus productos en almacen' : 'Inventario disponible en almacen'}
         action={inventoryView ? (
-          <div className="flex gap-2">
+          <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto">
             <button className="btn-secondary !min-h-11 !px-3" type="button" onClick={exportInventoryExcel}>
               <Download size={20} /> Excel
             </button>
