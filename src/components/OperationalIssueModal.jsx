@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { AlertTriangle, ArrowLeft } from 'lucide-react'
+import { AlertTriangle, X } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 
 const issueTypes = [
@@ -41,14 +41,14 @@ export default function OperationalIssueModal({ lot, userId, onClose }) {
   return (
     <div className="fixed inset-0 z-50 flex items-end bg-slate-950/45 p-4 sm:items-center sm:justify-center" onClick={onClose}>
       <section className="w-full max-w-md rounded-xl bg-white p-4 shadow-xl" onClick={(event) => event.stopPropagation()}>
-        <button className="mb-3 inline-flex min-h-9 items-center gap-1 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-black text-slate-700 transition hover:bg-slate-50" type="button" onClick={onClose}>
-          <ArrowLeft size={16} /> Volver
-        </button>
         <div className="flex items-start justify-between gap-3">
           <div>
             <p className="text-xs font-black uppercase text-orange-700">Almacen</p>
             <h3 className="text-xl font-black text-slate-950">Reportar problema</h3>
           </div>
+          <button className="btn-secondary !min-h-10 !px-3" type="button" onClick={onClose} title="Cerrar">
+            <X size={18} />
+          </button>
         </div>
 
         <div className="mt-3 rounded-lg bg-orange-50 p-3 text-sm font-bold text-orange-900">

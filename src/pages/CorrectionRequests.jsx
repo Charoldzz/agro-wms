@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ArrowLeft, CheckCircle2, Send, X } from 'lucide-react'
+import { CheckCircle2, Send, X } from 'lucide-react'
 import PageHeader from '../components/PageHeader'
 import EmptyState from '../components/EmptyState'
 import { useAuth } from '../hooks/useAuth.jsx'
@@ -230,9 +230,6 @@ export default function CorrectionRequests() {
       {selected ? (
         <div className="fixed inset-0 z-50 flex items-end bg-slate-950/45 p-4 sm:items-center sm:justify-center" onClick={() => setSelected(null)}>
           <section className="w-full max-w-md rounded-xl bg-white p-4 shadow-xl" onClick={(event) => event.stopPropagation()}>
-            <button className="mb-3 inline-flex min-h-9 items-center gap-1 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-black text-slate-700 transition hover:bg-slate-50" type="button" onClick={() => setSelected(null)}>
-              <ArrowLeft size={16} /> Volver
-            </button>
             <div className="flex items-start justify-between gap-3">
               <div>
                 <p className="text-xs font-black uppercase text-orange-700">Correccion</p>
@@ -281,9 +278,6 @@ export default function CorrectionRequests() {
       {selectedOperation ? (
         <div className="fixed inset-0 z-50 flex items-end bg-slate-950/45 p-4 sm:items-center sm:justify-center" onClick={() => setSelectedOperation(null)}>
           <section className="w-full max-w-md rounded-xl bg-white p-4 shadow-xl" onClick={(event) => event.stopPropagation()}>
-            <button className="mb-3 inline-flex min-h-9 items-center gap-1 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-black text-slate-700 transition hover:bg-slate-50" type="button" onClick={() => setSelectedOperation(null)}>
-              <ArrowLeft size={16} /> Volver
-            </button>
             <div className="flex items-start justify-between gap-3">
               <div>
                 <p className="text-xs font-black uppercase text-orange-700">Correccion de operacion</p>
@@ -482,9 +476,6 @@ function MovementDetail({ group, onClose, onRequest, onOperationRequest }) {
   return (
     <div className="fixed inset-0 z-50 flex items-end bg-slate-950/45 p-4 sm:items-center sm:justify-center" onClick={onClose}>
       <section className="w-full max-w-xl rounded-xl bg-white p-4 shadow-xl" onClick={(event) => event.stopPropagation()}>
-        <button className="mb-3 inline-flex min-h-9 items-center gap-1 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-black text-slate-700 transition hover:bg-slate-50" type="button" onClick={onClose}>
-          <ArrowLeft size={16} /> Volver
-        </button>
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
             <p className="text-xs font-black uppercase text-orange-700">{group.label}</p>

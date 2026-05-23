@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { ArrowLeft, Edit2, Plus, Save, X } from 'lucide-react'
+import { Edit2, Plus, Save, X } from 'lucide-react'
 import EmptyState from '../components/EmptyState'
 import PageHeader from '../components/PageHeader'
 import { useAuth } from '../hooks/useAuth.jsx'
@@ -147,14 +147,14 @@ export default function Clients() {
       {selectedClient ? (
         <div className="fixed inset-0 z-40 flex items-end bg-slate-950/40 p-4 sm:items-center sm:justify-center">
           <div className="w-full max-w-md rounded-xl bg-white p-4 shadow-xl">
-            <button className="mb-3 inline-flex min-h-9 items-center gap-1 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-black text-slate-700 transition hover:bg-slate-50" type="button" onClick={() => setSelectedClient(null)}>
-              <ArrowLeft size={16} /> Volver
-            </button>
             <div className="mb-4 flex items-start justify-between gap-3">
               <div className="min-w-0">
                 <h3 className="text-lg font-bold text-slate-950">{selectedClient.name}</h3>
                 <p className="text-sm font-semibold text-slate-500">Informacion del cliente</p>
               </div>
+              <button className="btn-secondary !min-h-10 !px-3" type="button" onClick={() => setSelectedClient(null)} title="Cerrar">
+                <X size={18} />
+              </button>
             </div>
 
             <div className="space-y-3">
