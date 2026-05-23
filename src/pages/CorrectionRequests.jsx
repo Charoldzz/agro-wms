@@ -261,7 +261,7 @@ export default function CorrectionRequests() {
             {correctionType === 'cantidad' ? (
               <QuantityCorrectionFields movement={selected} quantity={quantity} onChange={setQuantity} />
             ) : (
-              <LotPatchForm patch={lotPatch} clients={clients} onChange={setLotPatch} />
+              <LotPatchForm patch={lotPatch} onChange={setLotPatch} />
             )}
             <label className="mt-3 block">
               <span className="label">Motivo</span>
@@ -340,14 +340,9 @@ function QuantityCorrectionFields({ movement, quantity, onChange }) {
   )
 }
 
-function LotPatchForm({ patch, clients, onChange }) {
+function LotPatchForm({ patch, onChange }) {
   return (
     <div className="mt-3 grid gap-2 rounded-lg bg-slate-50 p-3 sm:grid-cols-2">
-      <PatchField label="Cliente">
-        <select className="input" value={patch.client_id || ''} onChange={(event) => onChange({ ...patch, client_id: event.target.value })}>
-          {clients.map((client) => <option key={client.id} value={client.id}>{client.name}</option>)}
-        </select>
-      </PatchField>
       <PatchField label="ID lote">
         <input className="input" value={patch.lot_code || ''} onChange={(event) => onChange({ ...patch, lot_code: event.target.value })} />
       </PatchField>
@@ -417,7 +412,6 @@ function PatchField({ label, children }) {
 
 function createLotPatch(movement) {
   return {
-    client_id: movement.lots?.client_id || '',
     lot_code: movement.lots?.lot_code || '',
     product: movement.lots?.product || '',
     location: movement.lots?.location || '',
