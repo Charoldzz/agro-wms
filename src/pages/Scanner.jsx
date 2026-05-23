@@ -81,6 +81,7 @@ export default function Scanner() {
   const html5ReaderId = 'todo-agricola-html5-qr-reader'
   const [status, setStatus] = useState('Preparando camara...')
   const [error, setError] = useState('')
+  const [showQrFallback, setShowQrFallback] = useState(false)
   const [restartKey, setRestartKey] = useState(0)
   const searchParams = new URLSearchParams(location.search)
   const movementMode = searchParams.get('modo') || ''
@@ -150,6 +151,7 @@ export default function Scanner() {
       await stopCamera()
       foundQrRef.current = false
       setError('')
+      setShowQrFallback(false)
       setStatus('Solicitando permiso de camara...')
 
       if (!window.isSecureContext && window.location.hostname !== 'localhost') {
@@ -179,6 +181,7 @@ export default function Scanner() {
                 foundQrRef.current = false
                 setStatus('QR leido, pero no es de un lote')
                 setError('No se pudo autorizar este QR. Revisa que sea un QR nuevo del lote y que el usuario operador tenga permiso.')
+                setShowQrFallback(true)
                 return
               }
 
@@ -213,6 +216,7 @@ export default function Scanner() {
 
   async function decodeImageFile(file) {
     setError('')
+    setShowQrFallback(false)
     setStatus('Leyendo imagen...')
 
     try {
@@ -220,6 +224,7 @@ export default function Scanner() {
       if (nativeDecodedText) {
         if (!(await goToScannedLot(nativeDecodedText))) {
           setError('La imagen no contiene un QR de un lote de esta app.')
+          setShowQrFallback(true)
           setStatus('Listo para escanear')
         }
         return
@@ -233,6 +238,7 @@ export default function Scanner() {
 
         if (!(await goToScannedLot(result.getText()))) {
           setError('La imagen no contiene un QR de un lote de esta app.')
+          setShowQrFallback(true)
           setStatus('Listo para escanear')
         }
         return
@@ -242,10 +248,12 @@ export default function Scanner() {
         html5Reader.clear()
         if (await goToScannedLot(decodedText)) return
         setError('La imagen no contiene un QR de un lote de esta app.')
+        setShowQrFallback(true)
         setStatus('Listo para escanear')
       }
     } catch {
       setError('No se pudo leer un QR en esa imagen. Prueba descargar un QR nuevo desde la ficha del lote.')
+      setShowQrFallback(true)
       setStatus('Listo para escanear')
     }
   }
@@ -295,13 +303,13 @@ export default function Scanner() {
         </div>
 
         {error ? <p className="mt-4 rounded-lg bg-red-50 p-3 text-sm font-bold text-red-700">{error}</p> : null}
-        {error ? (
+        {showQrFallback ? (
           <button
-            className="btn-secondary mt-3 w-full justify-between"
+            className="mt-3 flex min-h-12 w-full items-center justify-between rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-left text-sm font-black text-amber-900 transition hover:bg-amber-100 active:scale-[0.99]"
             type="button"
             onClick={() => navigate('/lotes', { state: { qrFallback: true } })}
           >
-            <span className="inline-flex items-center gap-2"><TriangleAlert size={18} /> QR no se puede leer</span>
+            <span className="inline-flex items-center gap-2"><TriangleAlert size={18} /> QR con problema</span>
             <Search size={18} />
           </button>
         ) : null}
