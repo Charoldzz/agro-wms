@@ -95,9 +95,45 @@ export default function AdminExports() {
         .limit(1500),
     ])
 
-    if (lotError || movementError) setNotice('No se pudieron cargar todos los datos. Revisa permisos SQL si faltan registros.')
-    setLots(lotRows || [])
-    setMovements(movementRows || [])
+    const safeLots = lotRows || []
+    let safeMovements = movementRows || []
+
+    if (lotError) {
+      setNotice('No se pudo cargar el inventario para exportar. Revisa la conexion o permisos de Supabase.')
+    } else {
+      setNotice('')
+    }
+
+    if (movementError) {
+      const { data: fallbackMovements, error: fallbackError } = await supabase
+        .from('movements')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(1500)
+
+      if (!fallbackError) {
+        const lotMap = new Map(safeLots.map((lot) => [lot.id, lot]))
+        safeMovements = (fallbackMovements || []).map((movement) => ({
+          ...movement,
+          lots: lotMap.get(movement.lot_id) || null,
+          profiles: null,
+        }))
+      } else {
+        safeMovements = []
+        setNotice('No se pudieron cargar los movimientos para exportar. El inventario sigue disponible.')
+      }
+    }
+
+    setLots(safeLots)
+    setMovements(safeMovements)
+  }
+
+  function clearFilters() {
+    setSearch('')
+    setClientFilter('')
+    setMovementType('')
+    setDateFrom('')
+    setDateTo('')
   }
 
   const clients = useMemo(() => {
@@ -165,24 +201,51 @@ export default function AdminExports() {
 
       {notice ? <div className="mb-4 rounded-lg bg-amber-50 p-3 text-sm font-bold text-amber-800">{notice}</div> : null}
 
-      <section className="panel mb-4 grid gap-3 lg:grid-cols-[1fr_220px_160px_160px_160px]">
-        <div className="flex items-center rounded-lg border border-slate-200 bg-white px-3">
-          <Search size={20} className="text-slate-400" />
-          <input className="min-h-12 flex-1 bg-transparent px-2 outline-none" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Buscar cliente, producto, lote, ubicacion..." />
+      <section className="panel mb-4">
+        <div className="mb-3 flex items-center justify-between gap-3">
+          <div>
+            <h3 className="font-black text-slate-950">Filtros</h3>
+            <p className="text-xs font-semibold text-slate-500">Elige que informacion quieres exportar.</p>
+          </div>
+          <button className="text-sm font-black text-campo-700" type="button" onClick={clearFilters}>
+            Limpiar
+          </button>
         </div>
-        <select className="input" value={clientFilter} onChange={(event) => setClientFilter(event.target.value)}>
-          <option value="">Todos los clientes</option>
-          {clients.map((client) => <option key={client} value={client}>{client}</option>)}
-        </select>
-        <select className="input" value={movementType} onChange={(event) => setMovementType(event.target.value)}>
-          <option value="">Movimientos</option>
-          <option value="entrada">Entrada</option>
-          <option value="salida">Salida</option>
-          <option value="traslado">Traslado</option>
-          <option value="ajuste">Reparo</option>
-        </select>
-        <input className="input date-input" type="date" value={dateFrom} onChange={(event) => setDateFrom(event.target.value)} />
-        <input className="input date-input" type="date" value={dateTo} onChange={(event) => setDateTo(event.target.value)} />
+
+        <div className="grid gap-3 lg:grid-cols-[1fr_220px_180px_160px_160px]">
+          <label className="block">
+            <span className="label">Buscar</span>
+            <div className="mt-1 flex items-center rounded-lg border border-slate-200 bg-white px-3">
+              <Search size={20} className="text-slate-400" />
+              <input className="min-h-12 flex-1 bg-transparent px-2 outline-none" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Cliente, producto, lote..." />
+            </div>
+          </label>
+          <label className="block">
+            <span className="label">Cliente</span>
+            <select className="input mt-1" value={clientFilter} onChange={(event) => setClientFilter(event.target.value)}>
+              <option value="">Todos los clientes</option>
+              {clients.map((client) => <option key={client} value={client}>{client}</option>)}
+            </select>
+          </label>
+          <label className="block">
+            <span className="label">Tipo</span>
+            <select className="input mt-1" value={movementType} onChange={(event) => setMovementType(event.target.value)}>
+              <option value="">Todos</option>
+              <option value="entrada">Ingreso</option>
+              <option value="salida">Despacho</option>
+              <option value="traslado">Traslado</option>
+              <option value="ajuste">Reparo</option>
+            </select>
+          </label>
+          <label className="block">
+            <span className="label">Desde</span>
+            <input className="input date-input mt-1" type="date" value={dateFrom} onChange={(event) => setDateFrom(event.target.value)} />
+          </label>
+          <label className="block">
+            <span className="label">Hasta</span>
+            <input className="input date-input mt-1" type="date" value={dateTo} onChange={(event) => setDateTo(event.target.value)} />
+          </label>
+        </div>
       </section>
 
       <section className="grid gap-4 lg:grid-cols-2">

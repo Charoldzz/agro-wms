@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
-import { CalendarClock, Plus, Search } from 'lucide-react'
+import { CalendarClock, Search } from 'lucide-react'
 import PageHeader from '../components/PageHeader'
 import { useAuth } from '../hooks/useAuth.jsx'
 import { supabase } from '../lib/supabase'
@@ -205,13 +205,6 @@ export default function Lots() {
       <PageHeader
         title="Lotes"
         subtitle="Inventario por producto"
-        action={
-          isAdmin ? (
-            <button className="btn-primary !min-h-11 !px-3" onClick={() => setShowForm((value) => !value)}>
-              <Plus size={20} />
-            </button>
-          ) : null
-        }
       />
 
       {location.state?.qrFallback ? (
