@@ -628,6 +628,9 @@ export default function OperatorEntry() {
                     <div className="rounded-lg bg-campo-50 px-2 py-1 text-right text-campo-800">
                       <p className="font-black">{formatNumber(item.box_count)} cajas</p>
                       <p className="text-xs font-black">{formatNumber(item.package_count)} env.</p>
+                      <p className="text-xs font-black text-slate-900">
+                        {formatNumber(Number(item.package_count || 0) * Number(item.package_size || 0))} {item.package_unit || ''}
+                      </p>
                     </div>
                   </div>
                   <p className="text-xs text-slate-500">

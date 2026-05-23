@@ -123,7 +123,7 @@ begin
       || '-'
       || to_char(clock_timestamp(), 'YYYYMMDDHH24MISSMS')
       || '-'
-      || upper(substr(encode(gen_random_bytes(3), 'hex'), 1, 6));
+      || upper(substr(encode(extensions.gen_random_bytes(3), 'hex'), 1, 6));
     exit when not exists (
       select 1
       from public.warehouse_operations
