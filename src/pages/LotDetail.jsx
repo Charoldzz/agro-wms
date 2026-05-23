@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
-import { Camera, CheckCircle2, Download, Printer, QrCode, Save } from 'lucide-react'
+import { ArrowLeft, Camera, CheckCircle2, Download, Printer, QrCode, Save } from 'lucide-react'
 import PageHeader from '../components/PageHeader'
 import ListProductCard from '../components/ListProductCard'
 import { useAuth } from '../hooks/useAuth.jsx'
@@ -117,6 +117,14 @@ function LotStateNotice({ state, saleBlocked = false }) {
     <div className={`mb-4 rounded-lg p-4 text-sm font-bold ${state.panel}`}>
       {state.label}. {state.note}{saleBlocked ? ' Las salidas quedan bloqueadas.' : ''}
     </div>
+  )
+}
+
+function BackButton({ onClick }) {
+  return (
+    <button className="btn-secondary mb-4 w-full sm:w-auto" type="button" onClick={onClick}>
+      <ArrowLeft size={18} /> Volver
+    </button>
   )
 }
 
@@ -254,7 +262,7 @@ export default function LotDetail() {
   const movementMode = location.state?.movementMode || ''
   const canRegisterMovement = ['despacho', 'reparo', 'traslado'].includes(movementMode)
   const compactServiceView = canRegisterMovement && ['reparo', 'traslado'].includes(movementMode)
-  const operatorQrConsultation = isOperator && scannedAccess && !canRegisterMovement
+  const operatorQrConsultation = isOperator && !canRegisterMovement
   const adminLotConsultation = isAdmin && !canRegisterMovement
   const clientLotConsultation = !isAdmin && !isOperator && !canRegisterMovement
   const expiryDaysLeft = useMemo(() => {
@@ -739,9 +747,10 @@ export default function LotDetail() {
     return (
       <div>
         <PageHeader
-          title="Consulta QR"
-          subtitle="Ficha resumida del lote"
+          title="Ficha del lote"
+          subtitle="Consulta resumida"
         />
+        <BackButton onClick={() => navigate(-1)} />
 
         <LotStateNotice state={lotState} saleBlocked={blocksSale || isExpired} />
 
@@ -797,15 +806,7 @@ export default function LotDetail() {
       <div>
         <PageHeader title="Ficha del lote" subtitle="Inventario y QR" />
 
-        {location.state?.fromLotsSearch ? (
-          <button
-            className="btn-secondary mb-4 w-full sm:w-auto"
-            type="button"
-            onClick={() => navigate('/lotes', { state: { restoreSearch: location.state.search || '', restoreSearchBy: location.state.searchBy || 'producto' } })}
-          >
-            Volver al buscador
-          </button>
-        ) : null}
+        <BackButton onClick={() => navigate(-1)} />
 
         <LotStateNotice state={lotState} saleBlocked={blocksSale || isExpired} />
 
@@ -880,6 +881,7 @@ export default function LotDetail() {
     return (
       <div>
         <PageHeader title="Ficha del lote" subtitle="Detalle visible para cliente" />
+        <BackButton onClick={() => navigate(-1)} />
 
         <LotStateNotice state={lotState} saleBlocked={blocksSale || isExpired} />
 
@@ -938,15 +940,7 @@ export default function LotDetail() {
         }
       />
 
-      {location.state?.fromLotsSearch ? (
-        <button
-          className="btn-secondary mb-4 w-full sm:w-auto"
-          type="button"
-          onClick={() => navigate('/lotes', { state: { restoreSearch: location.state.search || '', restoreSearchBy: location.state.searchBy || 'producto' } })}
-        >
-          Volver al buscador
-        </button>
-      ) : null}
+      {location.state?.fromLotsSearch ? <BackButton onClick={() => navigate(-1)} /> : null}
 
       {isOperator && canRegisterMovement ? (
         <div className="mb-4 rounded-lg bg-campo-50 p-4 text-sm font-bold text-campo-700">
