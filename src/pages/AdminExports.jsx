@@ -98,11 +98,7 @@ export default function AdminExports() {
     const safeLots = lotRows || []
     let safeMovements = movementRows || []
 
-    if (lotError) {
-      setNotice('No se pudo cargar el inventario para exportar. Revisa la conexion o permisos de Supabase.')
-    } else {
-      setNotice('')
-    }
+    setNotice(lotError ? 'No se pudo cargar el inventario para exportar. Revisa la conexion o intenta nuevamente.' : '')
 
     if (movementError) {
       const { data: fallbackMovements, error: fallbackError } = await supabase
@@ -120,7 +116,6 @@ export default function AdminExports() {
         }))
       } else {
         safeMovements = []
-        setNotice('No se pudieron cargar los movimientos para exportar. El inventario sigue disponible.')
       }
     }
 
