@@ -211,6 +211,8 @@ export default function OperatorEntry() {
   }
 
   async function createEntry() {
+    if (saving) return
+
     setError('')
     setStatus('')
 
@@ -634,11 +636,24 @@ export default function OperatorEntry() {
                     </div>
                   </div>
                   <p className="text-xs text-slate-500">
+                    Cliente: {selectedClient?.name || '-'} - Lote {item.lot_code ? displayLotCode(item.lot_code) : 'automatico'}
+                  </p>
+                  <p className="text-xs text-slate-500">
                     Presentacion: {packageLabel(item) || 'Sin dato'} - {entryPackageBreakdown(item)}
                   </p>
                   <p className="text-xs text-slate-500">
                     {item.location} - vence {item.expiry_date || 'Sin dato'}
                   </p>
+                  <div className="mt-2 grid grid-cols-2 gap-2 text-xs font-black">
+                    <div className="rounded-lg bg-slate-50 p-2 text-slate-600">
+                      <span className="block uppercase text-slate-400">Stock antes</span>
+                      <span className="text-slate-950">0 env.</span>
+                    </div>
+                    <div className="rounded-lg bg-campo-50 p-2 text-campo-800">
+                      <span className="block uppercase opacity-70">Stock despues</span>
+                      <span>{formatNumber(item.package_count)} env.</span>
+                    </div>
+                  </div>
                 </div>
               ))}
             </div>

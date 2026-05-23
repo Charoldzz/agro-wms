@@ -51,6 +51,75 @@ function getIncidentConfig(value) {
   return incidentTypes.find((incident) => incident.value === value) || null
 }
 
+function getLotOperationalState(lot, daysLeft) {
+  if (!lot) {
+    return {
+      label: 'Sin estado',
+      note: '',
+      badge: 'bg-slate-100 text-slate-700',
+      panel: 'bg-slate-50 text-slate-700',
+    }
+  }
+
+  const rawStatus = String(lot.status || '').toLowerCase()
+  if (rawStatus === 'retenido') {
+    return {
+      label: 'Retenido',
+      note: 'No permitir salidas hasta liberacion.',
+      badge: 'bg-red-50 text-red-700 ring-1 ring-red-100',
+      panel: 'bg-red-50 text-red-700',
+    }
+  }
+  if (rawStatus === 'cerrado' || rawStatus === 'inactivo') {
+    return {
+      label: rawStatus === 'cerrado' ? 'Cerrado' : 'Inactivo',
+      note: 'Lote fuera de operacion.',
+      badge: 'bg-slate-200 text-slate-800 ring-1 ring-slate-300',
+      panel: 'bg-slate-100 text-slate-700',
+    }
+  }
+  if (daysLeft !== null && daysLeft < 0) {
+    return {
+      label: 'Vencido',
+      note: 'Salida bloqueada por vencimiento.',
+      badge: 'bg-red-600 text-white ring-1 ring-red-700',
+      panel: 'bg-red-50 text-red-700',
+    }
+  }
+  if (daysLeft !== null && daysLeft <= 90) {
+    return {
+      label: 'Por vencer',
+      note: daysLeft === 0 ? 'Vence hoy. Revisar antes de operar.' : `Vence en ${daysLeft} dias. Revisar FEFO.`,
+      badge: 'bg-amber-100 text-amber-900 ring-1 ring-amber-200',
+      panel: 'bg-amber-50 text-amber-800',
+    }
+  }
+
+  return {
+    label: 'Disponible',
+    note: 'Lote disponible para operar.',
+    badge: 'bg-campo-50 text-campo-800 ring-1 ring-campo-100',
+    panel: 'bg-campo-50 text-campo-800',
+  }
+}
+
+function LotStateBadge({ state }) {
+  return (
+    <div className={`rounded-lg px-3 py-2 text-sm font-black ${state.badge}`}>
+      {state.label}
+    </div>
+  )
+}
+
+function LotStateNotice({ state, saleBlocked = false }) {
+  if (state.label === 'Disponible') return null
+  return (
+    <div className={`mb-4 rounded-lg p-4 text-sm font-bold ${state.panel}`}>
+      {state.label}. {state.note}{saleBlocked ? ' Las salidas quedan bloqueadas.' : ''}
+    </div>
+  )
+}
+
 export default function LotDetail() {
   const { id } = useParams()
   const location = useLocation()
@@ -180,7 +249,6 @@ export default function LotDetail() {
     return Number(lot.current_quantity)
   }, [lot, movement.type, stockQuantity, repairQuantity])
 
-  const statusWarning = lot && lot.status !== 'activo'
   const blocksSale = lot && ['retenido', 'cerrado'].includes(lot.status)
   const scannedAccess = Boolean(location.state?.scanned) || sessionStorage.getItem(`scanned-lot-${id}`) === '1'
   const movementMode = location.state?.movementMode || ''
@@ -197,6 +265,7 @@ export default function LotDetail() {
     return Math.ceil((expiry - today) / 86400000)
   }, [lot?.expiry_date])
   const isExpired = expiryDaysLeft !== null && expiryDaysLeft < 0
+  const lotState = useMemo(() => getLotOperationalState(lot, expiryDaysLeft), [lot, expiryDaysLeft])
   const saleExpiryWarning = movement.type === 'salida' && expiryDaysLeft !== null && expiryDaysLeft <= 90
   const isLargeSale =
     movement.type === 'salida' &&
@@ -320,6 +389,7 @@ export default function LotDetail() {
   }
 
   async function confirmMovement() {
+    if (saving) return
     if (!pendingMovement || !lot) return
 
     const quantity = Number(pendingMovement.quantity)
@@ -673,17 +743,7 @@ export default function LotDetail() {
           subtitle="Ficha resumida del lote"
         />
 
-        {statusWarning ? (
-          <div className="mb-4 rounded-lg bg-amber-50 p-4 text-sm font-bold text-amber-800">
-            Alerta: este lote esta {lot.status}.
-          </div>
-        ) : null}
-
-        {isExpired ? (
-          <div className="mb-4 rounded-lg bg-red-50 p-4 text-sm font-bold text-red-700">
-            Lote vencido.
-          </div>
-        ) : null}
+        <LotStateNotice state={lotState} saleBlocked={blocksSale || isExpired} />
 
         <section className="panel overflow-hidden border-campo-100 bg-white/95">
           <div className="flex flex-col gap-3 border-b border-slate-100 pb-4 sm:flex-row sm:items-start sm:justify-between">
@@ -701,9 +761,7 @@ export default function LotDetail() {
                 </span>
               </div>
             </div>
-            <div className="rounded-lg bg-slate-50 px-3 py-2 text-sm font-black text-slate-700">
-              {lot.status === 'activo' ? 'Disponible' : lot.status || 'Sin estado'}
-            </div>
+            <LotStateBadge state={lotState} />
           </div>
 
           <div className="mt-4 grid gap-3 sm:grid-cols-2">
@@ -749,17 +807,7 @@ export default function LotDetail() {
           </button>
         ) : null}
 
-        {statusWarning ? (
-          <div className="mb-4 rounded-lg bg-amber-50 p-4 text-sm font-bold text-amber-800">
-            Alerta: este lote esta {lot.status}.
-          </div>
-        ) : null}
-
-        {isExpired ? (
-          <div className="mb-4 rounded-lg bg-red-50 p-4 text-sm font-bold text-red-700">
-            Lote vencido.
-          </div>
-        ) : null}
+        <LotStateNotice state={lotState} saleBlocked={blocksSale || isExpired} />
 
         <section className="grid gap-4 lg:grid-cols-[1.15fr_.85fr]">
           <div className="panel overflow-hidden border-campo-100 bg-white/95">
@@ -778,9 +826,7 @@ export default function LotDetail() {
                   </span>
                 </div>
               </div>
-              <div className="rounded-lg bg-slate-50 px-3 py-2 text-sm font-black text-slate-700">
-                {lot.status === 'activo' ? 'Disponible' : lot.status || 'Sin estado'}
-              </div>
+              <LotStateBadge state={lotState} />
             </div>
 
             <div className="mt-4 grid gap-3 sm:grid-cols-2">
@@ -835,17 +881,7 @@ export default function LotDetail() {
       <div>
         <PageHeader title="Ficha del lote" subtitle="Detalle visible para cliente" />
 
-        {statusWarning ? (
-          <div className="mb-4 rounded-lg bg-amber-50 p-4 text-sm font-bold text-amber-800">
-            Alerta: este lote esta {lot.status}.
-          </div>
-        ) : null}
-
-        {isExpired ? (
-          <div className="mb-4 rounded-lg bg-red-50 p-4 text-sm font-bold text-red-700">
-            Lote vencido.
-          </div>
-        ) : null}
+        <LotStateNotice state={lotState} saleBlocked={blocksSale || isExpired} />
 
         <section className="panel overflow-hidden border-campo-100 bg-white/95">
           <div className="flex flex-col gap-3 border-b border-slate-100 pb-4 sm:flex-row sm:items-start sm:justify-between">
@@ -863,9 +899,7 @@ export default function LotDetail() {
                 </span>
               </div>
             </div>
-            <div className="rounded-lg bg-slate-50 px-3 py-2 text-sm font-black text-slate-700">
-              {lot.status === 'activo' ? 'Disponible' : lot.status || 'Sin estado'}
-            </div>
+            <LotStateBadge state={lotState} />
           </div>
 
           <div className="mt-4 grid gap-3 sm:grid-cols-2">
@@ -885,7 +919,7 @@ export default function LotDetail() {
             <ConsultInfo label="Ubicacion" value={lot.location || '-'} />
             <ConsultInfo label="Vencimiento" value={lot.expiry_date ? formatDate(lot.expiry_date) : 'Sin dato'} />
             <ConsultInfo label="Fecha ingreso" value={lot.entry_date ? formatDate(lot.entry_date) : 'Sin dato'} />
-            <ConsultInfo label="Estado" value={lot.status === 'activo' ? 'Disponible' : lot.status || '-'} />
+            <ConsultInfo label="Estado" value={lotState.label} />
           </div>
         </section>
       </div>
@@ -920,22 +954,12 @@ export default function LotDetail() {
         </div>
       ) : null}
 
-      {statusWarning ? (
-        <div className="mb-4 rounded-lg bg-amber-50 p-4 text-sm font-bold text-amber-800">
-          Alerta: este lote esta {lot.status}. Las salidas quedan bloqueadas si el lote esta retenido o cerrado.
-        </div>
-      ) : null}
+      <LotStateNotice state={lotState} saleBlocked={blocksSale || isExpired} />
 
       {isOperator ? (
         <button className="btn-secondary mb-4 w-full sm:w-auto" type="button" onClick={() => setShowIssueReport(true)}>
           Reportar problema
         </button>
-      ) : null}
-
-      {isExpired ? (
-        <div className="mb-4 rounded-lg bg-red-50 p-4 text-sm font-bold text-red-700">
-          Lote vencido. Las salidas quedan bloqueadas.
-        </div>
       ) : null}
 
       {compactServiceView ? (
@@ -986,7 +1010,7 @@ export default function LotDetail() {
         <div className="mt-3 grid gap-2 text-sm font-bold text-slate-700 sm:grid-cols-3">
           <div className="rounded-lg bg-slate-50 p-3">Ubicacion: {lot.location || '-'}</div>
           <div className="rounded-lg bg-slate-50 p-3">Vence: {lot.expiry_date ? formatDate(lot.expiry_date) : 'Sin dato'}</div>
-          <div className="rounded-lg bg-slate-50 p-3">Estado: {lot.status}</div>
+          <div className={`rounded-lg p-3 ${lotState.panel}`}>Estado: {lotState.label}</div>
         </div>
       </section>
       )}
@@ -1265,6 +1289,21 @@ export default function LotDetail() {
             </p>
 
             <div className="mt-4 space-y-2 rounded-lg bg-slate-50 p-3 text-sm font-bold text-slate-700">
+              <div className="rounded-lg bg-white p-2">
+                <p className="font-black leading-snug text-slate-950 [overflow-wrap:anywhere]">{cleanProductName(lot.product)}</p>
+                <p className="text-xs font-semibold text-slate-500">Cliente: {lot.clients?.name || '-'}</p>
+                <p className="text-xs font-semibold text-slate-500">Lote {displayLotCode(lot.lot_code)}</p>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div className="rounded-lg bg-white p-2">
+                  <span className="block text-xs uppercase text-slate-400">Cantidad</span>
+                  <span className="text-slate-950">{formatNumber(pendingMovement.quantity)} env.</span>
+                </div>
+                <div className={`rounded-lg p-2 ${lotState.panel}`}>
+                  <span className="block text-xs uppercase opacity-70">Estado</span>
+                  <span>{lotState.label}</span>
+                </div>
+              </div>
               {pendingMovement.type === 'ajuste' && pendingMovement.affected_packages ? (
                 <div className="flex justify-between gap-3">
                   <span>Envases afectados</span>

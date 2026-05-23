@@ -15,6 +15,8 @@ const searchOptions = [
   { value: 'lote', label: 'Lote', placeholder: 'Buscar lote...' },
   { value: 'codigo', label: 'Codigo', placeholder: 'Buscar codigo de producto...' },
 ]
+const LOTS_CACHE_KEY = 'todo-agricola-lots-cache'
+const CLIENTS_CACHE_KEY = 'todo-agricola-clients-cache'
 
 const initialForm = {
   lot_code: '',
@@ -72,6 +74,7 @@ export default function Lots() {
   const [showAllTotals, setShowAllTotals] = useState(false)
   const [search, setSearch] = useState(() => location.state?.restoreSearch || '')
   const [searchBy, setSearchBy] = useState(() => location.state?.restoreSearchBy || 'producto')
+  const [cacheNotice, setCacheNotice] = useState('')
 
   useEffect(() => {
     loadData()
@@ -83,7 +86,7 @@ export default function Lots() {
   }, [location.state])
 
   async function loadData() {
-    const [{ data: lotsData }, { data: clientsData }, { data: movementsData }] = await Promise.all([
+    const [{ data: lotsData, error: lotsError }, { data: clientsData, error: clientsError }, { data: movementsData }] = await Promise.all([
       supabase.from('lots').select('*, clients(name)').order('created_at', { ascending: false }),
       supabase.from('clients').select('*').order('name'),
       supabase
@@ -92,8 +95,21 @@ export default function Lots() {
         .order('created_at', { ascending: false })
         .limit(500),
     ])
-    setLots(lotsData || [])
-    setClients(clientsData || [])
+    if (lotsData && !lotsError) {
+      setLots(lotsData)
+      localStorage.setItem(LOTS_CACHE_KEY, JSON.stringify(lotsData))
+      setCacheNotice('')
+    } else {
+      const cachedLots = JSON.parse(localStorage.getItem(LOTS_CACHE_KEY) || '[]')
+      setLots(cachedLots)
+      if (cachedLots.length > 0) setCacheNotice('Sin senal: mostrando inventario guardado en este equipo.')
+    }
+    if (clientsData && !clientsError) {
+      setClients(clientsData)
+      localStorage.setItem(CLIENTS_CACHE_KEY, JSON.stringify(clientsData))
+    } else {
+      setClients(JSON.parse(localStorage.getItem(CLIENTS_CACHE_KEY) || '[]'))
+    }
     setMovements(movementsData || [])
   }
 
@@ -201,6 +217,12 @@ export default function Lots() {
       {location.state?.qrFallback ? (
         <div className="mb-4 rounded-lg border border-orange-200 bg-orange-50 p-3 text-sm font-bold text-orange-900">
           Si el QR no se lee, busca el lote por producto, empresa, ubicacion, lote o codigo y reporta el problema desde la ficha.
+        </div>
+      ) : null}
+
+      {cacheNotice ? (
+        <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm font-bold text-amber-900">
+          {cacheNotice}
         </div>
       ) : null}
 

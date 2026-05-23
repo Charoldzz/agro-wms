@@ -269,6 +269,8 @@ export default function DispatchList() {
   }
 
   async function confirmDispatch() {
+    if (saving) return
+
     const validationError = validateDispatch()
     if (validationError) {
       setError(validationError)
@@ -668,33 +670,65 @@ export default function DispatchList() {
 
       {confirming ? (
         <div className="fixed inset-0 z-40 flex items-end bg-slate-950/45 p-4 sm:items-center sm:justify-center">
-          <div className="w-full max-w-lg rounded-xl bg-white p-4 shadow-xl">
+          <div className="w-full max-w-xl rounded-xl bg-white p-4 shadow-xl">
             <h3 className="text-xl font-bold text-slate-950">Confirmar despacho</h3>
-            <div className="mt-3 grid gap-2 rounded-lg bg-slate-50 p-3 text-sm font-bold text-slate-700 sm:grid-cols-2">
-              <div>Productos: {items.length}</div>
-              <div>Recibe: {receiverName}</div>
-              <div>Documento: {receiverDocument}</div>
-              <div className="sm:col-span-2">Placa: {vehiclePlate || 'Sin placa'}</div>
+            <div className="mt-3 rounded-lg bg-slate-50 p-3 text-sm font-bold text-slate-700">
+              <div className="grid gap-2 sm:grid-cols-2">
+                <div>
+                  <span className="block text-xs uppercase text-slate-400">Cliente</span>
+                  <strong className="text-slate-950">{items[0]?.lot?.clients?.name || approvedRequest?.clients?.name || '-'}</strong>
+                </div>
+                <div>
+                  <span className="block text-xs uppercase text-slate-400">Productos</span>
+                  <strong className="text-slate-950">{items.length}</strong>
+                </div>
+                <div>
+                  <span className="block text-xs uppercase text-slate-400">Recibe</span>
+                  <strong className="text-slate-950">{receiverName}</strong>
+                </div>
+                <div>
+                  <span className="block text-xs uppercase text-slate-400">Documento</span>
+                  <strong className="text-slate-950">{receiverDocument}</strong>
+                </div>
+                <div className="sm:col-span-2">
+                  <span className="block text-xs uppercase text-slate-400">Placa</span>
+                  <strong className="text-slate-950">{vehiclePlate || 'Sin placa'}</strong>
+                </div>
+              </div>
             </div>
 
             <div className="mt-4 max-h-72 space-y-2 overflow-y-auto pr-1">
               {items.map((item) => {
                 const quantity = Number(item.package_count || 0)
                 const remaining = Number(item.lot.current_quantity || 0) - quantity
+                const equivalent = quantity * Number(item.lot.package_size || 0)
                 return (
-                  <div key={item.lot.id} className="rounded-lg border border-slate-200 p-3">
-                    <div className="flex justify-between gap-3">
+                  <div key={item.lot.id} className="rounded-lg border border-campo-100 bg-white p-3">
+                    <div className="flex flex-wrap justify-between gap-3">
                       <div className="min-w-0">
-                        <p className="truncate font-bold text-slate-950">{cleanProductName(item.lot.product)}</p>
+                        <p className="font-black leading-snug text-slate-950 [overflow-wrap:anywhere]">{cleanProductName(item.lot.product)}</p>
+                        <p className="text-xs font-semibold text-slate-500">Cliente: {item.lot.clients?.name || '-'}</p>
                         <p className="text-xs font-semibold text-slate-500">
-                          {displayLotCode(item.lot.lot_code)} - Presentacion: {packageLabel(item.lot) || 'Sin dato'}
+                          Lote {displayLotCode(item.lot.lot_code)} - {packageLabel(item.lot) || 'Sin presentacion'}
                         </p>
                       </div>
-                      <p className="text-lg font-black text-campo-700">{formatNumber(quantity)}</p>
+                      <div className="rounded-lg bg-campo-50 px-3 py-2 text-right text-campo-800">
+                        <p className="text-lg font-black">{formatNumber(quantity)} env.</p>
+                        <p className="text-xs font-black">
+                          {Number(item.lot.package_size) > 0 ? `${formatNumber(equivalent)} ${item.lot.package_unit || ''}` : 'Sin equiv.'}
+                        </p>
+                      </div>
                     </div>
-                    <p className="mt-1 text-xs font-bold text-slate-500">
-                      Disponible: {formatNumber(item.lot.current_quantity)} · Queda: {formatNumber(remaining)} envases
-                    </p>
+                    <div className="mt-3 grid grid-cols-2 gap-2 text-xs font-black">
+                      <div className="rounded-lg bg-slate-50 p-2 text-slate-600">
+                        <span className="block uppercase text-slate-400">Stock antes</span>
+                        <span className="text-slate-950">{formatNumber(item.lot.current_quantity)} env.</span>
+                      </div>
+                      <div className={`rounded-lg p-2 ${remaining < 0 ? 'bg-red-50 text-red-700' : 'bg-campo-50 text-campo-800'}`}>
+                        <span className="block uppercase opacity-70">Stock despues</span>
+                        <span>{formatNumber(remaining)} env.</span>
+                      </div>
+                    </div>
                   </div>
                 )
               })}
