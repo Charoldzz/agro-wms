@@ -380,7 +380,7 @@ function lotPatchRows(patch, clients) {
     lot_code: 'ID lote',
     product: 'Producto',
     location: 'Ubicacion',
-    package_size: 'Tamano presentacion',
+    package_size: 'Tamaño presentación',
     package_unit: 'Unidad',
     expiry_date: 'Vencimiento',
     vehicle_plate: 'Placa',

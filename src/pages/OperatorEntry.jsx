@@ -55,6 +55,10 @@ function isMissingOperationRpc(error) {
   return String(error?.message || '').includes('create_entry_operation')
 }
 
+function isMissingEntryRpc(error) {
+  return String(error?.message || '').includes('create_lot_entry')
+}
+
 export default function OperatorEntry() {
   const navigate = useNavigate()
   const { user, isOperator } = useAuth()
@@ -346,7 +350,12 @@ export default function OperatorEntry() {
         p_user_id: user.id,
       })
 
-      if (rpcError) throw rpcError
+      if (rpcError) {
+        if (isMissingEntryRpc(rpcError)) {
+          throw new Error('Falta actualizar Supabase para ingresos por cajas. Ejecuta el SQL de operaciones de almacen y vuelve a intentar.')
+        }
+        throw rpcError
+      }
     }
   }
 
@@ -451,7 +460,7 @@ export default function OperatorEntry() {
                 placeholder="Opcional"
               />
             </Field>
-            <Field label="Tamano presentacion">
+            <Field label="Tamaño presentación">
               <input
                 className="input"
                 inputMode="decimal"
@@ -482,8 +491,13 @@ export default function OperatorEntry() {
                 ))}
               </select>
             </Field>
-            <Field label="Fecha vencimiento">
-              <input className="input date-input" type="date" value={form.expiry_date} onChange={(event) => setForm({ ...form, expiry_date: event.target.value })} />
+            <Field label="Vencimiento del producto" hint="Usa la fecha impresa en la etiqueta. Si no aplica, dejalo vacio.">
+              <div className="grid gap-2 sm:grid-cols-[1fr_auto]">
+                <input className="input date-input" type="date" value={form.expiry_date} onChange={(event) => setForm({ ...form, expiry_date: event.target.value })} />
+                <button className="btn-secondary !min-h-12 !px-3 !py-2 text-sm" type="button" onClick={() => setForm({ ...form, expiry_date: '' })}>
+                  Sin vencimiento
+                </button>
+              </div>
             </Field>
             <div className="grid gap-2 sm:col-span-2 sm:grid-cols-2">
               <div className="rounded-lg bg-campo-50 p-3">
@@ -731,11 +745,12 @@ function EntryItemCard({ item, onEdit, onRemove }) {
   )
 }
 
-function Field({ label, children }) {
+function Field({ label, hint, children }) {
   return (
     <label className="block">
       <span className="label">{label}</span>
       <div className="mt-1">{children}</div>
+      {hint ? <span className="mt-1 block text-xs font-semibold text-slate-500">{hint}</span> : null}
     </label>
   )
 }

@@ -357,7 +357,7 @@ function LotPatchForm({ patch, onChange }) {
           <option value="Playa">Playa</option>
         </select>
       </PatchField>
-      <PatchField label="Tamano presentacion">
+      <PatchField label="Tamaño presentación">
         <input className="input" inputMode="decimal" value={patch.package_size || ''} onChange={(event) => onChange({ ...patch, package_size: event.target.value.replace(',', '.') })} />
       </PatchField>
       <PatchField label="Unidad">
