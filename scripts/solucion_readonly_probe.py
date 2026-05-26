@@ -58,7 +58,7 @@ TABLES = {
 
 
 def decode_text(raw):
-    for encoding in ("cp1252", "latin1"):
+    for encoding in ("utf-8", "cp1252", "latin1"):
         try:
             return raw.decode(encoding).strip()
         except UnicodeDecodeError:

@@ -21,7 +21,7 @@ TABLE_FILES = {
 
 
 def decode_text(raw):
-    for encoding in ("cp1252", "latin1"):
+    for encoding in ("utf-8", "cp1252", "latin1"):
         try:
             return raw.decode(encoding).strip()
         except UnicodeDecodeError:
@@ -106,8 +106,22 @@ def read_dbf_rows(path):
 def clean_text(value):
     if value is None:
         return None
-    text = str(value).strip()
+    text = "".join(char for char in str(value) if char >= " " or char in "\n\r\t").strip()
     return text or None
+
+
+def clean_json_value(value):
+    if isinstance(value, dict):
+        return {key: clean_json_value(item) for key, item in value.items()}
+    if isinstance(value, list):
+        return [clean_json_value(item) for item in value]
+    if isinstance(value, str):
+        return "".join(char for char in value if char >= " " or char in "\n\r\t")
+    return value
+
+
+def raw_json(row):
+    return json.dumps(clean_json_value(row), ensure_ascii=False, default=str)
 
 
 def to_int(value):
@@ -188,7 +202,7 @@ def build_clients(rows):
             clean_text(row.get("EMAIL")),
             clean_text(row.get("CONTACTO")),
             to_number(row.get("ESTADO")),
-            json.dumps(row, ensure_ascii=False, default=str),
+            raw_json(row),
         ])
     return output
 
@@ -207,7 +221,7 @@ def build_products(rows):
             to_number(row.get("UNIDAD")),
             to_number(row.get("MINIMOSTOC")),
             bool(row.get("INACTIVO")),
-            json.dumps(row, ensure_ascii=False, default=str),
+            raw_json(row),
         ])
     return output
 
@@ -224,7 +238,7 @@ def build_warehouses(rows):
             name,
             clean_text(row.get("BREV_ALMA")),
             clean_text(row.get("RESPONSAB")),
-            json.dumps(row, ensure_ascii=False, default=str),
+            raw_json(row),
         ])
     return output
 
@@ -254,7 +268,7 @@ def build_stock(rows):
             to_number(row.get("INGRESOS")),
             to_number(row.get("SALIDAS")),
             to_number(row.get("RESERVADO")),
-            json.dumps(row, ensure_ascii=False, default=str),
+            raw_json(row),
         ])
     return output
 
@@ -282,7 +296,7 @@ def build_operation_headers(tables):
                 to_int(row.get(origin_key)) if origin_key else None,
                 to_int(row.get(destination_key)) if destination_key else None,
                 clean_text(row.get(concept_key)),
-                json.dumps(row, ensure_ascii=False, default=str),
+                raw_json(row),
             ])
     return output
 
@@ -318,7 +332,7 @@ def build_operation_lines(tables):
                 clean_text(row.get("FECHACADUC")),
                 to_int(row.get(warehouse_key)) if warehouse_key else None,
                 clean_text(row.get("NOMBREPROD")),
-                json.dumps(row, ensure_ascii=False, default=str),
+                raw_json(row),
             ])
     return output
 
