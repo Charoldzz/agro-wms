@@ -149,11 +149,11 @@ export default function Clients() {
       </div>
 
       {selectedClient ? (
-        <div className="fixed inset-0 z-40 flex items-end bg-slate-950/40 p-4 sm:items-center sm:justify-center">
-          <div className="w-full max-w-md rounded-xl bg-white p-4 shadow-xl">
+        <div className="fixed inset-0 z-40 flex items-end overflow-y-auto bg-slate-950/40 p-4 sm:items-center sm:justify-center">
+          <div className="max-h-[92dvh] w-full max-w-md overflow-y-auto overscroll-contain rounded-xl bg-white p-4 shadow-xl">
             <div className="mb-4 flex items-start justify-between gap-3">
               <div className="min-w-0">
-                <h3 className="text-lg font-bold text-slate-950">{selectedClient.name}</h3>
+                <h3 className="text-lg font-bold text-slate-950 [overflow-wrap:anywhere]">{selectedClient.name}</h3>
                 <p className="text-sm font-semibold text-slate-500">Informacion del cliente</p>
               </div>
               <button className="btn-secondary !min-h-10 !px-3" type="button" onClick={() => setSelectedClient(null)} title="Cerrar">

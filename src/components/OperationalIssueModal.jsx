@@ -3,9 +3,9 @@ import { AlertTriangle, X } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 
 const issueTypes = [
-  { value: 'qr_danado', label: 'QR danado' },
-  { value: 'producto_danado', label: 'Producto danado' },
-  { value: 'ubicacion_no_coincide', label: 'No coincide ubicacion' },
+  { value: 'qr_danado', label: 'QR dañado' },
+  { value: 'producto_danado', label: 'Producto dañado' },
+  { value: 'ubicacion_no_coincide', label: 'No coincide ubicación' },
   { value: 'falta_producto', label: 'Falta producto' },
   { value: 'otro', label: 'Otro' },
 ]
@@ -34,13 +34,13 @@ export default function OperationalIssueModal({ lot, userId, onClose }) {
       return
     }
 
-    setStatus('Reporte enviado a administracion.')
+    setStatus('Reporte enviado a administración.')
     setSaving(false)
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end bg-slate-950/45 p-4 sm:items-center sm:justify-center" onClick={onClose}>
-      <section className="w-full max-w-md rounded-xl bg-white p-4 shadow-xl" onClick={(event) => event.stopPropagation()}>
+    <div className="fixed inset-0 z-50 flex items-end overflow-y-auto bg-slate-950/45 p-4 sm:items-center sm:justify-center" onClick={onClose}>
+      <section className="max-h-[92dvh] w-full max-w-md overflow-y-auto overscroll-contain rounded-xl bg-white p-4 shadow-xl" onClick={(event) => event.stopPropagation()}>
         <div className="flex items-start justify-between gap-3">
           <div>
             <p className="text-xs font-black uppercase text-orange-700">Almacen</p>
@@ -54,7 +54,7 @@ export default function OperationalIssueModal({ lot, userId, onClose }) {
         <div className="mt-3 rounded-lg bg-orange-50 p-3 text-sm font-bold text-orange-900">
           <div className="flex items-center gap-2">
             <AlertTriangle size={18} />
-            <span>{lot.product}</span>
+            <span className="min-w-0 [overflow-wrap:anywhere]">{lot.product}</span>
           </div>
           <p className="mt-1 text-xs font-semibold text-orange-800">Lote {lot.lot_code}</p>
         </div>
@@ -75,7 +75,7 @@ export default function OperationalIssueModal({ lot, userId, onClose }) {
         </div>
 
         <label className="mt-3 block">
-          <span className="label">Observacion</span>
+          <span className="label">Observación</span>
           <textarea className="input mt-1" rows="3" value={notes} onChange={(event) => setNotes(event.target.value)} placeholder="Opcional, explica lo que viste." />
         </label>
 

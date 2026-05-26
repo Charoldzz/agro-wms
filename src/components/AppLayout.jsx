@@ -173,13 +173,13 @@ export default function AppLayout() {
                 key={item.to}
                 to={item.to}
                 className={({ isActive }) =>
-                  `flex min-h-14 flex-col items-center justify-center rounded-lg text-[10px] font-semibold sm:min-h-16 sm:text-[11px] ${
+                  `flex min-h-14 min-w-0 flex-col items-center justify-center rounded-lg px-1 text-[10px] font-semibold sm:min-h-16 sm:text-[11px] ${
                     isActive ? 'bg-campo-50 text-campo-700' : 'text-slate-500'
                   }`
                 }
               >
                 <Icon size={22} />
-                <span>{item.label}</span>
+                <span className="max-w-full truncate">{item.label}</span>
               </NavLink>
             )
           })}

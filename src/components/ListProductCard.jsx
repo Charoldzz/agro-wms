@@ -76,8 +76,8 @@ export default function ListProductCard({
       </article>
 
       {open ? (
-        <div className="fixed inset-0 z-50 flex items-end bg-slate-950/45 p-4 sm:items-center sm:justify-center" onClick={() => setOpen(false)}>
-          <section className="w-full max-w-md rounded-xl bg-white p-4 shadow-xl" onClick={(event) => event.stopPropagation()}>
+        <div className="fixed inset-0 z-50 flex items-end overflow-y-auto bg-slate-950/45 p-4 sm:items-center sm:justify-center" onClick={() => setOpen(false)}>
+          <section className="max-h-[92dvh] w-full max-w-md overflow-y-auto overscroll-contain rounded-xl bg-white p-4 shadow-xl" onClick={(event) => event.stopPropagation()}>
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
                 <p className="text-xs font-bold uppercase text-campo-700">{detailTitle}</p>
@@ -101,9 +101,9 @@ export default function ListProductCard({
 
 function DetailRow({ label, value }) {
   return (
-    <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-3">
+    <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,13rem)] items-start gap-3">
       <dt className="text-slate-500">{label}</dt>
-      <dd className="max-w-[13rem] text-right text-slate-950 [overflow-wrap:anywhere]">{value || '-'}</dd>
+      <dd className="min-w-0 text-right text-slate-950 [overflow-wrap:anywhere]">{value || '-'}</dd>
     </div>
   )
 }

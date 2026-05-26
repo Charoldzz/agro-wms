@@ -230,8 +230,8 @@ export default function CorrectionRequests() {
       ) : null}
 
       {selected ? (
-        <div className="fixed inset-0 z-50 flex items-end bg-slate-950/45 p-4 sm:items-center sm:justify-center" onClick={() => setSelected(null)}>
-          <section className="w-full max-w-md rounded-xl bg-white p-4 shadow-xl" onClick={(event) => event.stopPropagation()}>
+        <div className="fixed inset-0 z-50 flex items-end overflow-y-auto bg-slate-950/45 p-4 sm:items-center sm:justify-center" onClick={() => setSelected(null)}>
+          <section className="max-h-[92dvh] w-full max-w-md overflow-y-auto overscroll-contain rounded-xl bg-white p-4 shadow-xl" onClick={(event) => event.stopPropagation()}>
             <div className="flex items-start justify-between gap-3">
               <div>
                 <p className="text-xs font-black uppercase text-orange-700">Correccion</p>
@@ -278,8 +278,8 @@ export default function CorrectionRequests() {
       ) : null}
 
       {selectedOperation ? (
-        <div className="fixed inset-0 z-50 flex items-end bg-slate-950/45 p-4 sm:items-center sm:justify-center" onClick={() => setSelectedOperation(null)}>
-          <section className="w-full max-w-md rounded-xl bg-white p-4 shadow-xl" onClick={(event) => event.stopPropagation()}>
+        <div className="fixed inset-0 z-50 flex items-end overflow-y-auto bg-slate-950/45 p-4 sm:items-center sm:justify-center" onClick={() => setSelectedOperation(null)}>
+          <section className="max-h-[92dvh] w-full max-w-md overflow-y-auto overscroll-contain rounded-xl bg-white p-4 shadow-xl" onClick={(event) => event.stopPropagation()}>
             <div className="flex items-start justify-between gap-3">
               <div>
                 <p className="text-xs font-black uppercase text-orange-700">Correccion de operacion</p>
@@ -304,8 +304,8 @@ export default function CorrectionRequests() {
       ) : null}
 
       {success ? (
-        <div className="fixed inset-0 z-[60] grid place-items-center bg-campo-700 p-6 text-white">
-          <section className="w-full max-w-sm text-center">
+        <div className="fixed inset-0 z-[60] grid place-items-center overflow-y-auto bg-campo-700 p-6 text-white">
+          <section className="w-full max-w-sm py-8 text-center">
             <span className="mx-auto flex h-40 w-40 items-center justify-center rounded-full border border-white/25 text-white">
               <CheckCircle2 size={118} strokeWidth={1.8} />
             </span>
@@ -487,8 +487,8 @@ function MovementDetail({ group, onClose, onRequest, onOperationRequest }) {
   const operationMeta = operationMetadata(group)
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end bg-slate-950/45 p-4 sm:items-center sm:justify-center" onClick={onClose}>
-      <section className="w-full max-w-xl rounded-xl bg-white p-4 shadow-xl" onClick={(event) => event.stopPropagation()}>
+    <div className="fixed inset-0 z-50 flex items-end overflow-y-auto bg-slate-950/45 p-4 sm:items-center sm:justify-center" onClick={onClose}>
+      <section className="max-h-[92dvh] w-full max-w-xl overflow-y-auto overscroll-contain rounded-xl bg-white p-4 shadow-xl" onClick={(event) => event.stopPropagation()}>
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
             <p className="text-xs font-black uppercase text-orange-700">{group.label}</p>

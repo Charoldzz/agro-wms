@@ -81,7 +81,7 @@ export default function SimpleDateSelect({
 
   return (
     <div className="space-y-2">
-      <div className="grid grid-cols-[0.8fr_1.35fr_1fr] gap-2 sm:grid-cols-[90px_1fr_110px_auto]">
+      <div className="grid grid-cols-[minmax(0,0.8fr)_minmax(0,1.35fr)_minmax(0,1fr)] gap-2 sm:grid-cols-[90px_1fr_110px_auto]">
         <select className="input" value={parts.day} onChange={(event) => updatePart('day', event.target.value)}>
           <option value="">Día</option>
           {dayOptions.map((day) => (

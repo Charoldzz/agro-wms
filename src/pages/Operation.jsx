@@ -231,11 +231,11 @@ function WorkModal({ title, onClose, children }) {
   }, [onClose])
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end bg-slate-950/35 p-4 sm:items-center sm:justify-center" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-end overflow-y-auto bg-slate-950/35 p-4 sm:items-center sm:justify-center" onClick={onClose}>
       <button className="fixed right-4 top-4 z-[55] inline-flex h-11 w-11 items-center justify-center rounded-full bg-white text-slate-900 shadow-lg" type="button" onClick={onClose} title="Cerrar">
         <X size={20} />
       </button>
-      <section className="relative z-[56] w-full max-w-2xl rounded-xl bg-white p-4 shadow-xl" onClick={(event) => event.stopPropagation()}>
+      <section className="relative z-[56] max-h-[92dvh] w-full max-w-2xl overflow-y-auto overscroll-contain rounded-xl bg-white p-4 shadow-xl" onClick={(event) => event.stopPropagation()}>
         <div className="mb-3 flex items-start justify-between gap-3">
           <div>
             <p className="text-xs font-bold uppercase text-campo-700">Trabajo del dia</p>

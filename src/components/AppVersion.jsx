@@ -65,7 +65,7 @@ export default function AppVersion() {
   return (
     <>
       {hasUpdate && !canAutoRefresh ? (
-        <div className="fixed inset-x-3 bottom-[calc(6.3rem+env(safe-area-inset-bottom))] z-50 mx-auto max-w-md rounded-lg border border-campo-200 bg-white/95 p-3 shadow-lg backdrop-blur sm:bottom-4 sm:left-auto sm:right-4 sm:mx-0">
+        <div className="fixed inset-x-3 bottom-[calc(6.3rem+env(safe-area-inset-bottom))] z-40 mx-auto max-w-md rounded-lg border border-campo-200 bg-white/95 p-3 shadow-lg backdrop-blur sm:bottom-4 sm:left-auto sm:right-4 sm:mx-0">
           <div className="flex items-center justify-between gap-3">
             <div>
               <p className="text-sm font-black text-slate-950">Nueva version disponible</p>
@@ -78,11 +78,11 @@ export default function AppVersion() {
         </div>
       ) : null}
       {hasUpdate && canAutoRefresh ? (
-        <div className="pointer-events-none fixed inset-x-3 bottom-[calc(6.3rem+env(safe-area-inset-bottom))] z-50 mx-auto max-w-xs rounded-lg border border-campo-200 bg-white/95 p-3 text-center text-sm font-black text-campo-800 shadow-lg backdrop-blur sm:bottom-4">
+        <div className="pointer-events-none fixed inset-x-3 bottom-[calc(6.3rem+env(safe-area-inset-bottom))] z-40 mx-auto max-w-xs rounded-lg border border-campo-200 bg-white/95 p-3 text-center text-sm font-black text-campo-800 shadow-lg backdrop-blur sm:bottom-4">
           {reloading ? 'Actualizando app...' : 'Nueva version detectada'}
         </div>
       ) : null}
-      <div className="pointer-events-none fixed bottom-[calc(5.75rem+env(safe-area-inset-bottom))] right-2 z-50 rounded-full border border-white/60 bg-white/70 px-2 py-1 text-[10px] font-bold text-slate-500 shadow-sm backdrop-blur sm:bottom-3">
+      <div className="pointer-events-none fixed bottom-[calc(5.75rem+env(safe-area-inset-bottom))] right-2 z-40 rounded-full border border-white/60 bg-white/70 px-2 py-1 text-[10px] font-bold text-slate-500 shadow-sm backdrop-blur sm:bottom-3">
         {APP_VERSION_LABEL}
       </div>
     </>
