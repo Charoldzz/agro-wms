@@ -72,9 +72,11 @@ export default function OperatorEntry() {
   const [saving, setSaving] = useState(false)
   const [entrySuccess, setEntrySuccess] = useState(null)
   const [confirmChecks, setConfirmChecks] = useState(emptyConfirmChecks())
+  const [guidePreview, setGuidePreview] = useState('TAB---')
 
   useEffect(() => {
     loadClients()
+    loadGuidePreview()
   }, [])
 
   useEffect(() => {
@@ -84,6 +86,11 @@ export default function OperatorEntry() {
   async function loadClients() {
     const { data } = await supabase.from('clients').select('id, name, contact').order('name')
     setClients(data || [])
+  }
+
+  async function loadGuidePreview() {
+    const { data } = await supabase.rpc('preview_next_warehouse_guide')
+    if (data) setGuidePreview(data)
   }
 
   const selectedClient = clients.find((client) => client.id === form.client_id)
@@ -302,6 +309,7 @@ export default function OperatorEntry() {
         products: entryItems.length,
         client: selectedClient?.name || 'cliente',
         operationCode: operation?.operation_code || null,
+        guideNumber: operation?.guide_number || guidePreview,
         emailError: Boolean(emailError),
       })
       setStatus(
@@ -337,6 +345,10 @@ export default function OperatorEntry() {
             <div className="sm:col-span-2 rounded-lg bg-campo-50 p-3 text-sm font-bold text-campo-700">
               Paso 1: selecciona el cliente y los datos del transporte.
             </div>
+            <Field label="Nº guía">
+              <input className="input bg-slate-100 font-black text-slate-700" value={guidePreview} readOnly />
+              <span className="mt-1 block text-xs font-semibold text-slate-500">Se asigna automaticamente al guardar la operacion.</span>
+            </Field>
             <Field label="Cliente">
               <select className="input" value={form.client_id} onChange={(event) => setForm({ ...form, client_id: event.target.value })} required>
                 <option value="">Seleccionar cliente</option>
@@ -593,6 +605,7 @@ export default function OperatorEntry() {
               <strong className="font-black text-slate-950">{selectedClient?.name || 'cliente'}</strong>.
             </p>
             <div className="mt-4 space-y-2 rounded-lg bg-slate-50 p-3 text-sm font-bold text-slate-700">
+              <div className="flex justify-between gap-3"><span>Nº guía</span><span>{guidePreview}</span></div>
               <div className="flex justify-between gap-3"><span>Chofer</span><span>{form.driver_name}</span></div>
               <div className="flex justify-between gap-3"><span>CI chofer</span><span>{form.driver_document}</span></div>
               <div className="flex justify-between gap-3"><span>Placa</span><span>{form.vehicle_plate}</span></div>
@@ -660,6 +673,7 @@ export default function OperatorEntry() {
               <CheckCircle2 size={118} strokeWidth={1.8} />
             </span>
             <h2 className="mt-5 text-3xl font-black">Ingreso guardado</h2>
+            <p className="mt-2 text-2xl font-black text-white">{entrySuccess.guideNumber}</p>
             <p className="mt-2 text-base font-semibold text-campo-50">
               {entrySuccess.products} producto{entrySuccess.products === 1 ? '' : 's'} registrado{entrySuccess.products === 1 ? '' : 's'} para {entrySuccess.client}.
             </p>

@@ -59,8 +59,18 @@ export default function DispatchList() {
   const [approvedRequestLoaded, setApprovedRequestLoaded] = useState(false)
   const [focusedLotId, setFocusedLotId] = useState('')
   const [confirmChecks, setConfirmChecks] = useState(emptyConfirmChecks())
+  const [guidePreview, setGuidePreview] = useState('TAB---')
 
   const isApprovedDispatch = Boolean(requestId)
+
+  useEffect(() => {
+    loadGuidePreview()
+  }, [])
+
+  async function loadGuidePreview() {
+    const { data } = await supabase.rpc('preview_next_warehouse_guide')
+    if (data) setGuidePreview(data)
+  }
 
   useEffect(() => {
     if (startNew) {
@@ -329,6 +339,7 @@ export default function DispatchList() {
     }
     setReceipt({
       id: operationCode || `DESP-${new Date().toISOString().replace(/\D/g, '').slice(0, 14)}`,
+      guideNumber: operation?.guide_number || guidePreview,
       createdAt: new Date().toISOString(),
       receiverName: receiverName.trim(),
       receiverDocument: receiverDocument.trim(),
@@ -411,6 +422,7 @@ export default function DispatchList() {
           <h1>Todo Agricola</h1>
           <strong>Comprobante de despacho ${escapeHtml(receipt.id)}</strong>
           <div class="meta">
+            <div class="box">Nº guia: ${escapeHtml(receipt.guideNumber || '-')}</div>
             <div class="box">Fecha: ${escapeHtml(formatDate(receipt.createdAt))}</div>
             <div class="box">Usuario: ${escapeHtml(receipt.userEmail)}</div>
             <div class="box">Recibe: ${escapeHtml(receipt.receiverName)}</div>
@@ -472,6 +484,11 @@ export default function DispatchList() {
 
       <section className="panel mb-4 grid gap-3 sm:grid-cols-2">
         <h3 className="text-lg font-bold text-slate-950 sm:col-span-2">Datos del despacho</h3>
+        <label className="sm:col-span-2">
+          <span className="label">Nº guía</span>
+          <input className="input mt-1 bg-slate-100 font-black text-slate-700" value={guidePreview} readOnly />
+          <span className="mt-1 block text-xs font-semibold text-slate-500">Se asigna automaticamente al guardar la operacion.</span>
+        </label>
         <label>
           <span className="label">Nombre del que recibe</span>
           <input className="input mt-1" autoComplete="off" value={receiverName} onChange={(event) => setReceiverName(event.target.value)} />
@@ -621,6 +638,10 @@ export default function DispatchList() {
             <h3 className="text-xl font-bold text-slate-950">Confirmar despacho</h3>
             <div className="mt-3 rounded-lg bg-slate-50 p-3 text-sm font-bold text-slate-700">
               <div className="grid gap-2 sm:grid-cols-2">
+                <div className="sm:col-span-2">
+                  <span className="block text-xs uppercase text-slate-400">Nº guía</span>
+                  <strong className="text-slate-950">{guidePreview}</strong>
+                </div>
                 <div>
                   <span className="block text-xs uppercase text-slate-400">Cliente</span>
                   <strong className="text-slate-950">{items[0]?.lot?.clients?.name || approvedRequest?.clients?.name || '-'}</strong>
@@ -702,6 +723,7 @@ export default function DispatchList() {
               <CheckCircle2 size={118} strokeWidth={1.8} />
             </span>
             <h3 className="mt-5 text-3xl font-black">Despacho guardado</h3>
+            <p className="mt-2 text-2xl font-black text-white">{receipt.guideNumber}</p>
             <p className="mt-2 text-sm font-bold text-campo-50">El movimiento quedo registrado.</p>
             {receipt.queued > 0 ? (
               <p className="mt-3 rounded-lg border border-amber-100/30 bg-amber-100/15 p-2 text-sm font-bold text-amber-50">

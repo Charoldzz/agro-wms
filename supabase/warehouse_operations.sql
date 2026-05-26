@@ -5,6 +5,7 @@
 create table if not exists public.warehouse_operations (
   id uuid primary key default gen_random_uuid(),
   operation_code text not null unique,
+  guide_number text,
   type text not null check (type in ('ingreso', 'despacho', 'reparo', 'traslado', 'ajuste')),
   status text not null default 'aplicado' check (status in ('borrador', 'pendiente', 'aplicado', 'rechazado', 'anulado')),
   source text not null default 'app',
@@ -23,6 +24,33 @@ create table if not exists public.warehouse_operations (
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
+
+alter table public.warehouse_operations
+add column if not exists guide_number text;
+
+create unique index if not exists warehouse_operations_guide_number_key
+on public.warehouse_operations(guide_number)
+where guide_number is not null;
+
+create table if not exists public.warehouse_operation_counters (
+  counter_name text primary key,
+  next_number bigint not null default 1 check (next_number > 0)
+);
+
+insert into public.warehouse_operation_counters (counter_name, next_number)
+values ('guide', 1)
+on conflict (counter_name) do nothing;
+
+update public.warehouse_operation_counters c
+set next_number = greatest(
+  c.next_number,
+  coalesce((
+    select max(nullif(regexp_replace(guide_number, '\D', '', 'g'), '')::bigint) + 1
+    from public.warehouse_operations
+    where guide_number ~ '^TAB[0-9]+$'
+  ), 1)
+)
+where c.counter_name = 'guide';
 
 create table if not exists public.warehouse_operation_items (
   id uuid primary key default gen_random_uuid(),
@@ -137,6 +165,47 @@ $$;
 
 grant execute on function public.new_warehouse_operation_code(text) to authenticated;
 
+create or replace function public.preview_next_warehouse_guide()
+returns text
+language sql
+security definer
+set search_path = public
+as $$
+  select 'TAB' || lpad(next_number::text, 3, '0')
+  from public.warehouse_operation_counters
+  where counter_name = 'guide';
+$$;
+
+grant execute on function public.preview_next_warehouse_guide() to authenticated;
+
+create or replace function public.next_warehouse_guide()
+returns text
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_number bigint;
+begin
+  update public.warehouse_operation_counters
+  set next_number = next_number + 1
+  where counter_name = 'guide'
+  returning next_number - 1 into v_number;
+
+  if v_number is null then
+    insert into public.warehouse_operation_counters (counter_name, next_number)
+    values ('guide', 2)
+    on conflict (counter_name) do update
+    set next_number = public.warehouse_operation_counters.next_number + 1
+    returning public.warehouse_operation_counters.next_number - 1 into v_number;
+  end if;
+
+  return 'TAB' || lpad(v_number::text, 3, '0');
+end;
+$$;
+
+grant execute on function public.next_warehouse_guide() to authenticated;
+
 create or replace function public.create_entry_operation(
   p_client_id uuid,
   p_driver_name text,
@@ -157,6 +226,7 @@ declare
   v_role text;
   v_operation_id uuid;
   v_operation_code text;
+  v_guide_number text;
   v_item jsonb;
   v_item_id uuid;
   v_lot_id uuid;
@@ -197,9 +267,11 @@ begin
   end if;
 
   v_operation_code := public.new_warehouse_operation_code('ING');
+  v_guide_number := public.next_warehouse_guide();
 
   insert into public.warehouse_operations (
     operation_code,
+    guide_number,
     type,
     status,
     source,
@@ -213,6 +285,7 @@ begin
   )
   values (
     v_operation_code,
+    v_guide_number,
     'ingreso',
     'aplicado',
     'app',
@@ -363,6 +436,7 @@ begin
   return jsonb_build_object(
     'operation_id', v_operation_id,
     'operation_code', v_operation_code,
+    'guide_number', v_guide_number,
     'items', v_line
   );
 end;
@@ -389,6 +463,7 @@ declare
   v_role text;
   v_operation_id uuid;
   v_operation_code text;
+  v_guide_number text;
   v_operation_client_id uuid := p_client_id;
   v_item jsonb;
   v_item_id uuid;
@@ -435,9 +510,11 @@ begin
   end if;
 
   v_operation_code := public.new_warehouse_operation_code('DESP');
+  v_guide_number := public.next_warehouse_guide();
 
   insert into public.warehouse_operations (
     operation_code,
+    guide_number,
     type,
     status,
     source,
@@ -451,6 +528,7 @@ begin
   )
   values (
     v_operation_code,
+    v_guide_number,
     'despacho',
     'aplicado',
     case when p_request_id is null then 'app' else 'solicitud_cliente' end,
@@ -578,6 +656,7 @@ begin
   return jsonb_build_object(
     'operation_id', v_operation_id,
     'operation_code', v_operation_code,
+    'guide_number', v_guide_number,
     'items', v_line
   );
 end;
