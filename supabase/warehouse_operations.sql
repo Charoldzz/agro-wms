@@ -123,7 +123,7 @@ begin
       || '-'
       || to_char(clock_timestamp(), 'YYYYMMDDHH24MISSMS')
       || '-'
-      || upper(substr(encode(extensions.gen_random_bytes(3), 'hex'), 1, 6));
+      || upper(substr(replace(gen_random_uuid()::text, '-', ''), 1, 6));
     exit when not exists (
       select 1
       from public.warehouse_operations
@@ -134,6 +134,8 @@ begin
   return v_code;
 end;
 $$;
+
+grant execute on function public.new_warehouse_operation_code(text) to authenticated;
 
 create or replace function public.create_entry_operation(
   p_client_id uuid,
@@ -366,6 +368,8 @@ begin
 end;
 $$;
 
+grant execute on function public.create_entry_operation(uuid, text, text, text, date, text, text, jsonb, uuid) to authenticated;
+
 create or replace function public.create_dispatch_operation(
   p_client_id uuid,
   p_receiver_name text,
@@ -578,3 +582,5 @@ begin
   );
 end;
 $$;
+
+grant execute on function public.create_dispatch_operation(uuid, text, text, text, text, jsonb, uuid, uuid) to authenticated;

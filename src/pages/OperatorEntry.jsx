@@ -55,10 +55,6 @@ function isMissingOperationRpc(error) {
   return String(error?.message || '').includes('create_entry_operation')
 }
 
-function isMissingEntryRpc(error) {
-  return String(error?.message || '').includes('create_lot_entry')
-}
-
 export default function OperatorEntry() {
   const navigate = useNavigate()
   const { user, isOperator } = useAuth()
@@ -228,16 +224,6 @@ export default function OperatorEntry() {
       return
     }
 
-    const entryNotes = [
-      'Nuevo ingreso desde almacen.',
-      `Chofer: ${form.driver_name.trim()}`,
-      `CI chofer: ${form.driver_document.trim()}`,
-      `Placa: ${form.vehicle_plate.trim()}`,
-      form.notes || null,
-    ]
-      .filter(Boolean)
-      .join(' | ')
-
     setSaving(true)
 
     try {
@@ -266,8 +252,10 @@ export default function OperatorEntry() {
       })
 
       if (operationError) {
-        if (!isMissingOperationRpc(operationError)) throw operationError
-        await createLegacyEntry(operationItems, photoUrl, entryNotes)
+        if (isMissingOperationRpc(operationError)) {
+          throw new Error('Falta actualizar Supabase con operaciones de almacen. Ejecuta supabase/warehouse_operations.sql para habilitar ingresos por operacion.')
+        }
+        throw operationError
       }
 
       const emailItems = operationItems.map((item) => {
@@ -328,34 +316,6 @@ export default function OperatorEntry() {
       setError(entryError.message?.includes('duplicate') ? 'Uno de los ID de lote ya existe. Corrigelo antes de confirmar.' : entryError.message)
       setSaving(false)
       setConfirming(false)
-    }
-  }
-
-  async function createLegacyEntry(operationItems, photoUrl, entryNotes) {
-    for (const item of operationItems) {
-      const { error: rpcError } = await supabase.rpc('create_lot_entry', {
-        p_lot_code: item.lot_code,
-        p_client_id: form.client_id,
-        p_product: item.product,
-        p_box_count: item.box_count,
-        p_units_per_box: item.units_per_box,
-        p_loose_units: item.loose_units,
-        p_package_size: item.package_size,
-        p_package_unit: item.package_unit,
-        p_location: item.location,
-        p_entry_date: today,
-        p_expiry_date: item.expiry_date,
-        p_photo_url: photoUrl,
-        p_notes: entryNotes,
-        p_user_id: user.id,
-      })
-
-      if (rpcError) {
-        if (isMissingEntryRpc(rpcError)) {
-          throw new Error('Falta actualizar Supabase para ingresos por cajas. Ejecuta el SQL de operaciones de almacen y vuelve a intentar.')
-        }
-        throw rpcError
-      }
     }
   }
 

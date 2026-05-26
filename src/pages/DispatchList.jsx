@@ -7,7 +7,6 @@ import ListProductCard from '../components/ListProductCard'
 import { useAuth } from '../hooks/useAuth.jsx'
 import { cleanProductName, displayLotCode, packageLabel } from '../lib/display'
 import { formatDate, formatNumber } from '../lib/format'
-import { isNetworkMovementError, queueMovement } from '../lib/offlineQueue'
 import { supabase } from '../lib/supabase'
 import { vibrateError, vibrateSuccess, vibrateWarning } from '../lib/haptics'
 import ConfirmChecks, { allConfirmChecksDone, emptyConfirmChecks } from '../components/ConfirmChecks'
@@ -303,13 +302,14 @@ export default function DispatchList() {
 
     if (!operationError) {
       operationCode = operation?.operation_code || ''
-    } else if (isMissingDispatchOperationRpc(operationError) || isNetworkMovementError(operationError)) {
-      const legacyResult = await registerLegacyDispatch(operationError)
-      if (!legacyResult) return
-      queued = legacyResult.queued
-      receiptItems = legacyResult.receiptItems
     } else {
-      setError(operationError.message?.includes('inventario') ? 'No hay inventario suficiente para completar este despacho.' : operationError.message)
+      setError(
+        isMissingDispatchOperationRpc(operationError)
+          ? 'Falta actualizar Supabase con operaciones de almacen. Ejecuta supabase/warehouse_operations.sql para habilitar despachos por operacion.'
+          : operationError.message?.includes('inventario')
+            ? 'No hay inventario suficiente para completar este despacho.'
+            : operationError.message,
+      )
       vibrateError()
       setSaving(false)
       return
@@ -368,59 +368,6 @@ export default function DispatchList() {
     setStatus(queued > 0 ? `${queued} salida(s) quedaron pendientes de revision admin al sincronizar. El correo se enviara despues de revision.` : 'Despacho guardado y correo resumen enviado a oficina.')
     vibrateSuccess()
     setSaving(false)
-  }
-
-  async function registerLegacyDispatch(operationError) {
-    let queued = 0
-    const receiptItems = []
-
-    for (const item of items) {
-      const quantity = Number(item.package_count)
-      const notes = [
-        vehiclePlate.trim() ? `Placa: ${vehiclePlate.trim()}` : null,
-        `Recibe: ${receiverName.trim()}`,
-        `Documento: ${receiverDocument.trim()}`,
-        'Despacho por lista',
-        dispatchNotes.trim() || null,
-      ]
-        .filter(Boolean)
-        .join(' | ')
-      const { error: rpcError } = await supabase.rpc('register_movement', {
-        p_lot_id: item.lot.id,
-        p_type: 'salida',
-        p_quantity: quantity,
-        p_to_location: vehiclePlate.trim() || null,
-        p_notes: notes,
-        p_user_id: user.id,
-      })
-
-      if (!rpcError) {
-        receiptItems.push({ ...item, quantity, pending: false })
-        continue
-      }
-
-      if (isNetworkMovementError(rpcError) || isNetworkMovementError(operationError)) {
-        queueMovement({
-          lot_id: item.lot.id,
-          type: 'salida',
-          quantity,
-          to_location: vehiclePlate.trim() || null,
-          notes: `[OFFLINE] [REQUIERE REVISION] ${notes}`,
-          user_id: user.id,
-          email: null,
-        })
-        queued += 1
-        receiptItems.push({ ...item, quantity, pending: true })
-        continue
-      }
-
-      setError(rpcError.message?.includes('inventario') ? `No hay inventario suficiente en ${displayLotCode(item.lot.lot_code)}.` : rpcError.message)
-      vibrateError()
-      setSaving(false)
-      return null
-    }
-
-    return { queued, receiptItems }
   }
 
   function printReceipt() {
