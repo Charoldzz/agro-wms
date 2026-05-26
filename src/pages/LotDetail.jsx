@@ -14,6 +14,7 @@ import { vibrateError, vibrateSuccess } from '../lib/haptics'
 import ConfirmChecks, { allConfirmChecksDone, emptyConfirmChecks } from '../components/ConfirmChecks'
 import OperationalIssueModal from '../components/OperationalIssueModal'
 import { clearDraft, readDraft, writeDraft } from '../lib/drafts'
+import { internalLocations } from '../lib/locations'
 
 const initialMovement = {
   type: 'entrada',
@@ -28,7 +29,6 @@ const initialMovement = {
   notes: '',
 }
 
-const internalLocations = ['Nave 1', 'Nave 2', 'Nave 3', 'Playa']
 const incidentTypes = [
   { value: 'etiqueta_danada', label: 'Etiqueta dañada', needsAffected: false, needsPhysicalCount: false },
   { value: 'envase_danado', label: 'Envase dañado', needsAffected: true, needsPhysicalCount: false },
@@ -1273,14 +1273,17 @@ export default function LotDetail() {
       )}
 
       {pendingMovement ? (
-        <div className="fixed inset-0 z-40 flex items-end bg-slate-950/45 p-4 sm:items-center sm:justify-center">
-          <div className="w-full max-w-md rounded-xl bg-white p-4 shadow-xl">
-            <h3 className="text-xl font-bold text-slate-950">Confirmar movimiento</h3>
-            <p className="mt-2 text-sm font-semibold text-slate-500">
-              {pendingMovement.type === 'ajuste'
-                ? `Vas a enviar ${getIncidentConfig(pendingMovement.incident_type)?.label || 'reparacion'} a revision.`
-                : `Vas a registrar ${movementLabel(pendingMovement.type).toLowerCase()} de ${formatNumber(pendingMovement.quantity)} envases.`}
-            </p>
+        <div className="fixed inset-0 z-40 flex items-end bg-slate-950/45 p-3 sm:items-center sm:justify-center">
+          <div className="flex max-h-[92dvh] w-full max-w-md flex-col overflow-hidden rounded-xl bg-white shadow-xl">
+            <div className="shrink-0 border-b border-slate-100 p-4">
+              <h3 className="text-xl font-bold text-slate-950">Confirmar movimiento</h3>
+              <p className="mt-2 text-sm font-semibold text-slate-500">
+                {pendingMovement.type === 'ajuste'
+                  ? `Vas a enviar ${getIncidentConfig(pendingMovement.incident_type)?.label || 'reparacion'} a revision.`
+                  : `Vas a registrar ${movementLabel(pendingMovement.type).toLowerCase()} de ${formatNumber(pendingMovement.quantity)} envases.`}
+              </p>
+            </div>
+            <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-3">
 
             <div className="mt-4 space-y-2 rounded-lg bg-slate-50 p-3 text-sm font-bold text-slate-700">
               <div className="rounded-lg bg-white p-2">
@@ -1357,8 +1360,9 @@ export default function LotDetail() {
               </div>
             ) : null}
             <ConfirmChecks checks={confirmChecks} onChange={setConfirmChecks} />
+            </div>
 
-            <div className="mt-4 grid grid-cols-2 gap-2">
+            <div className="grid shrink-0 grid-cols-2 gap-2 border-t border-slate-100 bg-white p-4">
               <button className="btn-secondary w-full" type="button" onClick={() => setPendingMovement(null)} disabled={saving}>
                 Cancelar
               </button>

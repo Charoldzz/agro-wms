@@ -1,28 +1,19 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { ClipboardPenLine, LogOut, PackagePlus, RefreshCw, ScanLine, Wifi, WifiOff, Wrench, X } from 'lucide-react'
+import { ClipboardPenLine, LogOut, PackagePlus, ScanLine, Wrench, X } from 'lucide-react'
 import PageHeader from '../components/PageHeader'
 import { cleanProductName, displayLotCode, packageLabel } from '../lib/display'
 import { formatDate, formatNumber, movementLabel } from '../lib/format'
-import { getQueuedMovementCount } from '../lib/offlineQueue'
 import { supabase } from '../lib/supabase'
 
 export default function Operation() {
   const [lots, setLots] = useState([])
   const [dispatchRequests, setDispatchRequests] = useState([])
   const [pendingMovements, setPendingMovements] = useState([])
-  const [online, setOnline] = useState(navigator.onLine)
-  const [queuedCount, setQueuedCount] = useState(getQueuedMovementCount())
   const [workModal, setWorkModal] = useState('')
 
   useEffect(() => {
     loadWork()
-
-    const refreshOnline = () => setOnline(navigator.onLine)
-    const queueListener = (event) => setQueuedCount(event.detail || getQueuedMovementCount())
-    window.addEventListener('online', refreshOnline)
-    window.addEventListener('offline', refreshOnline)
-    window.addEventListener('offline-movement-queue', queueListener)
 
     const channel = supabase
       .channel('operator-work')
@@ -32,9 +23,6 @@ export default function Operation() {
       .subscribe()
 
     return () => {
-      window.removeEventListener('online', refreshOnline)
-      window.removeEventListener('offline', refreshOnline)
-      window.removeEventListener('offline-movement-queue', queueListener)
       supabase.removeChannel(channel)
     }
   }, [])
@@ -146,30 +134,6 @@ export default function Operation() {
   return (
     <div>
       <PageHeader title="Modo operario" subtitle="Ingresos, despachos y control de almacen" />
-
-      <section className={`mb-4 rounded-lg border p-3 ${online ? queuedCount > 0 ? 'border-amber-200 bg-amber-50 text-amber-900' : 'border-campo-100 bg-white/90 text-campo-800' : 'border-red-200 bg-red-50 text-red-700'}`}>
-        <div className="flex items-center justify-between gap-3">
-          <div className="flex min-w-0 items-center gap-3">
-            <span className={`relative flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${online ? 'bg-campo-50' : 'bg-red-100'}`}>
-              {online ? <Wifi size={20} /> : <WifiOff size={20} />}
-              <span className={`absolute -right-0.5 -top-0.5 h-3 w-3 rounded-full ring-2 ring-white ${online ? queuedCount > 0 ? 'bg-amber-500' : 'bg-campo-600' : 'bg-red-600'}`} />
-            </span>
-            <div className="min-w-0">
-              <p className="font-black">{online ? queuedCount > 0 ? 'Pendiente de sincronizar' : 'Sincronizado' : 'Sin senal'}</p>
-              <p className="text-xs font-bold opacity-80">
-                {online
-                  ? queuedCount > 0
-                    ? `${queuedCount} movimiento${queuedCount === 1 ? '' : 's'} pendiente${queuedCount === 1 ? '' : 's'}.`
-                    : 'Listo para operar.'
-                  : `${queuedCount} movimiento${queuedCount === 1 ? '' : 's'} pendiente${queuedCount === 1 ? '' : 's'}. Puedes consultar datos ya cargados. No hagas salidas criticas sin revision.`}
-              </p>
-            </div>
-          </div>
-          <button className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-white/70 bg-white/80 text-slate-700 shadow-sm" type="button" onClick={loadWork} title="Sincronizar">
-            <RefreshCw size={17} />
-          </button>
-        </div>
-      </section>
 
       <section className="grid gap-3 sm:grid-cols-2">
         <Link className="btn-primary min-h-32 !items-start !justify-between !px-5 !py-5 text-left text-xl sm:min-h-40" to="/operacion/nuevo-ingreso">

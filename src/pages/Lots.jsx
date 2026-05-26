@@ -6,8 +6,8 @@ import { useAuth } from '../hooks/useAuth.jsx'
 import { supabase } from '../lib/supabase'
 import { formatDate, formatNumber } from '../lib/format'
 import { cleanProductName, displayLotCode, packageLabel, productTotalKey } from '../lib/display'
+import { internalLocations } from '../lib/locations'
 
-const internalLocations = ['Nave 1', 'Nave 2', 'Nave 3', 'Playa']
 const searchOptions = [
   { value: 'producto', label: 'Producto', placeholder: 'Buscar producto...' },
   { value: 'empresa', label: 'Empresa', placeholder: 'Buscar empresa o cliente...' },

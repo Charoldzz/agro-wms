@@ -9,6 +9,7 @@ import { cleanProductName, displayLotCode } from '../lib/display'
 import { formatDate, formatNumber } from '../lib/format'
 import { vibrateSuccess } from '../lib/haptics'
 import { supabase } from '../lib/supabase'
+import { internalLocations } from '../lib/locations'
 
 export default function CorrectionRequests() {
   const { user } = useAuth()
@@ -352,10 +353,7 @@ function LotPatchForm({ patch, onChange }) {
       </PatchField>
       <PatchField label="Ubicacion">
         <select className="input" value={patch.location || ''} onChange={(event) => onChange({ ...patch, location: event.target.value })}>
-          <option value="Nave 1">Nave 1</option>
-          <option value="Nave 2">Nave 2</option>
-          <option value="Nave 3">Nave 3</option>
-          <option value="Playa">Playa</option>
+          {internalLocations.map((location) => <option key={location} value={location}>{location}</option>)}
         </select>
       </PatchField>
       <PatchField label="Tamaño presentación">

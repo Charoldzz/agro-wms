@@ -633,9 +633,12 @@ export default function DispatchList() {
       </Link>
 
       {confirming ? (
-        <div className="fixed inset-0 z-40 flex items-end bg-slate-950/45 p-4 sm:items-center sm:justify-center">
-          <div className="w-full max-w-xl rounded-xl bg-white p-4 shadow-xl">
-            <h3 className="text-xl font-bold text-slate-950">Confirmar despacho</h3>
+        <div className="fixed inset-0 z-40 flex items-end bg-slate-950/45 p-3 sm:items-center sm:justify-center">
+          <div className="flex max-h-[92dvh] w-full max-w-xl flex-col overflow-hidden rounded-xl bg-white shadow-xl">
+            <div className="shrink-0 border-b border-slate-100 p-4">
+              <h3 className="text-xl font-bold text-slate-950">Confirmar despacho</h3>
+            </div>
+            <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-3">
             <div className="mt-3 rounded-lg bg-slate-50 p-3 text-sm font-bold text-slate-700">
               <div className="grid gap-2 sm:grid-cols-2">
                 <div className="sm:col-span-2">
@@ -702,8 +705,9 @@ export default function DispatchList() {
               })}
             </div>
             <ConfirmChecks checks={confirmChecks} onChange={setConfirmChecks} />
+            </div>
 
-            <div className="mt-4 grid grid-cols-2 gap-2">
+            <div className="grid shrink-0 grid-cols-2 gap-2 border-t border-slate-100 bg-white p-4">
               <button className="btn-secondary w-full" type="button" onClick={() => setConfirming(false)} disabled={saving}>
                 Cancelar
               </button>

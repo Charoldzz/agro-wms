@@ -7,7 +7,7 @@ import openpyxl
 
 SOURCE = Path(r"C:\Users\Harold\Desktop\tagribol\AlmacenEjemplo2.xlsx")
 OUTPUT = Path(__file__).resolve().parents[1] / "supabase" / "import_almacen_actual.sql"
-DEFAULT_LOCATION = "Deposito Warnes Tagribol"
+DEFAULT_LOCATION = "H1"
 
 PACKAGE_RE = re.compile(
     r"(?:\d+\s*x\s*)?(\d+(?:[\.,]\d+)?)\s*(lts?|lt|ltr|litros?|l|kgs?|kg|grs?|gr|ml|cc)(?=$|[^a-z0-9])",

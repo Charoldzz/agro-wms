@@ -73,6 +73,14 @@ export default function AppLayout() {
     }
   }, [user])
 
+  useEffect(() => {
+    const frame = window.requestAnimationFrame(() => {
+      document.documentElement.style.setProperty('--route-repaint', String(Date.now()))
+      window.dispatchEvent(new Event('resize'))
+    })
+    return () => window.cancelAnimationFrame(frame)
+  }, [location.pathname])
+
   async function syncNow() {
     setSyncing(true)
     const result = await syncQueuedMovements()
