@@ -3,9 +3,10 @@ import { useNavigate } from 'react-router-dom'
 import { Camera, CheckCircle2, ChevronLeft, ChevronRight, PackagePlus, Plus, Save } from 'lucide-react'
 import PageHeader from '../components/PageHeader'
 import ListProductCard from '../components/ListProductCard'
+import SimpleDateSelect from '../components/SimpleDateSelect'
 import { useAuth } from '../hooks/useAuth.jsx'
 import { supabase } from '../lib/supabase'
-import { formatDate, formatNumber } from '../lib/format'
+import { formatNumber } from '../lib/format'
 import { cleanProductName, displayLotCode, packageLabel } from '../lib/display'
 import { vibrateSuccess } from '../lib/haptics'
 import { compressImageFile } from '../lib/image'
@@ -13,21 +14,6 @@ import ConfirmChecks, { allConfirmChecksDone, emptyConfirmChecks } from '../comp
 import { clearDraft, readDraft, writeDraft } from '../lib/drafts'
 
 const internalLocations = ['Nave 1', 'Nave 2', 'Nave 3', 'Playa']
-const monthOptions = [
-  { value: '01', label: 'Enero' },
-  { value: '02', label: 'Febrero' },
-  { value: '03', label: 'Marzo' },
-  { value: '04', label: 'Abril' },
-  { value: '05', label: 'Mayo' },
-  { value: '06', label: 'Junio' },
-  { value: '07', label: 'Julio' },
-  { value: '08', label: 'Agosto' },
-  { value: '09', label: 'Septiembre' },
-  { value: '10', label: 'Octubre' },
-  { value: '11', label: 'Noviembre' },
-  { value: '12', label: 'Diciembre' },
-]
-const emptyExpiryParts = { day: '', month: '', year: '' }
 
 const initialForm = {
   lot_code: '',
@@ -66,22 +52,6 @@ function entryPackageBreakdown(item) {
   return pieces.join(' - ') || 'Sin empaque'
 }
 
-function splitExpiryDate(value) {
-  if (!value) return emptyExpiryParts
-  const [year, month, day] = String(value).split('-')
-  return { day: day || '', month: month || '', year: year || '' }
-}
-
-function daysInMonth(year, month) {
-  if (!year || !month) return 31
-  return new Date(Number(year), Number(month), 0).getDate()
-}
-
-function composeExpiryDate(parts) {
-  if (!parts.day || !parts.month || !parts.year) return ''
-  return `${parts.year}-${parts.month}-${parts.day}`
-}
-
 function isMissingOperationRpc(error) {
   return String(error?.message || '').includes('create_entry_operation')
 }
@@ -92,7 +62,6 @@ export default function OperatorEntry() {
   const [clients, setClients] = useState([])
   const initialDraft = readDraft(ENTRY_DRAFT_KEY, { form: initialForm, entryItems: [], step: 1 })
   const [form, setForm] = useState(initialDraft.form)
-  const [expiryDraft, setExpiryDraft] = useState(splitExpiryDate(initialDraft.form?.expiry_date))
   const [entryItems, setEntryItems] = useState(initialDraft.entryItems)
   const [editingEntryId, setEditingEntryId] = useState('')
   const [photoFile, setPhotoFile] = useState(null)
@@ -129,30 +98,6 @@ export default function OperatorEntry() {
   const totalEntryPackages = useMemo(() => entryPackageCount(form), [form.box_count, form.units_per_box, form.loose_units])
   const equivalent = useMemo(() => totalEntryPackages * Number(form.package_size || 0), [totalEntryPackages, form.package_size])
   const today = new Date().toISOString().slice(0, 10)
-  const currentYear = new Date().getFullYear()
-  const yearOptions = useMemo(() => {
-    const years = Array.from({ length: 12 }, (_, index) => String(currentYear + index))
-    if (expiryDraft.year && !years.includes(expiryDraft.year)) return [expiryDraft.year, ...years].sort()
-    return years
-  }, [currentYear, expiryDraft.year])
-  const expiryDayLimit = daysInMonth(expiryDraft.year, expiryDraft.month)
-  const expiryDayOptions = useMemo(
-    () => Array.from({ length: expiryDayLimit }, (_, index) => String(index + 1).padStart(2, '0')),
-    [expiryDayLimit],
-  )
-
-  function updateExpiryDraft(part, value) {
-    const next = { ...expiryDraft, [part]: value }
-    const limit = daysInMonth(next.year, next.month)
-    if (next.day && Number(next.day) > limit) next.day = String(limit).padStart(2, '0')
-    setExpiryDraft(next)
-    setForm((current) => ({ ...current, expiry_date: composeExpiryDate(next) }))
-  }
-
-  function clearExpiryDate() {
-    setExpiryDraft(emptyExpiryParts)
-    setForm((current) => ({ ...current, expiry_date: '' }))
-  }
 
   async function selectPhoto(file) {
     if (!file) return
@@ -185,9 +130,6 @@ export default function OperatorEntry() {
     if (Number(form.loose_units || 0) < 0) return 'Los envases sueltos no pueden ser negativos.'
     if (entryPackageCount(form) <= 0) return 'Registra envases por caja o envases sueltos para calcular el stock.'
     if (!form.location) return 'Selecciona la ubicacion.'
-    if ((expiryDraft.day || expiryDraft.month || expiryDraft.year) && !form.expiry_date) {
-      return 'Completa dia, mes y ano del vencimiento o marca Sin vencimiento.'
-    }
     return ''
   }
 
@@ -227,7 +169,6 @@ export default function OperatorEntry() {
       package_size: '',
       expiry_date: '',
     }))
-    setExpiryDraft(emptyExpiryParts)
   }
 
   function removeEntryProduct(id) {
@@ -249,7 +190,6 @@ export default function OperatorEntry() {
       location: item.location,
       expiry_date: item.expiry_date,
     }))
-    setExpiryDraft(splitExpiryDate(item.expiry_date))
     setError('')
   }
 
@@ -525,34 +465,12 @@ export default function OperatorEntry() {
               </select>
             </Field>
             <Field label="Vencimiento del producto" hint="Selecciona día, mes y año. Si el producto no vence, déjalo como sin vencimiento.">
-              <div className="grid grid-cols-[0.8fr_1.35fr_1fr] gap-2 sm:grid-cols-[90px_1fr_110px_auto]">
-                <select className="input" value={expiryDraft.day} onChange={(event) => updateExpiryDraft('day', event.target.value)}>
-                  <option value="">Día</option>
-                  {expiryDayOptions.map((day) => (
-                    <option key={day} value={day}>{Number(day)}</option>
-                  ))}
-                </select>
-                <select className="input" value={expiryDraft.month} onChange={(event) => updateExpiryDraft('month', event.target.value)}>
-                  <option value="">Mes</option>
-                  {monthOptions.map((month) => (
-                    <option key={month.value} value={month.value}>{month.label}</option>
-                  ))}
-                </select>
-                <select className="input" value={expiryDraft.year} onChange={(event) => updateExpiryDraft('year', event.target.value)}>
-                  <option value="">Año</option>
-                  {yearOptions.map((year) => (
-                    <option key={year} value={year}>{year}</option>
-                  ))}
-                </select>
-                <button className="btn-secondary col-span-3 !min-h-12 !px-3 !py-2 text-sm sm:col-span-1" type="button" onClick={clearExpiryDate}>
-                  Sin vencimiento
-                </button>
-              </div>
-              {form.expiry_date ? (
-                <p className="mt-2 rounded-lg bg-slate-50 px-3 py-2 text-sm font-black text-slate-700">
-                  Vence: {formatDate(form.expiry_date)}
-                </p>
-              ) : null}
+              <SimpleDateSelect
+                value={form.expiry_date}
+                onChange={(value) => setForm({ ...form, expiry_date: value })}
+                clearLabel="Sin vencimiento"
+                previewLabel="Vence"
+              />
             </Field>
             <div className="grid gap-2 sm:col-span-2 sm:grid-cols-2">
               <div className="rounded-lg bg-campo-50 p-3">

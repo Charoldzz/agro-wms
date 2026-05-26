@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Download, FileText, Search } from 'lucide-react'
 import PageHeader from '../components/PageHeader'
 import EmptyState from '../components/EmptyState'
+import SimpleDateSelect from '../components/SimpleDateSelect'
 import { cleanProductName, displayLotCode, packageLabel } from '../lib/display'
 import { formatDate, formatNumber, movementLabel } from '../lib/format'
 import { supabase } from '../lib/supabase'
@@ -234,11 +235,29 @@ export default function AdminExports() {
           </label>
           <label className="block">
             <span className="label">Desde</span>
-            <input className="input date-input mt-1" type="date" value={dateFrom} onChange={(event) => setDateFrom(event.target.value)} />
+            <div className="mt-1">
+              <SimpleDateSelect
+                value={dateFrom}
+                onChange={setDateFrom}
+                clearLabel="Sin fecha"
+                previewLabel="Desde"
+                startYear={new Date().getFullYear() - 5}
+                endYear={new Date().getFullYear() + 2}
+              />
+            </div>
           </label>
           <label className="block">
             <span className="label">Hasta</span>
-            <input className="input date-input mt-1" type="date" value={dateTo} onChange={(event) => setDateTo(event.target.value)} />
+            <div className="mt-1">
+              <SimpleDateSelect
+                value={dateTo}
+                onChange={setDateTo}
+                clearLabel="Sin fecha"
+                previewLabel="Hasta"
+                startYear={new Date().getFullYear() - 5}
+                endYear={new Date().getFullYear() + 2}
+              />
+            </div>
           </label>
         </div>
       </section>

@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { CheckCircle2, Send, X } from 'lucide-react'
 import PageHeader from '../components/PageHeader'
 import EmptyState from '../components/EmptyState'
+import SimpleDateSelect from '../components/SimpleDateSelect'
 import { useAuth } from '../hooks/useAuth.jsx'
 import { cleanProductName, displayLotCode } from '../lib/display'
 import { formatDate, formatNumber } from '../lib/format'
@@ -370,7 +371,12 @@ function LotPatchForm({ patch, onChange }) {
         </select>
       </PatchField>
       <PatchField label="Vencimiento">
-        <input className="input date-input" type="date" value={patch.expiry_date || ''} onChange={(event) => onChange({ ...patch, expiry_date: event.target.value })} />
+        <SimpleDateSelect
+          value={patch.expiry_date || ''}
+          onChange={(value) => onChange({ ...patch, expiry_date: value })}
+          clearLabel="Sin vencimiento"
+          previewLabel="Vence"
+        />
       </PatchField>
     </div>
   )
