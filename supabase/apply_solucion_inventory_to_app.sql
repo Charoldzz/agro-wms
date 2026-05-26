@@ -89,7 +89,7 @@ update public.lots
 set
   inventory_source = 'legacy',
   current_quantity = 0,
-  status = 'inactivo',
+  status = 'cerrado',
   updated_at = now()
 where coalesce(inventory_source, 'app') <> 'solucion';
 
@@ -180,11 +180,11 @@ set
   solucion_synced_at = now(),
   updated_at = now();
 
--- Si Solucion ya no reporta stock positivo, el lote queda inactivo.
+-- Si Solucion ya no reporta stock positivo, el lote queda cerrado.
 update public.lots l
 set
   current_quantity = 0,
-  status = 'inactivo',
+  status = 'cerrado',
   solucion_synced_at = now(),
   updated_at = now()
 where l.inventory_source = 'solucion'
