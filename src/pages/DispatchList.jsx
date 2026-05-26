@@ -173,6 +173,7 @@ export default function DispatchList() {
         .select('id, lot_code, expiry_date, current_quantity, location')
         .eq('product', data.product)
         .neq('id', data.id)
+        .eq('status', 'activo')
         .gt('current_quantity', 0)
         .not('expiry_date', 'is', null)
         .lt('expiry_date', data.expiry_date || '9999-12-31')

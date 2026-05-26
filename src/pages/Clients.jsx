@@ -30,7 +30,11 @@ export default function Clients() {
   async function loadClients() {
     const [{ data: clientsData }, { data: lotsData }] = await Promise.all([
       supabase.from('clients').select('*').order('name'),
-      supabase.from('lots').select('client_id, current_quantity'),
+      supabase
+        .from('lots')
+        .select('client_id, current_quantity')
+        .eq('status', 'activo')
+        .gt('current_quantity', 0),
     ])
 
     const stats = {}

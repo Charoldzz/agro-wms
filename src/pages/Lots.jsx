@@ -87,7 +87,12 @@ export default function Lots() {
 
   async function loadData() {
     const [{ data: lotsData, error: lotsError }, { data: clientsData, error: clientsError }, { data: movementsData }] = await Promise.all([
-      supabase.from('lots').select('*, clients(name)').order('created_at', { ascending: false }),
+      supabase
+        .from('lots')
+        .select('*, clients(name)')
+        .eq('status', 'activo')
+        .gt('current_quantity', 0)
+        .order('created_at', { ascending: false }),
       supabase.from('clients').select('*').order('name'),
       supabase
         .from('movements')

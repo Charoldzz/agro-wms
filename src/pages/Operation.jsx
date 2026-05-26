@@ -32,6 +32,8 @@ export default function Operation() {
       supabase
         .from('lots')
         .select('id, lot_code, product, current_quantity, location, expiry_date, status, clients(name)')
+        .eq('status', 'activo')
+        .gt('current_quantity', 0)
         .order('updated_at', { ascending: false })
         .limit(200),
       supabase

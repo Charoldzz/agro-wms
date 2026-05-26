@@ -88,7 +88,12 @@ export default function AdminExports() {
 
   async function loadData() {
     const [{ data: lotRows, error: lotError }, { data: movementRows, error: movementError }] = await Promise.all([
-      supabase.from('lots').select('*, clients(name)').order('product'),
+      supabase
+        .from('lots')
+        .select('*, clients(name)')
+        .eq('status', 'activo')
+        .gt('current_quantity', 0)
+        .order('product'),
       supabase
         .from('movements')
         .select('*, lots(lot_code, product, package_size, package_unit, location, expiry_date, clients(name)), profiles(full_name)')

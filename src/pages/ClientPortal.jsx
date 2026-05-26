@@ -110,6 +110,8 @@ export default function ClientPortal({ view = 'inventory' }) {
     const { data: lotsData } = await supabase
       .from('lots')
       .select('id, lot_code, client_id, product, current_quantity, package_size, package_unit, location, entry_date, expiry_date, status, clients(name, contact)')
+      .eq('status', 'activo')
+      .gt('current_quantity', 0)
       .order('product')
 
     setLots(lotsData || [])

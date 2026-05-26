@@ -34,7 +34,12 @@ export default function Dashboard() {
     setDashboardError('')
 
     const [{ data: lotsData, error: lotsError }, movementsResult, pendingResult, requestsResult] = await Promise.all([
-      supabase.from('lots').select('*, clients(name)').order('created_at', { ascending: false }),
+      supabase
+        .from('lots')
+        .select('*, clients(name)')
+        .eq('status', 'activo')
+        .gt('current_quantity', 0)
+        .order('created_at', { ascending: false }),
       supabase
         .from('movements')
         .select('*, lots(product, lot_code), profiles(full_name)')
