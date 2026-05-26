@@ -161,7 +161,7 @@ def row_sql(values):
     return "(" + ", ".join(sql_literal(value) for value in values) + ")"
 
 
-def upsert_block(table, columns, rows, conflict_columns, update_columns, chunk_size=300):
+def upsert_block(table, columns, rows, conflict_columns, update_columns, chunk_size=50):
     if not rows:
         return ""
 
