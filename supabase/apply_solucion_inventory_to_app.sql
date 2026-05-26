@@ -84,6 +84,20 @@ values ('TODO AGRICOLA BOLIVIANA LTDA', null, 'Cliente interno para inventario s
 on conflict (solucion_codigo) do update
 set name = excluded.name;
 
+-- En esta importacion, los "almacenes" de Solucion representan el cliente/empresa
+-- que debe verse destacado en la app. La ubicacion operativa se fija abajo.
+insert into public.clients (name, contact, notes, solucion_codigo)
+select
+  sw.name,
+  null,
+  'Cliente creado desde almacenes Solucion',
+  -abs(sw.warehouse_code)
+from public.solucion_warehouses sw
+where sw.name is not null
+  and trim(sw.name) <> ''
+on conflict (solucion_codigo) do update
+set name = excluded.name;
+
 -- Archiva el inventario anterior para que no se mezcle con Solucion.
 update public.lots
 set
@@ -93,13 +107,7 @@ set
   updated_at = now()
 where coalesce(inventory_source, 'app') <> 'solucion';
 
-with company_client as (
-  select id
-  from public.clients
-  where solucion_codigo = 0
-  limit 1
-),
-solucion_lots as (
+with solucion_lots as (
   select
     ss.mirror_id,
     ss.product_code,
@@ -116,6 +124,14 @@ solucion_lots as (
   left join public.solucion_warehouses sw on sw.warehouse_code = ss.warehouse_code
   cross join lateral public.extract_solucion_package(coalesce(sp.name, ss.product_code)) pkg
   where coalesce(ss.current_quantity, 0) > 0
+),
+solucion_lots_with_client as (
+  select
+    sl.*,
+    coalesce(cw.id, ci.id) as client_id
+  from solucion_lots sl
+  left join public.clients cw on cw.solucion_codigo = -abs(sl.warehouse_code)
+  left join public.clients ci on ci.solucion_codigo = 0
 )
 insert into public.lots (
   lot_code,
@@ -142,7 +158,7 @@ insert into public.lots (
 )
 select
   left('SOL-' || regexp_replace(sl.mirror_id, '[| ]+', '-', 'g'), 120) as lot_code,
-  cc.id as client_id,
+  sl.client_id,
   trim(coalesce(sl.product_name, sl.product_code) || ' (' || ltrim(sl.product_code, '0') || ')') as product,
   sl.current_quantity,
   0,
@@ -150,7 +166,7 @@ select
   sl.current_quantity,
   sl.package_size,
   sl.package_unit,
-  coalesce(nullif(sl.warehouse_name, ''), 'Solucion'),
+  'Deposito Warnes',
   current_date,
   sl.expiry_date,
   'activo',
@@ -162,10 +178,10 @@ select
   sl.product_code,
   sl.warehouse_code,
   now()
-from solucion_lots sl
-cross join company_client cc
+from solucion_lots_with_client sl
 on conflict (solucion_mirror_id) do update
 set
+  client_id = excluded.client_id,
   product = excluded.product,
   current_quantity = excluded.current_quantity,
   entry_loose_units = excluded.entry_loose_units,
