@@ -279,7 +279,12 @@ function hasVisibleOverlayPanel(element) {
       rect.right > 0 &&
       rect.top < window.innerHeight &&
       rect.left < window.innerWidth
-    return insideViewport && rect.width > 120 && rect.height > 80
+    if (!(insideViewport && rect.width > 120 && rect.height > 80)) return false
+    return (
+      style.backgroundColor !== 'rgba(0, 0, 0, 0)' ||
+      String(candidate.className || '').includes('bg-white') ||
+      candidate.getAttribute('role') === 'dialog'
+    )
   })
 }
 

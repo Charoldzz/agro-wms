@@ -34,7 +34,20 @@
           return Array.from(element.querySelectorAll(PANEL_SELECTORS)).some((panel) => {
             if (!isVisible(panel)) return false
             const rect = panel.getBoundingClientRect()
-            return rect.width > 120 && rect.height > 80 && rect.bottom > 0 && rect.right > 0
+            const insideViewport =
+              rect.width > 120 &&
+              rect.height > 80 &&
+              rect.bottom > 0 &&
+              rect.right > 0 &&
+              rect.top < window.innerHeight &&
+              rect.left < window.innerWidth
+            if (!insideViewport) return false
+            const style = window.getComputedStyle(panel)
+            const looksLikeRealPanel =
+              style.backgroundColor !== 'rgba(0, 0, 0, 0)' ||
+              String(panel.className || '').includes('bg-white') ||
+              panel.getAttribute('role') === 'dialog'
+            return looksLikeRealPanel
           })
         }
 
