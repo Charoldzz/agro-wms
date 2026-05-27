@@ -40,6 +40,12 @@ export default function AppLayout() {
 
   function goBackInsideApp() {
     const path = location.pathname
+    if (location.state?.backTo) return navigate(location.state.backTo)
+    if (path === '/scanner') {
+      const returnTo = new URLSearchParams(location.search).get('return')
+      if (returnTo) return navigate(returnTo)
+      return navigate(-1)
+    }
     if (path.startsWith('/operacion/')) return navigate('/operacion')
     if (profile?.role === 'cliente' && path.match(/^\/lotes\/[^/]+$/)) return navigate('/')
     if (path.startsWith('/productos/') || path.startsWith('/vencimientos') || path.match(/^\/lotes\/[^/]+$/)) return navigate('/lotes')

@@ -36,6 +36,21 @@ function isMissingDispatchOperationRpc(error) {
   return String(error?.message || '').includes('create_dispatch_operation')
 }
 
+function normalizeClientName(value) {
+  return String(value || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .toUpperCase()
+}
+
+function isSameClient(lot, request) {
+  if (!request?.client_id) return true
+  if (lot.client_id === request.client_id) return true
+  return normalizeClientName(lot.clients?.name) === normalizeClientName(request.clients?.name)
+}
+
 export default function DispatchList() {
   const navigate = useNavigate()
   const location = useLocation()
@@ -161,7 +176,11 @@ export default function DispatchList() {
         return
       }
 
-      if (approvedRequest?.client_id && data.client_id !== approvedRequest.client_id) {
+      const approvedItems = Array.isArray(approvedRequest?.items) ? approvedRequest.items : []
+      const approvedItem = approvedItems.find((item) => item.lot_id === data.id)
+      const approvedLotId = approvedItems.length > 0 ? null : approvedRequest?.lot_id
+
+      if (approvedRequest?.client_id && !isSameClient(data, approvedRequest) && !approvedItem && data.id !== approvedLotId) {
         setError(`Este QR pertenece a ${data.clients?.name || 'otro cliente'}, pero la orden es de ${approvedRequest.clients?.name || 'otro cliente'}.`)
         vibrateError()
         navigate(requestId ? `/operacion/despacho-lista?request=${requestId}` : '/operacion/despacho-lista', { replace: true })
@@ -180,9 +199,6 @@ export default function DispatchList() {
         .order('expiry_date', { ascending: true })
         .limit(1)
 
-      const approvedItems = Array.isArray(approvedRequest?.items) ? approvedRequest.items : []
-      const approvedItem = approvedItems.find((item) => item.lot_id === data.id)
-      const approvedLotId = approvedItems.length > 0 ? null : approvedRequest?.lot_id
       const scannedItem = {
         lot: data,
         package_count: approvedItem ? String(approvedItem.quantity || '') : approvedLotId === data.id ? String(approvedRequest.quantity || '') : '',
@@ -255,7 +271,7 @@ export default function DispatchList() {
       if (quantity > Number(item.lot.current_quantity || 0)) return `No hay inventario suficiente en ${displayLotCode(item.lot.lot_code)}.`
       if (['retenido', 'cerrado'].includes(item.lot.status)) return `${displayLotCode(item.lot.lot_code)} esta ${item.lot.status}.`
       if (expiryDays(item.lot.expiry_date) < 0) return `${displayLotCode(item.lot.lot_code)} esta vencido.`
-      if (approvedRequest?.client_id && item.lot.client_id !== approvedRequest.client_id) {
+      if (approvedRequest?.client_id && !isSameClient(item.lot, approvedRequest)) {
         return `${displayLotCode(item.lot.lot_code)} pertenece a otro cliente.`
       }
       if (approvedItems.length > 0 && !approvedItems.some((approvedItem) => approvedItem.lot_id === item.lot.id)) {

@@ -8,6 +8,7 @@ import { supabase } from '../lib/supabase'
 
 export default function Operation() {
   const [lots, setLots] = useState([])
+  const [expiryAlerts, setExpiryAlerts] = useState([])
   const [dispatchRequests, setDispatchRequests] = useState([])
   const [pendingMovements, setPendingMovements] = useState([])
   const [workModal, setWorkModal] = useState('')
@@ -28,7 +29,7 @@ export default function Operation() {
   }, [])
 
   async function loadWork() {
-    const [{ data: lotData }, { data: requestData }, { data: movementData }] = await Promise.all([
+    const [{ data: lotData }, { data: expiryData }, { data: requestData }, { data: movementData }] = await Promise.all([
       supabase
         .from('lots')
         .select('id, lot_code, product, current_quantity, location, expiry_date, status, clients(name)')
@@ -36,6 +37,13 @@ export default function Operation() {
         .gt('current_quantity', 0)
         .order('updated_at', { ascending: false })
         .limit(200),
+      supabase
+        .from('lots')
+        .select('id, lot_code, product, current_quantity, location, expiry_date, status, clients(name)')
+        .gt('current_quantity', 0)
+        .not('expiry_date', 'is', null)
+        .order('expiry_date', { ascending: true })
+        .limit(100),
       supabase
         .from('client_dispatch_requests')
         .select('*, clients(name), lots(lot_code, product, current_quantity, package_size, package_unit, location, expiry_date)')
@@ -52,6 +60,7 @@ export default function Operation() {
     ])
 
     setLots(lotData || [])
+    setExpiryAlerts(expiryData || [])
     setDispatchRequests(requestData || [])
     setPendingMovements(movementData || [])
   }
@@ -59,7 +68,7 @@ export default function Operation() {
   const expiringLots = useMemo(() => {
     const today = new Date()
     today.setHours(0, 0, 0, 0)
-    return lots
+    return expiryAlerts
       .filter((lot) => lot.expiry_date)
       .map((lot) => {
         const daysLeft = Math.ceil((new Date(`${lot.expiry_date}T00:00:00`) - today) / 86400000)
@@ -67,7 +76,7 @@ export default function Operation() {
       })
       .filter((lot) => lot.daysLeft <= 90)
       .sort((a, b) => a.daysLeft - b.daysLeft)
-  }, [lots])
+  }, [expiryAlerts])
 
   function renderDispatchRequests(requests, fullDetails = false) {
     if (requests.length === 0) return <p className="rounded-lg bg-slate-50 p-3 text-sm font-bold text-slate-500">Sin despachos solicitados.</p>
@@ -121,14 +130,19 @@ export default function Operation() {
   function renderExpiringLots(alerts) {
     if (alerts.length === 0) return <p className="rounded-lg bg-campo-50 p-3 text-sm font-bold text-campo-700">Sin vencimientos cercanos.</p>
     return alerts.map((lot) => (
-      <Link key={lot.id} className="block rounded-lg bg-amber-50 p-3" to={`/lotes/${lot.id}`}>
+      <Link
+        key={lot.id}
+        className={`block rounded-lg p-3 ${lot.daysLeft < 0 ? 'bg-red-50' : 'bg-amber-50'}`}
+        to={`/lotes/${lot.id}`}
+        state={{ backTo: '/operacion' }}
+      >
         <div className="flex flex-wrap items-start justify-between gap-2">
           <p className="min-w-0 flex-1 font-bold text-slate-950 [overflow-wrap:anywhere]">{cleanProductName(lot.product)}</p>
-          <span className="rounded-lg bg-white px-2 py-1 text-xs font-black text-amber-800">{formatNumber(lot.current_quantity)} env.</span>
+          <span className={`rounded-lg bg-white px-2 py-1 text-xs font-black ${lot.daysLeft < 0 ? 'text-red-700' : 'text-amber-800'}`}>{formatNumber(lot.current_quantity)} env.</span>
         </div>
         <p className="text-sm font-semibold text-slate-600 [overflow-wrap:anywhere]">{displayLotCode(lot.lot_code)} - {lot.clients?.name || '-'}</p>
         <p className="text-xs font-semibold text-slate-500 [overflow-wrap:anywhere]">{lot.location || '-'} - {lot.expiry_date ? formatDate(lot.expiry_date) : 'Sin fecha'}</p>
-        <p className="mt-1 text-xs font-bold text-amber-700">{lot.daysLeft < 0 ? 'Vencido' : `Vence en ${lot.daysLeft} dias`}</p>
+        <p className={`mt-1 text-xs font-bold ${lot.daysLeft < 0 ? 'text-red-700' : 'text-amber-700'}`}>{lot.daysLeft < 0 ? 'Vencido' : `Vence en ${lot.daysLeft} dias`}</p>
       </Link>
     ))
   }

@@ -24,7 +24,6 @@ export default function ExpiringLots() {
     const { data } = await supabase
       .from('lots')
       .select('*, clients(name)')
-      .eq('status', 'activo')
       .gt('current_quantity', 0)
       .not('expiry_date', 'is', null)
       .order('expiry_date', { ascending: true })
@@ -52,30 +51,39 @@ export default function ExpiringLots() {
         </span>
       </section>
 
-      <section className="grid gap-3">
+      <section className="grid gap-2">
         {expiringLots.length === 0 ? (
           <div className="panel text-sm font-bold text-campo-700">No hay productos con vencimiento cercano.</div>
         ) : (
           expiringLots.map((lot) => (
-            <Link key={lot.id} className="panel block transition hover:bg-amber-50" to={`/lotes/${lot.id}`}>
-              <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-start">
+            <Link
+              key={lot.id}
+              className={`block rounded-lg border p-3 shadow-soft backdrop-blur transition ${
+                lot.daysLeft < 0
+                  ? 'border-red-100 bg-red-50/95 hover:bg-red-50'
+                  : 'border-amber-100 bg-amber-50/95 hover:bg-amber-50'
+              }`}
+              to={`/lotes/${lot.id}`}
+              state={{ backTo: '/vencimientos' }}
+            >
+              <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-start">
                 <div className="min-w-0">
                   <div className="flex items-start gap-2">
-                    <CalendarClock size={18} className="mt-0.5 shrink-0 text-maiz" />
-                    <p className="font-black leading-snug text-slate-950 [overflow-wrap:anywhere]">{cleanProductName(lot.product)}</p>
+                    <CalendarClock size={16} className={`mt-0.5 shrink-0 ${lot.daysLeft < 0 ? 'text-red-700' : 'text-amber-700'}`} />
+                    <p className="text-sm font-black leading-snug text-slate-950 [overflow-wrap:anywhere] sm:text-base">{cleanProductName(lot.product)}</p>
                   </div>
-                  <p className="mt-1 text-sm font-semibold leading-snug text-slate-500 [overflow-wrap:anywhere]">
+                  <p className="mt-1 text-xs font-semibold leading-snug text-slate-600 [overflow-wrap:anywhere] sm:text-sm">
                     {displayLotCode(lot.lot_code)} - {lot.clients?.name || 'Sin cliente'}
                   </p>
-                  <p className="mt-1 text-sm font-semibold leading-snug text-slate-500 [overflow-wrap:anywhere]">
+                  <p className="mt-1 text-xs font-semibold leading-snug text-slate-500 [overflow-wrap:anywhere] sm:text-sm">
                     {lot.location} {packageLabel(lot) ? `- ${packageLabel(lot)}` : ''}
                   </p>
                 </div>
                 <div className="flex flex-wrap gap-2 sm:grid sm:justify-items-end sm:text-right">
-                  <p className="rounded-lg bg-amber-50 px-2.5 py-1 text-lg font-black text-amber-700">
+                  <p className={`rounded-lg bg-white/80 px-2.5 py-1 text-sm font-black sm:text-base ${lot.daysLeft < 0 ? 'text-red-700' : 'text-amber-700'}`}>
                     {lot.daysLeft < 0 ? 'Vencido' : `${lot.daysLeft} d`}
                   </p>
-                  <p className="rounded-lg bg-slate-50 px-2.5 py-1 text-xs font-bold text-slate-600">{formatDate(lot.expiry_date)}</p>
+                  <p className="rounded-lg bg-white/80 px-2.5 py-1 text-xs font-bold text-slate-600">{formatDate(lot.expiry_date)}</p>
                   <p className="rounded-lg bg-campo-50 px-2.5 py-1 text-xs font-black text-campo-700">{formatNumber(lot.current_quantity)} env.</p>
                 </div>
               </div>
