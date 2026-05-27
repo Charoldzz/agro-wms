@@ -60,7 +60,7 @@ export default function AppVersion() {
           </div>
         </div>
       ) : null}
-      <div className="pointer-events-none fixed bottom-[calc(5.75rem+env(safe-area-inset-bottom))] right-2 z-40 rounded-full border border-white/60 bg-white/70 px-2 py-1 text-[10px] font-bold text-slate-500 shadow-sm backdrop-blur sm:bottom-3">
+      <div data-version-badge="true" className="pointer-events-none fixed bottom-[calc(5.75rem+env(safe-area-inset-bottom))] right-2 z-40 rounded-full border border-white/60 bg-white/70 px-2 py-1 text-[10px] font-bold text-slate-500 shadow-sm backdrop-blur sm:bottom-3">
         {APP_VERSION_LABEL}
       </div>
     </>

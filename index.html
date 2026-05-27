@@ -8,6 +8,199 @@
     <title>Todo Agricola</title>
   </head>
   <body>
+    <script>
+      ;(() => {
+        const APP_SAFE_SELECTORS = [
+          '#root',
+          '.app-bg',
+          'header',
+          'main',
+          'nav',
+          '#todo-rescue-unlock',
+          '[data-version-badge="true"]',
+        ]
+        const PANEL_SELECTORS = [
+          '[data-overlay-panel="true"]',
+          '[role="dialog"]',
+          '.shadow-xl',
+          '.rounded-xl.bg-white',
+        ]
+
+        function styleOf(element) {
+          return window.getComputedStyle(element)
+        }
+
+        function visible(element) {
+          const style = styleOf(element)
+          return style.display !== 'none' && style.visibility !== 'hidden' && Number(style.opacity) !== 0
+        }
+
+        function coversViewport(element) {
+          if (!element || element === document.body || element === document.documentElement) return false
+          if (APP_SAFE_SELECTORS.some((selector) => element.matches?.(selector))) return false
+          if (!visible(element)) return false
+          const rect = element.getBoundingClientRect()
+          return rect.width >= window.innerWidth * 0.82 && rect.height >= window.innerHeight * 0.82
+        }
+
+        function hasVisiblePanel(element) {
+          return PANEL_SELECTORS.some((selector) =>
+            Array.from(element.querySelectorAll(selector)).some((candidate) => {
+              if (!visible(candidate)) return false
+              const rect = candidate.getBoundingClientRect()
+              const insideViewport =
+                rect.bottom > 0 &&
+                rect.right > 0 &&
+                rect.top < window.innerHeight &&
+                rect.left < window.innerWidth
+              return insideViewport && rect.width > 120 && rect.height > 80
+            }),
+          )
+        }
+
+        function isFullscreenLayer(element) {
+          if (!coversViewport(element)) return false
+          const style = styleOf(element)
+          const className = element.className?.toString() || ''
+          const zIndex = Number(style.zIndex)
+          const fixedOrSticky = style.position === 'fixed' || style.position === 'sticky'
+          const hasOverlayPaint =
+            style.backgroundColor !== 'rgba(0, 0, 0, 0)' ||
+            style.backdropFilter !== 'none' ||
+            style.filter !== 'none' ||
+            className.includes('bg-slate-950') ||
+            className.includes('backdrop')
+          return fixedOrSticky && (Number.isFinite(zIndex) ? zIndex >= 30 : true) && hasOverlayPaint
+        }
+
+        function cleanupSoft() {
+          document.documentElement.style.pointerEvents = ''
+          document.body.style.pointerEvents = ''
+
+          Array.from(document.body.querySelectorAll('[data-temporary-overlay="true"], [data-operator-overlay="true"]')).forEach((element) => {
+            if (isFullscreenLayer(element) && !hasVisiblePanel(element)) element.remove()
+          })
+
+          window.dispatchEvent(new Event('todo-force-unlock-app'))
+        }
+
+        function unlockApp() {
+          document.body.classList.add('todo-hard-unlocked')
+          document.documentElement.style.overflow = ''
+          document.body.style.overflow = ''
+          document.documentElement.style.pointerEvents = ''
+          document.body.style.pointerEvents = ''
+
+          const removed = []
+          Array.from(document.body.querySelectorAll('*')).forEach((element) => {
+            if (!isFullscreenLayer(element)) return
+            const className = element.className?.toString() || ''
+            const looksLikeBackdrop =
+              className.includes('inset-0') ||
+              className.includes('bg-slate-950') ||
+              className.includes('backdrop') ||
+              element.dataset.temporaryOverlay === 'true' ||
+              element.dataset.operatorOverlay === 'true'
+
+            if (!looksLikeBackdrop) return
+            removed.push({
+              tag: element.tagName,
+              className: className.slice(0, 180),
+            })
+            element.remove()
+          })
+
+          window.__todoLastUnlock = {
+            at: new Date().toISOString(),
+            removed,
+            path: window.location.href,
+          }
+          window.dispatchEvent(new Event('todo-force-unlock-app'))
+        }
+
+        function maybeLocked() {
+          const points = [
+            [window.innerWidth / 2, window.innerHeight / 2],
+            [window.innerWidth / 2, window.innerHeight * 0.32],
+            [window.innerWidth / 2, window.innerHeight * 0.74],
+          ]
+          return points.some(([x, y]) => {
+            const element = document.elementFromPoint(x, y)
+            const layer = element?.closest?.('[class], [style], [data-temporary-overlay], [data-operator-overlay]')
+            return layer && isFullscreenLayer(layer) && !APP_SAFE_SELECTORS.some((selector) => layer.matches?.(selector))
+          })
+        }
+
+        function ensureRescueButton() {
+          let button = document.getElementById('todo-rescue-unlock')
+          if (!button) {
+            button = document.createElement('button')
+            button.id = 'todo-rescue-unlock'
+            button.type = 'button'
+            button.textContent = 'Desbloquear pantalla'
+            button.setAttribute('aria-label', 'Desbloquear pantalla')
+            button.style.cssText = [
+              'position:fixed',
+              'left:10px',
+              'bottom:10px',
+              'z-index:2147483647',
+              'display:block',
+              'min-height:36px',
+              'padding:8px 10px',
+              'border-radius:999px',
+              'border:1px solid rgba(31,111,69,.22)',
+              'background:rgba(255,255,255,.92)',
+              'color:#123326',
+              'font:800 11px system-ui,-apple-system,Segoe UI,sans-serif',
+              'box-shadow:0 10px 26px rgba(15,23,42,.18)',
+              'opacity:.36',
+              'pointer-events:auto',
+            ].join(';')
+            button.addEventListener('click', () => {
+              button.style.opacity = '1'
+              unlockApp()
+            })
+            button.addEventListener('mouseenter', () => {
+              button.style.opacity = '1'
+            })
+            button.addEventListener('mouseleave', () => {
+              button.style.opacity = '.36'
+            })
+            document.body.appendChild(button)
+          }
+          return button
+        }
+
+        function monitor() {
+          cleanupSoft()
+          const button = ensureRescueButton()
+          button.style.opacity = maybeLocked() ? '1' : '.36'
+        }
+
+        window.__todoUnlockApp = unlockApp
+        document.addEventListener('keydown', (event) => {
+          if (event.ctrlKey && event.altKey && event.key.toLowerCase() === 'u') unlockApp()
+        })
+        document.addEventListener(
+          'pointerdown',
+          (event) => {
+            const layer = event.target?.closest?.('[class], [style], [data-temporary-overlay], [data-operator-overlay]')
+            if (layer && isFullscreenLayer(layer) && !hasVisiblePanel(layer)) {
+              event.preventDefault()
+              unlockApp()
+            }
+          },
+          true,
+        )
+        window.addEventListener('DOMContentLoaded', monitor)
+        window.addEventListener('pageshow', monitor)
+        window.addEventListener('focus', monitor)
+        window.addEventListener('hashchange', monitor)
+        window.addEventListener('popstate', monitor)
+        document.addEventListener('visibilitychange', monitor)
+        window.setInterval(monitor, 1800)
+      })()
+    </script>
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
   </body>

@@ -55,6 +55,12 @@ body {
   background: rgba(246, 247, 243, 0.68);
 }
 
+body.todo-hard-unlocked .app-bg::before,
+body.todo-hard-unlocked .app-bg::after {
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+
 button,
 input,
 select,
