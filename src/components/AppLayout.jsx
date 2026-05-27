@@ -97,6 +97,33 @@ export default function AppLayout() {
   }
 
   const hasSyncRisk = !online || queuedMovements > 0
+  const isOperatorRoot = profile?.role === 'operador' && (location.pathname === '/' || location.pathname === '/operacion')
+
+  useEffect(() => {
+    if (!isOperatorRoot) return undefined
+
+    function cleanupTemporaryOverlays() {
+      window.dispatchEvent(new Event('todo-close-temporary-overlays'))
+      window.requestAnimationFrame(() => {
+        document
+          .querySelectorAll('#root [data-temporary-overlay="true"], #root [class*="fixed"][class*="inset-0"][class*="bg-slate-950"]')
+          .forEach((element) => element.remove())
+        document.documentElement.style.overflow = ''
+        document.body.style.overflow = ''
+      })
+    }
+
+    cleanupTemporaryOverlays()
+    window.addEventListener('focus', cleanupTemporaryOverlays)
+    window.addEventListener('pageshow', cleanupTemporaryOverlays)
+    document.addEventListener('visibilitychange', cleanupTemporaryOverlays)
+
+    return () => {
+      window.removeEventListener('focus', cleanupTemporaryOverlays)
+      window.removeEventListener('pageshow', cleanupTemporaryOverlays)
+      document.removeEventListener('visibilitychange', cleanupTemporaryOverlays)
+    }
+  }, [isOperatorRoot])
 
   return (
     <div className="app-bg min-h-screen pb-[calc(6.5rem+env(safe-area-inset-bottom))]">

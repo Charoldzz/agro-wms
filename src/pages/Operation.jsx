@@ -41,11 +41,13 @@ export default function Operation() {
 
     window.addEventListener('focus', closeTemporaryWindows)
     window.addEventListener('pageshow', closeTemporaryWindows)
+    window.addEventListener('todo-close-temporary-overlays', closeTemporaryWindows)
     document.addEventListener('visibilitychange', closeOnVisible)
 
     return () => {
       window.removeEventListener('focus', closeTemporaryWindows)
       window.removeEventListener('pageshow', closeTemporaryWindows)
+      window.removeEventListener('todo-close-temporary-overlays', closeTemporaryWindows)
       document.removeEventListener('visibilitychange', closeOnVisible)
     }
   }, [])
@@ -267,11 +269,12 @@ function WorkModal({ title, onClose, children }) {
   }, [onClose])
 
   return (
-    <div className="fixed inset-0 z-[70] grid place-items-start overflow-y-auto bg-slate-950/35 p-3 sm:place-items-center" onClick={onClose}>
+    <div data-temporary-overlay="true" className="fixed inset-0 z-[70] grid place-items-start overflow-y-auto bg-slate-950/35 p-3 sm:place-items-center" onClick={onClose}>
       <button className="fixed right-4 top-4 z-[72] inline-flex h-11 w-11 items-center justify-center rounded-full bg-white text-slate-900 shadow-lg" type="button" onClick={onClose} title="Cerrar">
         <X size={20} />
       </button>
       <section
+        data-overlay-panel="true"
         className="relative z-[71] my-3 flex max-h-[calc(100dvh-2rem)] w-full max-w-2xl flex-col overflow-hidden rounded-xl bg-white shadow-xl"
         onClick={(event) => event.stopPropagation()}
       >
