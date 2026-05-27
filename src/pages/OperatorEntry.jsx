@@ -597,7 +597,7 @@ export default function OperatorEntry() {
       </form>
 
       {confirming ? (
-        <div className="fixed inset-0 z-40 flex items-end overflow-y-auto bg-slate-950/45 p-3 sm:items-center sm:justify-center">
+        <div data-modal-backdrop="true" className="fixed inset-0 z-40 flex items-end overflow-y-auto bg-slate-950/45 p-3 sm:items-center sm:justify-center">
           <div className="flex max-h-[92dvh] w-full max-w-md flex-col overflow-hidden rounded-xl bg-white shadow-xl">
             <div className="shrink-0 border-b border-slate-100 p-4">
               <h3 className="text-xl font-bold text-slate-950">Confirmar nuevo ingreso</h3>
@@ -671,7 +671,7 @@ export default function OperatorEntry() {
       ) : null}
 
       {entrySuccess ? (
-        <div className="fixed inset-0 z-50 grid place-items-center overflow-y-auto bg-campo-700 p-6 text-white">
+        <div data-modal-backdrop="true" className="fixed inset-0 z-50 grid place-items-center overflow-y-auto bg-campo-700 p-6 text-white">
           <section className="w-full max-w-sm py-8 text-center">
             <span className="mx-auto flex h-40 w-40 items-center justify-center rounded-full border border-white/25 text-white">
               <CheckCircle2 size={118} strokeWidth={1.8} />

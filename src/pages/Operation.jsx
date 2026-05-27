@@ -269,7 +269,7 @@ function WorkModal({ title, onClose, children }) {
   }, [onClose])
 
   return (
-    <div data-operator-overlay="true" className="fixed inset-0 z-[70] grid place-items-start overflow-y-auto bg-slate-950/35 p-3 sm:place-items-center" onClick={onClose}>
+    <div data-modal-backdrop="true" data-operator-overlay="true" className="fixed inset-0 z-[70] grid place-items-start overflow-y-auto bg-slate-950/35 p-3 sm:place-items-center" onClick={onClose}>
       <button className="fixed right-4 top-4 z-[72] inline-flex h-11 w-11 items-center justify-center rounded-full bg-white text-slate-900 shadow-lg" type="button" onClick={onClose} title="Cerrar">
         <X size={20} />
       </button>

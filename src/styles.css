@@ -36,6 +36,11 @@ body,
   pointer-events: auto !important;
 }
 
+[class*="fixed"][class*="inset-0"][class*="bg-slate-950/"]:not([data-modal-backdrop="true"]) {
+  background: transparent !important;
+  pointer-events: none !important;
+}
+
 .app-bg {
   position: relative;
   isolation: isolate;

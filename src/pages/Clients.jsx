@@ -149,7 +149,7 @@ export default function Clients() {
       </div>
 
       {selectedClient ? (
-        <div className="fixed inset-0 z-40 flex items-end overflow-y-auto bg-slate-950/40 p-4 sm:items-center sm:justify-center">
+        <div data-modal-backdrop="true" className="fixed inset-0 z-40 flex items-end overflow-y-auto bg-slate-950/40 p-4 sm:items-center sm:justify-center">
           <div className="max-h-[92dvh] w-full max-w-md overflow-y-auto overscroll-contain rounded-xl bg-white p-4 shadow-xl">
             <div className="mb-4 flex items-start justify-between gap-3">
               <div className="min-w-0">
