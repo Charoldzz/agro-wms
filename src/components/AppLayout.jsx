@@ -98,34 +98,70 @@ export default function AppLayout() {
 
   const hasSyncRisk = !online || queuedMovements > 0
   const isOperatorRoot = profile?.role === 'operador' && (location.pathname === '/' || location.pathname === '/operacion')
+  const shouldGuardOverlays =
+    profile?.role === 'operador' &&
+    (location.pathname === '/' ||
+      location.pathname === '/operacion' ||
+      location.pathname === '/lotes' ||
+      location.pathname.startsWith('/lotes/') ||
+      location.pathname.startsWith('/productos/') ||
+      location.pathname === '/vencimientos')
 
   useEffect(() => {
     if (!isOperatorRoot) return undefined
 
     function cleanupTemporaryOverlays() {
       window.dispatchEvent(new Event('todo-close-temporary-overlays'))
-      window.requestAnimationFrame(() => {
-        document
-          .querySelectorAll('[data-temporary-overlay="true"], [class*="fixed"][class*="inset-0"]:not([data-operator-overlay="true"])')
-          .forEach((element) => element.remove())
-        document.documentElement.style.overflow = ''
-        document.body.style.overflow = ''
-      })
     }
 
-    document.body.classList.add('todo-operator-home')
     cleanupTemporaryOverlays()
     window.addEventListener('focus', cleanupTemporaryOverlays)
     window.addEventListener('pageshow', cleanupTemporaryOverlays)
     document.addEventListener('visibilitychange', cleanupTemporaryOverlays)
 
     return () => {
-      document.body.classList.remove('todo-operator-home')
       window.removeEventListener('focus', cleanupTemporaryOverlays)
       window.removeEventListener('pageshow', cleanupTemporaryOverlays)
       document.removeEventListener('visibilitychange', cleanupTemporaryOverlays)
     }
   }, [isOperatorRoot])
+
+  useEffect(() => {
+    if (!shouldGuardOverlays) return undefined
+
+    function unlockStaleOverlays() {
+      document.documentElement.style.overflow = ''
+      document.body.style.overflow = ''
+
+      const overlays = document.querySelectorAll('[data-temporary-overlay="true"], [class*="fixed"][class*="inset-0"]')
+      overlays.forEach((element) => {
+        if (!coversViewport(element)) return
+        if (hasVisibleOverlayPanel(element)) return
+        element.remove()
+      })
+    }
+
+    unlockStaleOverlays()
+    const frame = window.requestAnimationFrame(unlockStaleOverlays)
+    const interval = window.setInterval(unlockStaleOverlays, 1200)
+    window.addEventListener('focus', unlockStaleOverlays)
+    window.addEventListener('pageshow', unlockStaleOverlays)
+    window.addEventListener('hashchange', unlockStaleOverlays)
+    window.addEventListener('popstate', unlockStaleOverlays)
+    window.addEventListener('todo-force-unlock-app', unlockStaleOverlays)
+    document.addEventListener('visibilitychange', unlockStaleOverlays)
+
+    return () => {
+      window.cancelAnimationFrame(frame)
+      window.clearInterval(interval)
+      window.removeEventListener('focus', unlockStaleOverlays)
+      window.removeEventListener('pageshow', unlockStaleOverlays)
+      window.removeEventListener('hashchange', unlockStaleOverlays)
+      window.removeEventListener('popstate', unlockStaleOverlays)
+      window.removeEventListener('todo-force-unlock-app', unlockStaleOverlays)
+      document.removeEventListener('visibilitychange', unlockStaleOverlays)
+    }
+  }, [shouldGuardOverlays, location.pathname])
 
   return (
     <div className="app-bg min-h-screen pb-[calc(6.5rem+env(safe-area-inset-bottom))]">
@@ -222,4 +258,21 @@ export default function AppLayout() {
       </nav>
     </div>
   )
+}
+
+function coversViewport(element) {
+  const style = window.getComputedStyle(element)
+  if (style.display === 'none' || style.visibility === 'hidden' || style.pointerEvents === 'none') return false
+  const rect = element.getBoundingClientRect()
+  return rect.width >= window.innerWidth * 0.85 && rect.height >= window.innerHeight * 0.85
+}
+
+function hasVisibleOverlayPanel(element) {
+  const candidates = element.querySelectorAll('[data-overlay-panel="true"], [role="dialog"], section, .shadow-xl')
+  return Array.from(candidates).some((candidate) => {
+    const style = window.getComputedStyle(candidate)
+    if (style.display === 'none' || style.visibility === 'hidden' || Number(style.opacity) === 0) return false
+    const rect = candidate.getBoundingClientRect()
+    return rect.width > 120 && rect.height > 80
+  })
 }
