@@ -106,19 +106,21 @@ export default function AppLayout() {
       window.dispatchEvent(new Event('todo-close-temporary-overlays'))
       window.requestAnimationFrame(() => {
         document
-          .querySelectorAll('#root [data-temporary-overlay="true"], #root [class*="fixed"][class*="inset-0"][class*="bg-slate-950"]')
+          .querySelectorAll('[data-temporary-overlay="true"], [class*="fixed"][class*="inset-0"]:not([data-operator-overlay="true"])')
           .forEach((element) => element.remove())
         document.documentElement.style.overflow = ''
         document.body.style.overflow = ''
       })
     }
 
+    document.body.classList.add('todo-operator-home')
     cleanupTemporaryOverlays()
     window.addEventListener('focus', cleanupTemporaryOverlays)
     window.addEventListener('pageshow', cleanupTemporaryOverlays)
     document.addEventListener('visibilitychange', cleanupTemporaryOverlays)
 
     return () => {
+      document.body.classList.remove('todo-operator-home')
       window.removeEventListener('focus', cleanupTemporaryOverlays)
       window.removeEventListener('pageshow', cleanupTemporaryOverlays)
       document.removeEventListener('visibilitychange', cleanupTemporaryOverlays)

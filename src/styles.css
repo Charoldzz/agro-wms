@@ -27,6 +27,11 @@ body {
   overflow-x: hidden;
 }
 
+body.todo-operator-home [class*="fixed"][class*="inset-0"]:not([data-operator-overlay="true"]) {
+  display: none !important;
+  pointer-events: none !important;
+}
+
 .app-bg {
   position: relative;
   isolation: isolate;
