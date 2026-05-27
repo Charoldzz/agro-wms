@@ -31,7 +31,7 @@ export default function Login() {
 
   return (
     <div className="app-bg flex min-h-screen items-center justify-center p-4">
-      <form className="panel w-full max-w-md" onSubmit={handleSubmit}>
+      <form className="panel relative z-10 w-full max-w-md" onSubmit={handleSubmit}>
         <div className="mb-6 text-center">
           <div className="mx-auto mb-5 flex h-28 w-56 items-center justify-center rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
             <img className="max-h-full max-w-full object-contain" src="/images/todo-logo.png" alt="Todo Agricola" />
