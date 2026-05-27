@@ -1,15 +1,8 @@
-import { useEffect, useRef, useState } from 'react'
-import { useLocation } from 'react-router-dom'
-import { useAuth } from '../hooks/useAuth.jsx'
+import { useEffect, useState } from 'react'
 import { APP_VERSION, APP_VERSION_LABEL } from '../lib/version'
 
 export default function AppVersion() {
-  const location = useLocation()
-  const { profile } = useAuth()
   const [latestVersion, setLatestVersion] = useState('')
-  const [reloading, setReloading] = useState(false)
-  const timeoutRef = useRef(null)
-  const canAutoRefresh = isSafeRefreshRoute(location.pathname, profile?.role)
   const hasUpdate = latestVersion && latestVersion !== APP_VERSION
 
   useEffect(() => {
@@ -48,23 +41,13 @@ export default function AppVersion() {
     }
   }, [])
 
-  useEffect(() => {
-    if (!hasUpdate || !canAutoRefresh) return undefined
-
-    setReloading(true)
-    timeoutRef.current = window.setTimeout(() => window.location.reload(), 1200)
-
-    return () => window.clearTimeout(timeoutRef.current)
-  }, [canAutoRefresh, hasUpdate])
-
   function reloadNow() {
-    setReloading(true)
     window.location.reload()
   }
 
   return (
     <>
-      {hasUpdate && !canAutoRefresh ? (
+      {hasUpdate ? (
         <div className="fixed inset-x-3 bottom-[calc(6.3rem+env(safe-area-inset-bottom))] z-40 mx-auto max-w-md rounded-lg border border-campo-200 bg-white/95 p-3 shadow-lg backdrop-blur sm:bottom-4 sm:left-auto sm:right-4 sm:mx-0">
           <div className="flex items-center justify-between gap-3">
             <div>
@@ -77,22 +60,9 @@ export default function AppVersion() {
           </div>
         </div>
       ) : null}
-      {hasUpdate && canAutoRefresh ? (
-        <div className="pointer-events-none fixed inset-x-3 bottom-[calc(6.3rem+env(safe-area-inset-bottom))] z-40 mx-auto max-w-xs rounded-lg border border-campo-200 bg-white/95 p-3 text-center text-sm font-black text-campo-800 shadow-lg backdrop-blur sm:bottom-4">
-          {reloading ? 'Actualizando app...' : 'Nueva version detectada'}
-        </div>
-      ) : null}
       <div className="pointer-events-none fixed bottom-[calc(5.75rem+env(safe-area-inset-bottom))] right-2 z-40 rounded-full border border-white/60 bg-white/70 px-2 py-1 text-[10px] font-bold text-slate-500 shadow-sm backdrop-blur sm:bottom-3">
         {APP_VERSION_LABEL}
       </div>
     </>
   )
-}
-
-function isSafeRefreshRoute(pathname, role) {
-  if (pathname === '/login') return true
-  if (role === 'operador') return false
-  if (pathname === '/') return role === 'administrador'
-  if (['/lotes', '/clientes', '/movimientos', '/offline', '/pendientes', '/vencimientos', '/historial'].includes(pathname)) return true
-  return pathname.startsWith('/productos/')
 }
