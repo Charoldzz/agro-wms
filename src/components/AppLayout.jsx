@@ -162,10 +162,6 @@ export default function AppLayout() {
 
   return (
     <div className="app-bg min-h-screen pb-[calc(6.5rem+env(safe-area-inset-bottom))]">
-      <div aria-hidden="true" className="pointer-events-none fixed inset-0 z-0 overflow-hidden">
-        <div className="absolute inset-0 scale-[1.02] bg-[url('/images/almacen-fondo.jpeg')] bg-cover bg-center blur-[4px]" />
-        <div className="absolute inset-0 bg-[#f6f7f3]/70" />
-      </div>
       <header className="sticky top-0 z-20 border-b border-slate-200 bg-white/95 backdrop-blur">
         <div className="mx-auto flex max-w-5xl items-center justify-between gap-2 px-4 py-3">
           <div className="flex min-w-0 items-center gap-3">
