@@ -229,11 +229,24 @@ export default function Operation() {
       </section>
 
       {workModal ? (
-        <WorkModal title={workModal === 'despachos' ? 'Despachos pendientes' : workModal === 'revisiones' ? 'Revisiones pendientes' : 'Alertas de vencimiento'} onClose={() => setWorkModal('')}>
-          {workModal === 'despachos' ? renderDispatchRequests(dispatchRequests, true) : null}
-          {workModal === 'revisiones' ? renderPendingMovements(pendingMovements) : null}
-          {workModal === 'vencimientos' ? renderExpiringLots(expiringLots) : null}
-        </WorkModal>
+        <section className="panel mt-4 border-campo-100" data-temporary-overlay="true">
+          <div className="mb-3 flex items-start justify-between gap-3">
+            <div>
+              <p className="text-xs font-bold uppercase text-campo-700">Trabajo del dia</p>
+              <h3 className="text-xl font-black text-slate-950">
+                {workModal === 'despachos' ? 'Despachos pendientes' : workModal === 'revisiones' ? 'Revisiones pendientes' : 'Alertas de vencimiento'}
+              </h3>
+            </div>
+            <button className="btn-secondary !min-h-10 !px-3" type="button" onClick={() => setWorkModal('')} title="Cerrar">
+              <X size={18} />
+            </button>
+          </div>
+          <div className="max-h-[70dvh] space-y-2 overflow-y-auto pr-1">
+            {workModal === 'despachos' ? renderDispatchRequests(dispatchRequests, true) : null}
+            {workModal === 'revisiones' ? renderPendingMovements(pendingMovements) : null}
+            {workModal === 'vencimientos' ? renderExpiringLots(expiringLots) : null}
+          </div>
+        </section>
       ) : null}
 
     </div>
@@ -255,42 +268,5 @@ function WorkPanel({ title, count, onViewAll, children }) {
       </div>
       <div className="max-h-80 space-y-2 overflow-y-auto pr-1">{children}</div>
     </section>
-  )
-}
-
-function WorkModal({ title, onClose, children }) {
-  useEffect(() => {
-    const closeOnEscape = (event) => {
-      if (event.key === 'Escape') onClose()
-    }
-
-    window.addEventListener('keydown', closeOnEscape)
-    return () => window.removeEventListener('keydown', closeOnEscape)
-  }, [onClose])
-
-  return (
-    <div data-temporary-overlay="true" className="fixed inset-0 z-[70] grid place-items-start overflow-y-auto bg-slate-950/35 p-3 sm:place-items-center" onClick={onClose}>
-      <button className="fixed right-4 top-4 z-[72] inline-flex h-11 w-11 items-center justify-center rounded-full bg-white text-slate-900 shadow-lg" type="button" onClick={onClose} title="Cerrar">
-        <X size={20} />
-      </button>
-      <section
-        data-overlay-panel="true"
-        className="relative z-[71] my-3 flex max-h-[calc(100dvh-2rem)] w-full max-w-2xl flex-col overflow-hidden rounded-xl bg-white shadow-xl"
-        onClick={(event) => event.stopPropagation()}
-      >
-        <div className="shrink-0 border-b border-slate-100 p-4">
-          <div className="flex items-start justify-between gap-3">
-          <div>
-            <p className="text-xs font-bold uppercase text-campo-700">Trabajo del dia</p>
-            <h3 className="text-xl font-black text-slate-950">{title}</h3>
-          </div>
-          <button className="btn-secondary !min-h-10 !px-3" type="button" onClick={onClose} title="Cerrar">
-            <X size={18} />
-          </button>
-          </div>
-        </div>
-        <div className="min-h-0 flex-1 space-y-2 overflow-y-auto p-4">{children}</div>
-      </section>
-    </div>
   )
 }
