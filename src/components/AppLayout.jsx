@@ -34,7 +34,9 @@ export default function AppLayout() {
   const showBackButton = location.pathname !== '/' && !isOperatorHome
 
   async function signOut() {
+    resetAppInteractionState()
     await supabase.auth.signOut()
+    resetAppInteractionState()
     navigate('/login')
   }
 
@@ -98,20 +100,14 @@ export default function AppLayout() {
 
   const hasSyncRisk = !online || queuedMovements > 0
   const isOperatorRoot = profile?.role === 'operador' && (location.pathname === '/' || location.pathname === '/operacion')
-  const shouldGuardOverlays =
-    profile?.role === 'operador' &&
-    (location.pathname === '/' ||
-      location.pathname === '/operacion' ||
-      location.pathname === '/lotes' ||
-      location.pathname.startsWith('/lotes/') ||
-      location.pathname.startsWith('/productos/') ||
-      location.pathname === '/vencimientos')
+  const shouldGuardOverlays = Boolean(user) && isOverlayGuardRoute(location.pathname)
 
   useEffect(() => {
     if (!isOperatorRoot) return undefined
 
     function cleanupTemporaryOverlays() {
       window.dispatchEvent(new Event('todo-close-temporary-overlays'))
+      resetAppInteractionState()
     }
 
     cleanupTemporaryOverlays()
@@ -130,8 +126,7 @@ export default function AppLayout() {
     if (!shouldGuardOverlays) return undefined
 
     function unlockStaleOverlays() {
-      document.documentElement.style.overflow = ''
-      document.body.style.overflow = ''
+      resetAppInteractionState({ removeOnlyStale: true })
 
       const overlays = document.querySelectorAll('[data-temporary-overlay="true"], [class*="fixed"][class*="inset-0"]')
       overlays.forEach((element) => {
@@ -150,6 +145,7 @@ export default function AppLayout() {
     window.addEventListener('popstate', unlockStaleOverlays)
     window.addEventListener('todo-force-unlock-app', unlockStaleOverlays)
     document.addEventListener('visibilitychange', unlockStaleOverlays)
+    document.addEventListener('keydown', unlockWithKeyboard)
 
     return () => {
       window.cancelAnimationFrame(frame)
@@ -160,6 +156,7 @@ export default function AppLayout() {
       window.removeEventListener('popstate', unlockStaleOverlays)
       window.removeEventListener('todo-force-unlock-app', unlockStaleOverlays)
       document.removeEventListener('visibilitychange', unlockStaleOverlays)
+      document.removeEventListener('keydown', unlockWithKeyboard)
     }
   }, [shouldGuardOverlays, location.pathname])
 
@@ -275,4 +272,40 @@ function hasVisibleOverlayPanel(element) {
     const rect = candidate.getBoundingClientRect()
     return rect.width > 120 && rect.height > 80
   })
+}
+
+function isOverlayGuardRoute(pathname) {
+  if (pathname === '/') return true
+  if (pathname === '/operacion') return true
+  if (pathname === '/lotes' || pathname.startsWith('/lotes/')) return true
+  if (pathname.startsWith('/productos/')) return true
+  if (pathname === '/vencimientos') return true
+  if (pathname === '/clientes') return true
+  if (pathname === '/movimientos') return true
+  if (pathname === '/offline') return true
+  if (pathname === '/pendientes') return true
+  if (pathname === '/solicitudes') return true
+  if (pathname === '/exportes') return true
+  if (pathname === '/backups') return true
+  if (pathname === '/despachos') return true
+  if (pathname === '/historial') return true
+  return false
+}
+
+function resetAppInteractionState(options = {}) {
+  document.documentElement.style.overflow = ''
+  document.body.style.overflow = ''
+  document.documentElement.style.pointerEvents = ''
+  document.body.style.pointerEvents = ''
+  document.body.classList.remove('todo-operator-home')
+
+  if (options.removeOnlyStale) return
+
+  document.querySelectorAll('[data-temporary-overlay="true"]').forEach((element) => element.remove())
+}
+
+function unlockWithKeyboard(event) {
+  if (!(event.ctrlKey && event.altKey && event.key.toLowerCase() === 'u')) return
+  resetAppInteractionState()
+  window.dispatchEvent(new Event('todo-force-unlock-app'))
 }
