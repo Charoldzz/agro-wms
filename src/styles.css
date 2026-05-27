@@ -27,6 +27,15 @@ body {
   overflow-x: hidden;
 }
 
+html,
+body,
+#root,
+.app-bg {
+  opacity: 1 !important;
+  filter: none !important;
+  pointer-events: auto !important;
+}
+
 .app-bg {
   position: relative;
   isolation: isolate;
@@ -53,12 +62,6 @@ body {
   z-index: 0;
   pointer-events: none;
   background: rgba(246, 247, 243, 0.68);
-}
-
-body.todo-hard-unlocked .app-bg::before,
-body.todo-hard-unlocked .app-bg::after {
-  opacity: 0 !important;
-  pointer-events: none !important;
 }
 
 button,

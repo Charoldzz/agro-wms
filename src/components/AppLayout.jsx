@@ -270,7 +270,12 @@ function hasVisibleOverlayPanel(element) {
     const style = window.getComputedStyle(candidate)
     if (style.display === 'none' || style.visibility === 'hidden' || Number(style.opacity) === 0) return false
     const rect = candidate.getBoundingClientRect()
-    return rect.width > 120 && rect.height > 80
+    const insideViewport =
+      rect.bottom > 0 &&
+      rect.right > 0 &&
+      rect.top < window.innerHeight &&
+      rect.left < window.innerWidth
+    return insideViewport && rect.width > 120 && rect.height > 80
   })
 }
 
@@ -295,8 +300,12 @@ function isOverlayGuardRoute(pathname) {
 function resetAppInteractionState(options = {}) {
   document.documentElement.style.overflow = ''
   document.body.style.overflow = ''
-  document.documentElement.style.pointerEvents = ''
-  document.body.style.pointerEvents = ''
+  document.documentElement.style.pointerEvents = 'auto'
+  document.body.style.pointerEvents = 'auto'
+  document.documentElement.style.opacity = '1'
+  document.body.style.opacity = '1'
+  document.getElementById('root')?.style.setProperty('pointer-events', 'auto')
+  document.getElementById('root')?.style.setProperty('opacity', '1')
   document.body.classList.remove('todo-operator-home')
 
   if (options.removeOnlyStale) return
