@@ -245,12 +245,14 @@ function WorkModal({ title, onClose, children }) {
   }, [onClose])
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end overflow-y-auto bg-slate-950/35 p-4 sm:items-center sm:justify-center" onClick={onClose}>
-      <button className="fixed right-4 top-4 z-[55] inline-flex h-11 w-11 items-center justify-center rounded-full bg-white text-slate-900 shadow-lg" type="button" onClick={onClose} title="Cerrar">
-        <X size={20} />
-      </button>
-      <section className="relative z-[56] max-h-[92dvh] w-full max-w-2xl overflow-y-auto overscroll-contain rounded-xl bg-white p-4 shadow-xl" onClick={(event) => event.stopPropagation()}>
-        <div className="mb-3 flex items-start justify-between gap-3">
+    <div className="fixed inset-0 z-50 bg-slate-950/35 p-3">
+      <button className="absolute inset-0 h-full w-full cursor-default" type="button" onClick={onClose} title="Cerrar ventana" />
+      <section
+        className="fixed inset-x-3 top-4 z-10 mx-auto flex max-h-[calc(100dvh-2rem)] max-w-2xl flex-col overflow-hidden rounded-xl bg-white shadow-xl sm:inset-x-4 sm:top-1/2 sm:-translate-y-1/2"
+        onClick={(event) => event.stopPropagation()}
+      >
+        <div className="shrink-0 border-b border-slate-100 p-4">
+          <div className="flex items-start justify-between gap-3">
           <div>
             <p className="text-xs font-bold uppercase text-campo-700">Trabajo del dia</p>
             <h3 className="text-xl font-black text-slate-950">{title}</h3>
@@ -258,8 +260,9 @@ function WorkModal({ title, onClose, children }) {
           <button className="btn-secondary !min-h-10 !px-3" type="button" onClick={onClose} title="Cerrar">
             <X size={18} />
           </button>
+          </div>
         </div>
-        <div className="max-h-[70vh] space-y-2 overflow-y-auto pr-1">{children}</div>
+        <div className="min-h-0 flex-1 space-y-2 overflow-y-auto p-4">{children}</div>
       </section>
     </div>
   )
