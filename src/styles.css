@@ -44,24 +44,12 @@ body,
 
 .app-bg::before {
   content: "";
-  position: fixed;
-  inset: 0;
-  z-index: 0;
-  pointer-events: none;
-  background-image: url("/images/almacen-fondo.jpeg");
-  background-size: cover;
-  background-position: center;
-  filter: blur(4px);
-  transform: scale(1.02);
+  display: none;
 }
 
 .app-bg::after {
   content: "";
-  position: fixed;
-  inset: 0;
-  z-index: 0;
-  pointer-events: none;
-  background: rgba(246, 247, 243, 0.68);
+  display: none;
 }
 
 button,
