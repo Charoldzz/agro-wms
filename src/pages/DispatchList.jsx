@@ -752,7 +752,7 @@ export default function DispatchList() {
               </p>
             ) : null}
             <div className="mt-6 grid grid-cols-2 gap-2">
-              <button className="inline-flex min-h-12 w-full items-center justify-center rounded-lg border border-white/25 bg-white/10 px-4 py-3 font-black text-white backdrop-blur transition active:scale-[0.99]" type="button" onClick={printReceipt}>
+              <button className="inline-flex min-h-12 w-full items-center justify-center rounded-lg border border-white/25 bg-white/10 px-4 py-3 font-black text-white transition active:scale-[0.99]" type="button" onClick={printReceipt}>
                 Imprimir
               </button>
               <button className="inline-flex min-h-12 w-full items-center justify-center rounded-lg bg-white/15 px-4 py-3 font-black text-white shadow-soft transition active:scale-[0.99]" type="button" onClick={() => navigate('/operacion')}>

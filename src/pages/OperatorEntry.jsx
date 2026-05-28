@@ -684,7 +684,7 @@ export default function OperatorEntry() {
             <p className="mt-3 text-sm font-bold text-white/85">
               {entrySuccess.emailError ? 'Ingreso aplicado. Revisa el envio del correo a oficina.' : 'Entrada confirmada y correo enviado a oficina.'}
             </p>
-            <button className="mt-6 inline-flex min-h-12 w-full items-center justify-center rounded-lg border border-white/20 bg-white/10 px-4 py-3 font-black text-white backdrop-blur transition active:scale-[0.99]" type="button" onClick={() => navigate(isOperator ? '/operacion' : '/')}>
+            <button className="mt-6 inline-flex min-h-12 w-full items-center justify-center rounded-lg border border-white/20 bg-white/10 px-4 py-3 font-black text-white transition active:scale-[0.99]" type="button" onClick={() => navigate(isOperator ? '/operacion' : '/')}>
               Volver a operar
             </button>
           </section>

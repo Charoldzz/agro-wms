@@ -122,7 +122,7 @@ export default function AppLayout() {
 
   return (
     <div className="app-bg min-h-screen pb-[calc(6.5rem+env(safe-area-inset-bottom))]">
-      <header className="sticky top-0 z-20 border-b border-slate-200 bg-white/95 backdrop-blur">
+      <header className="sticky top-0 z-20 border-b border-slate-200 bg-white/95">
         <div className="mx-auto flex max-w-5xl items-center justify-between gap-2 px-4 py-3">
           <div className="flex min-w-0 items-center gap-3">
             <div className="flex h-12 w-20 shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-white p-1.5 shadow-sm sm:w-24">
@@ -172,7 +172,7 @@ export default function AppLayout() {
           </section>
         ) : lastSync ? (
           <div className="mb-3 flex items-center justify-between gap-2 px-1 text-xs font-black text-campo-800">
-            <div className="inline-flex items-center gap-2 rounded-full bg-white/70 px-2.5 py-1.5 shadow-sm backdrop-blur">
+            <div className="inline-flex items-center gap-2 rounded-full bg-white/70 px-2.5 py-1.5 shadow-sm">
               <Wifi size={15} />
               <span className="h-2.5 w-2.5 rounded-full bg-emerald-500 shadow-[0_0_0_3px_rgba(16,185,129,0.13)]" />
               <span>Sincronizado</span>
@@ -192,7 +192,7 @@ export default function AppLayout() {
         <Outlet />
       </main>
 
-      <nav className="fixed inset-x-0 bottom-0 z-30 border-t border-slate-200 bg-white/95 pb-[env(safe-area-inset-bottom)] backdrop-blur">
+      <nav className="fixed inset-x-0 bottom-0 z-30 border-t border-slate-200 bg-white/95 pb-[env(safe-area-inset-bottom)]">
         <div className={`mx-auto grid max-w-5xl gap-1 px-2 py-2 ${visibleNavItems.length <= 1 ? 'grid-cols-1' : visibleNavItems.length <= 2 ? 'grid-cols-2' : visibleNavItems.length <= 3 ? 'grid-cols-3' : visibleNavItems.length <= 5 ? 'grid-cols-5' : 'grid-cols-6'}`}>
           {visibleNavItems.map((item) => {
             const Icon = item.icon

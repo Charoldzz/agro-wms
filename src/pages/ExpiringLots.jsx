@@ -58,7 +58,7 @@ export default function ExpiringLots() {
           expiringLots.map((lot) => (
             <Link
               key={lot.id}
-              className={`block rounded-lg border p-3 shadow-soft backdrop-blur transition ${
+              className={`block rounded-lg border p-3 shadow-soft transition ${
                 lot.daysLeft < 0
                   ? 'border-red-100 bg-red-50/95 hover:bg-red-50'
                   : 'border-amber-100 bg-amber-50/95 hover:bg-amber-50'

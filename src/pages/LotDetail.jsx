@@ -1382,7 +1382,7 @@ export default function LotDetail() {
             </span>
             <h2 className="mt-5 text-3xl font-black">{movementSuccess.title}</h2>
             <p className="mt-2 text-base font-semibold text-campo-50">{movementSuccess.text}</p>
-            <button className="mt-6 inline-flex min-h-12 w-full items-center justify-center rounded-lg border border-white/20 bg-white/10 px-4 py-3 font-black text-white backdrop-blur transition active:scale-[0.99]" type="button" onClick={() => navigate(isOperator ? '/operacion' : '/')}>
+            <button className="mt-6 inline-flex min-h-12 w-full items-center justify-center rounded-lg border border-white/20 bg-white/10 px-4 py-3 font-black text-white transition active:scale-[0.99]" type="button" onClick={() => navigate(isOperator ? '/operacion' : '/')}>
               Volver a operar
             </button>
           </section>

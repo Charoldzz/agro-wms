@@ -37,31 +37,12 @@ body,
 .app-bg {
   position: relative;
   isolation: isolate;
-  background: #eef3ed;
-}
-
-.app-bg::before {
-  content: "";
-  position: fixed;
-  inset: -18px;
-  z-index: -2;
-  pointer-events: none;
-  background-image: url("/images/almacen-fondo.jpeg");
+  background:
+    linear-gradient(rgba(246, 247, 243, 0.72), rgba(246, 247, 243, 0.78)),
+    url("/images/almacen-fondo.jpeg");
+  background-attachment: scroll;
   background-position: center;
   background-size: cover;
-  filter: blur(8px) saturate(1.04);
-  transform: scale(1.02);
-}
-
-.app-bg::after {
-  content: "";
-  position: fixed;
-  inset: 0;
-  z-index: -1;
-  pointer-events: none;
-  background:
-    linear-gradient(rgba(246, 247, 243, 0.44), rgba(246, 247, 243, 0.5)),
-    radial-gradient(circle at 70% 10%, rgba(255, 255, 255, 0.18), transparent 34%);
 }
 
 button,
@@ -89,6 +70,6 @@ textarea {
   }
 
   .panel {
-    @apply min-w-0 rounded-lg border border-slate-200 bg-white/95 p-4 shadow-soft backdrop-blur;
+    @apply min-w-0 rounded-lg border border-slate-200 bg-white/95 p-4 shadow-soft;
   }
 }
