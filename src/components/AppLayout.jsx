@@ -34,9 +34,7 @@ export default function AppLayout() {
   const showBackButton = location.pathname !== '/' && !isOperatorHome
 
   async function signOut() {
-    resetAppInteractionState()
     await supabase.auth.signOut()
-    resetAppInteractionState()
     navigate('/login')
   }
 
@@ -100,14 +98,14 @@ export default function AppLayout() {
 
   const hasSyncRisk = !online || queuedMovements > 0
   const isOperatorRoot = profile?.role === 'operador' && (location.pathname === '/' || location.pathname === '/operacion')
-  const shouldGuardOverlays = Boolean(user) && isOverlayGuardRoute(location.pathname)
 
   useEffect(() => {
     if (!isOperatorRoot) return undefined
 
     function cleanupTemporaryOverlays() {
       window.dispatchEvent(new Event('todo-close-temporary-overlays'))
-      resetAppInteractionState()
+      document.documentElement.style.overflow = ''
+      document.body.style.overflow = ''
     }
 
     cleanupTemporaryOverlays()
@@ -121,44 +119,6 @@ export default function AppLayout() {
       document.removeEventListener('visibilitychange', cleanupTemporaryOverlays)
     }
   }, [isOperatorRoot])
-
-  useEffect(() => {
-    if (!shouldGuardOverlays) return undefined
-
-    function unlockStaleOverlays() {
-      resetAppInteractionState({ removeOnlyStale: true })
-
-      const overlays = document.querySelectorAll('[data-temporary-overlay="true"], [class*="fixed"][class*="inset-0"]')
-      overlays.forEach((element) => {
-        if (!coversViewport(element)) return
-        if (hasVisibleOverlayPanel(element)) return
-        element.remove()
-      })
-    }
-
-    unlockStaleOverlays()
-    const frame = window.requestAnimationFrame(unlockStaleOverlays)
-    const interval = window.setInterval(unlockStaleOverlays, 1200)
-    window.addEventListener('focus', unlockStaleOverlays)
-    window.addEventListener('pageshow', unlockStaleOverlays)
-    window.addEventListener('hashchange', unlockStaleOverlays)
-    window.addEventListener('popstate', unlockStaleOverlays)
-    window.addEventListener('todo-force-unlock-app', unlockStaleOverlays)
-    document.addEventListener('visibilitychange', unlockStaleOverlays)
-    document.addEventListener('keydown', unlockWithKeyboard)
-
-    return () => {
-      window.cancelAnimationFrame(frame)
-      window.clearInterval(interval)
-      window.removeEventListener('focus', unlockStaleOverlays)
-      window.removeEventListener('pageshow', unlockStaleOverlays)
-      window.removeEventListener('hashchange', unlockStaleOverlays)
-      window.removeEventListener('popstate', unlockStaleOverlays)
-      window.removeEventListener('todo-force-unlock-app', unlockStaleOverlays)
-      document.removeEventListener('visibilitychange', unlockStaleOverlays)
-      document.removeEventListener('keydown', unlockWithKeyboard)
-    }
-  }, [shouldGuardOverlays, location.pathname])
 
   return (
     <div className="app-bg min-h-screen pb-[calc(6.5rem+env(safe-area-inset-bottom))]">
@@ -255,71 +215,4 @@ export default function AppLayout() {
       </nav>
     </div>
   )
-}
-
-function coversViewport(element) {
-  const style = window.getComputedStyle(element)
-  if (style.display === 'none' || style.visibility === 'hidden' || style.pointerEvents === 'none') return false
-  const rect = element.getBoundingClientRect()
-  return rect.width >= window.innerWidth * 0.85 && rect.height >= window.innerHeight * 0.85
-}
-
-function hasVisibleOverlayPanel(element) {
-  const candidates = element.querySelectorAll('[data-overlay-panel="true"], [role="dialog"], section, .shadow-xl')
-  return Array.from(candidates).some((candidate) => {
-    const style = window.getComputedStyle(candidate)
-    if (style.display === 'none' || style.visibility === 'hidden' || Number(style.opacity) === 0) return false
-    const rect = candidate.getBoundingClientRect()
-    const insideViewport =
-      rect.bottom > 0 &&
-      rect.right > 0 &&
-      rect.top < window.innerHeight &&
-      rect.left < window.innerWidth
-    if (!(insideViewport && rect.width > 120 && rect.height > 80)) return false
-    return (
-      style.backgroundColor !== 'rgba(0, 0, 0, 0)' ||
-      String(candidate.className || '').includes('bg-white') ||
-      candidate.getAttribute('role') === 'dialog'
-    )
-  })
-}
-
-function isOverlayGuardRoute(pathname) {
-  if (pathname === '/') return true
-  if (pathname === '/operacion') return true
-  if (pathname === '/lotes' || pathname.startsWith('/lotes/')) return true
-  if (pathname.startsWith('/productos/')) return true
-  if (pathname === '/vencimientos') return true
-  if (pathname === '/clientes') return true
-  if (pathname === '/movimientos') return true
-  if (pathname === '/offline') return true
-  if (pathname === '/pendientes') return true
-  if (pathname === '/solicitudes') return true
-  if (pathname === '/exportes') return true
-  if (pathname === '/backups') return true
-  if (pathname === '/despachos') return true
-  if (pathname === '/historial') return true
-  return false
-}
-
-function resetAppInteractionState(options = {}) {
-  document.documentElement.style.overflow = ''
-  document.body.style.overflow = ''
-  document.documentElement.style.pointerEvents = 'auto'
-  document.body.style.pointerEvents = 'auto'
-  document.documentElement.style.opacity = '1'
-  document.body.style.opacity = '1'
-  document.getElementById('root')?.style.setProperty('pointer-events', 'auto')
-  document.getElementById('root')?.style.setProperty('opacity', '1')
-  document.body.classList.remove('todo-operator-home')
-
-  if (options.removeOnlyStale) return
-
-  document.querySelectorAll('[data-temporary-overlay="true"]').forEach((element) => element.remove())
-}
-
-function unlockWithKeyboard(event) {
-  if (!(event.ctrlKey && event.altKey && event.key.toLowerCase() === 'u')) return
-  resetAppInteractionState()
-  window.dispatchEvent(new Event('todo-force-unlock-app'))
 }

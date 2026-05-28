@@ -31,35 +31,37 @@ html,
 body,
 #root,
 .app-bg {
-  opacity: 1 !important;
-  filter: none !important;
   pointer-events: auto !important;
-}
-
-[class*="fixed"][class*="inset-0"][class*="bg-slate-950/"]:not([data-modal-backdrop="true"]) {
-  background: transparent !important;
-  pointer-events: none !important;
 }
 
 .app-bg {
   position: relative;
   isolation: isolate;
-  background:
-    linear-gradient(rgba(246, 247, 243, 0.54), rgba(246, 247, 243, 0.54)),
-    url("/images/almacen-fondo.jpeg");
-  background-attachment: scroll;
-  background-position: center;
-  background-size: cover;
+  background: #eef3ed;
 }
 
 .app-bg::before {
   content: "";
-  display: none;
+  position: fixed;
+  inset: -18px;
+  z-index: -2;
+  pointer-events: none;
+  background-image: url("/images/almacen-fondo.jpeg");
+  background-position: center;
+  background-size: cover;
+  filter: blur(8px) saturate(1.04);
+  transform: scale(1.02);
 }
 
 .app-bg::after {
   content: "";
-  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    linear-gradient(rgba(246, 247, 243, 0.44), rgba(246, 247, 243, 0.5)),
+    radial-gradient(circle at 70% 10%, rgba(255, 255, 255, 0.18), transparent 34%);
 }
 
 button,
