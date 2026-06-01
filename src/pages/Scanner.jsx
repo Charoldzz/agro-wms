@@ -6,6 +6,8 @@ import { Html5Qrcode } from 'html5-qrcode'
 import { Camera, ImagePlus, Search, TriangleAlert, RefreshCcw } from 'lucide-react'
 import PageHeader from '../components/PageHeader'
 import { supabase } from '../lib/supabase'
+import { cleanProductName, displayLotCode, packageLabel } from '../lib/display'
+import { formatNumber } from '../lib/format'
 
 async function decodeWithBarcodeDetector(file) {
   if (!('BarcodeDetector' in window) || !('createImageBitmap' in window)) return null
@@ -87,6 +89,36 @@ export default function Scanner() {
   const movementMode = searchParams.get('modo') || ''
   const returnTo = searchParams.get('return') || ''
   const validMovementMode = ['despacho', 'reparo', 'traslado'].includes(movementMode) ? movementMode : ''
+  const requestId = (() => {
+    if (!returnTo) return ''
+    try {
+      const url = new URL(returnTo, window.location.origin)
+      return url.searchParams.get('request') || ''
+    } catch {
+      const requestMatch = returnTo.match(/[?&]request=([^&]+)/)
+      return requestMatch ? decodeURIComponent(requestMatch[1]) : ''
+    }
+  })()
+  const [dispatchReference, setDispatchReference] = useState(null)
+
+  useEffect(() => {
+    async function loadDispatchReference() {
+      if (!requestId || validMovementMode !== 'despacho') {
+        setDispatchReference(null)
+        return
+      }
+
+      const { data } = await supabase
+        .from('client_dispatch_requests')
+        .select('*, clients(name), lots(lot_code, product, current_quantity, package_size, package_unit, location)')
+        .eq('id', requestId)
+        .maybeSingle()
+
+      setDispatchReference(data || null)
+    }
+
+    loadDispatchReference()
+  }, [requestId, validMovementMode])
 
   const goToScannedLot = useCallback(
     async (decodedText) => {
@@ -273,6 +305,45 @@ export default function Scanner() {
         title={validMovementMode === 'despacho' ? 'Despacho' : validMovementMode ? 'Escanear lote' : 'Escanear QR'}
         subtitle={validMovementMode === 'despacho' ? 'Escanea el lote para registrar salida' : validMovementMode ? 'Escanea el lote para continuar' : 'Solo consulta la ficha del producto'}
       />
+
+      {dispatchReference ? (
+        <section className="panel mb-4 border-amber-200 bg-amber-50/95">
+          <div className="flex flex-wrap items-start justify-between gap-2">
+            <div className="min-w-0">
+              <p className="text-xs font-black uppercase text-amber-700">Buscar para despacho</p>
+              <h3 className="text-lg font-black text-slate-950 [overflow-wrap:anywhere]">{dispatchReference.clients?.name || 'Cliente'}</h3>
+            </div>
+            <span className="rounded-full bg-white px-3 py-1 text-xs font-black text-amber-800">
+              {Array.isArray(dispatchReference.items) && dispatchReference.items.length > 1 ? `${dispatchReference.items.length} productos` : '1 producto'}
+            </span>
+          </div>
+          <div className="mt-3 space-y-2">
+            {Array.isArray(dispatchReference.items) && dispatchReference.items.length > 0 ? (
+              dispatchReference.items.map((item) => (
+                <div key={item.lot_id || item.lot_code} className="rounded-lg bg-white/85 p-3">
+                  <div className="flex flex-wrap items-start justify-between gap-2">
+                    <p className="min-w-0 flex-1 text-sm font-black text-slate-950 [overflow-wrap:anywhere]">{cleanProductName(item.product)}</p>
+                    <span className="rounded-lg bg-campo-50 px-2 py-1 text-xs font-black text-campo-800">{formatNumber(item.quantity)} env.</span>
+                  </div>
+                  <p className="mt-1 text-xs font-bold text-slate-600">
+                    Lote {displayLotCode(item.lot_code)} - Presentacion: {packageLabel(item) || 'Sin dato'}
+                  </p>
+                </div>
+              ))
+            ) : (
+              <div className="rounded-lg bg-white/85 p-3">
+                <div className="flex flex-wrap items-start justify-between gap-2">
+                  <p className="min-w-0 flex-1 text-sm font-black text-slate-950 [overflow-wrap:anywhere]">{cleanProductName(dispatchReference.product || dispatchReference.lots?.product)}</p>
+                  <span className="rounded-lg bg-campo-50 px-2 py-1 text-xs font-black text-campo-800">{formatNumber(dispatchReference.quantity)} env.</span>
+                </div>
+                <p className="mt-1 text-xs font-bold text-slate-600">
+                  Lote {displayLotCode(dispatchReference.lots?.lot_code)} - Presentacion: {packageLabel(dispatchReference.lots) || 'Sin dato'}
+                </p>
+              </div>
+            )}
+          </div>
+        </section>
+      ) : null}
 
       <div className="panel">
         <div className="mb-3 flex items-center justify-between gap-3">

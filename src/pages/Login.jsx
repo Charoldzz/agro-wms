@@ -4,6 +4,7 @@ import { Lock, Mail } from 'lucide-react'
 import { supabase, isSupabaseConfigured } from '../lib/supabase'
 import { useAuth } from '../hooks/useAuth.jsx'
 import ConfigWarning from '../components/ConfigWarning'
+import { clearOperationalDrafts } from '../lib/drafts'
 
 export default function Login() {
   const location = useLocation()
@@ -37,7 +38,11 @@ export default function Login() {
       password,
     })
 
-    if (signInError) setError('Credenciales incorrectas o usuario no registrado.')
+    if (signInError) {
+      setError('Credenciales incorrectas o usuario no registrado.')
+    } else {
+      clearOperationalDrafts()
+    }
     setLoading(false)
   }
 

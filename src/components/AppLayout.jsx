@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../hooks/useAuth.jsx'
 import { getQueuedMovementCount, syncQueuedMovements } from '../lib/offlineQueue'
+import { clearOperationalDrafts } from '../lib/drafts'
 
 const navItems = [
   { to: '/', label: 'Inicio', icon: Home },
@@ -35,6 +36,7 @@ export default function AppLayout() {
 
   async function signOut() {
     window.dispatchEvent(new Event('todo-close-temporary-overlays'))
+    clearOperationalDrafts()
     await supabase.auth.signOut()
     navigate('/login')
   }
