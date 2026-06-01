@@ -7,6 +7,7 @@ export default function ListProductCard({
   boxes,
   envases,
   envasesLabel = 'env.',
+  envasesVariant = 'neutral',
   equivalent,
   equivalentUnit,
   presentation,
@@ -47,7 +48,9 @@ export default function ListProductCard({
               <strong className="rounded-lg bg-campo-50 px-2 py-1 text-sm font-black text-campo-800">{formatNumber(boxes)} cajas</strong>
             ) : null}
             {envases !== undefined && envases !== null ? (
-              <strong className="rounded-lg bg-slate-100 px-2 py-1 text-sm font-black text-slate-800">{formatNumber(envases)} {envasesLabel}</strong>
+              <strong className={`rounded-lg px-2 py-1 text-sm font-black ${envasesVariant === 'available' ? 'bg-campo-50 text-campo-800' : 'bg-slate-100 text-slate-800'}`}>
+                {formatNumber(envases)} {envasesLabel}
+              </strong>
             ) : null}
             {equivalent !== undefined && equivalent !== null && Number.isFinite(Number(equivalent)) ? (
               <strong className="rounded-lg bg-maiz/25 px-2 py-1 text-sm font-black text-slate-900">

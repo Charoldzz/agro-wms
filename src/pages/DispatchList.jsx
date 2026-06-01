@@ -599,6 +599,7 @@ export default function DispatchList() {
                   title={cleanProductName(item.lot.product)}
                   envases={item.lot.current_quantity || 0}
                   envasesLabel="env. disponibles"
+                  envasesVariant="available"
                   equivalent={Number(item.lot.package_size) > 0 ? availableEquivalent : null}
                   equivalentUnit={item.lot.package_unit}
                   presentation={packageLabel(item.lot) || 'Sin dato'}
@@ -659,9 +660,6 @@ export default function DispatchList() {
                 <div className="mt-3 grid gap-3 sm:grid-cols-2">
                   <label>
                     <span className="label">Envases a despachar</span>
-                    <span className="mt-1 block rounded-lg bg-campo-50 px-3 py-2 text-sm font-black text-campo-800">
-                      Disponibles de referencia: {formatNumber(item.lot.current_quantity)} envases
-                    </span>
                     <input
                       className={`input mt-1 ${isApprovedDispatch ? 'bg-slate-100 font-black text-slate-700' : ''}`}
                       inputMode="decimal"
@@ -672,7 +670,7 @@ export default function DispatchList() {
                       onWheel={(event) => event.currentTarget.blur()}
                     />
                     {isApprovedDispatch ? (
-                      <span className="mt-1 block text-xs font-bold text-slate-500">Cantidad aprobada, no editable.</span>
+                      <span className="mt-1 block text-xs font-bold text-slate-500">Cantidad aprobada</span>
                     ) : null}
                   </label>
                   <div className="rounded-lg bg-slate-50 p-3">
@@ -700,12 +698,12 @@ export default function DispatchList() {
       </Link>
 
       {confirming ? (
-        <div data-modal-backdrop="true" className="fixed inset-0 z-40 flex items-end overflow-y-auto bg-slate-950/45 p-3 sm:items-center sm:justify-center">
-          <div className="flex max-h-[92dvh] w-full max-w-xl flex-col overflow-hidden rounded-xl bg-white shadow-xl">
+        <div data-modal-backdrop="true" className="fixed inset-0 z-40 flex items-end overflow-y-auto overscroll-contain bg-slate-950/45 p-3 sm:items-center sm:justify-center">
+          <div data-overlay-panel="true" className="flex max-h-[92dvh] w-full max-w-xl flex-col overflow-hidden rounded-xl bg-white shadow-xl" onClick={(event) => event.stopPropagation()}>
             <div className="shrink-0 border-b border-slate-100 p-4">
               <h3 className="text-xl font-bold text-slate-950">Confirmar despacho</h3>
             </div>
-            <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-3">
+            <div className="min-h-0 flex-1 touch-pan-y overflow-y-auto overscroll-contain px-4 pb-3">
             <div className="mt-3 rounded-lg bg-slate-50 p-3 text-sm font-bold text-slate-700">
               <div className="grid gap-2 sm:grid-cols-2">
                 <div className="sm:col-span-2">
@@ -735,7 +733,7 @@ export default function DispatchList() {
               </div>
             </div>
 
-            <div className="mt-4 max-h-72 space-y-2 overflow-y-auto pr-1">
+            <div className="mt-4 space-y-2 pr-1">
               {items.map((item) => {
                 const quantity = Number(item.package_count || 0)
                 const remaining = Number(item.lot.current_quantity || 0) - quantity
