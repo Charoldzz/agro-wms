@@ -8,14 +8,14 @@ import { clearOperationalDrafts } from '../lib/drafts'
 
 export default function Login() {
   const location = useLocation()
-  const { user, profileLoading } = useAuth()
+  const { user, profile, profileLoading } = useAuth()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 
   if (!isSupabaseConfigured) return <ConfigWarning />
-  if (user && profileLoading) {
+  if (user && profileLoading && !profile) {
     return (
       <div className="app-bg flex min-h-screen items-center justify-center p-4">
         <div className="rounded-lg border border-slate-200 bg-white/95 px-5 py-4 text-center shadow-soft">

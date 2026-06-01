@@ -699,11 +699,11 @@ export default function DispatchList() {
 
       {confirming ? (
         <div data-modal-backdrop="true" className="fixed inset-0 z-40 flex items-end overflow-y-auto overscroll-contain bg-slate-950/45 p-3 sm:items-center sm:justify-center">
-          <div data-overlay-panel="true" className="flex max-h-[92dvh] w-full max-w-xl flex-col overflow-hidden rounded-xl bg-white shadow-xl" onClick={(event) => event.stopPropagation()}>
-            <div className="shrink-0 border-b border-slate-100 p-4">
+          <div data-overlay-panel="true" className="max-h-[88dvh] w-full max-w-xl overflow-y-auto overscroll-contain rounded-xl bg-white shadow-xl" onClick={(event) => event.stopPropagation()}>
+            <div className="border-b border-slate-100 p-4">
               <h3 className="text-xl font-bold text-slate-950">Confirmar despacho</h3>
             </div>
-            <div className="min-h-0 flex-1 touch-pan-y overflow-y-auto overscroll-contain px-4 pb-3">
+            <div className="touch-pan-y px-4 pb-[calc(1rem+env(safe-area-inset-bottom))]">
             <div className="mt-3 rounded-lg bg-slate-50 p-3 text-sm font-bold text-slate-700">
               <div className="grid gap-2 sm:grid-cols-2">
                 <div className="sm:col-span-2">
@@ -733,36 +733,26 @@ export default function DispatchList() {
               </div>
             </div>
 
-            <div className="mt-4 space-y-2 pr-1">
+            <div className="mt-4 space-y-2">
               {items.map((item) => {
                 const quantity = Number(item.package_count || 0)
                 const remaining = Number(item.lot.current_quantity || 0) - quantity
                 const equivalent = quantity * Number(item.lot.package_size || 0)
                 return (
-                  <div key={item.lot.id} className="rounded-lg border border-campo-100 bg-white p-3">
-                    <div className="flex flex-wrap justify-between gap-3">
+                  <div key={item.lot.id} className="rounded-lg border border-slate-100 bg-white p-3 shadow-sm">
+                    <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
-                        <p className="font-black leading-snug text-slate-950 [overflow-wrap:anywhere]">{cleanProductName(item.lot.product)}</p>
-                        <p className="text-xs font-semibold text-slate-500">Cliente: {item.lot.clients?.name || '-'}</p>
+                        <p className="text-sm font-black leading-snug text-slate-950 [overflow-wrap:anywhere]">{cleanProductName(item.lot.product)}</p>
                         <p className="text-xs font-semibold text-slate-500">
                           Lote {displayLotCode(item.lot.lot_code)} - {packageLabel(item.lot) || 'Sin presentacion'}
                         </p>
+                        <p className="mt-1 text-xs font-bold text-slate-500">Stock: {formatNumber(item.lot.current_quantity)} a {formatNumber(remaining)} env.</p>
                       </div>
-                      <div className="rounded-lg bg-campo-50 px-3 py-2 text-right text-campo-800">
-                        <p className="text-lg font-black">{formatNumber(quantity)} env.</p>
+                      <div className="shrink-0 rounded-lg bg-campo-50 px-3 py-2 text-right text-campo-800">
+                        <p className="text-base font-black">{formatNumber(quantity)} env.</p>
                         <p className="text-xs font-black">
                           {Number(item.lot.package_size) > 0 ? `${formatNumber(equivalent)} ${item.lot.package_unit || ''}` : 'Sin equiv.'}
                         </p>
-                      </div>
-                    </div>
-                    <div className="mt-3 grid grid-cols-2 gap-2 text-xs font-black">
-                      <div className="rounded-lg bg-slate-50 p-2 text-slate-600">
-                        <span className="block uppercase text-slate-400">Stock antes</span>
-                        <span className="text-slate-950">{formatNumber(item.lot.current_quantity)} env.</span>
-                      </div>
-                      <div className={`rounded-lg p-2 ${remaining < 0 ? 'bg-red-50 text-red-700' : 'bg-campo-50 text-campo-800'}`}>
-                        <span className="block uppercase opacity-70">Stock despues</span>
-                        <span>{formatNumber(remaining)} env.</span>
                       </div>
                     </div>
                   </div>
@@ -770,9 +760,8 @@ export default function DispatchList() {
               })}
             </div>
             <ConfirmChecks checks={confirmChecks} onChange={setConfirmChecks} />
-            </div>
 
-            <div className="grid shrink-0 grid-cols-2 gap-2 border-t border-slate-100 bg-white p-4">
+            <div className="mt-4 grid grid-cols-2 gap-2 border-t border-slate-100 bg-white pt-4">
               <button className="btn-secondary w-full" type="button" onClick={() => setConfirming(false)} disabled={saving}>
                 Cancelar
               </button>
@@ -780,6 +769,7 @@ export default function DispatchList() {
                 {saving ? <LogOut size={20} /> : <CheckCircle2 size={20} />}
                 {saving ? 'Guardando...' : 'Confirmar'}
               </button>
+            </div>
             </div>
           </div>
         </div>

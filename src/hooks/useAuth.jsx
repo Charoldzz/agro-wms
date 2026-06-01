@@ -3,10 +3,30 @@ import { supabase } from '../lib/supabase'
 
 const AuthContext = createContext(null)
 const SESSION_REFRESH_WINDOW_MS = 5 * 60 * 1000
+const PROFILE_CACHE_PREFIX = 'todo-agricola-profile:'
 
 function shouldRefreshSession(session) {
   if (!session?.expires_at) return false
   return session.expires_at * 1000 - Date.now() <= SESSION_REFRESH_WINDOW_MS
+}
+
+function readCachedProfile(userId) {
+  if (!userId) return null
+  try {
+    const raw = window.localStorage.getItem(`${PROFILE_CACHE_PREFIX}${userId}`)
+    return raw ? JSON.parse(raw) : null
+  } catch {
+    return null
+  }
+}
+
+function writeCachedProfile(userId, nextProfile) {
+  if (!userId || !nextProfile) return
+  try {
+    window.localStorage.setItem(`${PROFILE_CACHE_PREFIX}${userId}`, JSON.stringify(nextProfile))
+  } catch {
+    // Cache is only a speed helper. Ignore storage failures.
+  }
 }
 
 export function AuthProvider({ children }) {
@@ -75,6 +95,8 @@ export function AuthProvider({ children }) {
         return
       }
 
+      const cachedProfile = readCachedProfile(session.user.id)
+      if (cachedProfile) setProfile(cachedProfile)
       setProfileLoading(true)
       const { data, error } = await supabase
         .from('profiles')
@@ -83,7 +105,8 @@ export function AuthProvider({ children }) {
         .single()
 
       if (!active) return
-      setProfile(error ? null : data)
+      if (!error && data) writeCachedProfile(session.user.id, data)
+      setProfile(error ? cachedProfile || null : data)
       setProfileLoading(false)
     }
 

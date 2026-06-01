@@ -93,8 +93,8 @@ function LoadingScreen() {
   return (
     <div className="app-bg flex min-h-screen items-center justify-center p-4">
       <div className="rounded-lg border border-slate-200 bg-white/95 px-5 py-4 text-center shadow-soft">
-        <p className="text-sm font-black text-slate-950">Cargando perfil...</p>
-        <p className="mt-1 text-xs font-semibold text-slate-500">Preparando tu pantalla de trabajo.</p>
+        <p className="text-sm font-black text-slate-950">Preparando app...</p>
+        <p className="mt-1 text-xs font-semibold text-slate-500">Un momento.</p>
       </div>
     </div>
   )
