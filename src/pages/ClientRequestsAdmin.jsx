@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { Link, useLocation } from 'react-router-dom'
 import { Check, Clock3, Truck, X } from 'lucide-react'
 import PageHeader from '../components/PageHeader'
 import EmptyState from '../components/EmptyState'
@@ -9,6 +10,8 @@ import { supabase } from '../lib/supabase'
 
 export default function ClientRequestsAdmin() {
   const { user } = useAuth()
+  const location = useLocation()
+  const pendingOnly = new URLSearchParams(location.search).get('pendientes') === '1'
   const [requests, setRequests] = useState([])
   const [error, setError] = useState('')
   const [adminNotes, setAdminNotes] = useState({})
@@ -22,13 +25,17 @@ export default function ClientRequestsAdmin() {
       .subscribe()
 
     return () => supabase.removeChannel(channel)
-  }, [])
+  }, [pendingOnly])
 
   async function loadRequests() {
-    const { data, error: requestError } = await supabase
+    let query = supabase
       .from('client_dispatch_requests')
       .select('*, clients(name), lots(lot_code, product, current_quantity, package_size, package_unit, location), requested_by_profile:profiles!client_dispatch_requests_requested_by_fkey(full_name)')
       .order('created_at', { ascending: false })
+
+    if (pendingOnly) query = query.in('status', ['pendiente', 'aprobado'])
+
+    const { data, error: requestError } = await query
 
     if (requestError) {
       setError('No se pudieron cargar las solicitudes. Ejecuta el SQL client_dispatch_requests.sql en Supabase.')
@@ -62,7 +69,10 @@ export default function ClientRequestsAdmin() {
 
   return (
     <div>
-      <PageHeader title="Solicitudes de despacho" subtitle="Pedidos enviados desde el portal cliente" />
+      <PageHeader
+        title={pendingOnly ? 'Despachos pendientes' : 'Solicitudes de despacho'}
+        subtitle={pendingOnly ? 'Ordenes listas para preparar en almacen' : 'Pedidos enviados desde el portal cliente'}
+      />
 
       {error ? <div className="mb-4 rounded-lg bg-red-50 p-3 text-sm font-bold text-red-700">{error}</div> : null}
 
@@ -117,7 +127,16 @@ export default function ClientRequestsAdmin() {
               {request.notes ? <p className="mt-3 rounded-lg bg-slate-50 p-3 text-sm font-semibold text-slate-600">{request.notes}</p> : null}
               {request.admin_notes ? <p className="mt-3 rounded-lg bg-campo-50 p-3 text-sm font-semibold text-campo-700">Respuesta: {request.admin_notes}</p> : null}
 
-              {request.status === 'pendiente' ? (
+              {request.status === 'pendiente' && pendingOnly ? (
+                <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                  <button className="btn-secondary !min-h-11" type="button" onClick={() => reviewRequest(request.id, 'rechazado')}>
+                    <X size={18} /> Rechazar
+                  </button>
+                  <Link className="btn-primary !min-h-11" to={`/operacion/despacho-lista?request=${request.id}`}>
+                    <Truck size={18} /> Iniciar despacho
+                  </Link>
+                </div>
+              ) : request.status === 'pendiente' ? (
                 <div className="mt-3 grid gap-2 sm:grid-cols-[1fr_140px_140px]">
                   <input
                     className="input"
@@ -132,6 +151,10 @@ export default function ClientRequestsAdmin() {
                     <Check size={18} /> Aprobar
                   </button>
                 </div>
+              ) : request.status === 'aprobado' ? (
+                <Link className="btn-primary mt-3 w-full" to={`/operacion/despacho-lista?request=${request.id}`}>
+                  <Truck size={18} /> Iniciar despacho
+                </Link>
               ) : (
                 <div className="mt-3 flex items-center gap-2 text-xs font-bold text-slate-500">
                   <Clock3 size={16} /> Revisado {request.reviewed_at ? formatDate(request.reviewed_at) : '-'}

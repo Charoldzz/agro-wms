@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Boxes, CalendarClock, Check, DatabaseBackup, Download, FileText, LogOut, Mail, PackagePlus, ScanLine, Wrench, X } from 'lucide-react'
+import { Boxes, CalendarClock, Check, DatabaseBackup, FileText, LogOut, Mail, PackagePlus, ScanLine, Wrench, X } from 'lucide-react'
 import PageHeader from '../components/PageHeader'
 import { useAuth } from '../hooks/useAuth.jsx'
 import { supabase } from '../lib/supabase'
 import { formatDate, formatNumber, movementLabel } from '../lib/format'
-import { cleanProductName, displayLotCode, packageLabel } from '../lib/display'
+import { cleanProductName, displayLotCode } from '../lib/display'
 
 export default function Dashboard() {
   const { user } = useAuth()
@@ -185,18 +185,6 @@ export default function Dashboard() {
     loadData()
   }
 
-  async function reviewDispatchRequest(id, status) {
-    await supabase
-      .from('client_dispatch_requests')
-      .update({
-        status,
-        reviewed_by: user.id,
-        reviewed_at: new Date().toISOString(),
-      })
-      .eq('id', id)
-    loadData()
-  }
-
   async function sendTestDispatchEmail() {
     setSendingTestEmail(true)
     setTestEmailStatus('')
@@ -297,61 +285,66 @@ export default function Dashboard() {
         </div>
       ) : null}
 
-      <section className="mt-5 grid gap-4 lg:grid-cols-2">
+      <section className="mt-5 grid gap-4 lg:grid-cols-3">
         <div className="panel">
           <div className="mb-3 flex items-center gap-2">
-            <Wrench size={20} className="text-orange-500" />
-            <h3 className="font-bold text-slate-900">Pendientes</h3>
-            <Link className="ml-auto text-sm font-bold text-campo-700" to="/pendientes">
+            <LogOut size={20} className="text-maiz" />
+            <h3 className="font-bold text-slate-900">Despachos pendientes</h3>
+            <Link className="ml-auto text-sm font-bold text-campo-700" to="/solicitudes?pendientes=1">
               Ver todos
             </Link>
           </div>
           <div className="max-h-[360px] space-y-2 overflow-y-auto pr-1">
-            {pendingMovements.length === 0 && dispatchRequests.length === 0 ? (
-              <div className="rounded-lg bg-campo-50 p-3 text-sm font-bold text-campo-700">No hay solicitudes, salidas offline, reparaciones ni traslados pendientes.</div>
+            {dispatchRequests.length === 0 ? (
+              <div className="rounded-lg bg-campo-50 p-3 text-sm font-bold text-campo-700">No hay despachos pendientes.</div>
             ) : (
-              <>
-              {dispatchRequests.map((request) => (
+              dispatchRequests.slice(0, 5).map((request) => (
                 <div key={request.id} className="rounded-lg bg-amber-50 p-3">
                   <div className="flex flex-wrap items-start justify-between gap-2">
                     <div className="min-w-0">
-                      <p className="font-bold text-slate-900">Despacho pendiente</p>
                       <p className="text-sm font-black text-slate-950 [overflow-wrap:anywhere]">{request.clients?.name || 'Cliente'}</p>
+                      <p className="text-xs font-bold text-amber-700">{request.status === 'aprobado' ? 'En almacen' : 'Solicitado'}</p>
                     </div>
                     <span className="rounded-full bg-white px-2 py-1 text-xs font-black text-amber-800">
                       {Array.isArray(request.items) && request.items.length > 1 ? `${request.items.length} items` : `${formatNumber(request.quantity)} env.`}
                     </span>
                   </div>
                   {Array.isArray(request.items) && request.items.length > 1 ? (
-                    <div className="mt-2 space-y-2">
-                      {request.items.slice(0, 3).map((item) => (
-                        <div key={item.lot_id} className="rounded-lg bg-white/80 p-2">
-                          <div className="flex flex-wrap items-start justify-between gap-2">
-                            <p className="min-w-0 flex-1 text-sm font-black text-slate-950 [overflow-wrap:anywhere]">{cleanProductName(item.product)}</p>
-                            <span className="rounded-lg bg-campo-50 px-2 py-1 text-xs font-black text-campo-800">{formatNumber(item.quantity)} env.</span>
-                          </div>
-                          <p className="text-xs font-semibold text-slate-500">{displayLotCode(item.lot_code)} - Presentacion: {packageLabel(item) || 'Sin dato'}</p>
-                        </div>
+                    <div className="mt-2 space-y-1">
+                      {request.items.slice(0, 2).map((item) => (
+                        <p key={item.lot_id} className="rounded-lg bg-white/80 px-2 py-1 text-xs font-bold text-slate-600 [overflow-wrap:anywhere]">
+                          {cleanProductName(item.product)} - {formatNumber(item.quantity)} env.
+                        </p>
                       ))}
-                      {request.items.length > 3 ? <p className="text-xs font-bold text-slate-600">+ {request.items.length - 3} producto{request.items.length - 3 === 1 ? '' : 's'} mas</p> : null}
+                      {request.items.length > 2 ? <p className="text-xs font-bold text-slate-600">+ {request.items.length - 2} producto{request.items.length - 2 === 1 ? '' : 's'} mas</p> : null}
                     </div>
                   ) : (
-                    <div className="mt-2 rounded-lg bg-white/80 p-2">
-                      <div className="flex flex-wrap items-start justify-between gap-2">
-                        <p className="min-w-0 flex-1 text-sm font-black text-slate-950 [overflow-wrap:anywhere]">{cleanProductName(request.product || request.lots?.product)}</p>
-                        <span className="rounded-lg bg-campo-50 px-2 py-1 text-xs font-black text-campo-800">{formatNumber(request.quantity)} env.</span>
-                      </div>
-                      <p className="text-xs font-semibold text-slate-500">
-                        {displayLotCode(request.lots?.lot_code)} - Presentacion: {packageLabel(request.lots) || 'Sin dato'} - disponible {formatNumber(request.lots?.current_quantity)} env.
-                      </p>
-                    </div>
+                    <p className="mt-2 rounded-lg bg-white/80 px-2 py-1 text-xs font-bold text-slate-600 [overflow-wrap:anywhere]">
+                      {cleanProductName(request.product || request.lots?.product)} - {displayLotCode(request.lots?.lot_code)}
+                    </p>
                   )}
-                  {request.notes ? <p className="mt-2 text-xs font-semibold text-slate-600">{request.notes}</p> : null}
                   <Link className="btn-primary mt-3 w-full !min-h-10 !py-2" to={`/operacion/despacho-lista?request=${request.id}`}>
                     <LogOut size={16} /> Iniciar despacho
                   </Link>
                 </div>
-              ))}
+              ))
+            )}
+          </div>
+        </div>
+
+        <div className="panel">
+          <div className="mb-3 flex items-center gap-2">
+            <Wrench size={20} className="text-orange-500" />
+            <h3 className="font-bold text-slate-900">Revisiones pendientes</h3>
+            <Link className="ml-auto text-sm font-bold text-campo-700" to="/pendientes">
+              Ver todos
+            </Link>
+          </div>
+          <div className="max-h-[360px] space-y-2 overflow-y-auto pr-1">
+            {pendingMovements.length === 0 ? (
+              <div className="rounded-lg bg-campo-50 p-3 text-sm font-bold text-campo-700">No hay salidas offline, reparaciones ni traslados pendientes.</div>
+            ) : (
+              <>
               {pendingMovements.map((movement) => (
                 <div key={movement.id} className="rounded-lg bg-orange-50 p-3">
                   <p className="font-bold text-slate-900">{movementLabel(movement.type)} - {displayLotCode(movement.lots?.lot_code)}</p>
