@@ -57,6 +57,22 @@ function normalizeLotCode(value) {
   return normalizeText(displayLotCode(value))
 }
 
+function normalizeUnit(value) {
+  const unit = normalizeText(value)
+  if (['L', 'LT', 'LTS', 'LITRO', 'LITROS'].includes(unit)) return 'LT'
+  if (['K', 'KG', 'KGS', 'KILO', 'KILOS'].includes(unit)) return 'KG'
+  if (['G', 'GR', 'GRS', 'GRAMO', 'GRAMOS'].includes(unit)) return 'GR'
+  if (['ML', 'MLS', 'MILILITRO', 'MILILITROS'].includes(unit)) return 'ML'
+  return unit
+}
+
+function isSameProductName(a, b) {
+  const left = normalizeText(cleanProductName(a))
+  const right = normalizeText(cleanProductName(b))
+  if (!left || !right) return false
+  return left === right || left.includes(right) || right.includes(left)
+}
+
 function sameNumber(a, b) {
   if (a === null || a === undefined || a === '' || b === null || b === undefined || b === '') return false
   return Number(a) === Number(b)
@@ -75,10 +91,9 @@ function isSameApprovedLot(lot, approvedItem) {
   const scannedLotCode = normalizeLotCode(lot.lot_code)
   const requestedLotCode = normalizeLotCode(approvedItem.lot_code)
   if (scannedLotCode && requestedLotCode && (scannedLotCode.includes(requestedLotCode) || requestedLotCode.includes(scannedLotCode))) return true
-  if (scannedLotCode && requestedLotCode) return false
 
-  const sameProduct = normalizeText(cleanProductName(lot.product)) === normalizeText(cleanProductName(approvedItem.product))
-  const sameUnit = !approvedItem.package_unit || normalizeText(lot.package_unit) === normalizeText(approvedItem.package_unit)
+  const sameProduct = isSameProductName(lot.product, approvedItem.product)
+  const sameUnit = !approvedItem.package_unit || normalizeUnit(lot.package_unit) === normalizeUnit(approvedItem.package_unit)
   const samePresentation =
     !approvedItem.package_size ||
     sameNumber(lot.package_size, approvedItem.package_size)
