@@ -28,25 +28,28 @@ import Backups from './pages/Backups'
 import { isSupabaseConfigured } from './lib/supabase'
 
 function ProtectedRoute({ children }) {
-  const { user, loading } = useAuth()
+  const { user, loading, profileLoading } = useAuth()
 
   if (!isSupabaseConfigured) return <ConfigWarning />
-  if (loading) return <div className="p-6 text-center text-slate-600">Cargando...</div>
+  if (loading || (user && profileLoading)) return <LoadingScreen />
   if (!user) return <Navigate to="/login" replace />
 
   return children
 }
 
 function RoleRoute({ roles, children }) {
-  const { profile } = useAuth()
+  const { profile, profileLoading } = useAuth()
 
+  if (profileLoading) return <LoadingScreen />
   if (!roles.includes(profile?.role)) return <Navigate to="/" replace />
 
   return children
 }
 
 function AppRoutes() {
-  const { profile } = useAuth()
+  const { profile, profileLoading } = useAuth()
+  if (profileLoading) return <LoadingScreen />
+
   const homeElement = profile?.role === 'operador' ? <Operation /> : profile?.role === 'cliente' ? <ClientPortal /> : <Dashboard />
 
   return (
@@ -83,6 +86,17 @@ function AppRoutes() {
         <Route path="backups" element={<RoleRoute roles={['administrador']}><Backups /></RoleRoute>} />
       </Route>
     </Routes>
+  )
+}
+
+function LoadingScreen() {
+  return (
+    <div className="app-bg flex min-h-screen items-center justify-center p-4">
+      <div className="rounded-lg border border-slate-200 bg-white/95 px-5 py-4 text-center shadow-soft">
+        <p className="text-sm font-black text-slate-950">Cargando perfil...</p>
+        <p className="mt-1 text-xs font-semibold text-slate-500">Preparando tu pantalla de trabajo.</p>
+      </div>
+    </div>
   )
 }
 

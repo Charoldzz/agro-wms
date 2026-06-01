@@ -1,24 +1,36 @@
 import { useState } from 'react'
-import { Navigate } from 'react-router-dom'
+import { Navigate, useLocation } from 'react-router-dom'
 import { Lock, Mail } from 'lucide-react'
 import { supabase, isSupabaseConfigured } from '../lib/supabase'
 import { useAuth } from '../hooks/useAuth.jsx'
 import ConfigWarning from '../components/ConfigWarning'
 
 export default function Login() {
-  const { user } = useAuth()
+  const location = useLocation()
+  const { user, profileLoading } = useAuth()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 
   if (!isSupabaseConfigured) return <ConfigWarning />
-  if (user) return <Navigate to="/" replace />
+  if (user && profileLoading) {
+    return (
+      <div className="app-bg flex min-h-screen items-center justify-center p-4">
+        <div className="rounded-lg border border-slate-200 bg-white/95 px-5 py-4 text-center shadow-soft">
+          <p className="text-sm font-black text-slate-950">Entrando...</p>
+          <p className="mt-1 text-xs font-semibold text-slate-500">Cargando tu usuario y permisos.</p>
+        </div>
+      </div>
+    )
+  }
+  if (user) return <Navigate to={location.state?.from?.pathname || '/'} replace />
 
   async function handleSubmit(event) {
     event.preventDefault()
     setLoading(true)
     setError('')
+    window.dispatchEvent(new Event('todo-close-temporary-overlays'))
 
     const { error: signInError } = await supabase.auth.signInWithPassword({
       email,

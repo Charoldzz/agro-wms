@@ -13,6 +13,7 @@ export function AuthProvider({ children }) {
   const [session, setSession] = useState(null)
   const [profile, setProfile] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [profileLoading, setProfileLoading] = useState(false)
 
   useEffect(() => {
     if (!supabase) {
@@ -57,22 +58,32 @@ export function AuthProvider({ children }) {
   }, [])
 
   useEffect(() => {
+    let active = true
+
     async function loadProfile() {
       if (!supabase || !session?.user) {
+        setProfileLoading(false)
         setProfile(null)
         return
       }
 
-      const { data } = await supabase
+      setProfileLoading(true)
+      const { data, error } = await supabase
         .from('profiles')
         .select('*')
         .eq('id', session.user.id)
         .single()
 
-      setProfile(data)
+      if (!active) return
+      setProfile(error ? null : data)
+      setProfileLoading(false)
     }
 
     loadProfile()
+
+    return () => {
+      active = false
+    }
   }, [session])
 
   const value = useMemo(
@@ -81,11 +92,13 @@ export function AuthProvider({ children }) {
       user: session?.user || null,
       profile,
       loading,
+      profileLoading,
+      appReady: !loading && (!session?.user || !profileLoading),
       isAdmin: profile?.role === 'administrador',
       isOperator: profile?.role === 'operador',
       isClient: profile?.role === 'cliente',
     }),
-    [session, profile, loading],
+    [session, profile, loading, profileLoading],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
