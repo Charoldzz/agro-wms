@@ -144,7 +144,7 @@ export default function AppLayout() {
         </div>
       </header>
 
-      <main className="relative z-10 mx-auto max-w-5xl overflow-x-hidden px-4 py-5">
+      <main className="mx-auto max-w-5xl overflow-x-hidden px-4 py-5">
         {showBackButton ? (
           <button className="btn-secondary mb-4 !min-h-10 !px-3 !py-2 text-sm" type="button" onClick={goBackInsideApp}>
             <ArrowLeft size={18} />

@@ -698,8 +698,8 @@ export default function DispatchList() {
       </Link>
 
       {confirming ? (
-        <div data-modal-backdrop="true" className="fixed inset-0 z-40 flex items-end overflow-y-auto overscroll-contain bg-slate-950/45 p-3 sm:items-center sm:justify-center">
-          <div data-overlay-panel="true" className="max-h-[88dvh] w-full max-w-xl overflow-y-auto overscroll-contain rounded-xl bg-white shadow-xl" onClick={(event) => event.stopPropagation()}>
+        <div data-modal-backdrop="true" className="fixed inset-0 z-[70] flex items-end overflow-y-auto overscroll-contain bg-slate-950/45 p-3 sm:items-center sm:justify-center">
+          <div data-overlay-panel="true" className="max-h-[calc(100dvh-1rem)] w-full max-w-xl overflow-y-auto overscroll-contain rounded-xl bg-white shadow-xl sm:max-h-[88dvh]" onClick={(event) => event.stopPropagation()}>
             <div className="border-b border-slate-100 p-4">
               <h3 className="text-xl font-bold text-slate-950">Confirmar despacho</h3>
             </div>
@@ -761,7 +761,7 @@ export default function DispatchList() {
             </div>
             <ConfirmChecks checks={confirmChecks} onChange={setConfirmChecks} />
 
-            <div className="mt-4 grid grid-cols-2 gap-2 border-t border-slate-100 bg-white pt-4">
+            <div className="sticky bottom-0 z-10 mt-4 grid grid-cols-2 gap-2 border-t border-slate-100 bg-white/95 pt-4 pb-[env(safe-area-inset-bottom)] backdrop-blur">
               <button className="btn-secondary w-full" type="button" onClick={() => setConfirming(false)} disabled={saving}>
                 Cancelar
               </button>
