@@ -3,6 +3,7 @@ import { AuthProvider, useAuth } from './hooks/useAuth.jsx'
 import AppLayout from './components/AppLayout'
 import ConfigWarning from './components/ConfigWarning'
 import AppVersion from './components/AppVersion'
+import InteractionGuard from './components/InteractionGuard'
 import Dashboard from './pages/Dashboard'
 import Login from './pages/Login'
 import Clients from './pages/Clients'
@@ -88,6 +89,7 @@ function AppRoutes() {
 export default function App() {
   return (
     <AuthProvider>
+      <InteractionGuard />
       <AppRoutes />
       <AppVersion />
     </AuthProvider>

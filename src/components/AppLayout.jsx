@@ -34,6 +34,7 @@ export default function AppLayout() {
   const showBackButton = location.pathname !== '/' && !isOperatorHome
 
   async function signOut() {
+    window.dispatchEvent(new Event('todo-close-temporary-overlays'))
     await supabase.auth.signOut()
     navigate('/login')
   }
