@@ -45,10 +45,45 @@ function normalizeClientName(value) {
     .toUpperCase()
 }
 
+function normalizeText(value) {
+  return String(value || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-zA-Z0-9]+/g, '')
+    .toUpperCase()
+}
+
+function normalizeLotCode(value) {
+  return normalizeText(displayLotCode(value))
+}
+
+function sameNumber(a, b) {
+  if (a === null || a === undefined || a === '' || b === null || b === undefined || b === '') return false
+  return Number(a) === Number(b)
+}
+
 function isSameClient(lot, request) {
   if (!request?.client_id) return true
   if (lot.client_id === request.client_id) return true
   return normalizeClientName(lot.clients?.name) === normalizeClientName(request.clients?.name)
+}
+
+function isSameApprovedLot(lot, approvedItem) {
+  if (!lot || !approvedItem) return false
+  if (approvedItem.lot_id && approvedItem.lot_id === lot.id) return true
+
+  const scannedLotCode = normalizeLotCode(lot.lot_code)
+  const requestedLotCode = normalizeLotCode(approvedItem.lot_code)
+  if (scannedLotCode && requestedLotCode && (scannedLotCode.includes(requestedLotCode) || requestedLotCode.includes(scannedLotCode))) return true
+  if (scannedLotCode && requestedLotCode) return false
+
+  const sameProduct = normalizeText(cleanProductName(lot.product)) === normalizeText(cleanProductName(approvedItem.product))
+  const sameUnit = !approvedItem.package_unit || normalizeText(lot.package_unit) === normalizeText(approvedItem.package_unit)
+  const samePresentation =
+    !approvedItem.package_size ||
+    sameNumber(lot.package_size, approvedItem.package_size)
+
+  return sameProduct && sameUnit && samePresentation
 }
 
 export default function DispatchList() {
@@ -177,7 +212,7 @@ export default function DispatchList() {
       }
 
       const approvedItems = Array.isArray(approvedRequest?.items) ? approvedRequest.items : []
-      const approvedItem = approvedItems.find((item) => item.lot_id === data.id)
+      const approvedItem = approvedItems.find((item) => isSameApprovedLot(data, item))
       const approvedLotId = approvedItems.length > 0 ? null : approvedRequest?.lot_id
 
       if (approvedRequest?.client_id && !isSameClient(data, approvedRequest) && !approvedItem && data.id !== approvedLotId) {
@@ -261,7 +296,7 @@ export default function DispatchList() {
 
     const approvedItems = Array.isArray(approvedRequest?.items) ? approvedRequest.items : []
     if (approvedItems.length > 0) {
-      const missing = approvedItems.find((approvedItem) => !items.some((item) => item.lot.id === approvedItem.lot_id))
+      const missing = approvedItems.find((approvedItem) => !items.some((item) => isSameApprovedLot(item.lot, approvedItem)))
       if (missing) return `Falta escanear ${displayLotCode(missing.lot_code)} de la lista aprobada.`
     }
 
@@ -274,7 +309,7 @@ export default function DispatchList() {
       if (approvedRequest?.client_id && !isSameClient(item.lot, approvedRequest)) {
         return `${displayLotCode(item.lot.lot_code)} pertenece a otro cliente.`
       }
-      if (approvedItems.length > 0 && !approvedItems.some((approvedItem) => approvedItem.lot_id === item.lot.id)) {
+      if (approvedItems.length > 0 && !approvedItems.some((approvedItem) => isSameApprovedLot(item.lot, approvedItem))) {
         return `${displayLotCode(item.lot.lot_code)} no pertenece a la lista aprobada.`
       }
     }

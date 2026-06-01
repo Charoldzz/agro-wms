@@ -379,7 +379,7 @@ export default function Lots() {
         </section>
       ) : null}
 
-      {!searchTerm || searchBy === 'producto' ? (
+      {!searchTerm ? (
       <section className="panel">
         <div className="mb-3 flex items-center justify-between gap-3">
           <div>
