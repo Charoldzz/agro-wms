@@ -28,10 +28,10 @@ import Backups from './pages/Backups'
 import { isSupabaseConfigured } from './lib/supabase'
 
 function ProtectedRoute({ children }) {
-  const { user, loading, profileLoading } = useAuth()
+  const { user, profile, loading, profileLoading } = useAuth()
 
   if (!isSupabaseConfigured) return <ConfigWarning />
-  if (loading || (user && profileLoading)) return <LoadingScreen />
+  if (loading || (user && profileLoading && !profile)) return <LoadingScreen />
   if (!user) return <Navigate to="/login" replace />
 
   return children
@@ -40,7 +40,7 @@ function ProtectedRoute({ children }) {
 function RoleRoute({ roles, children }) {
   const { profile, profileLoading } = useAuth()
 
-  if (profileLoading) return <LoadingScreen />
+  if (profileLoading && !profile) return <LoadingScreen />
   if (!roles.includes(profile?.role)) return <Navigate to="/" replace />
 
   return children
@@ -48,7 +48,7 @@ function RoleRoute({ roles, children }) {
 
 function AppRoutes() {
   const { profile, profileLoading } = useAuth()
-  if (profileLoading) return <LoadingScreen />
+  if (profileLoading && !profile) return <LoadingScreen />
 
   const homeElement = profile?.role === 'operador' ? <Operation /> : profile?.role === 'cliente' ? <ClientPortal /> : <Dashboard />
 

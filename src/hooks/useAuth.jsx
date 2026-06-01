@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useMemo, useState } from 'react'
+import { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { supabase } from '../lib/supabase'
 
 const AuthContext = createContext(null)
@@ -14,6 +14,7 @@ export function AuthProvider({ children }) {
   const [profile, setProfile] = useState(null)
   const [loading, setLoading] = useState(true)
   const [profileLoading, setProfileLoading] = useState(false)
+  const sessionUserIdRef = useRef('')
 
   useEffect(() => {
     if (!supabase) {
@@ -33,7 +34,11 @@ export function AuthProvider({ children }) {
       }
 
       if (!active) return
-      setSession(nextSession)
+      const nextUserId = nextSession?.user?.id || ''
+      if (nextUserId !== sessionUserIdRef.current) {
+        sessionUserIdRef.current = nextUserId
+        setSession(nextSession)
+      }
       setLoading(false)
     }
 
@@ -46,6 +51,9 @@ export function AuthProvider({ children }) {
     window.addEventListener('online', restoreSession)
 
     const { data: listener } = supabase.auth.onAuthStateChange((_event, nextSession) => {
+      const nextUserId = nextSession?.user?.id || ''
+      if (nextUserId === sessionUserIdRef.current) return
+      sessionUserIdRef.current = nextUserId
       setSession(nextSession)
     })
 
