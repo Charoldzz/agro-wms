@@ -101,6 +101,21 @@ function isSameApprovedLot(lot, approvedItem) {
   return sameProduct && sameUnit && samePresentation
 }
 
+function deriveDispatchClientId(approvedRequest, items) {
+  if (approvedRequest?.client_id) return approvedRequest.client_id
+
+  const clientIds = Array.from(
+    new Set(
+      items
+        .map((item) => item?.lot?.client_id)
+        .filter(Boolean),
+    ),
+  )
+
+  if (clientIds.length === 1) return clientIds[0]
+  return null
+}
+
 export default function DispatchList() {
   const navigate = useNavigate()
   const location = useLocation()
@@ -329,6 +344,10 @@ export default function DispatchList() {
       }
     }
 
+    if (!deriveDispatchClientId(approvedRequest, items)) {
+      return 'No se pudo identificar un unico cliente para este despacho. Verifica que todos los lotes escaneados pertenezcan al mismo cliente.'
+    }
+
     return ''
   }
 
@@ -365,6 +384,7 @@ export default function DispatchList() {
       quantity: Number(item.package_count),
     }))
     const operationNotes = dispatchNotes.trim() || null
+    const dispatchClientId = deriveDispatchClientId(approvedRequest, items)
     const receiverNameValue = receiverName.trim()
     const receiverDocumentValue = receiverDocument.trim()
     const vehiclePlateValue = vehiclePlate.trim()
@@ -372,7 +392,7 @@ export default function DispatchList() {
 
     try {
       const { data: operation, error: operationError } = await supabase.rpc('create_dispatch_operation', {
-        p_client_id: approvedRequest?.client_id || items[0]?.lot?.client_id || null,
+        p_client_id: dispatchClientId,
         p_receiver_name: receiverNameValue,
         p_receiver_document: receiverDocumentValue,
         p_vehicle_plate: vehiclePlateValue || null,
