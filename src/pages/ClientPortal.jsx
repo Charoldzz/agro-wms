@@ -6,6 +6,7 @@ import EmptyState from '../components/EmptyState'
 import ListProductCard from '../components/ListProductCard'
 import { useAuth } from '../hooks/useAuth.jsx'
 import { cleanProductName, displayLotCode, packageLabel } from '../lib/display'
+import { normalizeDispatchRequests } from '../lib/dispatchRequests'
 import { formatDate, formatNumber, movementLabel } from '../lib/format'
 import { supabase } from '../lib/supabase'
 
@@ -131,10 +132,10 @@ export default function ClientPortal({ view = 'inventory' }) {
 
     const { data: requestData } = await supabase
       .from('client_dispatch_requests')
-      .select('id, product, quantity, items, notes, status, admin_notes, created_at, reviewed_at, lots(lot_code, product)')
+      .select('id, client_id, lot_id, product, quantity, items, notes, status, admin_notes, created_at, reviewed_at, clients(name), lots(id, lot_code, product, current_quantity, package_size, package_unit, location, expiry_date, status)')
       .order('created_at', { ascending: false })
 
-    setRequests(requestData || [])
+    setRequests(await normalizeDispatchRequests(requestData || [], lotsData || []))
   }
 
   const filteredLots = useMemo(() => {
@@ -248,6 +249,7 @@ export default function ClientPortal({ view = 'inventory' }) {
         ...current,
         {
           lot_id: selectedLot.id,
+          client_id: selectedLot.client_id,
           lot_code: selectedLot.lot_code,
           product: selectedLot.product,
           quantity,
@@ -298,21 +300,32 @@ export default function ClientPortal({ view = 'inventory' }) {
       return
     }
 
-    const firstItem = requestItems[0]
-    const firstLot = lots.find((lot) => lot.id === firstItem.lot_id)
-    const totalQuantity = requestItems.reduce((sum, item) => sum + Number(item.quantity || 0), 0)
+    const normalizedRequest = await normalizeDispatchRequests({
+      items: requestItems,
+      clients: { name: clientName },
+    }, lots)
+    const freshItems = normalizedRequest?.items || []
+    const firstItem = freshItems[0]
+    const firstLot = lots.find((lot) => lot.id === firstItem?.lot_id)
+    const requestClientIds = Array.from(new Set(freshItems.map((item) => item.client_id).filter(Boolean)))
+    const requestClientId = requestClientIds.length === 1 ? requestClientIds[0] : firstLot?.client_id
+    const totalQuantity = freshItems.reduce((sum, item) => sum + Number(item.quantity || 0), 0)
 
-    if (!firstLot) {
-      setRequestMessage('No se pudo validar el primer lote de la lista. Recarga la pagina e intenta de nuevo.')
+    if (!firstItem || !requestClientId) {
+      setRequestMessage('No se pudo validar el cliente de la solicitud. Recarga la pagina e intenta de nuevo.')
+      return
+    }
+    if (requestClientIds.length > 1) {
+      setRequestMessage('La solicitud debe tener productos de un solo cliente.')
       return
     }
 
     const { error } = await supabase.from('client_dispatch_requests').insert({
-      client_id: firstLot.client_id,
-      lot_id: firstLot.id,
-      product: requestItems.length === 1 ? firstItem.product : `Lista de despacho (${requestItems.length} productos)`,
+      client_id: requestClientId,
+      lot_id: firstItem.lot_id,
+      product: freshItems.length === 1 ? firstItem.product : `Lista de despacho (${freshItems.length} productos)`,
       quantity: totalQuantity,
-      items: requestItems,
+      items: freshItems,
       notes: requestNotes.trim() || null,
       status: 'aprobado',
       requested_by: user.id,

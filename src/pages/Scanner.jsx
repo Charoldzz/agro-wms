@@ -7,6 +7,7 @@ import { Camera, ImagePlus, Search, TriangleAlert, RefreshCcw } from 'lucide-rea
 import PageHeader from '../components/PageHeader'
 import { supabase } from '../lib/supabase'
 import { cleanProductName, displayLotCode, packageLabel } from '../lib/display'
+import { normalizeDispatchRequests } from '../lib/dispatchRequests'
 import { formatNumber } from '../lib/format'
 
 async function decodeWithBarcodeDetector(file) {
@@ -110,11 +111,11 @@ export default function Scanner() {
 
       const { data } = await supabase
         .from('client_dispatch_requests')
-        .select('*, clients(name), lots(lot_code, product, current_quantity, package_size, package_unit, location)')
+        .select('*, clients(name), lots(id, lot_code, client_id, product, current_quantity, package_size, package_unit, location, expiry_date, status)')
         .eq('id', requestId)
         .maybeSingle()
 
-      setDispatchReference(data || null)
+      setDispatchReference(data ? await normalizeDispatchRequests(data) : null)
     }
 
     loadDispatchReference()

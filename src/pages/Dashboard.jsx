@@ -6,6 +6,7 @@ import { useAuth } from '../hooks/useAuth.jsx'
 import { supabase } from '../lib/supabase'
 import { formatDate, formatNumber, movementLabel } from '../lib/format'
 import { cleanProductName, displayLotCode } from '../lib/display'
+import { normalizeDispatchRequests } from '../lib/dispatchRequests'
 
 export default function Dashboard() {
   const { user } = useAuth()
@@ -53,7 +54,7 @@ export default function Dashboard() {
         .order('created_at', { ascending: false }),
       supabase
         .from('client_dispatch_requests')
-        .select('*, clients(name), lots(lot_code, product, current_quantity, package_size, package_unit, location)')
+        .select('*, clients(name), lots(id, lot_code, client_id, product, current_quantity, package_size, package_unit, location, expiry_date, status)')
         .in('status', ['pendiente', 'aprobado'])
         .order('created_at', { ascending: false }),
     ])
@@ -97,7 +98,7 @@ export default function Dashboard() {
     setLots(lotsData || [])
     setMovements(movementsData || [])
     setPendingMovements(pendingData || [])
-    setDispatchRequests(requestsResult.error ? [] : requestsResult.data || [])
+    setDispatchRequests(requestsResult.error ? [] : await normalizeDispatchRequests(requestsResult.data || []))
   }
 
   async function enrichMovements(rawMovements) {

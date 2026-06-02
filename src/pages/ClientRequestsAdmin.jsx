@@ -5,6 +5,7 @@ import PageHeader from '../components/PageHeader'
 import EmptyState from '../components/EmptyState'
 import { useAuth } from '../hooks/useAuth.jsx'
 import { cleanProductName, displayLotCode, packageLabel } from '../lib/display'
+import { normalizeDispatchRequests } from '../lib/dispatchRequests'
 import { formatDate, formatNumber } from '../lib/format'
 import { supabase } from '../lib/supabase'
 
@@ -30,7 +31,7 @@ export default function ClientRequestsAdmin() {
   async function loadRequests() {
     let query = supabase
       .from('client_dispatch_requests')
-      .select('*, clients(name), lots(lot_code, product, current_quantity, package_size, package_unit, location), requested_by_profile:profiles!client_dispatch_requests_requested_by_fkey(full_name)')
+      .select('*, clients(name), lots(id, lot_code, client_id, product, current_quantity, package_size, package_unit, location, expiry_date, status), requested_by_profile:profiles!client_dispatch_requests_requested_by_fkey(full_name)')
       .order('created_at', { ascending: false })
 
     if (pendingOnly) query = query.in('status', ['pendiente', 'aprobado'])
@@ -44,7 +45,7 @@ export default function ClientRequestsAdmin() {
     }
 
     setError('')
-    setRequests(data || [])
+    setRequests(await normalizeDispatchRequests(data || []))
   }
 
   async function reviewRequest(id, status) {

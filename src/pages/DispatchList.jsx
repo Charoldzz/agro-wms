@@ -6,6 +6,7 @@ import EmptyState from '../components/EmptyState'
 import ListProductCard from '../components/ListProductCard'
 import { useAuth } from '../hooks/useAuth.jsx'
 import { cleanProductName, displayLotCode, packageLabel } from '../lib/display'
+import { normalizeDispatchRequests } from '../lib/dispatchRequests'
 import { formatDate, formatNumber } from '../lib/format'
 import { supabase } from '../lib/supabase'
 import { vibrateError, vibrateSuccess, vibrateWarning } from '../lib/haptics'
@@ -183,11 +184,11 @@ export default function DispatchList() {
       setApprovedRequestLoaded(false)
       const { data } = await supabase
         .from('client_dispatch_requests')
-        .select('*, clients(name), lots(id, lot_code, product, current_quantity, package_size, package_unit, location)')
+        .select('*, clients(name), lots(id, lot_code, client_id, product, current_quantity, package_size, package_unit, location, expiry_date, status)')
         .eq('id', requestId)
         .single()
 
-      setApprovedRequest(data || null)
+      setApprovedRequest(data ? await normalizeDispatchRequests(data) : null)
       setApprovedRequestLoaded(true)
     }
 

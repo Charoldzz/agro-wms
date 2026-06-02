@@ -3,6 +3,7 @@ import { Link, useLocation } from 'react-router-dom'
 import { ClipboardPenLine, LogOut, PackagePlus, ScanLine, Wrench, X } from 'lucide-react'
 import PageHeader from '../components/PageHeader'
 import { cleanProductName, displayLotCode, packageLabel } from '../lib/display'
+import { normalizeDispatchRequests } from '../lib/dispatchRequests'
 import { formatDate, formatNumber, movementLabel } from '../lib/format'
 import { supabase } from '../lib/supabase'
 
@@ -70,7 +71,7 @@ export default function Operation() {
         .limit(100),
       supabase
         .from('client_dispatch_requests')
-        .select('*, clients(name), lots(lot_code, product, current_quantity, package_size, package_unit, location, expiry_date)')
+        .select('*, clients(name), lots(id, lot_code, client_id, product, current_quantity, package_size, package_unit, location, expiry_date, status)')
         .eq('status', 'aprobado')
         .order('created_at', { ascending: false })
         .limit(40),
@@ -85,7 +86,7 @@ export default function Operation() {
 
     setLots(lotData || [])
     setExpiryAlerts(expiryData || [])
-    setDispatchRequests(requestData || [])
+    setDispatchRequests(await normalizeDispatchRequests(requestData || []))
     setPendingMovements(movementData || [])
   }
 

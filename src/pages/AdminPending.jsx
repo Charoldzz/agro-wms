@@ -4,6 +4,7 @@ import PageHeader from '../components/PageHeader'
 import EmptyState from '../components/EmptyState'
 import { useAuth } from '../hooks/useAuth.jsx'
 import { cleanProductName, displayLotCode, packageLabel } from '../lib/display'
+import { normalizeDispatchRequests } from '../lib/dispatchRequests'
 import { formatDate, formatNumber, movementLabel } from '../lib/format'
 import { supabase } from '../lib/supabase'
 
@@ -34,7 +35,7 @@ export default function AdminPending() {
     const [requestResult, movementResult, correctionResult, issueResult, clientResult] = await Promise.all([
       supabase
         .from('client_dispatch_requests')
-        .select('*, clients(name), lots(lot_code, product, current_quantity, package_size, package_unit, location)')
+        .select('*, clients(name), lots(id, lot_code, client_id, product, current_quantity, package_size, package_unit, location, expiry_date, status)')
         .eq('status', 'pendiente')
         .order('created_at', { ascending: false }),
       supabase
@@ -105,7 +106,7 @@ export default function AdminPending() {
 
     if (!clientResult.error) setClients(clientResult.data || [])
     setError(loadErrors.length ? `No se pudieron cargar: ${loadErrors.join(', ')}.` : '')
-    setRequests(requestRows)
+    setRequests(await normalizeDispatchRequests(requestRows))
     setMovements(movementRows)
   }
 
