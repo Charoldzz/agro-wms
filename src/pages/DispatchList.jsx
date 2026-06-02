@@ -108,13 +108,19 @@ function deriveDispatchClientId(approvedRequest, items) {
   const clientIds = Array.from(
     new Set(
       items
-        .map((item) => item?.lot?.client_id)
+        .map((item) => item?.client_id || item?.lot?.client_id)
         .filter(Boolean),
     ),
   )
 
   if (clientIds.length === 1) return clientIds[0]
   return null
+}
+
+function deriveDispatchClientName(approvedRequest, items) {
+  if (approvedRequest?.clients?.name) return approvedRequest.clients.name
+  const itemClient = items.find((item) => item?.client_name || item?.lot?.clients?.name)
+  return itemClient?.client_name || itemClient?.lot?.clients?.name || 'Sin cliente definido'
 }
 
 function sameLotId(item, lotIdToFind) {
@@ -157,6 +163,37 @@ export default function DispatchList() {
     if (data) setGuidePreview(data)
   }
 
+  async function hydrateRequestClient(request) {
+    if (!request) return request
+    const nextRequest = { ...request }
+
+    if (!nextRequest.client_id && nextRequest.requested_by) {
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('client_id')
+        .eq('id', nextRequest.requested_by)
+        .maybeSingle()
+
+      if (profile?.client_id) {
+        nextRequest.client_id = profile.client_id
+      }
+    }
+
+    if (nextRequest.client_id && !nextRequest.clients?.name) {
+      const { data: client } = await supabase
+        .from('clients')
+        .select('id, name')
+        .eq('id', nextRequest.client_id)
+        .maybeSingle()
+
+      if (client) {
+        nextRequest.clients = client
+      }
+    }
+
+    return nextRequest
+  }
+
   useEffect(() => {
     if (startNew) {
       clearDraft(draftKey)
@@ -192,7 +229,8 @@ export default function DispatchList() {
         .eq('id', requestId)
         .single()
 
-      setApprovedRequest(data ? await normalizeDispatchRequests(data) : null)
+      const normalizedRequest = data ? await normalizeDispatchRequests(data) : null
+      setApprovedRequest(normalizedRequest ? await hydrateRequestClient(normalizedRequest) : null)
       setApprovedRequestLoaded(true)
     }
 
@@ -271,8 +309,22 @@ export default function DispatchList() {
 
       const scannedItem = {
         lot: data,
+        client_id: data.client_id || approvedItem?.client_id || approvedRequest?.client_id || null,
+        client_name: data.clients?.name || approvedRequest?.clients?.name || null,
         package_count: approvedItem ? String(approvedItem.quantity || '') : approvedLotId === data.id ? String(approvedRequest.quantity || '') : '',
         fefo_lot: earlierLots?.[0] || null,
+      }
+
+      if (requestId && scannedItem.client_id) {
+        setApprovedRequest((current) => (
+          current && !current.client_id
+            ? {
+                ...current,
+                client_id: scannedItem.client_id,
+                clients: current.clients || (scannedItem.client_name ? { name: scannedItem.client_name } : null),
+              }
+            : current
+        ))
       }
 
       if (approvedItems.length > 0 && !approvedItem) {
@@ -330,13 +382,24 @@ export default function DispatchList() {
 
     const { data } = await supabase
       .from('lots')
-      .select('*, clients(name)')
+      .select('id, lot_code, client_id, product, current_quantity, package_size, package_unit, location, expiry_date, status, clients(name)')
       .in('id', lotIds)
 
     const lotMap = new Map((data || []).map((lot) => [lot.id, lot]))
     const refreshedItems = itemsToRefresh.map((item) => {
       const freshLot = lotMap.get(item?.lot?.id)
-      return freshLot ? { ...item, lot: freshLot } : item
+      if (!freshLot) return item
+      const hydratedLot = {
+        ...freshLot,
+        client_id: freshLot.client_id || item.client_id || item.lot?.client_id || null,
+        clients: freshLot.clients || item.lot?.clients || (item.client_name ? { name: item.client_name } : null),
+      }
+      return {
+        ...item,
+        client_id: item.client_id || hydratedLot.client_id,
+        client_name: item.client_name || hydratedLot.clients?.name || null,
+        lot: hydratedLot,
+      }
     })
 
     if (refreshedItems.some((item) => !itemsToRefresh.some((current) => sameLotId(current, item?.lot?.id) && current?.lot?.client_id === item?.lot?.client_id))) {
@@ -414,6 +477,13 @@ export default function DispatchList() {
     }))
     const operationNotes = dispatchNotes.trim() || null
     const dispatchClientId = deriveDispatchClientId(approvedRequest, refreshedItems)
+    if (!dispatchClientId) {
+      setConfirming(false)
+      setSaving(false)
+      setError('No se pudo definir el cliente del despacho. Vuelve a abrir este despacho desde la solicitud pendiente o revisa que los lotes pertenezcan a un solo cliente.')
+      vibrateError()
+      return
+    }
     const receiverNameValue = receiverName.trim()
     const receiverDocumentValue = receiverDocument.trim()
     const vehiclePlateValue = vehiclePlate.trim()
@@ -485,7 +555,7 @@ export default function DispatchList() {
           body: {
             to: 'hgarayd@outlook.com',
             movement_type: 'salida_lista',
-            client: receiptItems[0]?.lot?.clients?.name || approvedRequest?.clients?.name || 'Sin cliente',
+            client: deriveDispatchClientName(approvedRequest, receiptItems),
             quantity: receiptItems.reduce((sum, item) => sum + Number(item.quantity || 0), 0),
             to_location: vehiclePlateValue || null,
             receiver_name: receiverNameValue,
@@ -593,7 +663,7 @@ export default function DispatchList() {
       {approvedRequest ? (
         <section className="panel mb-4 border-amber-200 bg-amber-50">
           <p className="text-sm font-bold uppercase text-amber-700">Despacho aprobado</p>
-          <p className="mt-1 text-lg font-black text-slate-950">{approvedRequest.clients?.name || 'Cliente'}</p>
+          <p className="mt-1 text-lg font-black text-slate-950">{deriveDispatchClientName(approvedRequest, items)}</p>
           {Array.isArray(approvedRequest.items) && approvedRequest.items.length > 1 ? (
             <div className="mt-2 space-y-1">
               {approvedRequest.items.map((item) => (
@@ -632,6 +702,13 @@ export default function DispatchList() {
           <input className="input mt-1 bg-slate-100 font-black text-slate-700" value={guidePreview} readOnly />
           <span className="mt-1 block text-xs font-semibold text-slate-500">Se asigna automaticamente al guardar la operacion.</span>
         </label>
+        {isApprovedDispatch ? (
+          <label className="sm:col-span-2">
+            <span className="label">Cliente</span>
+            <input className="input mt-1 bg-slate-100 font-black text-slate-700" value={deriveDispatchClientName(approvedRequest, items)} readOnly />
+            <span className="mt-1 block text-xs font-semibold text-slate-500">Cliente tomado automaticamente de la solicitud.</span>
+          </label>
+        ) : null}
         <label>
           <span className="label">Nombre del que recibe</span>
           <input className="input mt-1" autoComplete="off" value={receiverName} onChange={(event) => setReceiverName(event.target.value)} />
@@ -788,7 +865,7 @@ export default function DispatchList() {
                 </div>
                 <div>
                   <span className="block text-xs uppercase text-slate-400">Cliente</span>
-                  <strong className="text-slate-950">{items[0]?.lot?.clients?.name || approvedRequest?.clients?.name || '-'}</strong>
+                  <strong className="text-slate-950">{deriveDispatchClientName(approvedRequest, items)}</strong>
                 </div>
                 <div>
                   <span className="block text-xs uppercase text-slate-400">Productos</span>
