@@ -591,15 +591,11 @@ export default function DispatchList() {
     const resolvedClient = operationClient?.id
       ? operationClient
       : await resolveOperationClient(activeRequest, refreshedItems)
-    const dispatchClientId = resolvedClient?.id
-    if (!dispatchClientId) {
-      setError('No se pudo definir el cliente del despacho. Vuelve a abrir este despacho desde la solicitud pendiente o revisa que los lotes pertenezcan a un solo cliente.')
-      vibrateError()
-      return
+    if (resolvedClient) {
+      setOperationClient(resolvedClient)
     }
-    setOperationClient(resolvedClient)
-    if (approvedRequest && !approvedRequest.client_id) {
-      setApprovedRequest((current) => (current ? { ...current, client_id: dispatchClientId } : current))
+    if (approvedRequest && !approvedRequest.client_id && resolvedClient?.id) {
+      setApprovedRequest((current) => (current ? { ...current, client_id: resolvedClient.id } : current))
     }
 
     setError('')
@@ -632,15 +628,10 @@ export default function DispatchList() {
     const resolvedClient = operationClient?.id
       ? operationClient
       : await resolveOperationClient(activeRequest, refreshedItems)
-    const dispatchClientId = resolvedClient?.id
-    if (!dispatchClientId) {
-      setConfirming(false)
-      setSaving(false)
-      setError('No se pudo definir el cliente del despacho. Vuelve a abrir este despacho desde la solicitud pendiente o revisa que los lotes pertenezcan a un solo cliente.')
-      vibrateError()
-      return
+    const dispatchClientId = resolvedClient?.id || null
+    if (resolvedClient) {
+      setOperationClient(resolvedClient)
     }
-    setOperationClient(resolvedClient)
     const receiverNameValue = receiverName.trim()
     const receiverDocumentValue = receiverDocument.trim()
     const vehiclePlateValue = vehiclePlate.trim()
