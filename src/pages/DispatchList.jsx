@@ -117,6 +117,10 @@ function deriveDispatchClientId(approvedRequest, items) {
   return null
 }
 
+function sameLotId(item, lotIdToFind) {
+  return item?.lot?.id === lotIdToFind
+}
+
 export default function DispatchList() {
   const navigate = useNavigate()
   const location = useLocation()
@@ -320,24 +324,46 @@ export default function DispatchList() {
     setItems((current) => current.filter((item) => item.lot.id !== lotIdToRemove))
   }
 
-  function validateDispatch() {
-    if (items.length === 0) return 'Escanea al menos un lote.'
+  async function refreshItemsFromCurrentLots(itemsToRefresh = items) {
+    const lotIds = Array.from(new Set(itemsToRefresh.map((item) => item?.lot?.id).filter(Boolean)))
+    if (lotIds.length === 0) return itemsToRefresh
+
+    const { data } = await supabase
+      .from('lots')
+      .select('*, clients(name)')
+      .in('id', lotIds)
+
+    const lotMap = new Map((data || []).map((lot) => [lot.id, lot]))
+    const refreshedItems = itemsToRefresh.map((item) => {
+      const freshLot = lotMap.get(item?.lot?.id)
+      return freshLot ? { ...item, lot: freshLot } : item
+    })
+
+    if (refreshedItems.some((item) => !itemsToRefresh.some((current) => sameLotId(current, item?.lot?.id) && current?.lot?.client_id === item?.lot?.client_id))) {
+      setItems(refreshedItems)
+    }
+
+    return refreshedItems
+  }
+
+  function validateDispatch(itemsToValidate = items, requestToValidate = approvedRequest) {
+    if (itemsToValidate.length === 0) return 'Escanea al menos un lote.'
     if (!receiverName.trim()) return 'Escribe el nombre de quien recibe.'
     if (!receiverDocument.trim()) return 'Escribe el numero de documento.'
 
-    const approvedItems = Array.isArray(approvedRequest?.items) ? approvedRequest.items : []
+    const approvedItems = Array.isArray(requestToValidate?.items) ? requestToValidate.items : []
     if (approvedItems.length > 0) {
-      const missing = approvedItems.find((approvedItem) => !items.some((item) => isSameApprovedLot(item.lot, approvedItem)))
+      const missing = approvedItems.find((approvedItem) => !itemsToValidate.some((item) => isSameApprovedLot(item.lot, approvedItem)))
       if (missing) return `Falta escanear ${displayLotCode(missing.lot_code)} de la lista aprobada.`
     }
 
-    for (const item of items) {
+    for (const item of itemsToValidate) {
       const quantity = Number(item.package_count || 0)
       if (quantity <= 0) return `Escribe cantidad para ${displayLotCode(item.lot.lot_code)}.`
       if (quantity > Number(item.lot.current_quantity || 0)) return `No hay inventario suficiente en ${displayLotCode(item.lot.lot_code)}.`
       if (['retenido', 'cerrado'].includes(item.lot.status)) return `${displayLotCode(item.lot.lot_code)} esta ${item.lot.status}.`
       if (expiryDays(item.lot.expiry_date) < 0) return `${displayLotCode(item.lot.lot_code)} esta vencido.`
-      if (approvedRequest?.client_id && !isSameClient(item.lot, approvedRequest)) {
+      if (requestToValidate?.client_id && !isSameClient(item.lot, requestToValidate)) {
         return `${displayLotCode(item.lot.lot_code)} pertenece a otro cliente.`
       }
       if (approvedItems.length > 0 && !approvedItems.some((approvedItem) => isSameApprovedLot(item.lot, approvedItem))) {
@@ -345,15 +371,16 @@ export default function DispatchList() {
       }
     }
 
-    if (!deriveDispatchClientId(approvedRequest, items)) {
+    if (!deriveDispatchClientId(requestToValidate, itemsToValidate)) {
       return 'No se pudo identificar un unico cliente para este despacho. Verifica que todos los lotes escaneados pertenezcan al mismo cliente.'
     }
 
     return ''
   }
 
-  function reviewDispatch() {
-    const validationError = validateDispatch()
+  async function reviewDispatch() {
+    const refreshedItems = await refreshItemsFromCurrentLots()
+    const validationError = validateDispatch(refreshedItems)
     if (validationError) {
       setError(validationError)
       vibrateError()
@@ -367,7 +394,8 @@ export default function DispatchList() {
   async function confirmDispatch() {
     if (saving) return
 
-    const validationError = validateDispatch()
+    const refreshedItems = await refreshItemsFromCurrentLots()
+    const validationError = validateDispatch(refreshedItems)
     if (validationError) {
       setError(validationError)
       vibrateError()
@@ -379,13 +407,13 @@ export default function DispatchList() {
     setStatus('')
 
     const queued = 0
-    const receiptItems = items.map((item) => ({ ...item, quantity: Number(item.package_count), pending: false }))
-    const operationItems = items.map((item) => ({
+    const receiptItems = refreshedItems.map((item) => ({ ...item, quantity: Number(item.package_count), pending: false }))
+    const operationItems = refreshedItems.map((item) => ({
       lot_id: item.lot.id,
       quantity: Number(item.package_count),
     }))
     const operationNotes = dispatchNotes.trim() || null
-    const dispatchClientId = deriveDispatchClientId(approvedRequest, items)
+    const dispatchClientId = deriveDispatchClientId(approvedRequest, refreshedItems)
     const receiverNameValue = receiverName.trim()
     const receiverDocumentValue = receiverDocument.trim()
     const vehiclePlateValue = vehiclePlate.trim()
