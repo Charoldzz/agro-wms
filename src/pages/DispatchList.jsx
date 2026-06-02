@@ -358,94 +358,121 @@ export default function DispatchList() {
     setError('')
     setStatus('')
 
-    let queued = 0
-    let operationCode = ''
-    let receiptItems = items.map((item) => ({ ...item, quantity: Number(item.package_count), pending: false }))
+    const queued = 0
+    const receiptItems = items.map((item) => ({ ...item, quantity: Number(item.package_count), pending: false }))
     const operationItems = items.map((item) => ({
       lot_id: item.lot.id,
       quantity: Number(item.package_count),
     }))
     const operationNotes = dispatchNotes.trim() || null
-    const { data: operation, error: operationError } = await supabase.rpc('create_dispatch_operation', {
-      p_client_id: approvedRequest?.client_id || items[0]?.lot?.client_id || null,
-      p_receiver_name: receiverName.trim(),
-      p_receiver_document: receiverDocument.trim(),
-      p_vehicle_plate: vehiclePlate.trim() || null,
-      p_notes: operationNotes,
-      p_items: operationItems,
-      p_request_id: requestId || null,
-      p_user_id: user.id,
-    })
+    const receiverNameValue = receiverName.trim()
+    const receiverDocumentValue = receiverDocument.trim()
+    const vehiclePlateValue = vehiclePlate.trim()
+    const dispatchNotesValue = dispatchNotes.trim()
 
-    if (!operationError) {
-      operationCode = operation?.operation_code || ''
-    } else {
-      setError(
-        isMissingDispatchOperationRpc(operationError)
-          ? 'Falta actualizar Supabase con operaciones de almacen. Ejecuta supabase/warehouse_operations.sql para habilitar despachos por operacion.'
-          : operationError.message?.includes('inventario')
-            ? 'No hay inventario suficiente para completar este despacho.'
-            : operationError.message,
-      )
-      vibrateError()
-      setSaving(false)
-      return
-    }
-
-    setItems([])
-    setReceiverName('')
-    setReceiverDocument('')
-    setVehiclePlate('')
-    setDispatchNotes('')
-    clearDraft(draftKey)
-    if (requestId && queued === 0) {
-      await supabase.rpc('complete_client_dispatch_request', {
-        p_request_id: requestId,
+    try {
+      const { data: operation, error: operationError } = await supabase.rpc('create_dispatch_operation', {
+        p_client_id: approvedRequest?.client_id || items[0]?.lot?.client_id || null,
+        p_receiver_name: receiverNameValue,
+        p_receiver_document: receiverDocumentValue,
+        p_vehicle_plate: vehiclePlateValue || null,
+        p_notes: operationNotes,
+        p_items: operationItems,
+        p_request_id: requestId || null,
         p_user_id: user.id,
       })
+
+      if (operationError) {
+        setConfirming(false)
+        setError(
+          isMissingDispatchOperationRpc(operationError)
+            ? 'Falta actualizar Supabase con operaciones de almacen. Ejecuta supabase/warehouse_operations.sql para habilitar despachos por operacion.'
+            : operationError.message?.includes('inventario')
+              ? 'No hay inventario suficiente para completar este despacho.'
+              : operationError.message,
+        )
+        vibrateError()
+        return
+      }
+
+      const operationCode = operation?.operation_code || ''
+      const nextReceipt = {
+        id: operationCode || `DESP-${new Date().toISOString().replace(/\D/g, '').slice(0, 14)}`,
+        guideNumber: operation?.guide_number || guidePreview,
+        createdAt: new Date().toISOString(),
+        receiverName: receiverNameValue,
+        receiverDocument: receiverDocumentValue,
+        vehiclePlate: vehiclePlateValue,
+        items: receiptItems,
+        totalPackages,
+        userEmail: user.email,
+        queued,
+      }
+
+      setItems([])
+      setReceiverName('')
+      setReceiverDocument('')
+      setVehiclePlate('')
+      setDispatchNotes('')
+      clearDraft(draftKey)
+
+      if (requestId) {
+        const { error: completeError } = await supabase.rpc('complete_client_dispatch_request', {
+          p_request_id: requestId,
+          p_user_id: user.id,
+        })
+        if (completeError) {
+          console.warn('No se pudo marcar la solicitud como completada.', completeError)
+        }
+      }
+
+      setReceipt(nextReceipt)
+      setConfirming(false)
+      setStatus('Despacho guardado. Enviando correo resumen a oficina.')
+      vibrateSuccess()
+
+      supabase.functions
+        .invoke('send-movement-email', {
+          body: {
+            to: 'hgarayd@outlook.com',
+            movement_type: 'salida_lista',
+            client: receiptItems[0]?.lot?.clients?.name || approvedRequest?.clients?.name || 'Sin cliente',
+            quantity: receiptItems.reduce((sum, item) => sum + Number(item.quantity || 0), 0),
+            to_location: vehiclePlateValue || null,
+            receiver_name: receiverNameValue,
+            receiver_document: receiverDocumentValue,
+            vehicle_plate: vehiclePlateValue || null,
+            notes: dispatchNotesValue || null,
+            user_email: user.email,
+            items: receiptItems.map((item) => ({
+              lot_code: displayLotCode(item.lot.lot_code),
+              product: cleanProductName(item.lot.product),
+              quantity: item.quantity,
+              previous_quantity: Number(item.lot.current_quantity || 0),
+              new_quantity: Number(item.lot.current_quantity || 0) - Number(item.quantity || 0),
+              location: item.lot.location,
+              package_size: item.lot.package_size,
+              package_unit: item.lot.package_unit,
+            })),
+          },
+        })
+        .then(({ error: emailError }) => {
+          if (emailError) {
+            setStatus('Despacho guardado. No se pudo enviar el correo automatico; revisa Resend/Supabase.')
+          } else {
+            setStatus('Despacho guardado y correo resumen enviado a oficina.')
+          }
+        })
+        .catch(() => {
+          setStatus('Despacho guardado. No se pudo enviar el correo automatico; revisa Resend/Supabase.')
+        })
+    } catch (saveError) {
+      setConfirming(false)
+      setError(saveError?.message || 'No se pudo guardar el despacho. Intenta nuevamente.')
+      vibrateError()
+    } finally {
+      setSaving(false)
     }
-    setReceipt({
-      id: operationCode || `DESP-${new Date().toISOString().replace(/\D/g, '').slice(0, 14)}`,
-      guideNumber: operation?.guide_number || guidePreview,
-      createdAt: new Date().toISOString(),
-      receiverName: receiverName.trim(),
-      receiverDocument: receiverDocument.trim(),
-      vehiclePlate: vehiclePlate.trim(),
-      items: receiptItems,
-      totalPackages,
-      userEmail: user.email,
-      queued,
-    })
-    setConfirming(false)
-    if (queued === 0) {
-      await supabase.functions.invoke('send-movement-email', {
-        body: {
-          to: 'hgarayd@outlook.com',
-          movement_type: 'salida_lista',
-          client: receiptItems[0]?.lot?.clients?.name || approvedRequest?.clients?.name || 'Sin cliente',
-          quantity: receiptItems.reduce((sum, item) => sum + Number(item.quantity || 0), 0),
-          to_location: vehiclePlate.trim() || null,
-          receiver_name: receiverName.trim(),
-          receiver_document: receiverDocument.trim(),
-          vehicle_plate: vehiclePlate.trim() || null,
-          notes: dispatchNotes.trim() || null,
-          user_email: user.email,
-          items: receiptItems.map((item) => ({
-            lot_code: displayLotCode(item.lot.lot_code),
-            product: cleanProductName(item.lot.product),
-            quantity: item.quantity,
-            previous_quantity: Number(item.lot.current_quantity || 0),
-            new_quantity: Number(item.lot.current_quantity || 0) - Number(item.quantity || 0),
-            location: item.lot.location,
-            package_size: item.lot.package_size,
-            package_unit: item.lot.package_unit,
-          })),
-        },
-      })
-    }
-    setStatus(queued > 0 ? `${queued} salida(s) quedaron pendientes de revision admin al sincronizar. El correo se enviara despues de revision.` : 'Despacho guardado y correo resumen enviado a oficina.')
-    vibrateSuccess()
-    setSaving(false)
   }
 
   function printReceipt() {
