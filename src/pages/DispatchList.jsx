@@ -107,13 +107,38 @@ function deriveDispatchClientId(approvedRequest, items) {
 
   const clientIds = Array.from(
     new Set(
-      items
+      [
+        ...(items || []),
+        ...(Array.isArray(approvedRequest?.items) ? approvedRequest.items : []),
+      ]
         .map((item) => item?.client_id || item?.lot?.client_id)
         .filter(Boolean),
     ),
   )
 
   if (clientIds.length === 1) return clientIds[0]
+  return null
+}
+
+async function findClientIdByName(clientName) {
+  const normalizedName = normalizeClientName(clientName)
+  if (!normalizedName || normalizedName === 'SIN CLIENTE DEFINIDO') return null
+
+  const { data: exactMatches } = await supabase
+    .from('clients')
+    .select('id, name')
+    .ilike('name', clientName)
+    .limit(2)
+
+  if ((exactMatches || []).length === 1) return exactMatches[0].id
+
+  const { data: clients } = await supabase
+    .from('clients')
+    .select('id, name')
+    .limit(10000)
+
+  const matches = (clients || []).filter((client) => normalizeClientName(client.name) === normalizedName)
+  if (matches.length === 1) return matches[0].id
   return null
 }
 
@@ -151,15 +176,21 @@ async function resolveDispatchClientId(approvedRequest, items) {
     if (lotClientIds.length === 1) return lotClientIds[0]
   }
 
-  const clientName = approvedRequest?.clients?.name || deriveDispatchClientName(approvedRequest, items)
-  if (clientName && clientName !== 'Sin cliente definido') {
-    const { data: clients } = await supabase
-      .from('clients')
-      .select('id, name')
-      .ilike('name', clientName)
-      .limit(2)
+  const clientNames = Array.from(
+    new Set(
+      [
+        approvedRequest?.clients?.name,
+        approvedRequest?.client_name,
+        ...(Array.isArray(approvedRequest?.items) ? approvedRequest.items.map((item) => item?.client_name) : []),
+        ...(items || []).map((item) => item?.client_name || item?.lot?.clients?.name),
+        deriveDispatchClientName(approvedRequest, items),
+      ].filter(Boolean),
+    ),
+  )
 
-    if ((clients || []).length === 1) return clients[0].id
+  for (const clientName of clientNames) {
+    const clientId = await findClientIdByName(clientName)
+    if (clientId) return clientId
   }
 
   return null
@@ -167,6 +198,11 @@ async function resolveDispatchClientId(approvedRequest, items) {
 
 function deriveDispatchClientName(approvedRequest, items) {
   if (approvedRequest?.clients?.name) return approvedRequest.clients.name
+  if (approvedRequest?.client_name) return approvedRequest.client_name
+  const requestItemClient = Array.isArray(approvedRequest?.items)
+    ? approvedRequest.items.find((item) => item?.client_name)
+    : null
+  if (requestItemClient?.client_name) return requestItemClient.client_name
   const itemClient = items.find((item) => item?.client_name || item?.lot?.clients?.name)
   return itemClient?.client_name || itemClient?.lot?.clients?.name || 'Sin cliente definido'
 }

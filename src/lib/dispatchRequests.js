@@ -87,6 +87,7 @@ function itemFromLot(lot, item = {}, request = {}) {
     ...item,
     lot_id: lot.id,
     client_id: lot.client_id,
+    client_name: item.client_name || lot.clients?.name || request.clients?.name || request.client_name || null,
     lot_code: lot.lot_code,
     product: lot.product,
     quantity,
@@ -121,7 +122,8 @@ function normalizeOneRequest(request, lots) {
   const firstMatchedLot = matchLot(normalizedItems[0], request, lots)
   const itemClientIds = Array.from(new Set(normalizedItems.map((item) => item.client_id).filter(Boolean)))
   const clientId = request.client_id || (itemClientIds.length === 1 ? itemClientIds[0] : firstMatchedLot?.client_id) || null
-  const clients = request.clients || firstMatchedLot?.clients || null
+  const firstItemClientName = normalizedItems.find((item) => item.client_name)?.client_name
+  const clients = request.clients || firstMatchedLot?.clients || (firstItemClientName ? { name: firstItemClientName } : null)
   const lotsRelation = request.lots || firstMatchedLot || null
 
   return {

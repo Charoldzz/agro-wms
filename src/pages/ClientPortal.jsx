@@ -239,6 +239,8 @@ export default function ClientPortal({ view = 'inventory' }) {
           item.lot_id === selectedLot.id
             ? {
                 ...item,
+                client_id: selectedLot.client_id,
+                client_name: selectedLot.clients?.name || clientName,
                 quantity: nextQuantity,
                 available: selectedLot.current_quantity,
               }
@@ -250,6 +252,7 @@ export default function ClientPortal({ view = 'inventory' }) {
         {
           lot_id: selectedLot.id,
           client_id: selectedLot.client_id,
+          client_name: selectedLot.clients?.name || clientName,
           lot_code: selectedLot.lot_code,
           product: selectedLot.product,
           quantity,
@@ -302,6 +305,8 @@ export default function ClientPortal({ view = 'inventory' }) {
 
     const normalizedRequest = await normalizeDispatchRequests({
       items: requestItems,
+      client_id: profile?.client_id || null,
+      client_name: clientName,
       clients: { name: clientName },
     }, lots)
     const freshItems = normalizedRequest?.items || []
