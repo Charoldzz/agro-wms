@@ -881,7 +881,6 @@ export default function LotDetail() {
     return (
       <div>
         <PageHeader title="Ficha del lote" subtitle="Detalle visible para cliente" />
-        <BackButton onClick={() => navigate(-1)} />
 
         <LotStateNotice state={lotState} saleBlocked={blocksSale || isExpired} />
 

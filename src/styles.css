@@ -52,6 +52,30 @@ textarea {
   font: inherit;
 }
 
+.clean-scroll {
+  scrollbar-gutter: stable;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(21, 128, 61, 0.45) rgba(241, 245, 249, 0.9);
+}
+
+.clean-scroll::-webkit-scrollbar {
+  width: 8px;
+}
+
+.clean-scroll::-webkit-scrollbar-track {
+  background: rgba(241, 245, 249, 0.9);
+  border-radius: 999px;
+}
+
+.clean-scroll::-webkit-scrollbar-thumb {
+  background: rgba(21, 128, 61, 0.42);
+  border-radius: 999px;
+}
+
+.clean-scroll::-webkit-scrollbar-thumb:hover {
+  background: rgba(21, 128, 61, 0.62);
+}
+
 @layer components {
   .btn-primary {
     @apply inline-flex min-h-12 min-w-0 items-center justify-center gap-2 rounded-lg bg-campo-600 px-4 py-3 text-center text-base font-semibold text-white shadow-soft transition active:scale-[0.99] disabled:cursor-not-allowed disabled:bg-slate-300;

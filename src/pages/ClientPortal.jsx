@@ -577,11 +577,11 @@ export default function ClientPortal({ view = 'inventory' }) {
           {filteredLots.length === 0 ? (
             <EmptyState title="Sin lotes visibles" text="Este usuario cliente todavia no esta vinculado al cliente correcto del inventario actual." />
           ) : (
-            <div className="space-y-2">
+            <div className={`${showAllInventoryProducts && !search.trim() ? 'clean-scroll max-h-[62vh] overflow-y-auto overscroll-contain rounded-lg border border-slate-100 bg-white/70 p-1 pr-2' : 'space-y-2'}`}>
               {visibleInventoryProducts.map((group) => {
                 const isExpanded = expandedInventoryProduct === group.product
                 return (
-                  <article key={group.product} className="overflow-hidden rounded-lg border border-slate-100 bg-slate-50/90">
+                  <article key={group.product} className={`${showAllInventoryProducts && !search.trim() ? 'mb-2 last:mb-0' : ''} overflow-hidden rounded-lg border border-slate-100 bg-slate-50/90`}>
                     <button
                       className="flex w-full flex-col gap-3 p-3 text-left transition hover:bg-campo-50/70 sm:flex-row sm:items-center sm:justify-between"
                       type="button"
