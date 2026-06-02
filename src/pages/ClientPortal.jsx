@@ -52,6 +52,36 @@ function equivalentTotalsLabel(equivalents = {}) {
   return totals.map(([unit, quantity]) => `${formatNumber(quantity)} ${unit}`).join(' / ')
 }
 
+function normalizeClientName(value) {
+  return String(value || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .toUpperCase()
+}
+
+async function findClientIdByName(clientName) {
+  const normalizedName = normalizeClientName(clientName)
+  if (!normalizedName || normalizedName === 'CLIENTE') return null
+
+  const { data: exactMatches } = await supabase
+    .from('clients')
+    .select('id, name')
+    .ilike('name', clientName)
+    .limit(2)
+
+  if ((exactMatches || []).length === 1) return exactMatches[0].id
+
+  const { data: clients } = await supabase
+    .from('clients')
+    .select('id, name')
+    .limit(10000)
+
+  const matches = (clients || []).filter((client) => normalizeClientName(client.name) === normalizedName)
+  return matches.length === 1 ? matches[0].id : null
+}
+
 const REQUEST_DRAFT_KEY = 'todo-agricola-client-dispatch-draft'
 
 function readRequestDraft() {
@@ -314,7 +344,7 @@ export default function ClientPortal({ view = 'inventory' }) {
     const firstLot = lots.find((lot) => lot.id === firstItem?.lot_id)
     const overStockItem = freshItems.find((item) => Number(item.quantity || 0) > Number(item.current_quantity ?? item.available ?? 0))
     const requestClientIds = Array.from(new Set(freshItems.map((item) => item.client_id).filter(Boolean)))
-    const requestClientId = profile?.client_id || (requestClientIds.length === 1 ? requestClientIds[0] : firstLot?.client_id)
+    const requestClientId = profile?.client_id || (requestClientIds.length === 1 ? requestClientIds[0] : firstLot?.client_id) || await findClientIdByName(clientName)
     const totalQuantity = freshItems.reduce((sum, item) => sum + Number(item.quantity || 0), 0)
 
     if (!firstItem || !requestClientId) {
@@ -335,7 +365,11 @@ export default function ClientPortal({ view = 'inventory' }) {
       lot_id: firstItem.lot_id,
       product: freshItems.length === 1 ? firstItem.product : `Lista de despacho (${freshItems.length} productos)`,
       quantity: totalQuantity,
-      items: freshItems,
+      items: freshItems.map((item) => ({
+        ...item,
+        client_id: item.client_id || requestClientId,
+        client_name: item.client_name || clientName,
+      })),
       notes: requestNotes.trim() || null,
       status: 'aprobado',
       requested_by: user.id,
