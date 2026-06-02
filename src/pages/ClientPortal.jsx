@@ -309,7 +309,7 @@ export default function ClientPortal({ view = 'inventory' }) {
     const firstLot = lots.find((lot) => lot.id === firstItem?.lot_id)
     const overStockItem = freshItems.find((item) => Number(item.quantity || 0) > Number(item.current_quantity ?? item.available ?? 0))
     const requestClientIds = Array.from(new Set(freshItems.map((item) => item.client_id).filter(Boolean)))
-    const requestClientId = requestClientIds.length === 1 ? requestClientIds[0] : firstLot?.client_id
+    const requestClientId = profile?.client_id || (requestClientIds.length === 1 ? requestClientIds[0] : firstLot?.client_id)
     const totalQuantity = freshItems.reduce((sum, item) => sum + Number(item.quantity || 0), 0)
 
     if (!firstItem || !requestClientId) {

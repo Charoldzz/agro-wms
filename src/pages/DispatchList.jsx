@@ -117,6 +117,54 @@ function deriveDispatchClientId(approvedRequest, items) {
   return null
 }
 
+async function resolveDispatchClientId(approvedRequest, items) {
+  const directClientId = deriveDispatchClientId(approvedRequest, items)
+  if (directClientId) return directClientId
+
+  if (approvedRequest?.requested_by) {
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('client_id')
+      .eq('id', approvedRequest.requested_by)
+      .maybeSingle()
+
+    if (profile?.client_id) return profile.client_id
+  }
+
+  const lotIds = Array.from(
+    new Set(
+      [
+        ...(items || []).map((item) => item?.lot?.id || item?.lot_id),
+        ...(Array.isArray(approvedRequest?.items) ? approvedRequest.items.map((item) => item?.lot_id) : []),
+        approvedRequest?.lot_id,
+      ].filter(Boolean),
+    ),
+  )
+
+  if (lotIds.length > 0) {
+    const { data: lots } = await supabase
+      .from('lots')
+      .select('client_id')
+      .in('id', lotIds)
+
+    const lotClientIds = Array.from(new Set((lots || []).map((lot) => lot.client_id).filter(Boolean)))
+    if (lotClientIds.length === 1) return lotClientIds[0]
+  }
+
+  const clientName = approvedRequest?.clients?.name || deriveDispatchClientName(approvedRequest, items)
+  if (clientName && clientName !== 'Sin cliente definido') {
+    const { data: clients } = await supabase
+      .from('clients')
+      .select('id, name')
+      .ilike('name', clientName)
+      .limit(2)
+
+    if ((clients || []).length === 1) return clients[0].id
+  }
+
+  return null
+}
+
 function deriveDispatchClientName(approvedRequest, items) {
   if (approvedRequest?.clients?.name) return approvedRequest.clients.name
   const itemClient = items.find((item) => item?.client_name || item?.lot?.clients?.name)
@@ -435,10 +483,6 @@ export default function DispatchList() {
       }
     }
 
-    if (!deriveDispatchClientId(requestToValidate, itemsToValidate)) {
-      return 'No se pudo identificar un unico cliente para este despacho. Verifica que todos los lotes escaneados pertenezcan al mismo cliente.'
-    }
-
     return ''
   }
 
@@ -449,6 +493,16 @@ export default function DispatchList() {
       setError(validationError)
       vibrateError()
       return
+    }
+
+    const dispatchClientId = await resolveDispatchClientId(approvedRequest, refreshedItems)
+    if (!dispatchClientId) {
+      setError('No se pudo definir el cliente del despacho. Vuelve a abrir este despacho desde la solicitud pendiente o revisa que los lotes pertenezcan a un solo cliente.')
+      vibrateError()
+      return
+    }
+    if (approvedRequest && !approvedRequest.client_id) {
+      setApprovedRequest((current) => (current ? { ...current, client_id: dispatchClientId } : current))
     }
 
     setError('')
@@ -477,7 +531,7 @@ export default function DispatchList() {
       quantity: Number(item.package_count),
     }))
     const operationNotes = dispatchNotes.trim() || null
-    const dispatchClientId = deriveDispatchClientId(approvedRequest, refreshedItems)
+    const dispatchClientId = await resolveDispatchClientId(approvedRequest, refreshedItems)
     if (!dispatchClientId) {
       setConfirming(false)
       setSaving(false)
