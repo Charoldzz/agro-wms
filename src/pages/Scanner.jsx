@@ -308,40 +308,34 @@ export default function Scanner() {
       />
 
       {dispatchReference ? (
-        <section className="panel mb-4 border-amber-200 bg-amber-50/95">
-          <div className="flex flex-wrap items-start justify-between gap-2">
+        <section className="mb-4 rounded-lg border border-amber-200 bg-amber-50/85 p-3">
+          <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="min-w-0">
               <p className="text-xs font-black uppercase text-amber-700">Buscar para despacho</p>
-              <h3 className="text-lg font-black text-slate-950 [overflow-wrap:anywhere]">{dispatchReference.clients?.name || 'Cliente'}</h3>
+              <p className="truncate text-sm font-black text-slate-950">{dispatchReference.clients?.name || 'Cliente'}</p>
             </div>
-            <span className="rounded-full bg-white px-3 py-1 text-xs font-black text-amber-800">
+            <span className="rounded-lg bg-white px-2.5 py-1 text-xs font-black text-amber-800">
               {Array.isArray(dispatchReference.items) && dispatchReference.items.length > 1 ? `${dispatchReference.items.length} productos` : '1 producto'}
             </span>
           </div>
-          <div className="mt-3 space-y-2">
-            {Array.isArray(dispatchReference.items) && dispatchReference.items.length > 0 ? (
-              dispatchReference.items.map((item) => (
-                <div key={item.lot_id || item.lot_code} className="rounded-lg bg-white/85 p-3">
-                  <div className="flex flex-wrap items-start justify-between gap-2">
-                    <p className="min-w-0 flex-1 text-sm font-black text-slate-950 [overflow-wrap:anywhere]">{cleanProductName(item.product)}</p>
-                    <span className="rounded-lg bg-campo-50 px-2 py-1 text-xs font-black text-campo-800">{formatNumber(item.quantity)} env.</span>
-                  </div>
-                  <p className="mt-1 text-xs font-bold text-slate-600">
-                    Lote {displayLotCode(item.lot_code)} - Presentacion: {packageLabel(item) || 'Sin dato'}
-                  </p>
-                </div>
-              ))
-            ) : (
-              <div className="rounded-lg bg-white/85 p-3">
-                <div className="flex flex-wrap items-start justify-between gap-2">
-                  <p className="min-w-0 flex-1 text-sm font-black text-slate-950 [overflow-wrap:anywhere]">{cleanProductName(dispatchReference.product || dispatchReference.lots?.product)}</p>
-                  <span className="rounded-lg bg-campo-50 px-2 py-1 text-xs font-black text-campo-800">{formatNumber(dispatchReference.quantity)} env.</span>
-                </div>
-                <p className="mt-1 text-xs font-bold text-slate-600">
-                  Lote {displayLotCode(dispatchReference.lots?.lot_code)} - Presentacion: {packageLabel(dispatchReference.lots) || 'Sin dato'}
-                </p>
-              </div>
-            )}
+          <div className="mt-2 flex gap-1.5 overflow-x-auto pb-1">
+            {(Array.isArray(dispatchReference.items) && dispatchReference.items.length > 0
+              ? dispatchReference.items
+              : [{
+                  lot_id: dispatchReference.lot_id,
+                  lot_code: dispatchReference.lots?.lot_code,
+                  product: dispatchReference.product || dispatchReference.lots?.product,
+                  quantity: dispatchReference.quantity,
+                }])
+              .slice(0, 4)
+              .map((item) => (
+                <span key={item.lot_id || item.lot_code || item.product} className="shrink-0 rounded-lg bg-white px-2 py-1 text-xs font-bold text-slate-700">
+                  {cleanProductName(item.product)} · {formatNumber(item.quantity)} env.
+                </span>
+              ))}
+            {Array.isArray(dispatchReference.items) && dispatchReference.items.length > 4 ? (
+              <span className="shrink-0 rounded-lg bg-white px-2 py-1 text-xs font-bold text-slate-500">+{dispatchReference.items.length - 4}</span>
+            ) : null}
           </div>
         </section>
       ) : null}
