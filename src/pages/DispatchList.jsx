@@ -123,13 +123,6 @@ function deriveDispatchClientName(approvedRequest, items) {
   return itemClient?.client_name || itemClient?.lot?.clients?.name || 'Sin cliente definido'
 }
 
-function approvedDisplayQuantity(item) {
-  const quantity = Number(item?.quantity || 0)
-  const available = Number(item?.current_quantity ?? item?.available ?? quantity)
-  if (available > 0 && quantity > available) return available
-  return quantity
-}
-
 function sameLotId(item, lotIdToFind) {
   return item?.lot?.id === lotIdToFind
 }
@@ -294,11 +287,7 @@ export default function DispatchList() {
       const approvedItems = Array.isArray(approvedRequest?.items) ? approvedRequest.items : []
       const approvedItem = approvedItems.find((item) => isSameApprovedLot(data, item))
       const approvedLotId = approvedItems.length > 0 ? null : approvedRequest?.lot_id
-      const approvedQuantity = approvedItem
-        ? Math.min(Number(approvedItem.quantity || 0), Number(data.current_quantity || 0))
-        : approvedLotId === data.id
-          ? Math.min(Number(approvedRequest.quantity || 0), Number(data.current_quantity || 0))
-          : ''
+      const approvedQuantity = approvedItem ? approvedItem.quantity : approvedLotId === data.id ? approvedRequest.quantity : ''
 
       if (approvedRequest?.client_id && !isSameClient(data, approvedRequest) && !approvedItem && data.id !== approvedLotId) {
         setError(`Este QR pertenece a ${data.clients?.name || 'otro cliente'}, pero la orden es de ${approvedRequest.clients?.name || 'otro cliente'}.`)
@@ -695,7 +684,7 @@ export default function DispatchList() {
               .slice(0, 4)
               .map((item) => (
                 <span key={item.lot_id || item.product} className="shrink-0 rounded-lg bg-white px-2 py-1 text-xs font-bold text-slate-700">
-                  {cleanProductName(item.product)} · {formatNumber(approvedDisplayQuantity(item))} env.
+                  {cleanProductName(item.product)} · {formatNumber(item.quantity)} env.
                 </span>
               ))}
             {Array.isArray(approvedRequest.items) && approvedRequest.items.length > 4 ? (
