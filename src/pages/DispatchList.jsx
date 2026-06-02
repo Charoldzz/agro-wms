@@ -123,6 +123,13 @@ function deriveDispatchClientName(approvedRequest, items) {
   return itemClient?.client_name || itemClient?.lot?.clients?.name || 'Sin cliente definido'
 }
 
+function approvedDisplayQuantity(item) {
+  const quantity = Number(item?.quantity || 0)
+  const available = Number(item?.current_quantity ?? item?.available ?? quantity)
+  if (available > 0 && quantity > available) return available
+  return quantity
+}
+
 function sameLotId(item, lotIdToFind) {
   return item?.lot?.id === lotIdToFind
 }
@@ -287,6 +294,11 @@ export default function DispatchList() {
       const approvedItems = Array.isArray(approvedRequest?.items) ? approvedRequest.items : []
       const approvedItem = approvedItems.find((item) => isSameApprovedLot(data, item))
       const approvedLotId = approvedItems.length > 0 ? null : approvedRequest?.lot_id
+      const approvedQuantity = approvedItem
+        ? Math.min(Number(approvedItem.quantity || 0), Number(data.current_quantity || 0))
+        : approvedLotId === data.id
+          ? Math.min(Number(approvedRequest.quantity || 0), Number(data.current_quantity || 0))
+          : ''
 
       if (approvedRequest?.client_id && !isSameClient(data, approvedRequest) && !approvedItem && data.id !== approvedLotId) {
         setError(`Este QR pertenece a ${data.clients?.name || 'otro cliente'}, pero la orden es de ${approvedRequest.clients?.name || 'otro cliente'}.`)
@@ -311,7 +323,7 @@ export default function DispatchList() {
         lot: data,
         client_id: data.client_id || approvedItem?.client_id || approvedRequest?.client_id || null,
         client_name: data.clients?.name || approvedRequest?.clients?.name || null,
-        package_count: approvedItem ? String(approvedItem.quantity || '') : approvedLotId === data.id ? String(approvedRequest.quantity || '') : '',
+        package_count: approvedQuantity === '' ? '' : String(approvedQuantity),
         fefo_lot: earlierLots?.[0] || null,
       }
 
@@ -661,37 +673,35 @@ export default function DispatchList() {
       <PageHeader title="Despacho" subtitle="Datos del despacho, carga por QR y comprobante" />
 
       {approvedRequest ? (
-        <section className="panel mb-4 border-amber-200 bg-amber-50">
-          <p className="text-sm font-bold uppercase text-amber-700">Despacho aprobado</p>
-          <p className="mt-1 text-lg font-black text-slate-950">{deriveDispatchClientName(approvedRequest, items)}</p>
-          {Array.isArray(approvedRequest.items) && approvedRequest.items.length > 1 ? (
-            <div className="mt-2 space-y-1">
-              {approvedRequest.items.map((item) => (
-                <div key={item.lot_id} className="rounded-lg bg-white/80 p-2">
-                  <div className="flex flex-wrap items-start justify-between gap-2">
-                    <p className="font-black text-slate-950 [overflow-wrap:anywhere]">{cleanProductName(item.product)}</p>
-                    <span className="rounded-lg bg-campo-50 px-2 py-1 text-sm font-black text-campo-800">{formatNumber(item.quantity)} env.</span>
-                  </div>
-                  <p className="text-xs font-semibold text-slate-600">
-                    {displayLotCode(item.lot_code)} - Presentacion: {packageLabel(item) || 'Sin dato'}
-                  </p>
-                </div>
+        <section className="mb-4 rounded-lg border border-amber-200 bg-amber-50/85 p-3">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="min-w-0">
+              <p className="text-xs font-black uppercase text-amber-700">Despacho aprobado</p>
+              <p className="truncate text-sm font-black text-slate-950">{deriveDispatchClientName(approvedRequest, items)}</p>
+            </div>
+            <span className="rounded-lg bg-white px-2.5 py-1 text-xs font-black text-amber-800">
+              {Array.isArray(approvedRequest.items) && approvedRequest.items.length > 0 ? approvedRequest.items.length : 1} producto{Array.isArray(approvedRequest.items) && approvedRequest.items.length === 1 ? '' : 's'}
+            </span>
+          </div>
+          <div className="mt-2 flex gap-1.5 overflow-x-auto pb-1">
+            {(Array.isArray(approvedRequest.items) && approvedRequest.items.length > 0
+              ? approvedRequest.items
+              : [{
+                  lot_id: approvedRequest.lot_id,
+                  lot_code: approvedRequest.lots?.lot_code,
+                  product: approvedRequest.product || approvedRequest.lots?.product,
+                  quantity: approvedRequest.quantity,
+                }])
+              .slice(0, 4)
+              .map((item) => (
+                <span key={item.lot_id || item.product} className="shrink-0 rounded-lg bg-white px-2 py-1 text-xs font-bold text-slate-700">
+                  {cleanProductName(item.product)} · {formatNumber(approvedDisplayQuantity(item))} env.
+                </span>
               ))}
-            </div>
-          ) : (
-            <div className="mt-2 rounded-lg bg-white/80 p-2">
-              <div className="flex flex-wrap items-start justify-between gap-2">
-                <p className="font-black text-slate-950 [overflow-wrap:anywhere]">{cleanProductName(approvedRequest.product || approvedRequest.lots?.product)}</p>
-                <span className="rounded-lg bg-campo-50 px-2 py-1 text-sm font-black text-campo-800">{formatNumber(approvedRequest.quantity)} env.</span>
-              </div>
-              <p className="text-xs font-semibold text-slate-600">
-                {displayLotCode(approvedRequest.lots?.lot_code)} - Presentacion: {packageLabel(approvedRequest.lots) || 'Sin dato'}
-              </p>
-            </div>
-          )}
-          <p className="mt-1 text-xs font-bold text-amber-700">
-            Escanea el QR del lote asignado. Si escaneas otro lote, la app te advertira.
-          </p>
+            {Array.isArray(approvedRequest.items) && approvedRequest.items.length > 4 ? (
+              <span className="shrink-0 rounded-lg bg-white px-2 py-1 text-xs font-bold text-slate-500">+{approvedRequest.items.length - 4}</span>
+            ) : null}
+          </div>
         </section>
       ) : null}
 

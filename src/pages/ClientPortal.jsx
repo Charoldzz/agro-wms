@@ -307,6 +307,7 @@ export default function ClientPortal({ view = 'inventory' }) {
     const freshItems = normalizedRequest?.items || []
     const firstItem = freshItems[0]
     const firstLot = lots.find((lot) => lot.id === firstItem?.lot_id)
+    const overStockItem = freshItems.find((item) => Number(item.quantity || 0) > Number(item.current_quantity ?? item.available ?? 0))
     const requestClientIds = Array.from(new Set(freshItems.map((item) => item.client_id).filter(Boolean)))
     const requestClientId = requestClientIds.length === 1 ? requestClientIds[0] : firstLot?.client_id
     const totalQuantity = freshItems.reduce((sum, item) => sum + Number(item.quantity || 0), 0)
@@ -317,6 +318,10 @@ export default function ClientPortal({ view = 'inventory' }) {
     }
     if (requestClientIds.length > 1) {
       setRequestMessage('La solicitud debe tener productos de un solo cliente.')
+      return
+    }
+    if (overStockItem) {
+      setRequestMessage(`${cleanProductName(overStockItem.product)} solo tiene ${formatNumber(overStockItem.current_quantity ?? overStockItem.available ?? 0)} envases disponibles.`)
       return
     }
 
