@@ -78,7 +78,7 @@ function clearRequestDraft() {
 }
 
 export default function ClientPortal({ view = 'inventory' }) {
-  const { user } = useAuth()
+  const { user, profile } = useAuth()
   const initialDraft = useMemo(readRequestDraft, [])
   const [lots, setLots] = useState([])
   const [movements, setMovements] = useState([])
@@ -155,7 +155,7 @@ export default function ClientPortal({ view = 'inventory' }) {
   const retainedLots = lots.filter((lot) => ['retenido', 'cerrado'].includes(lot.status) || lotStatus(lot).label === 'Vencido')
   const activeRequests = requests.filter((request) => !['despachado', 'rechazado'].includes(request.status))
   const productCount = new Set(lots.map((lot) => lot.product).filter(Boolean)).size
-  const clientName = lots[0]?.clients?.name || 'Cliente'
+  const clientName = lots[0]?.clients?.name || profile?.full_name || 'Cliente'
   const selectedRequestLot = lots.find((lot) => lot.id === requestLotId)
   const requestsView = view === 'requests'
   const movementsView = view === 'movements'
@@ -575,7 +575,7 @@ export default function ClientPortal({ view = 'inventory' }) {
             </span>
           </div>
           {filteredLots.length === 0 ? (
-            <EmptyState title="Sin lotes visibles" text="No hay inventario autorizado para este usuario." />
+            <EmptyState title="Sin lotes visibles" text="Este usuario cliente todavia no esta vinculado al cliente correcto del inventario actual." />
           ) : (
             <div className="space-y-2">
               {visibleInventoryProducts.map((group) => {
