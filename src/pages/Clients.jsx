@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Edit2, Plus, Save, X } from 'lucide-react'
+import { Edit2, Save, X } from 'lucide-react'
 import EmptyState from '../components/EmptyState'
 import PageHeader from '../components/PageHeader'
 import { useAuth } from '../hooks/useAuth.jsx'
@@ -7,6 +7,14 @@ import { supabase } from '../lib/supabase'
 import { formatNumber } from '../lib/format'
 
 const initialForm = { name: '', contact: '', notes: '' }
+
+function displayClientName(name) {
+  return String(name || '').replaceAll('"', '').replace(/\s+/g, ' ').trim()
+}
+
+function clientNameKey(name) {
+  return displayClientName(name).toLocaleLowerCase('es-BO')
+}
 
 function cleanClientNotes(notes) {
   if (!notes) return ''
@@ -28,14 +36,12 @@ export default function Clients() {
   }, [])
 
   async function loadClients() {
-    const [{ data: clientsData }, { data: lotsData }] = await Promise.all([
-      supabase.from('clients').select('*').order('name'),
-      supabase
+    const { data: lotsData } = await supabase
         .from('lots')
         .select('client_id, current_quantity')
+        .eq('inventory_source', 'solucion')
         .eq('status', 'activo')
-        .gt('current_quantity', 0),
-    ])
+        .gt('current_quantity', 0)
 
     const stats = {}
     ;(lotsData || []).forEach((lot) => {
@@ -45,14 +51,27 @@ export default function Clients() {
       stats[lot.client_id].quantity += Number(lot.current_quantity || 0)
     })
 
-    setClients(clientsData || [])
-    setClientStats(stats)
-  }
+    const clientIds = Object.keys(stats)
+    const { data: clientsData } = clientIds.length
+      ? await supabase
+        .from('clients')
+        .select('*')
+        .not('solucion_codigo', 'is', null)
+        .in('id', clientIds)
+        .order('name')
+      : { data: [] }
 
-  function startCreate() {
-    setEditingId(null)
-    setForm(initialForm)
-    setShowForm((value) => !value)
+    const uniqueClients = []
+    const seenNames = new Set()
+    ;(clientsData || []).forEach((client) => {
+      const key = clientNameKey(client.name)
+      if (!key || seenNames.has(key)) return
+      seenNames.add(key)
+      uniqueClients.push({ ...client, name: displayClientName(client.name) })
+    })
+
+    setClients(uniqueClients)
+    setClientStats(stats)
   }
 
   function startEdit(client) {
@@ -74,11 +93,8 @@ export default function Clients() {
   async function handleSubmit(event) {
     event.preventDefault()
 
-    if (editingId) {
-      await supabase.from('clients').update(form).eq('id', editingId)
-    } else {
-      await supabase.from('clients').insert(form)
-    }
+    if (!editingId) return
+    await supabase.from('clients').update(form).eq('id', editingId)
 
     cancelForm()
     loadClients()
@@ -89,19 +105,13 @@ export default function Clients() {
       <PageHeader
         title="Clientes"
         subtitle="Lista compacta de clientes"
-        action={
-          isAdmin ? (
-            <button className="btn-primary !min-h-11 !px-3" onClick={startCreate}>
-              <Plus size={20} />
-            </button>
-          ) : null
-        }
+        action={null}
       />
 
       {showForm && isAdmin ? (
         <form className="panel mb-4 space-y-3" onSubmit={handleSubmit}>
           <div className="flex items-center justify-between gap-3">
-            <h3 className="font-bold text-slate-900">{editingId ? 'Editar cliente' : 'Nuevo cliente'}</h3>
+            <h3 className="font-bold text-slate-900">Editar cliente</h3>
             <button className="btn-secondary !min-h-10 !px-3" type="button" onClick={cancelForm}>
               <X size={18} />
             </button>
@@ -119,14 +129,14 @@ export default function Clients() {
             <textarea className="input mt-1" rows="3" value={form.notes} onChange={(event) => setForm({ ...form, notes: event.target.value })} />
           </label>
           <button className="btn-primary w-full">
-            <Save size={20} /> {editingId ? 'Guardar cambios' : 'Guardar cliente'}
+            <Save size={20} /> Guardar cambios
           </button>
         </form>
       ) : null}
 
       <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
         {clients.length === 0 ? (
-          <EmptyState title="Sin clientes" text="Registra el primer cliente para crear lotes." />
+          <EmptyState title="Sin clientes" text="No hay clientes de Solucion con inventario activo." />
         ) : (
           clients.map((client) => (
             <article key={client.id} className="rounded-lg border border-slate-200 bg-white/95 px-3 py-3 shadow-soft">

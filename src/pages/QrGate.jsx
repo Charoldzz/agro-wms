@@ -20,12 +20,22 @@ export default function QrGate() {
         const { data: lotByToken } = await supabase
           .from('lots')
           .select('id')
+          .eq('inventory_source', 'solucion')
           .eq('qr_token', token)
           .maybeSingle()
         lotId = lotByToken?.id || ''
       }
 
-      if (!lotId) {
+      const { data: activeLot } = lotId
+        ? await supabase
+          .from('lots')
+          .select('id')
+          .eq('id', lotId)
+          .eq('inventory_source', 'solucion')
+          .maybeSingle()
+        : { data: null }
+
+      if (!lotId || !activeLot) {
         setError('No autorizado o QR invalido.')
         return
       }

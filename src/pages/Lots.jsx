@@ -90,10 +90,11 @@ export default function Lots() {
       supabase
         .from('lots')
         .select('*, clients(name)')
+        .eq('inventory_source', 'solucion')
         .eq('status', 'activo')
         .gt('current_quantity', 0)
         .order('created_at', { ascending: false }),
-      supabase.from('clients').select('*').order('name'),
+      supabase.from('clients').select('*').not('solucion_codigo', 'is', null).order('name'),
       supabase
         .from('movements')
         .select('created_at, lots(product)')

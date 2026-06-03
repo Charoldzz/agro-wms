@@ -38,7 +38,7 @@ export default function CorrectionRequests() {
           .eq('approval_status', 'aprobado')
           .order('created_at', { ascending: false })
           .limit(30),
-        supabase.from('clients').select('id, name').order('name'),
+        supabase.from('clients').select('id, name').not('solucion_codigo', 'is', null).order('name'),
       ])
       if (!operationError) {
         setMovements(data || [])

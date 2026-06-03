@@ -188,6 +188,7 @@ export default function LotDetail() {
       const { data } = await supabase
         .from('lots')
         .select('id, lot_code, expiry_date, current_quantity, location')
+        .eq('inventory_source', 'solucion')
         .eq('product', lot.product)
         .neq('id', lot.id)
         .gt('current_quantity', 0)
@@ -213,7 +214,7 @@ export default function LotDetail() {
 
   async function loadLot() {
     const [{ data: lotData }, { data: movementsData }] = await Promise.all([
-      supabase.from('lots').select('*, clients(name, contact)').eq('id', id).single(),
+      supabase.from('lots').select('*, clients(name, contact)').eq('id', id).eq('inventory_source', 'solucion').single(),
       supabase
         .from('movements')
         .select('*, profiles(full_name)')

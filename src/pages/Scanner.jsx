@@ -138,6 +138,7 @@ export default function Scanner() {
           const { data: lotByToken } = await supabase
             .from('lots')
             .select('id')
+            .eq('inventory_source', 'solucion')
             .eq('qr_token', parts[1])
             .maybeSingle()
 
@@ -151,6 +152,14 @@ export default function Scanner() {
       }
 
       if (lotId) {
+        const { data: activeLot } = await supabase
+          .from('lots')
+          .select('id')
+          .eq('id', lotId)
+          .eq('inventory_source', 'solucion')
+          .maybeSingle()
+        if (!activeLot) return false
+
         sessionStorage.setItem(`scanned-lot-${lotId}`, '1')
         if (validMovementMode) {
           sessionStorage.setItem(`lot-mode-${lotId}`, validMovementMode)
