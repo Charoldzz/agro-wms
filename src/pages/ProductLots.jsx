@@ -6,6 +6,14 @@ import { supabase } from '../lib/supabase'
 import { formatDate, formatNumber } from '../lib/format'
 import { cleanProductName, displayLotCode, packageLabel } from '../lib/display'
 
+function safeProductParam(value) {
+  try {
+    return decodeURIComponent(value || '')
+  } catch {
+    return value || ''
+  }
+}
+
 function lotEquivalent(lot) {
   const packageSize = Number(lot?.package_size || 0)
   if (packageSize <= 0 || !lot?.package_unit) return null
@@ -17,7 +25,7 @@ function lotEquivalent(lot) {
 
 export default function ProductLots() {
   const { name } = useParams()
-  const productName = decodeURIComponent(name || '')
+  const productName = cleanProductName(safeProductParam(name))
   const [lots, setLots] = useState([])
 
   useEffect(() => {
@@ -60,7 +68,7 @@ export default function ProductLots() {
           <EmptyState title="Sin lotes" text="No hay lotes disponibles para este producto." />
         ) : (
           productLots.map((lot) => (
-            <Link key={lot.id} to={`/lotes/${lot.id}`} className="block w-full overflow-hidden rounded-lg bg-slate-50 p-3 text-left shadow-soft transition hover:bg-campo-50">
+            <Link key={lot.id} to={`/lotes/${lot.id}`} state={{ backTo: `/productos/${encodeURIComponent(productName)}` }} className="block w-full overflow-hidden rounded-lg bg-slate-50 p-3 text-left shadow-soft transition hover:bg-campo-50">
               <div className="grid gap-2 sm:grid-cols-[1fr_auto] sm:items-start">
                 <div className="min-w-0">
                   <p className="text-sm font-black leading-snug text-slate-950 [overflow-wrap:anywhere] sm:text-base">

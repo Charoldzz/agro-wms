@@ -31,8 +31,8 @@ export default function AppLayout() {
       : profile?.role === 'cliente'
         ? navItems.filter((item) => item.to === '/' || item.roles?.includes('cliente'))
         : navItems.filter((item) => !item.roles || item.roles.includes('administrador'))
-  const isOperatorHome = profile?.role === 'operador' && location.pathname === '/operacion'
-  const showBackButton = location.pathname !== '/' && !isOperatorHome
+  const mainTabPaths = new Set(['/', '/operacion', '/lotes', '/movimientos', '/offline', '/clientes', '/despachos', '/historial'])
+  const showBackButton = !mainTabPaths.has(location.pathname)
 
   async function signOut() {
     window.dispatchEvent(new Event('todo-close-temporary-overlays'))
