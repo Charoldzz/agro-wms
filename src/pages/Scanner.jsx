@@ -88,6 +88,7 @@ export default function Scanner() {
   const [restartKey, setRestartKey] = useState(0)
   const searchParams = new URLSearchParams(location.search)
   const movementMode = searchParams.get('modo') || ''
+  const repairType = searchParams.get('reparacion') || ''
   const returnTo = searchParams.get('return') || ''
   const validMovementMode = ['despacho', 'reparo', 'traslado'].includes(movementMode) ? movementMode : ''
   const requestId = (() => {
@@ -159,13 +160,13 @@ export default function Scanner() {
       }
       if (returnTo && lotId) {
         const separator = returnTo.includes('?') ? '&' : '?'
-        navigate(`${returnTo}${separator}lot=${lotId}`, { state: { scanned: true, movementMode: validMovementMode } })
+        navigate(`${returnTo}${separator}lot=${lotId}`, { state: { scanned: true, movementMode: validMovementMode, repairType } })
         return true
       }
-      navigate(path, { state: { scanned: true, movementMode: validMovementMode, returnTo } })
+      navigate(path, { state: { scanned: true, movementMode: validMovementMode, repairType, returnTo } })
       return true
     },
-    [navigate, returnTo, validMovementMode],
+    [navigate, returnTo, validMovementMode, repairType],
   )
 
   useEffect(() => {

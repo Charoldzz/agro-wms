@@ -30,6 +30,10 @@ const initialMovement = {
 }
 
 const incidentTypes = [
+  { value: 'envases', label: 'Envases', needsAffected: true, needsPhysicalCount: false },
+  { value: 'cajas', label: 'Cajas', needsAffected: true, needsPhysicalCount: false },
+  { value: 'etiquetado', label: 'Etiquetado', needsAffected: false, needsPhysicalCount: false },
+  { value: 'reempaquetado', label: 'Reempaquetado', needsAffected: true, needsPhysicalCount: false },
   { value: 'etiqueta_danada', label: 'Etiqueta dañada', needsAffected: false, needsPhysicalCount: false },
   { value: 'envase_danado', label: 'Envase dañado', needsAffected: true, needsPhysicalCount: false },
   { value: 'reempaque', label: 'Reempaque', needsAffected: true, needsPhysicalCount: false },
@@ -164,10 +168,11 @@ export default function LotDetail() {
 
   useEffect(() => {
     const mode = location.state?.movementMode || ''
+    const repairType = location.state?.repairType || ''
     if (mode === 'despacho') {
       setMovement((value) => ({ ...value, type: 'salida' }))
     } else if (mode === 'reparo') {
-      setMovement((value) => ({ ...value, type: 'ajuste' }))
+      setMovement((value) => ({ ...value, type: 'ajuste', incident_type: repairType || value.incident_type }))
     } else if (mode === 'traslado') {
       setMovement((value) => ({ ...value, type: 'traslado' }))
     }

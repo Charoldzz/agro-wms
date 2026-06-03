@@ -3,12 +3,23 @@ import { useNavigate } from 'react-router-dom'
 import { ArrowRightLeft, Wrench } from 'lucide-react'
 import PageHeader from '../components/PageHeader'
 
+const repairTypes = [
+  { value: 'fraccionamiento', label: 'Fraccionamiento' },
+  { value: 'envases', label: 'Envases' },
+  { value: 'cajas', label: 'Cajas' },
+  { value: 'etiquetado', label: 'Etiquetado' },
+  { value: 'reempaquetado', label: 'Reempaquetado' },
+]
+
 export default function OperatorService() {
   const navigate = useNavigate()
   const [mode, setMode] = useState('reparo')
+  const [repairType, setRepairType] = useState(repairTypes[0].value)
 
   function startScan() {
-    navigate(`/scanner?modo=${mode}`)
+    const params = new URLSearchParams({ modo: mode })
+    if (mode === 'reparo') params.set('reparacion', repairType)
+    navigate(`/scanner?${params.toString()}`)
   }
 
   return (
@@ -35,6 +46,17 @@ export default function OperatorService() {
             </button>
           </div>
         </div>
+
+        {mode === 'reparo' ? (
+          <label className="block">
+            <span className="label">Tipo de reparacion</span>
+            <select className="input mt-1" value={repairType} onChange={(event) => setRepairType(event.target.value)}>
+              {repairTypes.map((repair) => (
+                <option key={repair.value} value={repair.value}>{repair.label}</option>
+              ))}
+            </select>
+          </label>
+        ) : null}
 
         <div className="rounded-lg bg-orange-50 p-3 text-sm font-bold text-orange-800">
           Primero selecciona la operacion. Luego escanea el QR del lote para registrar el movimiento correcto.

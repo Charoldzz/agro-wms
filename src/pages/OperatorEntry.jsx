@@ -32,6 +32,14 @@ const initialForm = {
 }
 const ENTRY_DRAFT_KEY = 'todo-agricola-operator-entry-draft'
 
+function displayClientName(name) {
+  return String(name || '').replaceAll('"', '').replace(/\s+/g, ' ').trim()
+}
+
+function clientNameKey(name) {
+  return displayClientName(name).toLocaleLowerCase('es-BO')
+}
+
 function createOperatorLotCode(index = 0) {
   const stamp = new Date().toISOString().replace(/\D/g, '').slice(0, 14)
   return index ? `ING-${stamp}-${index + 1}` : `ING-${stamp}`
@@ -85,7 +93,17 @@ export default function OperatorEntry() {
 
   async function loadClients() {
     const { data } = await supabase.from('clients').select('id, name, contact').order('name')
-    setClients(data || [])
+    const uniqueClients = []
+    const seenNames = new Set()
+
+    ;(data || []).forEach((client) => {
+      const key = clientNameKey(client.name)
+      if (!key || seenNames.has(key)) return
+      seenNames.add(key)
+      uniqueClients.push(client)
+    })
+
+    setClients(uniqueClients)
   }
 
   async function loadGuidePreview() {
@@ -392,7 +410,7 @@ export default function OperatorEntry() {
               <select className="input" value={form.client_id} onChange={(event) => setForm({ ...form, client_id: event.target.value })} required>
                 <option value="">Seleccionar cliente</option>
                 {clients.map((client) => (
-                  <option key={client.id} value={client.id}>{client.name}</option>
+                  <option key={client.id} value={client.id}>{displayClientName(client.name)}</option>
                 ))}
               </select>
             </Field>
