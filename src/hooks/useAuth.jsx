@@ -57,6 +57,7 @@ export function AuthProvider({ children }) {
       const nextUserId = nextSession?.user?.id || ''
       if (nextUserId !== sessionUserIdRef.current) {
         sessionUserIdRef.current = nextUserId
+        if (nextUserId) setProfileLoading(true)
         setSession(nextSession)
       }
       setLoading(false)
@@ -74,6 +75,7 @@ export function AuthProvider({ children }) {
       const nextUserId = nextSession?.user?.id || ''
       if (nextUserId === sessionUserIdRef.current) return
       sessionUserIdRef.current = nextUserId
+      if (nextUserId) setProfileLoading(true)
       setSession(nextSession)
     })
 

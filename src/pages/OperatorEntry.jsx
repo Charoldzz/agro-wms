@@ -201,6 +201,45 @@ export default function OperatorEntry() {
     setStep((value) => Math.min(value + 1, 3))
   }
 
+  function goToStep(targetStep) {
+    if (targetStep === step) return
+
+    if (targetStep > 1) {
+      const firstStepError = validateStep(1)
+      if (firstStepError) {
+        setError(firstStepError)
+        setStep(1)
+        return
+      }
+    }
+
+    if (targetStep > 2) {
+      const secondStepError = validateStep(2)
+      if (secondStepError) {
+        setError(secondStepError)
+        setStep(2)
+        return
+      }
+    }
+
+    setError('')
+    setStep(targetStep)
+  }
+
+  function reviewEntry() {
+    const firstStepError = validateStep(1)
+    const secondStepError = validateStep(2)
+    if (firstStepError || secondStepError) {
+      setError(firstStepError || secondStepError)
+      setStep(firstStepError ? 1 : 2)
+      return
+    }
+
+    setError('')
+    setConfirmChecks(emptyConfirmChecks())
+    setConfirming(true)
+  }
+
   async function uploadPhoto(lotCode) {
     if (!photoFile) return null
 
@@ -333,9 +372,9 @@ export default function OperatorEntry() {
 
       <section className="panel mb-4">
         <div className="grid grid-cols-3 gap-2 text-center text-xs font-bold">
-          <StepBadge active={step === 1} done={step > 1} label="Cliente" />
-          <StepBadge active={step === 2} done={step > 2} label="Productos" />
-          <StepBadge active={step === 3} done={false} label="Foto y revisar" />
+          <StepBadge active={step === 1} done={step > 1} label="Cliente" onClick={() => goToStep(1)} />
+          <StepBadge active={step === 2} done={step > 2} label="Productos" onClick={() => goToStep(2)} />
+          <StepBadge active={step === 3} done={false} label="Foto y revisar" onClick={() => goToStep(3)} />
         </div>
       </section>
 
@@ -589,7 +628,7 @@ export default function OperatorEntry() {
               Siguiente <ChevronRight size={20} />
             </button>
           ) : (
-              <button className="btn-primary" type="button" onClick={() => setConfirming(true)} disabled={saving}>
+              <button className="btn-primary" type="button" onClick={reviewEntry} disabled={saving}>
               <Save size={20} /> Revisar ingreso
             </button>
           )}
@@ -597,8 +636,8 @@ export default function OperatorEntry() {
       </form>
 
       {confirming ? (
-        <div data-modal-backdrop="true" className="fixed inset-0 z-40 flex items-end overflow-y-auto bg-slate-950/45 p-3 sm:items-center sm:justify-center">
-          <div className="flex max-h-[92dvh] w-full max-w-md flex-col overflow-hidden rounded-xl bg-white shadow-xl">
+        <div data-modal-backdrop="true" className="fixed inset-0 z-50 flex items-end bg-slate-950/45 p-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] sm:items-center sm:justify-center">
+          <div role="dialog" aria-modal="true" className="flex max-h-[94dvh] w-full max-w-md flex-col overflow-hidden rounded-xl bg-white shadow-xl">
             <div className="shrink-0 border-b border-slate-100 p-4">
               <h3 className="text-xl font-bold text-slate-950">Confirmar nuevo ingreso</h3>
               <p className="mt-2 text-sm font-semibold text-slate-500">
@@ -606,7 +645,7 @@ export default function OperatorEntry() {
                 <strong className="font-black text-slate-950">{selectedClient?.name || 'cliente'}</strong>.
               </p>
             </div>
-            <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-3">
+            <div className="min-h-0 flex-1 overscroll-contain overflow-y-auto px-4 pb-4 [-webkit-overflow-scrolling:touch]">
             <div className="mt-4 space-y-2 rounded-lg bg-slate-50 p-3 text-sm font-bold text-slate-700">
               <div className="flex justify-between gap-3"><span>Nº guía</span><span>{guidePreview}</span></div>
               <div className="flex justify-between gap-3"><span>Chofer</span><span>{form.driver_name}</span></div>
@@ -657,7 +696,7 @@ export default function OperatorEntry() {
               ]}
             />
             </div>
-            <div className="grid shrink-0 grid-cols-2 gap-2 border-t border-slate-100 bg-white p-4">
+            <div className="grid shrink-0 grid-cols-2 gap-2 border-t border-slate-100 bg-white p-4 pb-[calc(1rem+env(safe-area-inset-bottom))]">
               <button className="btn-secondary w-full" type="button" onClick={() => setConfirming(false)} disabled={saving}>
                 Cancelar
               </button>
@@ -733,10 +772,15 @@ function Field({ label, hint, children }) {
   )
 }
 
-function StepBadge({ active, done, label }) {
+function StepBadge({ active, done, label, onClick }) {
   return (
-    <div className={`rounded-lg px-2 py-3 ${active ? 'bg-campo-600 text-white' : done ? 'bg-campo-50 text-campo-700' : 'bg-slate-50 text-slate-500'}`}>
+    <button
+      className={`min-h-12 rounded-lg px-2 py-3 transition active:scale-[0.99] ${active ? 'bg-campo-600 text-white' : done ? 'bg-campo-50 text-campo-700' : 'bg-slate-50 text-slate-500'}`}
+      type="button"
+      onClick={onClick}
+      aria-current={active ? 'step' : undefined}
+    >
       {label}
-    </div>
+    </button>
   )
 }
