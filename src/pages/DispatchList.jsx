@@ -623,12 +623,15 @@ export default function DispatchList() {
     const operationItems = refreshedItems.map((item) => ({
       lot_id: item.lot.id,
       quantity: Number(item.package_count),
+      client_id: item.client_id || item.lot.client_id || activeRequest?.client_id || null,
+      client_name: item.client_name || item.lot.clients?.name || activeRequest?.clients?.name || null,
     }))
     const operationNotes = dispatchNotes.trim() || null
     const resolvedClient = operationClient?.id
       ? operationClient
       : await resolveOperationClient(activeRequest, refreshedItems)
-    const dispatchClientId = resolvedClient?.id || null
+    const itemClientIds = Array.from(new Set(operationItems.map((item) => item.client_id).filter(Boolean)))
+    const dispatchClientId = resolvedClient?.id || (itemClientIds.length === 1 ? itemClientIds[0] : null)
     if (resolvedClient) {
       setOperationClient(resolvedClient)
     }

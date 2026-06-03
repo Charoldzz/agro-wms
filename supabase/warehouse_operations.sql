@@ -472,6 +472,7 @@ declare
   v_lot_id uuid;
   v_quantity numeric(12, 2);
   v_new_quantity numeric(12, 2);
+  v_item_client_ids uuid[];
 begin
   if p_user_id <> auth.uid() then
     raise exception 'El usuario del despacho no coincide con la sesion activa.';
@@ -499,11 +500,42 @@ begin
   from jsonb_array_elements(p_items)
   limit 1;
 
-  select client_id
-  into v_operation_client_id
-  from public.lots
-  where id = v_lot_id
-    and v_operation_client_id is null;
+  if v_operation_client_id is null and p_request_id is not null then
+    select client_id
+    into v_operation_client_id
+    from public.client_dispatch_requests
+    where id = p_request_id;
+  end if;
+
+  if v_operation_client_id is null then
+    select array_agg(distinct nullif(value->>'client_id', '')::uuid)
+    into v_item_client_ids
+    from jsonb_array_elements(p_items)
+    where nullif(value->>'client_id', '') is not null;
+
+    if coalesce(array_length(v_item_client_ids, 1), 0) = 1 then
+      v_operation_client_id := v_item_client_ids[1];
+    end if;
+  end if;
+
+  if v_operation_client_id is null then
+    select client_id
+    into v_operation_client_id
+    from public.lots
+    where id = v_lot_id;
+  end if;
+
+  if v_operation_client_id is null then
+    select array_agg(distinct l.client_id)
+    into v_item_client_ids
+    from jsonb_array_elements(p_items) item
+    join public.lots l on l.id = nullif(item.value->>'lot_id', '')::uuid
+    where l.client_id is not null;
+
+    if coalesce(array_length(v_item_client_ids, 1), 0) = 1 then
+      v_operation_client_id := v_item_client_ids[1];
+    end if;
+  end if;
 
   if v_operation_client_id is null then
     raise exception 'No se pudo definir el cliente del despacho.';
