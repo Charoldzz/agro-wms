@@ -13,6 +13,7 @@
 }
 
 body {
+  position: relative;
   margin: 0;
   min-width: 320px;
   min-height: 100vh;
@@ -22,8 +23,25 @@ body {
   -webkit-tap-highlight-color: transparent;
 }
 
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(rgba(246, 247, 243, 0.7), rgba(246, 247, 243, 0.78)),
+    url("/images/almacen-fondo.jpeg");
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: cover;
+}
+
 #root {
+  position: relative;
+  z-index: 1;
   min-width: 0;
+  min-height: 100vh;
   overflow-x: hidden;
 }
 
@@ -37,12 +55,7 @@ body,
 .app-bg {
   position: relative;
   isolation: isolate;
-  background:
-    linear-gradient(rgba(246, 247, 243, 0.72), rgba(246, 247, 243, 0.78)),
-    url("/images/almacen-fondo.jpeg");
-  background-attachment: scroll;
-  background-position: center;
-  background-size: cover;
+  background: transparent;
 }
 
 button,
