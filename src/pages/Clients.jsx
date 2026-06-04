@@ -94,7 +94,10 @@ export default function Clients() {
     event.preventDefault()
 
     if (!editingId) return
-    await supabase.from('clients').update(form).eq('id', editingId)
+    await supabase
+      .from('clients')
+      .update({ contact: form.contact, notes: form.notes })
+      .eq('id', editingId)
 
     cancelForm()
     loadClients()
@@ -111,15 +114,16 @@ export default function Clients() {
       {showForm && isAdmin ? (
         <form className="panel mb-4 space-y-3" onSubmit={handleSubmit}>
           <div className="flex items-center justify-between gap-3">
-            <h3 className="font-bold text-slate-900">Editar cliente</h3>
+            <h3 className="font-bold text-slate-900">Editar contacto</h3>
             <button className="btn-secondary !min-h-10 !px-3" type="button" onClick={cancelForm}>
               <X size={18} />
             </button>
           </div>
-          <label className="block">
-            <span className="label">Nombre cliente</span>
-            <input className="input mt-1" value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} required />
-          </label>
+          <div className="rounded-lg bg-slate-50 p-3">
+            <p className="text-xs font-semibold uppercase text-slate-400">Cliente oficial de Solucion</p>
+            <p className="mt-1 text-base font-bold text-slate-950 [overflow-wrap:anywhere]">{form.name}</p>
+            <p className="mt-1 text-xs font-semibold text-slate-500">El nombre viene de Solucion y no se modifica desde la app.</p>
+          </div>
           <label className="block">
             <span className="label">Contacto</span>
             <input className="input mt-1" value={form.contact} onChange={(event) => setForm({ ...form, contact: event.target.value })} />
@@ -129,7 +133,7 @@ export default function Clients() {
             <textarea className="input mt-1" rows="3" value={form.notes} onChange={(event) => setForm({ ...form, notes: event.target.value })} />
           </label>
           <button className="btn-primary w-full">
-            <Save size={20} /> Guardar cambios
+            <Save size={20} /> Guardar contacto
           </button>
         </form>
       ) : null}
@@ -193,7 +197,7 @@ export default function Clients() {
                   setSelectedClient(null)
                 }}
               >
-                <Edit2 size={18} /> Editar cliente
+                <Edit2 size={18} /> Editar contacto
               </button>
             ) : null}
           </div>
