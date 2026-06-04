@@ -1,0 +1,13 @@
+{
+  "solucion_path": "C:/Ruta/A/Solucion",
+  "output_dir": "tmp/solucion_sync",
+  "sql_part_max_mb": 1.5,
+  "intervals": {
+    "stock_minutes": 1,
+    "dispatch_minutes": 1,
+    "masters_minutes": 15,
+    "full_sync_time": "02:00"
+  },
+  "apply_to_database": false,
+  "database_url_env": "SUPABASE_DB_URL"
+}
