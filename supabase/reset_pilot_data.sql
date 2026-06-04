@@ -25,6 +25,18 @@ begin;
 
 do $$
 begin
+  -- Reset administrativo: se desactiva temporalmente la proteccion
+  -- que impide borrar movimientos. Se vuelve a activar al final.
+  if exists (
+    select 1
+    from pg_trigger
+    where tgname = 'movements_prevent_delete'
+      and tgrelid = 'public.movements'::regclass
+      and not tgisinternal
+  ) then
+    alter table public.movements disable trigger movements_prevent_delete;
+  end if;
+
   -- Desvincula perfiles cliente antes de borrar clientes.
   if exists (
     select 1
@@ -103,6 +115,16 @@ begin
     values ('guide', 1)
     on conflict (counter_name)
     do update set next_number = excluded.next_number;
+  end if;
+
+  if exists (
+    select 1
+    from pg_trigger
+    where tgname = 'movements_prevent_delete'
+      and tgrelid = 'public.movements'::regclass
+      and not tgisinternal
+  ) then
+    alter table public.movements enable trigger movements_prevent_delete;
   end if;
 end $$;
 
