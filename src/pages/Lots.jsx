@@ -94,7 +94,7 @@ export default function Lots() {
         .eq('status', 'activo')
         .gt('current_quantity', 0)
         .order('created_at', { ascending: false }),
-      supabase.from('clients').select('*').not('solucion_codigo', 'is', null).order('name'),
+      supabase.from('clients').select('*').not('solucion_codigo', 'is', null).neq('solucion_codigo', 0).order('name'),
       supabase
         .from('movements')
         .select('created_at, lots(product)')

@@ -128,6 +128,7 @@ async function findClientIdByName(clientName) {
     .from('clients')
     .select('id, name')
     .not('solucion_codigo', 'is', null)
+    .neq('solucion_codigo', 0)
     .ilike('name', clientName)
     .limit(2)
 
@@ -137,6 +138,7 @@ async function findClientIdByName(clientName) {
     .from('clients')
     .select('id, name')
     .not('solucion_codigo', 'is', null)
+    .neq('solucion_codigo', 0)
     .limit(10000)
 
   const matches = (clients || []).filter((client) => normalizeClientName(client.name) === normalizedName)
@@ -280,6 +282,7 @@ export default function DispatchList() {
         .from('clients')
         .select('id, name')
         .not('solucion_codigo', 'is', null)
+        .neq('solucion_codigo', 0)
         .eq('id', nextRequest.client_id)
         .maybeSingle()
 
@@ -310,6 +313,7 @@ export default function DispatchList() {
       .from('clients')
       .select('id, name')
       .not('solucion_codigo', 'is', null)
+      .neq('solucion_codigo', 0)
       .eq('id', clientId)
       .maybeSingle()
 

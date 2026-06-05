@@ -96,6 +96,7 @@ export default function OperatorEntry() {
       .from('clients')
       .select('id, name, contact, solucion_codigo')
       .not('solucion_codigo', 'is', null)
+      .neq('solucion_codigo', 0)
       .order('name')
     const uniqueClients = []
     const seenNames = new Set()

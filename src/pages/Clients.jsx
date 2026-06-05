@@ -57,6 +57,7 @@ export default function Clients() {
         .from('clients')
         .select('*')
         .not('solucion_codigo', 'is', null)
+        .neq('solucion_codigo', 0)
         .in('id', clientIds)
         .order('name')
       : { data: [] }

@@ -54,7 +54,7 @@ export default function AdminPending() {
         .select('*, lots(lot_code, product, location, clients(name)), profiles!operational_issue_reports_reported_by_fkey(full_name)')
         .eq('status', 'pendiente')
         .order('created_at', { ascending: false }),
-      supabase.from('clients').select('id, name').not('solucion_codigo', 'is', null).order('name'),
+      supabase.from('clients').select('id, name').not('solucion_codigo', 'is', null).neq('solucion_codigo', 0).order('name'),
     ])
 
     let requestRows = requestResult.data || []
@@ -117,7 +117,7 @@ export default function AdminPending() {
       lotIds.length
         ? supabase.from('lots').select('id, lot_code, product, current_quantity, package_size, package_unit, location').eq('inventory_source', 'solucion').in('id', lotIds)
         : Promise.resolve({ data: [] }),
-      clientIds.length ? supabase.from('clients').select('id, name').not('solucion_codigo', 'is', null).in('id', clientIds) : Promise.resolve({ data: [] }),
+      clientIds.length ? supabase.from('clients').select('id, name').not('solucion_codigo', 'is', null).neq('solucion_codigo', 0).in('id', clientIds) : Promise.resolve({ data: [] }),
     ])
     const lotMap = new Map((lotRows || []).map((lot) => [lot.id, lot]))
     const clientMap = new Map((clientRows || []).map((client) => [client.id, client]))

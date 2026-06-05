@@ -249,6 +249,6 @@ where l.inventory_source = 'solucion'
 
 select
   (select count(*) from allowed_solucion_warehouses) as almacenes_autorizados,
-  (select count(*) from public.clients where solucion_codigo is not null) as clientes_solucion_visibles,
+  (select count(*) from public.clients where solucion_codigo is not null and solucion_codigo <> 0) as clientes_solucion_visibles,
   (select count(*) from public.lots where inventory_source = 'solucion' and status = 'activo') as lotes_activos_solucion,
   (select coalesce(sum(current_quantity), 0) from public.lots where inventory_source = 'solucion' and status = 'activo') as envases_solucion;
