@@ -51,6 +51,14 @@ Deno.serve(async (req) => {
     const body = await req.json()
     const toEmail = Deno.env.get('MOVEMENT_EMAIL_TO') || body.to || 'hgarayd@outlook.com'
     const listItems = Array.isArray(body.items) ? body.items : []
+    const attachments = Array.isArray(body.attachments)
+      ? body.attachments
+        .filter((attachment: Record<string, unknown>) => attachment?.filename && attachment?.content)
+        .map((attachment: Record<string, unknown>) => ({
+          filename: String(attachment.filename),
+          content: String(attachment.content),
+        }))
+      : []
     const isList = body.movement_type === 'salida_lista' || listItems.length > 0
     const hasEntryPack = listItems.some((item: Record<string, unknown>) =>
       Number(item.box_count || 0) > 0 || Number(item.units_per_box || 0) > 0 || Number(item.loose_units || 0) > 0
@@ -240,6 +248,7 @@ Deno.serve(async (req) => {
         subject,
         text,
         html,
+        ...(attachments.length > 0 ? { attachments } : {}),
       }),
     })
 
