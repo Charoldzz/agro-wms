@@ -8,6 +8,45 @@
 
 create extension if not exists "pgcrypto";
 
+-- Solo estos almacenes de Solucion se consideran clientes de almacen para la app.
+-- Si se agrega o quita un cliente de almacen, actualizar esta lista.
+create temp table if not exists allowed_solucion_warehouses (
+  warehouse_code bigint primary key,
+  warehouse_name text not null
+) on commit drop;
+
+truncate table allowed_solucion_warehouses;
+
+insert into allowed_solucion_warehouses (warehouse_code, warehouse_name)
+values
+  (17, 'ALMACEN GAT BOLIVIA'),
+  (21, 'AGRO PARCEL'),
+  (24, 'TECNOMYL'),
+  (25, 'CIAGRO S.A'),
+  (27, 'TOTAL AGRO S.A'),
+  (28, 'AGROPECUARIA GUANANDI SRL (TECNOMYL)'),
+  (32, 'AUBREY REINALDO VIRICA'),
+  (35, 'DENIS BARBIERI'),
+  (40, 'TOTAL PEC S.R.L'),
+  (41, 'ADILSON SABEC'),
+  (42, 'AGRONEULAND S.R.L'),
+  (44, 'MAXIAGRO SRL'),
+  (45, 'FOLCOL'),
+  (47, 'DISAN SRL'),
+  (48, 'ZENTTA BIO'),
+  (49, 'ALBAUGH'),
+  (50, 'AGRICOLA RIO VICTORIA S.R.L'),
+  (51, 'SOGIMA S.R.L'),
+  (52, 'GRANODEST S.R.L'),
+  (53, 'BRONCOS S.R.L'),
+  (54, 'UPL BOLIVIA S.R.L'),
+  (55, 'AGROCALY'),
+  (56, 'JACOBO MARTENS'),
+  (57, 'DAVID WIEBEB'),
+  (58, 'LA BENDECIDA')
+on conflict (warehouse_code) do update
+set warehouse_name = excluded.warehouse_name;
+
 alter table public.clients
 add column if not exists solucion_codigo bigint;
 
@@ -60,23 +99,8 @@ begin
 end;
 $$;
 
--- Importa clientes de Solucion como directorio de clientes.
-insert into public.clients (name, contact, notes, solucion_codigo)
-select
-  sc.name,
-  coalesce(nullif(sc.contact, ''), nullif(sc.phone, ''), nullif(sc.email, '')),
-  'Cliente sincronizado desde Solucion',
-  sc.solucion_codigo
-from public.solucion_clients sc
-where sc.name is not null
-on conflict (solucion_codigo) do update
-set
-  name = excluded.name,
-  contact = coalesce(nullif(public.clients.contact, ''), excluded.contact),
-  notes = case
-    when public.clients.notes is null or trim(public.clients.notes) = '' then excluded.notes
-    else public.clients.notes
-  end;
+-- No importamos todo el directorio comercial de Solucion.
+-- Para la app de almacen solo se muestran los almacenes autorizados de arriba.
 
 -- Cliente interno usado para stock propio de Todo Agricola.
 insert into public.clients (name, contact, notes, solucion_codigo)
@@ -88,15 +112,25 @@ set name = excluded.name;
 -- que debe verse destacado en la app. La ubicacion operativa se fija abajo.
 insert into public.clients (name, contact, notes, solucion_codigo)
 select
-  sw.name,
+  allowed.warehouse_name,
   null,
   'Cliente creado desde almacenes Solucion',
-  -abs(sw.warehouse_code)
-from public.solucion_warehouses sw
-where sw.name is not null
-  and trim(sw.name) <> ''
+  -abs(allowed.warehouse_code)
+from allowed_solucion_warehouses allowed
+join public.solucion_warehouses sw on sw.warehouse_code = allowed.warehouse_code
 on conflict (solucion_codigo) do update
 set name = excluded.name;
+
+-- Oculta clientes de Solucion que no pertenecen a los almacenes autorizados.
+-- No borra historial; solo evita que aparezcan en listas operativas filtradas por Solucion.
+update public.clients client
+set solucion_codigo = null
+where client.solucion_codigo is not null
+  and client.solucion_codigo <> 0
+  and client.solucion_codigo not in (
+    select -abs(warehouse_code)
+    from allowed_solucion_warehouses
+  );
 
 -- Archiva el inventario anterior para que no se mezcle con Solucion.
 update public.lots
@@ -122,6 +156,7 @@ with solucion_lots as (
   from public.solucion_stock ss
   left join public.solucion_products sp on sp.product_code = ss.product_code
   left join public.solucion_warehouses sw on sw.warehouse_code = ss.warehouse_code
+  join allowed_solucion_warehouses allowed on allowed.warehouse_code = ss.warehouse_code
   cross join lateral public.extract_solucion_package(coalesce(sp.name, ss.product_code)) pkg
   where coalesce(ss.current_quantity, 0) > 0
 ),
@@ -207,11 +242,13 @@ where l.inventory_source = 'solucion'
   and not exists (
     select 1
     from public.solucion_stock ss
+    join allowed_solucion_warehouses allowed on allowed.warehouse_code = ss.warehouse_code
     where ss.mirror_id = l.solucion_mirror_id
       and coalesce(ss.current_quantity, 0) > 0
   );
 
 select
-  (select count(*) from public.clients where solucion_codigo is not null) as clientes_solucion,
+  (select count(*) from allowed_solucion_warehouses) as almacenes_autorizados,
+  (select count(*) from public.clients where solucion_codigo is not null) as clientes_solucion_visibles,
   (select count(*) from public.lots where inventory_source = 'solucion' and status = 'activo') as lotes_activos_solucion,
   (select coalesce(sum(current_quantity), 0) from public.lots where inventory_source = 'solucion' and status = 'activo') as envases_solucion;
