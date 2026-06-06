@@ -2,33 +2,41 @@
 
 ## Objetivo
 
-Adjuntar al correo de cada operacion un PDF imprimible usando las plantillas oficiales:
+Adjuntar al correo de cada operacion un PDF imprimible usando las plantillas oficiales de Word:
 
 - `templates/warehouse/orden_ingreso.docx`
 - `templates/warehouse/orden_salida.docx`
-- `templates/warehouse/orden_ingreso.pdf`
-- `templates/warehouse/orden_salida.pdf`
 
 Ingreso usa la plantilla de ingreso. Despacho o salida usa la plantilla de salida.
 
-## Enfoque actual
+## Enfoque correcto
 
-Las plantillas PDF permiten generar el adjunto sin convertir Word. El generador usa el PDF como fondo y escribe los datos encima de los espacios correspondientes.
+El documento oficial se genera desde Word con LibreOffice. Esto evita escribir texto encima de un PDF y permite que cada dato caiga dentro de su casilla real.
 
-La Edge Function de Supabase ya puede enviar adjuntos por Resend. El siguiente paso productivo es conectar el generador de PDF al flujo de correo para que entregue el archivo en base64 antes del envio.
+La Edge Function de Supabase no debe generar este PDF con LibreOffice porque Supabase Edge Functions no ejecuta LibreOffice. Su trabajo queda limitado a enviar el correo y adjuntar archivos que ya vengan generados.
 
 ## Flujo recomendado
 
 1. La app registra la operacion en Supabase.
-2. La app o Supabase arma los datos de la operacion.
-3. Un generador de documentos rellena el PDF correcto.
-4. La Edge Function `send-movement-email` envia el correo con el PDF adjunto.
+2. Un conector local o backend con LibreOffice genera el PDF desde la plantilla Word.
+3. Ese conector envia el PDF en base64 a la Edge Function `send-movement-email`.
+4. La Edge Function envia el correo con el PDF adjunto.
 
 ## Generador local incluido
 
-El script `scripts/generate_warehouse_order_pdf.py` rellena las plantillas con datos JSON. Por defecto genera PDF directo desde las plantillas PDF.
+El script `scripts/generate_warehouse_order_pdf.py` rellena las plantillas Word y convierte el resultado a PDF con LibreOffice.
 
-Ejemplo:
+Ejemplo para ingreso:
+
+```powershell
+python scripts/generate_warehouse_order_pdf.py `
+  --type ingreso `
+  --format pdf `
+  --payload tmp/warehouse_order_sample.json `
+  --out tmp/orden_ingreso_prueba.pdf
+```
+
+Ejemplo para salida:
 
 ```powershell
 python scripts/generate_warehouse_order_pdf.py `
@@ -38,32 +46,25 @@ python scripts/generate_warehouse_order_pdf.py `
   --out tmp/orden_salida_prueba.pdf
 ```
 
-Tambien puede generar DOCX desde las plantillas Word:
+## Envio del adjunto
 
-```powershell
-python scripts/generate_warehouse_order_pdf.py `
-  --type salida `
-  --format docx `
-  --payload tmp/warehouse_order_sample.json `
-  --out tmp/orden_salida_prueba.docx
+La Edge Function acepta adjuntos ya generados en el campo `attachments`:
+
+```json
+{
+  "attachments": [
+    {
+      "filename": "orden-salida.pdf",
+      "content": "BASE64_DEL_PDF"
+    }
+  ]
+}
 ```
 
-## Campos usados
+## Reglas visuales
 
-- `Number`: numero de guia u operacion.
-- `Fecha`: fecha de la operacion.
-- `Empresa`: cliente.
-- `Trans`: transportista o persona relacionada.
-- `Contacto`: quien recibe o contacto.
-- `Placa`: placa del vehiculo.
-- `Observaciones`: observaciones de la operacion.
-- `Recibido`: persona que recibe.
-- `Entregado`: usuario o responsable.
-- `Cantidad1..Cantidad8`: envases por linea.
-- `Volumen1..Volumen8`: equivalente calculado.
-- `Producto1..Producto8`: producto.
-- `CantE1..CantE8`: cajas o embalaje.
-
-## Siguiente paso para activarlo oficialmente
-
-Conectar este generador al flujo de correo. Cuando el generador devuelva el PDF en base64, la Edge Function ya puede enviarlo como adjunto usando `attachments`.
+- Las casillas sin dato quedan en blanco.
+- Los placeholders restantes se eliminan.
+- No se escriben textos redundantes dentro de las celdas.
+- Las observaciones mantienen solo la indicacion: `Anotar observaciones con claridad`.
+- Los valores largos se recortan para evitar que tapen etiquetas o invadan otras casillas.
