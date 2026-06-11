@@ -139,7 +139,7 @@ export async function fetchCurrentDispatchLots() {
   const { data } = await supabase
     .from('lots')
     .select('id, lot_code, client_id, product, current_quantity, package_size, package_unit, location, expiry_date, status, clients(name)')
-    .eq('inventory_source', 'solucion')
+    .in('inventory_source', ['solucion', 'stock_independiente'])
     .gt('current_quantity', 0)
     .order('updated_at', { ascending: false })
     .limit(5000)

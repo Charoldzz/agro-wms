@@ -177,7 +177,7 @@ async function resolveDispatchClientId(approvedRequest, items) {
     const { data: lots } = await supabase
       .from('lots')
       .select('client_id, clients(name)')
-      .eq('inventory_source', 'solucion')
+      .in('inventory_source', ['solucion', 'stock_independiente'])
       .in('id', lotIds)
 
     const lotClientIds = Array.from(new Set((lots || []).map((lot) => lot.client_id).filter(Boolean)))
@@ -423,7 +423,7 @@ export default function DispatchList() {
       const { data, error: lotError } = await supabase
         .from('lots')
         .select('*, clients(name)')
-        .eq('inventory_source', 'solucion')
+        .in('inventory_source', ['solucion', 'stock_independiente'])
         .eq('id', lotId)
         .single()
 
@@ -449,7 +449,7 @@ export default function DispatchList() {
       const { data: earlierLots } = await supabase
         .from('lots')
         .select('id, lot_code, expiry_date, current_quantity, location')
-        .eq('inventory_source', 'solucion')
+        .in('inventory_source', ['solucion', 'stock_independiente'])
         .eq('product', data.product)
         .neq('id', data.id)
         .eq('status', 'activo')
@@ -536,7 +536,7 @@ export default function DispatchList() {
     const { data } = await supabase
       .from('lots')
       .select('id, lot_code, client_id, product, current_quantity, package_size, package_unit, location, expiry_date, status, clients(name)')
-      .eq('inventory_source', 'solucion')
+      .in('inventory_source', ['solucion', 'stock_independiente'])
       .in('id', lotIds)
 
     const lotMap = new Map((data || []).map((lot) => [lot.id, lot]))

@@ -91,7 +91,7 @@ export default function AdminExports() {
       supabase
         .from('lots')
         .select('*, clients(name)')
-        .eq('inventory_source', 'solucion')
+        .in('inventory_source', ['solucion', 'stock_independiente'])
         .eq('status', 'activo')
         .gt('current_quantity', 0)
         .order('product'),

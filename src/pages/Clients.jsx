@@ -39,7 +39,7 @@ export default function Clients() {
     const { data: lotsData } = await supabase
         .from('lots')
         .select('client_id, current_quantity')
-        .eq('inventory_source', 'solucion')
+        .in('inventory_source', ['solucion', 'stock_independiente'])
         .eq('status', 'activo')
         .gt('current_quantity', 0)
 

@@ -24,7 +24,7 @@ export default function ExpiringLots() {
     const { data } = await supabase
       .from('lots')
       .select('*, clients(name)')
-      .eq('inventory_source', 'solucion')
+      .in('inventory_source', ['solucion', 'stock_independiente'])
       .gt('current_quantity', 0)
       .not('expiry_date', 'is', null)
       .order('expiry_date', { ascending: true })

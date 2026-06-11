@@ -38,7 +38,7 @@ export default function Dashboard() {
       supabase
         .from('lots')
         .select('*, clients(name)')
-        .eq('inventory_source', 'solucion')
+        .in('inventory_source', ['solucion', 'stock_independiente'])
         .eq('status', 'activo')
         .gt('current_quantity', 0)
         .order('created_at', { ascending: false }),
@@ -108,7 +108,7 @@ export default function Dashboard() {
 
     const [{ data: lotRows }, { data: profileRows }] = await Promise.all([
       lotIds.length
-        ? supabase.from('lots').select('id, product, lot_code, current_quantity, location, clients(name)').eq('inventory_source', 'solucion').in('id', lotIds)
+        ? supabase.from('lots').select('id, product, lot_code, current_quantity, location, clients(name)').in('inventory_source', ['solucion', 'stock_independiente']).in('id', lotIds)
         : Promise.resolve({ data: [] }),
       userIds.length
         ? supabase.from('profiles').select('id, full_name').in('id', userIds)
