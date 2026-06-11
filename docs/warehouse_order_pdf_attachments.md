@@ -46,6 +46,30 @@ python scripts/generate_warehouse_order_pdf.py `
   --out tmp/orden_salida_prueba.pdf
 ```
 
+## Servicio para que la app adjunte el PDF
+
+La app web no genera el Word/PDF dentro del navegador. Cuando se guarda un ingreso o despacho, llama a un servicio HTTP que corre LibreOffice y devuelve el PDF listo para adjuntar.
+
+Para probarlo localmente:
+
+```powershell
+python scripts/warehouse_document_service.py
+```
+
+El servicio queda escuchando en:
+
+```text
+http://127.0.0.1:8787/warehouse-order
+```
+
+En `.env` o en Vercel debe existir:
+
+```text
+VITE_WAREHOUSE_DOCUMENT_API_URL=http://127.0.0.1:8787
+```
+
+Importante: `127.0.0.1` solo sirve para pruebas en la misma computadora. Para produccion, este servicio debe estar instalado en una computadora/servidor siempre encendido y expuesto con una URL HTTPS segura. Sin esa URL configurada, la app enviara el correo normal, pero sin adjunto.
+
 ## Envio del adjunto
 
 La Edge Function acepta adjuntos ya generados en el campo `attachments`:

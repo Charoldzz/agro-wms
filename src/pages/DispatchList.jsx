@@ -12,6 +12,7 @@ import { supabase } from '../lib/supabase'
 import { vibrateError, vibrateSuccess, vibrateWarning } from '../lib/haptics'
 import ConfirmChecks, { allConfirmChecksDone, emptyConfirmChecks } from '../components/ConfirmChecks'
 import { clearDraft, readDraft, writeDraft } from '../lib/drafts'
+import { createWarehouseOrderAttachment } from '../lib/warehouseDocuments'
 
 const DISPATCH_DRAFT_KEY = 'todo-agricola-dispatch-list-draft'
 
@@ -713,12 +714,41 @@ export default function DispatchList() {
       setStatus('Despacho guardado. Enviando correo resumen a oficina.')
       vibrateSuccess()
 
+      const dispatchClientName = deriveDispatchClientName(approvedRequest, receiptItems)
+      const emailItems = receiptItems.map((item) => ({
+        lot_code: displayLotCode(item.lot.lot_code),
+        product: cleanProductName(item.lot.product),
+        quantity: item.quantity,
+        previous_quantity: Number(item.lot.current_quantity || 0),
+        new_quantity: Number(item.lot.current_quantity || 0) - Number(item.quantity || 0),
+        location: item.lot.location,
+        package_size: item.lot.package_size,
+        package_unit: item.lot.package_unit,
+      }))
+      let orderAttachment = null
+      try {
+        orderAttachment = await createWarehouseOrderAttachment('salida', {
+          number: nextReceipt.guideNumber || nextReceipt.id,
+          client: dispatchClientName,
+          receiver_name: receiverNameValue,
+          receiver_document: receiverDocumentValue,
+          vehicle_plate: vehiclePlateValue,
+          notes: dispatchNotesValue || '',
+          received_by: receiverNameValue,
+          delivered_by: user.email,
+          user_email: user.email,
+          items: emailItems,
+        })
+      } catch (attachmentError) {
+        console.warn('No se pudo generar la orden de salida adjunta.', attachmentError)
+      }
+
       supabase.functions
         .invoke('send-movement-email', {
           body: {
             to: 'hgarayd@outlook.com',
             movement_type: 'salida_lista',
-            client: deriveDispatchClientName(approvedRequest, receiptItems),
+            client: dispatchClientName,
             quantity: receiptItems.reduce((sum, item) => sum + Number(item.quantity || 0), 0),
             to_location: vehiclePlateValue || null,
             receiver_name: receiverNameValue,
@@ -726,23 +756,19 @@ export default function DispatchList() {
             vehicle_plate: vehiclePlateValue || null,
             notes: dispatchNotesValue || null,
             user_email: user.email,
-            items: receiptItems.map((item) => ({
-              lot_code: displayLotCode(item.lot.lot_code),
-              product: cleanProductName(item.lot.product),
-              quantity: item.quantity,
-              previous_quantity: Number(item.lot.current_quantity || 0),
-              new_quantity: Number(item.lot.current_quantity || 0) - Number(item.quantity || 0),
-              location: item.lot.location,
-              package_size: item.lot.package_size,
-              package_unit: item.lot.package_unit,
-            })),
+            items: emailItems,
+            attachments: orderAttachment ? [orderAttachment] : [],
           },
         })
         .then(({ error: emailError }) => {
           if (emailError) {
             setStatus('Despacho guardado. No se pudo enviar el correo automatico; revisa Resend/Supabase.')
           } else {
-            setStatus('Despacho guardado y correo resumen enviado a oficina.')
+            setStatus(
+              orderAttachment
+                ? 'Despacho guardado y correo con orden adjunta enviado a oficina.'
+                : 'Despacho guardado y correo enviado sin adjunto. Falta configurar el generador de ordenes.',
+            )
           }
         })
         .catch(() => {

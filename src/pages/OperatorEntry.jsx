@@ -13,6 +13,7 @@ import { compressImageFile } from '../lib/image'
 import ConfirmChecks, { allConfirmChecksDone, emptyConfirmChecks } from '../components/ConfirmChecks'
 import { clearDraft, readDraft, writeDraft } from '../lib/drafts'
 import { internalLocations } from '../lib/locations'
+import { createWarehouseOrderAttachment } from '../lib/warehouseDocuments'
 
 const initialForm = {
   lot_code: '',
@@ -350,6 +351,24 @@ export default function OperatorEntry() {
         }
       })
 
+      let orderAttachment = null
+      try {
+        orderAttachment = await createWarehouseOrderAttachment('ingreso', {
+          number: operation?.guide_number || guidePreview,
+          client: selectedClient?.name || 'Sin cliente',
+          driver_name: form.driver_name.trim(),
+          driver_document: form.driver_document.trim(),
+          vehicle_plate: form.vehicle_plate.trim(),
+          notes: form.notes || '',
+          received_by: user.email,
+          delivered_by: form.driver_name.trim(),
+          user_email: user.email,
+          items: emailItems,
+        })
+      } catch (attachmentError) {
+        console.warn('No se pudo generar la orden de ingreso adjunta.', attachmentError)
+      }
+
       const { error: emailError } = await supabase.functions.invoke('send-movement-email', {
         body: {
           to: 'hgarayd@outlook.com',
@@ -361,6 +380,7 @@ export default function OperatorEntry() {
           client: selectedClient?.name || 'Sin cliente',
           user_email: user.email,
           items: emailItems,
+          attachments: orderAttachment ? [orderAttachment] : [],
         },
       })
 
@@ -377,7 +397,9 @@ export default function OperatorEntry() {
       setStatus(
         emailError
           ? 'Ingreso creado. Falta configurar o revisar el envio automatico de correo.'
-          : 'Ingreso creado y correo enviado a oficina.',
+          : orderAttachment
+            ? 'Ingreso creado y correo con orden adjunta enviado a oficina.'
+            : 'Ingreso creado y correo enviado sin adjunto. Falta configurar el generador de ordenes.',
       )
       setTimeout(() => {
         navigate(isOperator ? '/operacion' : '/')
