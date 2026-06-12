@@ -138,7 +138,7 @@ export default function Scanner() {
           const { data: lotByToken } = await supabase
             .from('lots')
             .select('id')
-            .in('inventory_source', ['solucion', 'stock_independiente'])
+            .eq('inventory_source', 'stock_independiente')
             .eq('qr_token', parts[1])
             .maybeSingle()
 
@@ -156,7 +156,7 @@ export default function Scanner() {
           .from('lots')
           .select('id')
           .eq('id', lotId)
-          .in('inventory_source', ['solucion', 'stock_independiente'])
+          .eq('inventory_source', 'stock_independiente')
           .maybeSingle()
         if (!activeLot) return false
 

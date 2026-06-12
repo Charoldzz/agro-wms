@@ -20,7 +20,7 @@ export default function QrGate() {
         const { data: lotByToken } = await supabase
           .from('lots')
           .select('id')
-          .in('inventory_source', ['solucion', 'stock_independiente'])
+          .eq('inventory_source', 'stock_independiente')
           .eq('qr_token', token)
           .maybeSingle()
         lotId = lotByToken?.id || ''
@@ -31,7 +31,7 @@ export default function QrGate() {
           .from('lots')
           .select('id')
           .eq('id', lotId)
-          .in('inventory_source', ['solucion', 'stock_independiente'])
+          .eq('inventory_source', 'stock_independiente')
           .maybeSingle()
         : { data: null }
 

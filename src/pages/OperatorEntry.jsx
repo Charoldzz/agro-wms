@@ -95,9 +95,8 @@ export default function OperatorEntry() {
   async function loadClients() {
     const { data } = await supabase
       .from('clients')
-      .select('id, name, contact, solucion_codigo')
-      .not('solucion_codigo', 'is', null)
-      .neq('solucion_codigo', 0)
+      .select('id, name, contact')
+      .eq('inventory_source', 'stock_independiente')
       .order('name')
     const uniqueClients = []
     const seenNames = new Set()

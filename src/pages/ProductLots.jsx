@@ -36,7 +36,7 @@ export default function ProductLots() {
     const { data } = await supabase
       .from('lots')
       .select('*, clients(name)')
-      .in('inventory_source', ['solucion', 'stock_independiente'])
+      .eq('inventory_source', 'stock_independiente')
       .eq('status', 'activo')
       .gt('current_quantity', 0)
       .order('created_at', { ascending: false })

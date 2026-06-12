@@ -68,8 +68,7 @@ async function findClientIdByName(clientName) {
   const { data: exactMatches } = await supabase
     .from('clients')
     .select('id, name')
-    .not('solucion_codigo', 'is', null)
-    .neq('solucion_codigo', 0)
+        .eq('inventory_source', 'stock_independiente')
     .ilike('name', clientName)
     .limit(2)
 
@@ -78,8 +77,7 @@ async function findClientIdByName(clientName) {
   const { data: clients } = await supabase
     .from('clients')
     .select('id, name')
-    .not('solucion_codigo', 'is', null)
-    .neq('solucion_codigo', 0)
+        .eq('inventory_source', 'stock_independiente')
     .limit(10000)
 
   const matches = (clients || []).filter((client) => normalizeClientName(client.name) === normalizedName)
@@ -145,7 +143,7 @@ export default function ClientPortal({ view = 'inventory' }) {
     const { data: lotsData } = await supabase
       .from('lots')
       .select('id, lot_code, client_id, product, current_quantity, package_size, package_unit, location, entry_date, expiry_date, status, clients(name, contact)')
-      .in('inventory_source', ['solucion', 'stock_independiente'])
+      .eq('inventory_source', 'stock_independiente')
       .eq('status', 'activo')
       .gt('current_quantity', 0)
       .order('product')
