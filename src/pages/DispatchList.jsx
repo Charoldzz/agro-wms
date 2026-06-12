@@ -563,6 +563,7 @@ export default function DispatchList() {
     if (itemsToValidate.length === 0) return 'Escanea al menos un lote.'
     if (!receiverName.trim()) return 'Escribe el nombre de quien recibe.'
     if (!receiverDocument.trim()) return 'Escribe el numero de documento.'
+    if (!vehiclePlate.trim()) return 'Escribe la placa del vehiculo.'
 
     const approvedItems = Array.isArray(requestToValidate?.items) ? requestToValidate.items : []
     if (approvedItems.length > 0) {
@@ -902,7 +903,7 @@ export default function DispatchList() {
         </label>
         <label className="sm:col-span-2">
           <span className="label">Placa del vehiculo</span>
-          <input className="input mt-1 uppercase" autoComplete="off" value={vehiclePlate} onChange={(event) => setVehiclePlate(event.target.value.toUpperCase())} placeholder="Opcional" />
+          <input className="input mt-1 uppercase" autoComplete="off" required value={vehiclePlate} onChange={(event) => setVehiclePlate(event.target.value.toUpperCase())} placeholder="Ej. 1234ABC" />
         </label>
         <label className="sm:col-span-2">
           <span className="label">Observaciones</span>
