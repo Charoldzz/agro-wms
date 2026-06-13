@@ -241,7 +241,7 @@ export default function Lots() {
               </button>
               <input
                 className="input min-w-0 flex-1 text-sm"
-                placeholder="Buscar producto, lote..."
+                placeholder="Buscar producto, item, vencimiento..."
                 value={search}
                 onChange={(e) => handleSearch(e.target.value)}
               />
@@ -378,7 +378,7 @@ export default function Lots() {
                   <thead>
                     <tr className="bg-campo-700 text-xs font-black uppercase tracking-wide text-white">
                       <th className="px-4 py-2.5 text-left font-black">PRODUCTO</th>
-                      <th className="w-16 px-3 py-2.5 text-center font-black">LOTES</th>
+                      <th className="w-16 px-3 py-2.5 text-center font-black">ITEMS</th>
                       <th className="w-32 px-4 py-2.5 text-right font-black">TOTAL ENV</th>
                     </tr>
                   </thead>
@@ -466,7 +466,7 @@ export default function Lots() {
             {totalPages > 1 && (
               <div className="flex items-center justify-between border-t border-slate-100 px-4 py-3">
                 <p className="text-xs font-semibold text-slate-500">
-                  {rows.length} {groupByProduct ? 'productos' : 'lotes'} · pág. {safePage}/{totalPages}
+                  {rows.length} {groupByProduct ? 'productos' : 'items'} · pág. {safePage}/{totalPages}
                 </p>
                 <div className="flex gap-1">
                   <button
