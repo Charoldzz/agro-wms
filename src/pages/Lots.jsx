@@ -148,17 +148,8 @@ export default function Lots() {
   function handleClientSelect(id) { setSelectedClient(id); setPage(1); setSidebarOpen(false) }
 
   const totalItems = filteredLots.length
-  const totalMercaderia = filteredLots.reduce((sum, lot) => {
-    const size = Number(lot.package_size || 0)
-    if (size <= 0) return sum
-    let raw = Number(lot.current_quantity || 0) * size
-    // normalizar ml→lt y gr→kg para que coincida con el programa
-    if (lot.package_unit === 'ml' || lot.package_unit === 'gr') raw = raw / 1000
-    return sum + raw
-  }, 0)
-  const totalPallets = filteredLots.reduce((sum, lot) => {
-    return sum + Number(lot.entry_boxes || 0)
-  }, 0)
+  const totalMercaderia = filteredLots.reduce((sum, lot) => sum + Number(lot.current_quantity || 0), 0)
+  const totalPallets = filteredLots.reduce((sum, lot) => sum + Number(lot.entry_boxes || 0), 0)
 
   const selectedClientName = selectedClient ? clients.find((c) => c.id === selectedClient)?.name : ''
   const visibleClients = clients.filter((c) =>
@@ -500,7 +491,7 @@ export default function Lots() {
           {/* Barra de totales */}
           <div className="grid grid-cols-3 divide-x divide-slate-200 rounded-xl border border-slate-200 bg-white">
             <Total label="TOTAL ITEM" value={formatNumber(totalItems)} />
-            <Total label="TOTAL MERCADERÍA" value={formatNumber(totalMercaderia)} sub={totalMercaderia > 0 ? 'lt/kg' : ''} />
+            <Total label="TOTAL MERCADERÍA" value={formatNumber(totalMercaderia)} />
             <Total label="TOTAL PALLETS" value={formatNumber(totalPallets)} />
           </div>
 
