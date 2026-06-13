@@ -6,7 +6,7 @@ import { useAuth } from '../hooks/useAuth.jsx'
 import { supabase } from '../lib/supabase'
 import { formatNumber } from '../lib/format'
 
-const initialForm = { name: '', contact: '', notes: '' }
+const initialForm = { name: '', contact: '', notes: '', product_code_prefix: '' }
 
 function displayClientName(name) {
   return String(name || '').replaceAll('"', '').replace(/\s+/g, ' ').trim()
@@ -80,6 +80,7 @@ export default function Clients() {
       name: client.name || '',
       contact: client.contact || '',
       notes: cleanClientNotes(client.notes),
+      product_code_prefix: client.product_code_prefix || '',
     })
     setShowForm(true)
   }
@@ -94,9 +95,10 @@ export default function Clients() {
     event.preventDefault()
 
     if (!editingId) return
+    const prefix = form.product_code_prefix.trim().toUpperCase().replace(/[^A-Z0-9]/g, '')
     await supabase
       .from('clients')
-      .update({ contact: form.contact, notes: form.notes })
+      .update({ contact: form.contact, notes: form.notes, product_code_prefix: prefix || null })
       .eq('id', editingId)
 
     cancelForm()
@@ -125,6 +127,17 @@ export default function Clients() {
             <p className="mt-1 text-xs font-semibold text-slate-500">El nombre viene de Solucion y no se modifica desde la app.</p>
           </div>
           <label className="block">
+            <span className="label">Prefijo de codigo de productos</span>
+            <input
+              className="input mt-1 font-mono uppercase"
+              value={form.product_code_prefix}
+              maxLength={8}
+              placeholder="Ej: ADSP, GATB"
+              onChange={(event) => setForm({ ...form, product_code_prefix: event.target.value })}
+            />
+            <p className="mt-1 text-xs font-semibold text-slate-400">Solo letras y numeros. Se usa para generar codigos como ADSP-00001.</p>
+          </label>
+          <label className="block">
             <span className="label">Contacto</span>
             <input className="input mt-1" value={form.contact} onChange={(event) => setForm({ ...form, contact: event.target.value })} />
           </label>
@@ -133,7 +146,7 @@ export default function Clients() {
             <textarea className="input mt-1" rows="3" value={form.notes} onChange={(event) => setForm({ ...form, notes: event.target.value })} />
           </label>
           <button className="btn-primary w-full">
-            <Save size={20} /> Guardar contacto
+            <Save size={20} /> Guardar
           </button>
         </form>
       ) : null}
@@ -149,6 +162,7 @@ export default function Clients() {
                   <h3 className="truncate text-sm font-bold text-slate-900">{client.name}</h3>
                   <p className="truncate text-xs font-semibold text-campo-700">
                     {formatNumber(clientStats[client.id]?.quantity || 0)} envases · {clientStats[client.id]?.lots || 0} lotes
+                    {client.product_code_prefix ? <span className="ml-2 rounded bg-campo-50 px-1 font-mono text-campo-600">{client.product_code_prefix}</span> : null}
                   </p>
                 </button>
                 {isAdmin ? (

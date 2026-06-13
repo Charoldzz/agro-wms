@@ -1,0 +1,195 @@
+import { useEffect, useMemo, useState } from 'react'
+import { Edit2, Plus, Save, Search, X } from 'lucide-react'
+import PageHeader from '../components/PageHeader'
+import EmptyState from '../components/EmptyState'
+import NewProductModal from '../components/NewProductModal'
+import { useAuth } from '../hooks/useAuth.jsx'
+import { supabase } from '../lib/supabase'
+
+const UNITS = ['lt', 'ml', 'kg', 'g', 'unid', 'caja', 'bolsa', 'saco']
+
+function productDisplayName(p) {
+  if (!p.name) return ''
+  if (p.package_size && p.package_unit) return `${p.name} X ${p.package_size} ${p.package_unit}`
+  return p.name
+}
+
+export default function ProductCatalog() {
+  const { isAdmin } = useAuth()
+  const [clients, setClients] = useState([])
+  const [products, setProducts] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [search, setSearch] = useState('')
+  const [filterClient, setFilterClient] = useState('')
+  const [showModal, setShowModal] = useState(false)
+  const [editingId, setEditingId] = useState(null)
+  const [editForm, setEditForm] = useState({})
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState('')
+
+  useEffect(() => { load() }, [])
+
+  async function load() {
+    setLoading(true)
+    const [{ data: clientsData }, { data: productsData }] = await Promise.all([
+      supabase.from('clients').select('id, name, product_code_prefix').order('name'),
+      supabase.from('product_catalog').select('*, clients(name)').order('code'),
+    ])
+    setClients(clientsData || [])
+    setProducts(productsData || [])
+    setLoading(false)
+  }
+
+  const filtered = useMemo(() => {
+    const term = search.toLowerCase().trim()
+    return products.filter((p) => {
+      if (filterClient && p.client_id !== filterClient) return false
+      if (!term) return true
+      return (
+        p.code?.toLowerCase().includes(term) ||
+        p.name?.toLowerCase().includes(term) ||
+        productDisplayName(p).toLowerCase().includes(term)
+      )
+    })
+  }, [products, search, filterClient])
+
+  function startEdit(p) {
+    setEditingId(p.id)
+    setEditForm({ name: p.name, package_size: p.package_size || '', package_unit: p.package_unit || 'lt' })
+    setError('')
+  }
+
+  function cancelEdit() { setEditingId(null); setEditForm({}); setError('') }
+
+  async function saveEdit(id) {
+    if (!editForm.name?.trim()) return setError('El nombre es obligatorio.')
+    setSaving(true)
+    const { error: err } = await supabase.from('product_catalog').update({
+      name: editForm.name.trim().toUpperCase(),
+      package_size: editForm.package_size ? Number(editForm.package_size) : null,
+      package_unit: editForm.package_size ? editForm.package_unit : null,
+    }).eq('id', id)
+    setSaving(false)
+    if (err) return setError(err.message)
+    setEditingId(null)
+    load()
+  }
+
+  const clientsWithPrefix = clients.filter((c) => c.product_code_prefix)
+
+  return (
+    <div className="space-y-4">
+      <PageHeader title="Catalogo de productos">
+        {isAdmin && (
+          <button className="btn-primary !min-h-10 !px-3 !py-2 text-sm" type="button" onClick={() => setShowModal(true)}>
+            <Plus size={16} />
+            Nuevo producto
+          </button>
+        )}
+      </PageHeader>
+
+      <div className="flex flex-col gap-2 sm:flex-row">
+        <div className="relative flex-1">
+          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+          <input
+            className="input w-full pl-9"
+            type="text"
+            placeholder="Buscar codigo o producto..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+        </div>
+        <select className="input sm:w-56" value={filterClient} onChange={(e) => setFilterClient(e.target.value)}>
+          <option value="">Todas las empresas</option>
+          {clients.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+        </select>
+      </div>
+
+      {loading ? (
+        <p className="py-8 text-center text-sm font-bold text-slate-400">Cargando catalogo...</p>
+      ) : filtered.length === 0 ? (
+        <EmptyState title="Sin productos" description={search ? 'No hay coincidencias.' : 'Agrega el primer producto.'} />
+      ) : (
+        <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
+          <div className="grid grid-cols-[auto_1fr_auto] gap-0 bg-campo-700 px-4 py-2 text-xs font-black uppercase tracking-wide text-white">
+            <span className="w-32">CODIGO</span>
+            <span>PRODUCTO</span>
+            {isAdmin && <span className="w-20 text-right">ACCION</span>}
+          </div>
+          {filtered.map((p, i) => (
+            <div
+              key={p.id}
+              className={`grid grid-cols-[auto_1fr_auto] items-center gap-3 px-4 py-3 ${i % 2 === 0 ? 'bg-white' : 'bg-slate-50'} ${editingId === p.id ? 'border-l-4 border-campo-500' : ''}`}
+            >
+              <span className="w-32 font-mono text-sm font-bold text-campo-700">{p.code}</span>
+
+              {editingId === p.id ? (
+                <div className="flex min-w-0 flex-col gap-2">
+                  <input
+                    className="input w-full text-sm"
+                    value={editForm.name}
+                    onChange={(e) => setEditForm((f) => ({ ...f, name: e.target.value }))}
+                    placeholder="Nombre"
+                  />
+                  <div className="flex gap-2">
+                    <input
+                      className="input w-24 text-sm"
+                      type="number"
+                      min="0"
+                      step="any"
+                      value={editForm.package_size}
+                      onChange={(e) => setEditForm((f) => ({ ...f, package_size: e.target.value }))}
+                      placeholder="Medida"
+                    />
+                    <select className="input flex-1 text-sm" value={editForm.package_unit} onChange={(e) => setEditForm((f) => ({ ...f, package_unit: e.target.value }))}>
+                      {UNITS.map((u) => <option key={u} value={u}>{u}</option>)}
+                    </select>
+                  </div>
+                  {error && <p className="text-xs font-bold text-red-600">{error}</p>}
+                </div>
+              ) : (
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-bold text-slate-900">{productDisplayName(p)}</p>
+                  <p className="text-xs font-semibold text-slate-400">{p.clients?.name || '-'}</p>
+                </div>
+              )}
+
+              {isAdmin && (
+                <div className="flex w-20 justify-end gap-1">
+                  {editingId === p.id ? (
+                    <>
+                      <button className="btn-primary !min-h-8 !px-2 !py-1 text-xs" type="button" onClick={() => saveEdit(p.id)} disabled={saving}>
+                        <Save size={14} />
+                      </button>
+                      <button className="btn-secondary !min-h-8 !px-2 !py-1 text-xs" type="button" onClick={cancelEdit}>
+                        <X size={14} />
+                      </button>
+                    </>
+                  ) : (
+                    <button className="btn-secondary !min-h-8 !px-2 !py-1 text-xs" type="button" onClick={() => startEdit(p)}>
+                      <Edit2 size={14} />
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {clientsWithPrefix.length === 0 && isAdmin && !loading && (
+        <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm font-semibold text-amber-800">
+          Configura el prefijo de codigo en <strong>Clientes</strong> para cada empresa antes de agregar productos. Ejemplo: ADSP, GATB.
+        </div>
+      )}
+
+      {showModal && (
+        <NewProductModal
+          clients={clientsWithPrefix}
+          onClose={() => setShowModal(false)}
+          onSaved={load}
+        />
+      )}
+    </div>
+  )
+}

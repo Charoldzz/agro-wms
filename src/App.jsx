@@ -25,6 +25,7 @@ import AdminPending from './pages/AdminPending'
 import CorrectionRequests from './pages/CorrectionRequests'
 import AdminExports from './pages/AdminExports'
 import Backups from './pages/Backups'
+import ProductCatalog from './pages/ProductCatalog'
 import { isSupabaseConfigured } from './lib/supabase'
 
 function ProtectedRoute({ children }) {
@@ -84,6 +85,7 @@ function AppRoutes() {
         <Route path="pendientes" element={<RoleRoute roles={['administrador']}><AdminPending /></RoleRoute>} />
         <Route path="exportes" element={<RoleRoute roles={['administrador']}><AdminExports /></RoleRoute>} />
         <Route path="backups" element={<RoleRoute roles={['administrador']}><Backups /></RoleRoute>} />
+        <Route path="catalogo" element={<RoleRoute roles={['administrador']}><ProductCatalog /></RoleRoute>} />
       </Route>
     </Routes>
   )

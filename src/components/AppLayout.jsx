@@ -1,5 +1,5 @@
 import { Outlet, NavLink, useLocation, useNavigate } from 'react-router-dom'
-import { ArrowLeft, Boxes, ClipboardList, Home, LogOut, RefreshCcw, ShieldAlert, Truck, Users, Warehouse, Wifi, WifiOff } from 'lucide-react'
+import { ArrowLeft, Boxes, ClipboardList, Home, LayoutList, LogOut, RefreshCcw, ShieldAlert, Truck, Users, Warehouse, Wifi, WifiOff } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../hooks/useAuth.jsx'
@@ -15,6 +15,7 @@ const navItems = [
   { to: '/movimientos', label: 'Mov.', icon: ClipboardList },
   { to: '/offline', label: 'Offline', icon: ShieldAlert },
   { to: '/clientes', label: 'Clientes', icon: Users },
+  { to: '/catalogo', label: 'Catalogo', icon: LayoutList },
 ]
 
 export default function AppLayout() {
@@ -31,7 +32,7 @@ export default function AppLayout() {
       : profile?.role === 'cliente'
         ? navItems.filter((item) => item.to === '/' || item.roles?.includes('cliente'))
         : navItems.filter((item) => !item.roles || item.roles.includes('administrador'))
-  const mainTabPaths = new Set(['/', '/operacion', '/lotes', '/movimientos', '/offline', '/clientes', '/despachos', '/historial'])
+  const mainTabPaths = new Set(['/', '/operacion', '/lotes', '/movimientos', '/offline', '/clientes', '/catalogo', '/despachos', '/historial'])
   const showBackButton = !mainTabPaths.has(location.pathname)
 
   async function signOut() {
