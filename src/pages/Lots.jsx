@@ -157,9 +157,7 @@ export default function Lots() {
     return sum + raw
   }, 0)
   const totalPallets = filteredLots.reduce((sum, lot) => {
-    const uob = Number(lot.entry_units_per_box || 0)
-    if (uob <= 0) return sum
-    return sum + Number(lot.current_quantity || 0) / uob
+    return sum + Number(lot.entry_boxes || 0)
   }, 0)
 
   const selectedClientName = selectedClient ? clients.find((c) => c.id === selectedClient)?.name : ''
