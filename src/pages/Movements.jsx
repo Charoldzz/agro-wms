@@ -4,7 +4,7 @@ import PageHeader from '../components/PageHeader'
 import EmptyState from '../components/EmptyState'
 import { supabase } from '../lib/supabase'
 import { formatDate, formatNumber, movementLabel } from '../lib/format'
-import { cleanProductName, displayLotCode } from '../lib/display'
+import { cleanProductName, displayLotCode, productCodeLabel } from '../lib/display'
 
 const movementIcons = {
   entrada: ArrowDown,
@@ -35,7 +35,7 @@ export default function Movements() {
 
     const { data, error } = await supabase
       .from('movements')
-      .select('*, lots(lot_code, product, location, clients(name)), profiles(full_name)')
+      .select('*, lots(lot_code, product, solucion_product_code, location, clients(name)), profiles(full_name)')
       .order('created_at', { ascending: false })
       .limit(1000)
 
@@ -65,7 +65,7 @@ export default function Movements() {
 
     const [{ data: lots }, { data: profiles }] = await Promise.all([
       lotIds.length
-        ? supabase.from('lots').select('id, lot_code, product, location, clients(name)').in('id', lotIds)
+        ? supabase.from('lots').select('id, lot_code, product, solucion_product_code, location, clients(name)').in('id', lotIds)
         : Promise.resolve({ data: [] }),
       userIds.length
         ? supabase.from('profiles').select('id, full_name').in('id', userIds)
@@ -90,7 +90,8 @@ export default function Movements() {
         movement.type,
         movement.notes,
         movement.lots?.lot_code,
-        displayLotCode(movement.lots?.lot_code),
+        displayLotCode(movement.lots?.lot_code, movement.lots),
+        productCodeLabel(movement.lots),
         cleanProductName(movement.lots?.product),
         movement.lots?.location,
         movement.lots?.clients?.name,
@@ -138,6 +139,7 @@ export default function Movements() {
         ) : (
           filteredMovements.map((movement) => {
             const Icon = movementIcons[movement.type] || RotateCcw
+            const lot = movement.lots || {}
             return (
               <article key={movement.id} className="panel">
                 <div className="flex items-start gap-3">
@@ -161,21 +163,22 @@ export default function Movements() {
                       ) : null}
                     </div>
 
-                    <p className="mt-2 font-semibold text-slate-800">
-                      {displayLotCode(movement.lots?.lot_code)} · {cleanProductName(movement.lots?.product)}
+                    <p className="mt-2 font-semibold text-slate-800">{cleanProductName(lot.product)}</p>
+                    <p className="text-sm font-bold text-slate-500">
+                      Lote {displayLotCode(lot.lot_code, lot)}
                     </p>
                     <p className="text-sm text-slate-500">
-                      Cliente: {movement.lots?.clients?.name || '-'} · Ubicación: {movement.lots?.location || '-'}
+                      Cliente: {lot.clients?.name || '-'} - Ubicacion: {lot.location || '-'}
                     </p>
                     {movement.type === 'traslado' ? (
                       <p className="mt-2 text-sm text-slate-600">
-                        Usuario: {movement.profiles?.full_name || 'Usuario'} · De {movement.from_location || '-'} a{' '}
+                        Usuario: {movement.profiles?.full_name || 'Usuario'} - De {movement.from_location || '-'} a{' '}
                         {movement.to_location || '-'}
                       </p>
                     ) : (
                       <p className="mt-2 text-sm text-slate-600">
-                        Usuario: {movement.profiles?.full_name || 'Usuario'} · Stock anterior:{' '}
-                        {formatNumber(movement.previous_quantity)} · Stock nuevo:{' '}
+                        Usuario: {movement.profiles?.full_name || 'Usuario'} - Stock anterior:{' '}
+                        {formatNumber(movement.previous_quantity)} - Stock nuevo:{' '}
                         {formatNumber(movement.new_quantity)}
                       </p>
                     )}

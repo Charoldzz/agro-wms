@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Boxes, CalendarClock, ChevronDown, Download, FileText, History, Mail, PackageCheck, Plus, Printer, Search, Send, Truck, X } from 'lucide-react'
+import { Boxes, CalendarClock, CheckCircle2, ChevronDown, Download, FileText, History, Mail, PackageCheck, Plus, Printer, Search, Send, Truck, X } from 'lucide-react'
 import PageHeader from '../components/PageHeader'
 import EmptyState from '../components/EmptyState'
 import ListProductCard from '../components/ListProductCard'
 import { useAuth } from '../hooks/useAuth.jsx'
-import { cleanProductName, displayLotCode, packageLabel } from '../lib/display'
+import { cleanProductName, displayLotCode, packageLabel, productCodeLabel } from '../lib/display'
 import { normalizeDispatchRequests } from '../lib/dispatchRequests'
 import { formatDate, formatNumber, movementLabel } from '../lib/format'
 import { supabase } from '../lib/supabase'
@@ -122,6 +122,7 @@ export default function ClientPortal({ view = 'inventory' }) {
   const [requestItems, setRequestItems] = useState(initialDraft.items)
   const [editingRequestLotId, setEditingRequestLotId] = useState('')
   const [requestMessage, setRequestMessage] = useState('')
+  const [requestSuccess, setRequestSuccess] = useState(null)
   const [expandedInventoryProduct, setExpandedInventoryProduct] = useState('')
   const [showAllInventoryProducts, setShowAllInventoryProducts] = useState(false)
   const [selectedMovement, setSelectedMovement] = useState(null)
@@ -143,7 +144,7 @@ export default function ClientPortal({ view = 'inventory' }) {
   async function loadData() {
     const { data: lotsData } = await supabase
       .from('lots')
-      .select('id, lot_code, client_id, product, current_quantity, package_size, package_unit, location, entry_date, expiry_date, status, clients(name, contact)')
+      .select('id, lot_code, client_id, product, solucion_product_code, current_quantity, package_size, package_unit, location, entry_date, expiry_date, status, clients(name, contact)')
       .eq('inventory_source', 'stock_independiente')
       .eq('status', 'activo')
       .gt('current_quantity', 0)
@@ -155,7 +156,7 @@ export default function ClientPortal({ view = 'inventory' }) {
     const { data: movementData } = lotIds.length
       ? await supabase
         .from('movements')
-        .select('id, type, quantity, previous_quantity, new_quantity, to_location, notes, created_at, lots(lot_code, product, package_size, package_unit, location)')
+        .select('id, type, quantity, previous_quantity, new_quantity, to_location, notes, created_at, lots(lot_code, product, solucion_product_code, package_size, package_unit, location)')
         .in('lot_id', lotIds)
         .in('type', ['entrada', 'salida'])
         .order('created_at', { ascending: false })
@@ -166,7 +167,7 @@ export default function ClientPortal({ view = 'inventory' }) {
 
     const { data: requestData } = await supabase
       .from('client_dispatch_requests')
-      .select('id, client_id, lot_id, product, quantity, items, notes, status, admin_notes, created_at, reviewed_at, clients(name), lots(id, lot_code, product, current_quantity, package_size, package_unit, location, expiry_date, status)')
+      .select('id, client_id, lot_id, product, quantity, items, notes, status, admin_notes, created_at, reviewed_at, clients(name), lots(id, lot_code, product, solucion_product_code, current_quantity, package_size, package_unit, location, expiry_date, status)')
       .order('created_at', { ascending: false })
 
     setRequests(await normalizeDispatchRequests(requestData || [], lotsData || []))
@@ -175,7 +176,7 @@ export default function ClientPortal({ view = 'inventory' }) {
   const filteredLots = useMemo(() => {
     const term = search.toLowerCase()
     return lots.filter((lot) =>
-      [lot.product, lot.lot_code, displayLotCode(lot.lot_code), lot.location, lot.status]
+      [lot.product, productCodeLabel(lot), lot.lot_code, displayLotCode(lot.lot_code, lot), lot.location, lot.status]
         .filter(Boolean)
         .some((value) => value.toLowerCase().includes(term)),
     )
@@ -229,7 +230,7 @@ export default function ClientPortal({ view = 'inventory' }) {
         lots: group.lots.sort((a, b) => {
           const expiryOrder = (a.expiry_date || '9999-12-31').localeCompare(b.expiry_date || '9999-12-31')
           if (expiryOrder !== 0) return expiryOrder
-          return displayLotCode(a.lot_code).localeCompare(displayLotCode(b.lot_code), 'es', { numeric: true })
+          return displayLotCode(a.lot_code, a).localeCompare(displayLotCode(b.lot_code, b), 'es', { numeric: true })
         }),
       }))
       .sort((a, b) => a.product.localeCompare(b.product, 'es', { numeric: true }))
@@ -275,6 +276,7 @@ export default function ClientPortal({ view = 'inventory' }) {
                 ...item,
                 client_id: selectedLot.client_id,
                 client_name: selectedLot.clients?.name || clientName,
+                solucion_product_code: selectedLot.solucion_product_code,
                 quantity: nextQuantity,
                 available: selectedLot.current_quantity,
               }
@@ -289,6 +291,7 @@ export default function ClientPortal({ view = 'inventory' }) {
           client_name: selectedLot.clients?.name || clientName,
           lot_code: selectedLot.lot_code,
           product: selectedLot.product,
+          solucion_product_code: selectedLot.solucion_product_code,
           quantity,
           package_size: selectedLot.package_size,
           package_unit: selectedLot.package_unit,
@@ -325,6 +328,7 @@ export default function ClientPortal({ view = 'inventory' }) {
     setRequestNotes('')
     setEditingRequestLotId('')
     setRequestMessage('')
+    setRequestSuccess(null)
     clearRequestDraft()
   }
 
@@ -390,7 +394,13 @@ export default function ClientPortal({ view = 'inventory' }) {
     setRequestNotes('')
     setEditingRequestLotId('')
     clearRequestDraft()
-    setRequestMessage('Solicitud enviada a almacen.')
+    setRequestSuccess({
+      clientName,
+      items: freshItems,
+      createdAt: new Date().toISOString(),
+    })
+    if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(80)
+    setRequestMessage('')
     loadData()
   }
 
@@ -399,7 +409,7 @@ export default function ClientPortal({ view = 'inventory' }) {
     const rows = lots.map((lot) => [
       clientName,
       cleanProductName(lot.product),
-      displayLotCode(lot.lot_code),
+      displayLotCode(lot.lot_code, lot),
       formatNumber(lot.current_quantity),
       lot.package_size ? `${formatNumber(lot.package_size)} ${lot.package_unit || ''}` : '',
       lot.package_size ? `${formatNumber(Number(lot.current_quantity || 0) * Number(lot.package_size || 0))} ${lot.package_unit || ''}` : '',
@@ -428,7 +438,7 @@ export default function ClientPortal({ view = 'inventory' }) {
         return `
           <tr>
             <td>${escapeHtml(cleanProductName(lot.product))}</td>
-            <td>${escapeHtml(displayLotCode(lot.lot_code))}</td>
+            <td>${escapeHtml(displayLotCode(lot.lot_code, lot))}</td>
             <td>${escapeHtml(formatNumber(lot.current_quantity))}</td>
             <td>${escapeHtml(Number(lot.package_size) > 0 ? `${formatNumber(equivalent)} ${lot.package_unit || ''}` : '-')}</td>
             <td>${escapeHtml(lot.location || '-')}</td>
@@ -486,7 +496,7 @@ export default function ClientPortal({ view = 'inventory' }) {
       <!doctype html>
       <html>
         <head>
-          <title>Comprobante ${escapeHtml(displayLotCode(lot.lot_code))}</title>
+          <title>Comprobante ${escapeHtml(displayLotCode(lot.lot_code, lot))}</title>
           <meta name="viewport" content="width=device-width, initial-scale=1" />
           <style>
             body { color: #0f172a; font-family: Arial, sans-serif; margin: 24px; }
@@ -503,7 +513,8 @@ export default function ClientPortal({ view = 'inventory' }) {
           <div class="box grid">
             <div><strong>Fecha</strong>${escapeHtml(formatDate(movement.created_at))}</div>
             <div><strong>Movimiento</strong>${escapeHtml(movementLabel(movement.type))}</div>
-            <div><strong>Lote</strong>${escapeHtml(displayLotCode(lot.lot_code))}</div>
+            <div><strong>Codigo</strong>${escapeHtml(productCodeLabel(lot) || '-')}</div>
+            <div><strong>Lote</strong>${escapeHtml(displayLotCode(lot.lot_code, lot))}</div>
             <div><strong>Producto</strong>${escapeHtml(cleanProductName(lot.product))}</div>
             <div><strong>Cantidad</strong>${escapeHtml(formatNumber(movement.quantity))} envases</div>
             <div><strong>Equivalente</strong>${escapeHtml(Number(lot.package_size) > 0 ? `${formatNumber(equivalent)} ${lot.package_unit || ''}` : '-')}</div>
@@ -657,7 +668,7 @@ export default function ClientPortal({ view = 'inventory' }) {
                               <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                                 <div className="min-w-0">
                                   <div className="flex flex-wrap items-center gap-2">
-                                    <p className="font-black text-slate-900">{displayLotCode(lot.lot_code)}</p>
+                                    <p className="font-black text-slate-900">Lote {displayLotCode(lot.lot_code, lot)}</p>
                                     <span className={`rounded-full px-2 py-1 text-xs font-bold ${status.className}`}>{status.label}</span>
                                   </div>
                                   <p className="text-sm font-semibold text-slate-500">{lot.location || '-'} - Vence: {lot.expiry_date ? formatDate(lot.expiry_date) : 'Sin dato'}</p>
@@ -697,6 +708,34 @@ export default function ClientPortal({ view = 'inventory' }) {
                 <p className="text-xs font-semibold text-slate-500">Arma una lista por producto. Al enviarla, almacen la recibe directamente.</p>
               </div>
             </div>
+            {requestSuccess ? (
+              <div className="rounded-xl bg-campo-900 p-5 text-white shadow-lg">
+                <div className="flex items-start gap-3">
+                  <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full border border-white/40 bg-white/10">
+                    <CheckCircle2 size={28} />
+                  </span>
+                  <div className="min-w-0">
+                    <p className="text-xl font-black">Solicitud enviada a almacen</p>
+                    <p className="mt-1 text-sm font-semibold text-white/80">
+                      {requestSuccess.clientName} - {requestSuccess.items.length} producto{requestSuccess.items.length === 1 ? '' : 's'}
+                    </p>
+                  </div>
+                </div>
+                <div className="mt-4 space-y-2">
+                  {requestSuccess.items.map((item) => (
+                    <div key={item.lot_id} className="rounded-lg bg-white/10 p-3">
+                      <p className="font-black [overflow-wrap:anywhere]">{cleanProductName(item.product)}</p>
+                      <p className="mt-1 text-sm font-semibold text-white/80">
+                        {formatNumber(item.quantity)} env. - Lote {displayLotCode(item.lot_code, item)}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+                <button className="mt-4 min-h-11 w-full rounded-lg bg-white px-4 py-2 font-black text-campo-900" type="button" onClick={() => setRequestSuccess(null)}>
+                  Nueva solicitud
+                </button>
+              </div>
+            ) : (
             <form className="space-y-3" onSubmit={createDispatchRequest} noValidate>
               <label>
                 <span className="label">Producto / lote</span>
@@ -704,7 +743,7 @@ export default function ClientPortal({ view = 'inventory' }) {
                   <option value="">Seleccionar</option>
                   {lots.map((lot) => (
                     <option key={lot.id} value={lot.id}>
-                      {cleanProductName(lot.product)} - {displayLotCode(lot.lot_code)} ({formatNumber(lot.current_quantity)} env.)
+                      {cleanProductName(lot.product)} - Lote {displayLotCode(lot.lot_code, lot)} ({formatNumber(lot.current_quantity)} env.)
                     </option>
                   ))}
                 </select>
@@ -715,7 +754,7 @@ export default function ClientPortal({ view = 'inventory' }) {
                     <div className="min-w-0">
                       <p className="font-black text-slate-950 [overflow-wrap:anywhere]">{cleanProductName(selectedRequestLot.product)}</p>
                       <p className="text-xs font-bold text-slate-600">
-                        Presentacion: {packageLabel(selectedRequestLot) || 'Sin dato'} - Lote {displayLotCode(selectedRequestLot.lot_code)}
+                        Presentacion: {packageLabel(selectedRequestLot) || 'Sin dato'} - Lote {displayLotCode(selectedRequestLot.lot_code, selectedRequestLot)}
                       </p>
                     </div>
                     <span className="rounded-lg bg-white px-2 py-1 text-sm font-black text-campo-800">
@@ -759,13 +798,14 @@ export default function ClientPortal({ view = 'inventory' }) {
                       equivalent={Number(item.package_size) > 0 ? Number(item.quantity || 0) * Number(item.package_size || 0) : null}
                       equivalentUnit={item.package_unit}
                       presentation={packageLabel(item) || 'Sin dato'}
-                      secondary={`${displayLotCode(item.lot_code)} - ${item.location || '-'}`}
+                      secondary={`Lote ${displayLotCode(item.lot_code, item)} - ${item.location || '-'}`}
                       detailTitle="Producto solicitado"
                       detailRows={[
                         { label: 'Envases solicitados', value: `${formatNumber(item.quantity)} env.` },
                         { label: 'Equivalente', value: Number(item.package_size) > 0 ? `${formatNumber(Number(item.quantity || 0) * Number(item.package_size || 0))} ${item.package_unit || ''}` : 'Sin dato' },
                         { label: 'Presentacion', value: packageLabel(item) || 'Sin dato' },
-                        { label: 'Lote', value: displayLotCode(item.lot_code) },
+                        { label: 'Codigo', value: productCodeLabel(item) || '-' },
+                        { label: 'Lote', value: displayLotCode(item.lot_code, item) },
                         { label: 'Ubicacion', value: item.location || '-' },
                         { label: 'Disponible', value: `${formatNumber(item.available)} env.` },
                       ]}
@@ -789,6 +829,7 @@ export default function ClientPortal({ view = 'inventory' }) {
                 <Truck size={20} /> Enviar solicitud
               </button>
             </form>
+            )}
           </section>
           ) : null}
 
@@ -841,7 +882,7 @@ export default function ClientPortal({ view = 'inventory' }) {
                 <p className="text-sm font-semibold text-slate-500">
                   {Array.isArray(request.items) && request.items.length > 1
                     ? `${request.items.length} productos en la solicitud`
-                    : `${displayLotCode(request.lots?.lot_code)} - ${formatNumber(request.quantity)} env.`}
+                    : `Lote ${displayLotCode(request.lots?.lot_code, request.lots)} - ${formatNumber(request.quantity)} env.`}
                 </p>
                 <p className="mt-1 text-xs font-semibold text-slate-400">{formatDate(request.created_at)}</p>
                 {request.admin_notes ? <p className="mt-2 text-xs font-semibold text-slate-600">{request.admin_notes}</p> : null}
@@ -925,7 +966,7 @@ function MovementHistoryCard({ movement, onOpen, onPrint }) {
           <p className="min-w-0 flex-1 font-black text-slate-950 [overflow-wrap:anywhere]">{cleanProductName(lot.product)}</p>
           <span className="rounded-lg bg-campo-50 px-2 py-1 text-sm font-black text-campo-800">{formatNumber(movement.quantity)} env.</span>
         </div>
-        <p className="text-sm font-semibold text-slate-500">{movementLabel(movement.type)} - {displayLotCode(lot.lot_code)}</p>
+        <p className="text-sm font-semibold text-slate-500">{movementLabel(movement.type)} - Lote {displayLotCode(lot.lot_code, lot)}</p>
         <p className="text-xs font-semibold text-slate-400">
           {formatDate(movement.created_at)}
           {Number(lot.package_size) > 0 ? ` - ${formatNumber(equivalent)} ${lot.package_unit || ''}` : ''}
@@ -965,7 +1006,8 @@ function MovementDetail({ movement, onClose, onPrint }) {
         <dl className="mt-4 grid gap-2 rounded-lg bg-slate-50 p-3 text-sm font-bold text-slate-700">
           <DetailRow label="Movimiento" value={movementLabel(movement.type)} />
           <DetailRow label="Fecha" value={formatDate(movement.created_at)} />
-          <DetailRow label="Lote" value={displayLotCode(lot.lot_code)} />
+          <DetailRow label="Codigo" value={productCodeLabel(lot) || '-'} />
+          <DetailRow label="Lote" value={displayLotCode(lot.lot_code, lot)} />
           <DetailRow label="Envases" value={`${formatNumber(movement.quantity)} env.`} />
           <DetailRow label="Equivalente" value={Number(lot.package_size) > 0 ? `${formatNumber(equivalent)} ${lot.package_unit || ''}` : 'Sin dato'} />
           <DetailRow label="Ubicacion" value={lot.location || '-'} />

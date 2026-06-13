@@ -5,7 +5,7 @@ import PageHeader from '../components/PageHeader'
 import { useAuth } from '../hooks/useAuth.jsx'
 import { supabase } from '../lib/supabase'
 import { formatDate, formatNumber } from '../lib/format'
-import { cleanProductName, displayLotCode, packageLabel, productTotalKey } from '../lib/display'
+import { cleanProductName, displayLotCode, packageLabel, productCodeLabel, productTotalKey } from '../lib/display'
 import { internalLocations } from '../lib/locations'
 
 const searchOptions = [
@@ -186,8 +186,8 @@ export default function Lots() {
           producto: [cleanProductName(lot.product)],
           empresa: [lot.clients?.name],
           ubicacion: [lot.location],
-          lote: [lot.lot_code, displayLotCode(lot.lot_code)],
-          codigo: [lot.product],
+          lote: [lot.lot_code, displayLotCode(lot.lot_code, lot), productCodeLabel(lot)],
+          codigo: [productCodeLabel(lot), lot.solucion_product_code, lot.product],
         }[searchBy] || [cleanProductName(lot.product)]
 
         return values
@@ -199,7 +199,7 @@ export default function Lots() {
         if (productOrder !== 0) return productOrder
         const clientOrder = (a.clients?.name || '').localeCompare(b.clients?.name || '', 'es', { numeric: true })
         if (clientOrder !== 0) return clientOrder
-        return displayLotCode(a.lot_code).localeCompare(displayLotCode(b.lot_code), 'es', { numeric: true })
+        return displayLotCode(a.lot_code, a).localeCompare(displayLotCode(b.lot_code, b), 'es', { numeric: true })
       })
       .slice(0, 30)
   }, [lots, search, searchBy])
@@ -353,7 +353,7 @@ export default function Lots() {
                     <div className="min-w-0">
                       <p className="text-sm font-black leading-snug text-slate-950 [overflow-wrap:anywhere] sm:text-base">{cleanProductName(lot.product)}</p>
                       <p className="mt-1 text-xs font-semibold leading-snug text-slate-500 [overflow-wrap:anywhere] sm:text-sm">
-                        <span>{displayLotCode(lot.lot_code)}</span>
+                        <span>Lote {displayLotCode(lot.lot_code, lot)}</span>
                         <span> - </span>
                         <strong className="font-black text-slate-700">{lot.clients?.name || '-'}</strong>
                         <span> - {lot.location || '-'}</span>

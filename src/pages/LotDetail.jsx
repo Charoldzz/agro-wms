@@ -7,7 +7,7 @@ import { useAuth } from '../hooks/useAuth.jsx'
 import { formatDate, formatNumber, movementLabel } from '../lib/format'
 import { createLotQrDataUrl } from '../lib/qr'
 import { supabase } from '../lib/supabase'
-import { cleanProductName, displayLotCode } from '../lib/display'
+import { cleanProductName, displayLotCode, productCodeLabel } from '../lib/display'
 import { isNetworkMovementError, queueMovement } from '../lib/offlineQueue'
 import { compressImageFile } from '../lib/image'
 import { vibrateError, vibrateSuccess } from '../lib/haptics'
@@ -187,7 +187,7 @@ export default function LotDetail() {
 
       const { data } = await supabase
         .from('lots')
-        .select('id, lot_code, expiry_date, current_quantity, location')
+        .select('id, lot_code, solucion_product_code, expiry_date, current_quantity, location')
         .eq('inventory_source', 'stock_independiente')
         .eq('product', lot.product)
         .neq('id', lot.id)
@@ -273,6 +273,7 @@ export default function LotDetail() {
   const isExpired = expiryDaysLeft !== null && expiryDaysLeft < 0
   const lotState = useMemo(() => getLotOperationalState(lot, expiryDaysLeft), [lot, expiryDaysLeft])
   const saleExpiryWarning = movement.type === 'salida' && expiryDaysLeft !== null && expiryDaysLeft <= 90
+  const visibleLotCode = lot ? displayLotCode(lot.lot_code, lot) : ''
   const isLargeSale =
     movement.type === 'salida' &&
     Number(lot?.current_quantity || 0) > 0 &&
@@ -440,7 +441,7 @@ export default function LotDetail() {
           receiver_name: pendingMovement.receiver_name || null,
           receiver_document: pendingMovement.receiver_document || null,
           vehicle_plate: pendingMovement.type === 'salida' ? pendingMovement.to_location || null : null,
-          lot_code: displayLotCode(lot.lot_code),
+          lot_code: visibleLotCode,
           product: cleanProductName(lot.product),
           client: lot.clients?.name || 'Sin cliente',
           location: lot.location,
@@ -564,14 +565,14 @@ export default function LotDetail() {
     try {
       const response = await fetch(qrDataUrl)
       const blob = await response.blob()
-      const fileName = `${displayLotCode(lot.lot_code)}-qr.png`
+      const fileName = `${visibleLotCode || displayLotCode(lot.lot_code, lot)}-qr.png`
       const file = new File([blob], fileName, { type: 'image/png' })
       const isPhoneLike = window.matchMedia?.('(pointer: coarse)').matches
 
       if (isPhoneLike && navigator.canShare?.({ files: [file] })) {
         await navigator.share({
           files: [file],
-          title: `QR ${displayLotCode(lot.lot_code)}`,
+          title: `QR ${visibleLotCode}`,
         })
         return
       }
@@ -629,7 +630,7 @@ export default function LotDetail() {
         <body>
           <main>
             <img src="${qrDataUrl}" alt="QR ${lot.lot_code}" />
-            <p>${escapeHtml(displayLotCode(lot.lot_code))}</p>
+            <p>${escapeHtml(visibleLotCode)}</p>
           </main>
         </body>
       </html>
@@ -646,7 +647,7 @@ export default function LotDetail() {
       <article class="label">
         <div class="brand">Todo Agricola</div>
         <img src="${qrDataUrl}" alt="QR ${escapeHtml(lot.lot_code)}" />
-        <h2>${escapeHtml(displayLotCode(lot.lot_code))}</h2>
+        <h2>${escapeHtml(visibleLotCode)}</h2>
         <small>Escanear para ver ficha</small>
       </article>
     `
@@ -763,7 +764,7 @@ export default function LotDetail() {
                   Presentacion: {lot.package_size ? `${formatNumber(lot.package_size)} ${lot.package_unit || ''}` : 'Sin dato'}
                 </span>
                 <span className="rounded-lg bg-slate-100 px-2.5 py-1 text-slate-700">
-                  Lote {displayLotCode(lot.lot_code)}
+                  {visibleLotCode}
                 </span>
               </div>
             </div>
@@ -818,7 +819,7 @@ export default function LotDetail() {
                     Presentacion: {lot.package_size ? `${formatNumber(lot.package_size)} ${lot.package_unit || ''}` : 'Sin dato'}
                   </span>
                   <span className="rounded-lg bg-slate-100 px-2.5 py-1 text-slate-700">
-                    Lote {displayLotCode(lot.lot_code)}
+                    {visibleLotCode}
                   </span>
                 </div>
               </div>
@@ -891,7 +892,7 @@ export default function LotDetail() {
                   Presentacion: {lot.package_size ? `${formatNumber(lot.package_size)} ${lot.package_unit || ''}` : 'Sin dato'}
                 </span>
                 <span className="rounded-lg bg-slate-100 px-2.5 py-1 text-slate-700">
-                  Lote {displayLotCode(lot.lot_code)}
+                  {visibleLotCode}
                 </span>
               </div>
             </div>
@@ -929,7 +930,7 @@ export default function LotDetail() {
         subtitle={
           <span>
             <strong className="font-black text-slate-700">{lot.clients?.name || 'Cliente sin nombre'}</strong>
-            <span className="block text-xs font-semibold text-slate-500">Lote {displayLotCode(lot.lot_code)}</span>
+            <span className="block text-xs font-semibold text-slate-500">{visibleLotCode}</span>
           </span>
         }
       />
@@ -959,11 +960,12 @@ export default function LotDetail() {
             equivalent={Number(lot.package_size) > 0 ? currentEquivalent : null}
             equivalentUnit={lot.package_unit}
             presentation={lot.package_size ? `${formatNumber(lot.package_size)} ${lot.package_unit || ''}` : 'Sin dato'}
-            secondary={`${displayLotCode(lot.lot_code)} - ${lot.location || '-'}`}
+            secondary={`${visibleLotCode} - ${lot.location || '-'}`}
             detailTitle={movementMode === 'traslado' ? 'Producto para traslado' : 'Producto para reparacion'}
             detailRows={[
               { label: 'Cliente', value: lot.clients?.name || '-' },
-              { label: 'Lote', value: displayLotCode(lot.lot_code) },
+              { label: 'Codigo', value: productCodeLabel(lot) || '-' },
+              { label: 'Lote', value: visibleLotCode },
               { label: 'Disponible', value: `${formatNumber(lot.current_quantity)} env.` },
               { label: 'Equivalente', value: Number(lot.package_size) > 0 ? `${formatNumber(currentEquivalent)} ${lot.package_unit || ''}` : 'Sin dato' },
               { label: 'Presentacion', value: lot.package_size ? `${formatNumber(lot.package_size)} ${lot.package_unit || ''}` : 'Sin dato' },
@@ -979,7 +981,7 @@ export default function LotDetail() {
           <div>
             <p className="text-xs font-semibold uppercase text-slate-400">Lectura rapida</p>
             <h2 className="mt-1 text-2xl font-black leading-tight text-slate-950">{cleanProductName(lot.product)}</h2>
-            <p className="mt-1 text-sm font-bold text-slate-500">{displayLotCode(lot.lot_code)}</p>
+            <p className="mt-1 text-sm font-bold text-slate-500">{visibleLotCode}</p>
           </div>
           <div className="rounded-lg bg-campo-50 p-3">
             <p className="text-xs font-semibold uppercase text-campo-700">Disponible</p>
@@ -1243,7 +1245,7 @@ export default function LotDetail() {
         ) : null}
         {movement.type === 'salida' && fefoLot ? (
           <div className="rounded-lg bg-amber-50 p-3 text-sm font-bold text-amber-800">
-            FEFO: existe un lote que vence antes ({displayLotCode(fefoLot.lot_code)}, vence {formatDate(fefoLot.expiry_date)}, {formatNumber(fefoLot.current_quantity)} envases en {fefoLot.location}). Es una advertencia para considerar, no bloquea la salida.
+            FEFO: existe un lote que vence antes ({displayLotCode(fefoLot.lot_code, fefoLot)}, vence {formatDate(fefoLot.expiry_date)}, {formatNumber(fefoLot.current_quantity)} envases en {fefoLot.location}). Es una advertencia para considerar, no bloquea la salida.
           </div>
         ) : null}
         {movement.type === 'salida' && movementMode !== 'despacho' ? (
@@ -1281,7 +1283,7 @@ export default function LotDetail() {
               <div className="rounded-lg bg-white p-2">
                 <p className="font-black leading-snug text-slate-950 [overflow-wrap:anywhere]">{cleanProductName(lot.product)}</p>
                 <p className="text-xs font-semibold text-slate-500">Cliente: {lot.clients?.name || '-'}</p>
-                <p className="text-xs font-semibold text-slate-500">Lote {displayLotCode(lot.lot_code)}</p>
+                <p className="text-xs font-semibold text-slate-500">{visibleLotCode}</p>
               </div>
               <div className="grid grid-cols-2 gap-2">
                 <div className="rounded-lg bg-white p-2">
