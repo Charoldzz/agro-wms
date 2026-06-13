@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { AlertTriangle, X } from 'lucide-react'
 import { supabase } from '../lib/supabase'
+import { displayLotCode } from '../lib/display'
 
 const issueTypes = [
   { value: 'qr_danado', label: 'QR dañado' },
@@ -56,7 +57,7 @@ export default function OperationalIssueModal({ lot, userId, onClose }) {
             <AlertTriangle size={18} />
             <span className="min-w-0 [overflow-wrap:anywhere]">{lot.product}</span>
           </div>
-          <p className="mt-1 text-xs font-semibold text-orange-800">Lote {lot.lot_code}</p>
+          <p className="mt-1 text-xs font-semibold text-orange-800">{displayLotCode(lot.lot_code)}</p>
         </div>
 
         <div className="mt-3 grid grid-cols-2 gap-2">

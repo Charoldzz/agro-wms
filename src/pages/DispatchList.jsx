@@ -5,7 +5,7 @@ import PageHeader from '../components/PageHeader'
 import EmptyState from '../components/EmptyState'
 import ListProductCard from '../components/ListProductCard'
 import { useAuth } from '../hooks/useAuth.jsx'
-import { cleanProductName, displayLotCode, packageLabel } from '../lib/display'
+import { cleanProductName, displayLotCode, lotLabel, packageLabel } from '../lib/display'
 import { normalizeDispatchRequests } from '../lib/dispatchRequests'
 import { formatDate, formatNumber } from '../lib/format'
 import { supabase } from '../lib/supabase'
@@ -1081,7 +1081,7 @@ export default function DispatchList() {
                       <div className="min-w-0">
                         <p className="text-sm font-black leading-snug text-slate-950 [overflow-wrap:anywhere]">{cleanProductName(item.lot.product)}</p>
                         <p className="text-xs font-semibold text-slate-500">
-                          Lote {displayLotCode(item.lot.lot_code)} - {packageLabel(item.lot) || 'Sin presentacion'}
+                          {lotLabel(item.lot.lot_code)} - {packageLabel(item.lot) || 'Sin presentacion'}
                         </p>
                         <p className="mt-1 text-xs font-bold text-slate-500">Stock: {formatNumber(item.lot.current_quantity)} a {formatNumber(remaining)} env.</p>
                       </div>

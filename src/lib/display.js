@@ -148,7 +148,7 @@ export function displayLotCode(lotCode, lot = null) {
 
 export function lotLabel(lotCode, lot = null) {
   const value = displayLotCode(lotCode, lot)
-  return isNoLotDisplay(value) ? 'SIN LOTE' : `Lote ${value}`
+  return isNoLotDisplay(value) ? 'SIN LOTE' : `L:${value}`
 }
 
 export function packageLabel(lot) {

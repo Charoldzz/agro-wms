@@ -4,7 +4,7 @@ import PageHeader from '../components/PageHeader'
 import EmptyState from '../components/EmptyState'
 import { supabase } from '../lib/supabase'
 import { formatDate, formatNumber, movementLabel } from '../lib/format'
-import { cleanProductName, displayLotCode, productCodeLabel } from '../lib/display'
+import { cleanProductName, displayLotCode, lotLabel, productCodeLabel } from '../lib/display'
 
 const movementIcons = {
   entrada: ArrowDown,
@@ -165,7 +165,7 @@ export default function Movements() {
 
                     <p className="mt-2 font-semibold text-slate-800">{cleanProductName(lot.product)}</p>
                     <p className="text-sm font-bold text-slate-500">
-                      Lote {displayLotCode(lot.lot_code, lot)}
+                      {lotLabel(lot.lot_code, lot)}
                     </p>
                     <p className="text-sm text-slate-500">
                       Cliente: {lot.clients?.name || '-'} - Ubicacion: {lot.location || '-'}

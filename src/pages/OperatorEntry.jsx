@@ -709,7 +709,7 @@ export default function OperatorEntry() {
                     </div>
                   </div>
                   <p className="text-xs text-slate-500">
-                    Cliente: {selectedClient?.name || '-'} - Lote {item.lot_code ? displayLotCode(item.lot_code) : 'automatico'}
+                    Cliente: {selectedClient?.name || '-'} - {item.lot_code ? displayLotCode(item.lot_code) : 'SIN LOTE'}
                   </p>
                   <p className="text-xs text-slate-500">
                     Presentacion: {packageLabel(item) || 'Sin dato'} - {entryPackageBreakdown(item)}

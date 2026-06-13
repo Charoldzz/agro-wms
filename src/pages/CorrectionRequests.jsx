@@ -5,7 +5,7 @@ import PageHeader from '../components/PageHeader'
 import EmptyState from '../components/EmptyState'
 import SimpleDateSelect from '../components/SimpleDateSelect'
 import { useAuth } from '../hooks/useAuth.jsx'
-import { cleanProductName, displayLotCode } from '../lib/display'
+import { cleanProductName, displayLotCode, lotLabel } from '../lib/display'
 import { formatDate, formatNumber } from '../lib/format'
 import { vibrateSuccess } from '../lib/haptics'
 import { supabase } from '../lib/supabase'
@@ -539,7 +539,7 @@ function MovementLine({ movement, onRequest }) {
         <div className="min-w-0">
           <p className="font-black leading-snug text-slate-950 [overflow-wrap:anywhere]">{cleanProductName(movement.lots?.product)}</p>
           <p className="text-xs font-bold text-slate-500">
-            Lote {displayLotCode(movement.lots?.lot_code)} - {movement.lots?.location || '-'}
+            {lotLabel(movement.lots?.lot_code)} - {movement.lots?.location || '-'}
           </p>
         </div>
         <div className="text-left sm:text-right">
