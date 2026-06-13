@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Edit2, Plus, Save, Search, X } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Edit2, Plus, Save, Search, X } from 'lucide-react'
+
+const PAGE_SIZE = 30
 import PageHeader from '../components/PageHeader'
 import EmptyState from '../components/EmptyState'
 import NewProductModal from '../components/NewProductModal'
@@ -21,6 +23,7 @@ export default function ProductCatalog() {
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [filterClient, setFilterClient] = useState('')
+  const [page, setPage] = useState(1)
   const [showModal, setShowModal] = useState(false)
   const [editingId, setEditingId] = useState(null)
   const [editForm, setEditForm] = useState({})
@@ -52,6 +55,13 @@ export default function ProductCatalog() {
       )
     })
   }, [products, search, filterClient])
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
+  const safePage = Math.min(page, totalPages)
+  const paginated = filtered.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE)
+
+  function handleSearch(val) { setSearch(val); setPage(1) }
+  function handleFilterClient(val) { setFilterClient(val); setPage(1) }
 
   function startEdit(p) {
     setEditingId(p.id)
@@ -96,10 +106,10 @@ export default function ProductCatalog() {
             type="text"
             placeholder="Buscar codigo o producto..."
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={(e) => handleSearch(e.target.value)}
           />
         </div>
-        <select className="input sm:w-56" value={filterClient} onChange={(e) => setFilterClient(e.target.value)}>
+        <select className="input sm:w-56" value={filterClient} onChange={(e) => handleFilterClient(e.target.value)}>
           <option value="">Todas las empresas</option>
           {clients.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
         </select>
@@ -111,12 +121,14 @@ export default function ProductCatalog() {
         <EmptyState title="Sin productos" description={search ? 'No hay coincidencias.' : 'Agrega el primer producto.'} />
       ) : (
         <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
-          <div className="grid grid-cols-[auto_1fr_auto] gap-0 bg-campo-700 px-4 py-2 text-xs font-black uppercase tracking-wide text-white">
-            <span className="w-32">CODIGO</span>
-            <span>PRODUCTO</span>
-            {isAdmin && <span className="w-20 text-right">ACCION</span>}
+          <div className="flex items-center justify-between bg-campo-700 px-4 py-2">
+            <div className="grid w-full grid-cols-[auto_1fr_auto] text-xs font-black uppercase tracking-wide text-white">
+              <span className="w-32">CODIGO</span>
+              <span>PRODUCTO</span>
+              {isAdmin && <span className="w-20 text-right">ACCION</span>}
+            </div>
           </div>
-          {filtered.map((p, i) => (
+          {paginated.map((p, i) => (
             <div
               key={p.id}
               className={`grid grid-cols-[auto_1fr_auto] items-center gap-3 px-4 py-3 ${i % 2 === 0 ? 'bg-white' : 'bg-slate-50'} ${editingId === p.id ? 'border-l-4 border-campo-500' : ''}`}
@@ -174,6 +186,53 @@ export default function ProductCatalog() {
               )}
             </div>
           ))}
+
+          {totalPages > 1 && (
+            <div className="flex items-center justify-between border-t border-slate-100 bg-white px-4 py-3">
+              <p className="text-xs font-semibold text-slate-500">
+                {filtered.length} productos · pág. {safePage} de {totalPages}
+              </p>
+              <div className="flex items-center gap-1">
+                <button
+                  className="btn-secondary !min-h-8 !px-2 !py-1 text-xs disabled:opacity-40"
+                  type="button"
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                  disabled={safePage === 1}
+                >
+                  <ChevronLeft size={16} />
+                </button>
+                {Array.from({ length: totalPages }, (_, i) => i + 1)
+                  .filter((n) => n === 1 || n === totalPages || Math.abs(n - safePage) <= 2)
+                  .reduce((acc, n, idx, arr) => {
+                    if (idx > 0 && n - arr[idx - 1] > 1) acc.push('...')
+                    acc.push(n)
+                    return acc
+                  }, [])
+                  .map((n, idx) =>
+                    n === '...' ? (
+                      <span key={`dots-${idx}`} className="px-1 text-xs text-slate-400">…</span>
+                    ) : (
+                      <button
+                        key={n}
+                        className={`!min-h-8 !min-w-8 rounded-lg px-2 py-1 text-xs font-bold transition ${safePage === n ? 'bg-campo-700 text-white' : 'btn-secondary'}`}
+                        type="button"
+                        onClick={() => setPage(n)}
+                      >
+                        {n}
+                      </button>
+                    )
+                  )}
+                <button
+                  className="btn-secondary !min-h-8 !px-2 !py-1 text-xs disabled:opacity-40"
+                  type="button"
+                  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                  disabled={safePage === totalPages}
+                >
+                  <ChevronRight size={16} />
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
