@@ -114,7 +114,7 @@ export default function Lots() {
   const filteredLots = useMemo(() => {
     const term = search.trim().toLowerCase()
     return lots.filter((lot) => {
-      if (!showZeroStock && Number(lot.current_quantity || 0) <= 0) return false
+      if (!showZeroStock && Number(lot.current_quantity || 0) < 1) return false
       if (selectedClient && lot.client_id !== selectedClient) return false
       if (!term) return true
       return (
@@ -150,9 +150,17 @@ export default function Lots() {
   const totalItems = filteredLots.length
   const totalMercaderia = filteredLots.reduce((sum, lot) => {
     const size = Number(lot.package_size || 0)
-    return sum + (size > 0 ? Number(lot.current_quantity || 0) * size : 0)
+    if (size <= 0) return sum
+    let raw = Number(lot.current_quantity || 0) * size
+    // normalizar ml→lt y gr→kg para que coincida con el programa
+    if (lot.package_unit === 'ml' || lot.package_unit === 'gr') raw = raw / 1000
+    return sum + raw
   }, 0)
-  const totalEnvases = filteredLots.reduce((sum, lot) => sum + Number(lot.current_quantity || 0), 0)
+  const totalPallets = filteredLots.reduce((sum, lot) => {
+    const uob = Number(lot.entry_units_per_box || 0)
+    if (uob <= 0) return sum
+    return sum + Number(lot.current_quantity || 0) / uob
+  }, 0)
 
   const selectedClientName = selectedClient ? clients.find((c) => c.id === selectedClient)?.name : ''
   const visibleClients = clients.filter((c) =>
@@ -494,8 +502,8 @@ export default function Lots() {
           {/* Barra de totales */}
           <div className="grid grid-cols-3 divide-x divide-slate-200 rounded-xl border border-slate-200 bg-white">
             <Total label="TOTAL ITEM" value={formatNumber(totalItems)} />
-            <Total label="MERCADERÍA" value={formatNumber(totalMercaderia)} sub={totalMercaderia > 0 ? 'lt/kg' : ''} />
-            <Total label="ENVASES" value={formatNumber(totalEnvases)} />
+            <Total label="TOTAL MERCADERÍA" value={formatNumber(totalMercaderia)} sub={totalMercaderia > 0 ? 'lt/kg' : ''} />
+            <Total label="TOTAL PALLETS" value={formatNumber(totalPallets)} />
           </div>
 
         </div>
