@@ -492,7 +492,7 @@ export default function Lots() {
           <div className="grid grid-cols-3 divide-x divide-slate-200 rounded-xl border border-slate-200 bg-white">
             <Total label="TOTAL ITEM" value={formatNumber(totalItems)} />
             <Total label="TOTAL MERCADERÍA" value={formatNumber(totalMercaderia)} />
-            <Total label="TOTAL PALLETS" value={formatNumber(totalPallets)} />
+            <Total label="TOTAL PALLETS" value={totalPallets > 0 ? formatNumber(totalPallets) : '—'} />
           </div>
 
         </div>
