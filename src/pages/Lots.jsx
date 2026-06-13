@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
-import { CalendarClock, ClipboardList, Menu, X } from 'lucide-react'
+import { CalendarClock, ChevronLeft, ChevronRight, ClipboardList, Menu, X } from 'lucide-react'
 import { useAuth } from '../hooks/useAuth.jsx'
 import { supabase } from '../lib/supabase'
 import { formatDate, formatNumber } from '../lib/format'
-import { cleanProductName, displayLotCode, lotLabel, packageLabel, productCodeLabel } from '../lib/display'
+import { cleanProductName, displayLotCode, lotLabel, productCodeLabel } from '../lib/display'
 import { internalLocations } from '../lib/locations'
 
 const LOTS_CACHE_KEY = 'todo-agricola-lots-cache'
@@ -37,9 +37,9 @@ function manualEntryQuantity(form) {
 function expiryClass(dateStr) {
   if (!dateStr) return 'text-slate-400'
   const days = Math.ceil((new Date(dateStr) - new Date()) / 86400000)
-  if (days < 0) return 'text-red-600 font-black'
-  if (days <= 30) return 'text-amber-600 font-bold'
-  return 'text-slate-600'
+  if (days < 0) return 'text-red-600 font-semibold'
+  if (days <= 30) return 'text-amber-600 font-semibold'
+  return 'text-slate-500'
 }
 
 export default function Lots() {
@@ -52,7 +52,6 @@ export default function Lots() {
   const [cacheNotice, setCacheNotice] = useState('')
   const [loading, setLoading] = useState(true)
 
-  // Filters & view
   const [search, setSearch] = useState('')
   const [selectedClient, setSelectedClient] = useState('')
   const [clientSearch, setClientSearch] = useState('')
@@ -61,7 +60,6 @@ export default function Lots() {
   const [page, setPage] = useState(1)
   const [sidebarOpen, setSidebarOpen] = useState(false)
 
-  // Admin form
   const [showForm, setShowForm] = useState(false)
   const [form, setForm] = useState(initialForm)
 
@@ -78,7 +76,6 @@ export default function Lots() {
         .order('product', { ascending: true }),
       supabase.from('clients').select('*').eq('inventory_source', 'stock_independiente').order('name'),
     ])
-
     if (lotsData && !lotsError) {
       setLots(lotsData)
       localStorage.setItem(LOTS_CACHE_KEY, JSON.stringify(lotsData))
@@ -114,7 +111,6 @@ export default function Lots() {
     loadData()
   }
 
-  // Filtered lots
   const filteredLots = useMemo(() => {
     const term = search.trim().toLowerCase()
     return lots.filter((lot) => {
@@ -131,22 +127,18 @@ export default function Lots() {
     })
   }, [lots, search, selectedClient, showZeroStock])
 
-  // Grouped by product
   const groupedRows = useMemo(() => {
     if (!groupByProduct) return null
     const map = {}
     filteredLots.forEach((lot) => {
       const key = cleanProductName(lot.product)
-      if (!map[key]) map[key] = { product: key, quantity: 0, lots: 0, equivalents: {} }
+      if (!map[key]) map[key] = { product: key, quantity: 0, lots: 0 }
       map[key].quantity += Number(lot.current_quantity || 0)
       map[key].lots += 1
-      const eq = lotEquivalent(lot)
-      if (eq) map[key].equivalents[eq.unit] = (map[key].equivalents[eq.unit] || 0) + eq.quantity
     })
     return Object.values(map).sort((a, b) => a.product.localeCompare(b.product, 'es'))
   }, [filteredLots, groupByProduct])
 
-  // Pagination
   const rows = groupByProduct ? (groupedRows || []) : filteredLots
   const totalPages = Math.max(1, Math.ceil(rows.length / PAGE_SIZE))
   const safePage = Math.min(page, totalPages)
@@ -155,7 +147,6 @@ export default function Lots() {
   function handleSearch(v) { setSearch(v); setPage(1) }
   function handleClientSelect(id) { setSelectedClient(id); setPage(1); setSidebarOpen(false) }
 
-  // Totals
   const totalItems = filteredLots.length
   const totalMercaderia = filteredLots.reduce((sum, lot) => {
     const size = Number(lot.package_size || 0)
@@ -163,10 +154,10 @@ export default function Lots() {
   }, 0)
   const totalEnvases = filteredLots.reduce((sum, lot) => sum + Number(lot.current_quantity || 0), 0)
 
+  const selectedClientName = selectedClient ? clients.find((c) => c.id === selectedClient)?.name : ''
   const visibleClients = clients.filter((c) =>
     !clientSearch || c.name.toLowerCase().includes(clientSearch.toLowerCase())
   )
-
   const manualQuantity = manualEntryQuantity(form)
 
   return (
@@ -183,34 +174,43 @@ export default function Lots() {
         </div>
       )}
 
-      {/* Layout principal */}
       <div className="flex min-h-0 gap-3">
 
-        {/* Sidebar móvil backdrop */}
+        {/* Backdrop móvil */}
         {sidebarOpen && (
-          <div className="fixed inset-0 z-30 bg-black/40 lg:hidden" onClick={() => setSidebarOpen(false)} />
+          <div
+            className="fixed inset-0 z-30 bg-black/50 lg:hidden"
+            onClick={() => setSidebarOpen(false)}
+          />
         )}
 
         {/* Sidebar empresas */}
         <aside className={`
-          fixed inset-y-0 left-0 z-40 w-56 overflow-y-auto border-r border-slate-200 bg-white p-3 transition-transform
-          lg:static lg:z-auto lg:block lg:translate-x-0 lg:rounded-xl lg:border lg:shadow-sm
-          ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}
+          fixed inset-y-0 left-0 z-40 flex w-64 flex-col border-r border-slate-200 bg-white shadow-xl transition-transform duration-200
+          lg:static lg:z-auto lg:w-52 lg:translate-x-0 lg:rounded-xl lg:border lg:shadow-sm lg:flex
+          ${sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
         `}>
-          <div className="mb-2 flex items-center justify-between lg:block">
-            <p className="text-xs font-black uppercase tracking-wide text-slate-500">Buscar empresa</p>
-            <button className="lg:hidden" onClick={() => setSidebarOpen(false)}><X size={18} /></button>
+          <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3 lg:px-3">
+            <p className="text-xs font-black uppercase tracking-wide text-slate-500">Empresas</p>
+            <button
+              className="rounded-lg p-1 text-slate-400 hover:bg-slate-100 lg:hidden"
+              onClick={() => setSidebarOpen(false)}
+            >
+              <X size={18} />
+            </button>
           </div>
-          <input
-            className="input mb-2 w-full text-sm"
-            placeholder="Escribe para filtrar..."
-            value={clientSearch}
-            onChange={(e) => setClientSearch(e.target.value)}
-          />
-          <ul className="space-y-0.5">
+          <div className="px-3 pt-2 pb-1">
+            <input
+              className="input w-full text-sm"
+              placeholder="Buscar empresa..."
+              value={clientSearch}
+              onChange={(e) => setClientSearch(e.target.value)}
+            />
+          </div>
+          <ul className="flex-1 overflow-y-auto px-2 pb-4 space-y-0.5">
             <li>
               <button
-                className={`w-full rounded-lg px-2 py-1.5 text-left text-sm font-bold transition ${!selectedClient ? 'bg-campo-700 text-white' : 'hover:bg-slate-100 text-slate-700'}`}
+                className={`w-full rounded-lg px-3 py-2 text-left text-sm font-bold transition ${!selectedClient ? 'bg-campo-700 text-white' : 'text-slate-700 hover:bg-slate-100'}`}
                 onClick={() => handleClientSelect('')}
               >
                 Todos
@@ -219,7 +219,7 @@ export default function Lots() {
             {visibleClients.map((c) => (
               <li key={c.id}>
                 <button
-                  className={`w-full rounded-lg px-2 py-1.5 text-left text-xs font-semibold transition ${selectedClient === c.id ? 'bg-campo-700 text-white' : 'hover:bg-slate-100 text-slate-600'}`}
+                  className={`w-full rounded-lg px-3 py-2 text-left text-xs font-semibold leading-snug transition ${selectedClient === c.id ? 'bg-campo-700 text-white' : 'text-slate-600 hover:bg-slate-100'}`}
                   onClick={() => handleClientSelect(c.id)}
                 >
                   {c.name}
@@ -233,51 +233,75 @@ export default function Lots() {
         <div className="min-w-0 flex-1 space-y-3">
 
           {/* Barra de controles */}
-          <div className="flex flex-wrap items-center gap-2 rounded-xl border border-slate-200 bg-white p-3">
-            <button
-              className="btn-secondary !min-h-9 !px-3 !py-2 lg:hidden"
-              onClick={() => setSidebarOpen(true)}
-            >
-              <Menu size={18} />
-            </button>
-            <input
-              className="input min-w-0 flex-1 text-sm"
-              placeholder="Producto, lote, vencimiento o cantidad..."
-              value={search}
-              onChange={(e) => handleSearch(e.target.value)}
-            />
-            <label className="flex cursor-pointer items-center gap-1.5 text-xs font-semibold text-slate-600 select-none">
+          <div className="space-y-2 rounded-xl border border-slate-200 bg-white p-3">
+            {/* Fila 1: menú + buscador */}
+            <div className="flex items-center gap-2">
+              <button
+                className="btn-secondary shrink-0 !min-h-9 !px-3 !py-2 lg:hidden"
+                onClick={() => setSidebarOpen(true)}
+              >
+                <Menu size={18} />
+              </button>
               <input
-                type="checkbox"
-                className="h-4 w-4 rounded accent-campo-700"
-                checked={groupByProduct}
-                onChange={(e) => { setGroupByProduct(e.target.checked); setPage(1) }}
+                className="input min-w-0 flex-1 text-sm"
+                placeholder="Buscar producto, lote..."
+                value={search}
+                onChange={(e) => handleSearch(e.target.value)}
               />
-              Total por producto
-            </label>
-            <label className="flex cursor-pointer items-center gap-1.5 text-xs font-semibold text-slate-600 select-none">
-              <input
-                type="checkbox"
-                className="h-4 w-4 rounded accent-campo-700"
-                checked={showZeroStock}
-                onChange={(e) => setShowZeroStock(e.target.checked)}
-              />
-              Mostrar stock 0
-            </label>
-            <button
-              className="btn-secondary !min-h-9 !px-3 !py-2 text-xs font-bold"
-              onClick={() => navigate('/vencimientos')}
-            >
-              <CalendarClock size={15} />
-              <span className="hidden sm:inline">Próximos a vencer</span>
-            </button>
-            <button
-              className="btn-secondary !min-h-9 !px-3 !py-2 text-xs font-bold"
-              onClick={() => navigate('/movimientos')}
-            >
-              <ClipboardList size={15} />
-              <span className="hidden sm:inline">Ver Kardex</span>
-            </button>
+            </div>
+            {/* Fila 2: opciones + acciones */}
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+              <label className="flex cursor-pointer items-center gap-1.5 select-none">
+                <input
+                  type="checkbox"
+                  className="h-4 w-4 rounded accent-campo-700"
+                  checked={groupByProduct}
+                  onChange={(e) => { setGroupByProduct(e.target.checked); setPage(1) }}
+                />
+                <span className="text-xs font-semibold text-slate-600">Total por producto</span>
+              </label>
+              <label className="flex cursor-pointer items-center gap-1.5 select-none">
+                <input
+                  type="checkbox"
+                  className="h-4 w-4 rounded accent-campo-700"
+                  checked={showZeroStock}
+                  onChange={(e) => setShowZeroStock(e.target.checked)}
+                />
+                <span className="text-xs font-semibold text-slate-600">Mostrar stock 0</span>
+              </label>
+              <div className="ml-auto flex gap-1.5">
+                <button
+                  className="btn-secondary !min-h-8 !px-2.5 !py-1.5 text-xs font-bold"
+                  onClick={() => navigate('/vencimientos')}
+                  title="Próximos a vencer"
+                >
+                  <CalendarClock size={14} />
+                  <span className="hidden sm:inline">Próx. a vencer</span>
+                </button>
+                <button
+                  className="btn-secondary !min-h-8 !px-2.5 !py-1.5 text-xs font-bold"
+                  onClick={() => navigate('/movimientos')}
+                  title="Ver Kardex"
+                >
+                  <ClipboardList size={14} />
+                  <span className="hidden sm:inline">Ver Kardex</span>
+                </button>
+              </div>
+            </div>
+            {/* Empresa activa en móvil */}
+            {selectedClientName && (
+              <div className="flex items-center gap-1.5 lg:hidden">
+                <span className="rounded-full bg-campo-100 px-2.5 py-0.5 text-xs font-bold text-campo-800">
+                  {selectedClientName}
+                </span>
+                <button
+                  className="text-xs font-semibold text-slate-400 hover:text-slate-600"
+                  onClick={() => handleClientSelect('')}
+                >
+                  ✕ Todos
+                </button>
+              </div>
+            )}
           </div>
 
           {/* Admin: crear lote */}
@@ -290,23 +314,41 @@ export default function Lots() {
                 {showForm ? 'Cancelar' : '+ Crear lote manual'}
               </button>
               {showForm && (
-                <form className="mt-2 rounded-xl border border-slate-200 bg-white p-4 grid gap-3 sm:grid-cols-2" onSubmit={handleSubmit}>
-                  <Field label="ID lote"><input className="input" value={form.lot_code} onChange={(e) => setForm({ ...form, lot_code: e.target.value })} placeholder="Opcional" /></Field>
+                <form
+                  className="mt-2 grid gap-3 rounded-xl border border-slate-200 bg-white p-4 sm:grid-cols-2"
+                  onSubmit={handleSubmit}
+                >
+                  <Field label="ID lote">
+                    <input className="input" value={form.lot_code} onChange={(e) => setForm({ ...form, lot_code: e.target.value })} placeholder="Opcional" />
+                  </Field>
                   <Field label="Cliente">
                     <select className="input" value={form.client_id} onChange={(e) => setForm({ ...form, client_id: e.target.value })} required>
                       <option value="">Seleccionar</option>
                       {clients.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
                     </select>
                   </Field>
-                  <Field label="Producto"><input className="input" value={form.product} onChange={(e) => setForm({ ...form, product: e.target.value })} required /></Field>
-                  <Field label="Cajas"><input className="input" type="number" min="0" step="0.01" value={form.entry_boxes} onChange={(e) => setForm({ ...form, entry_boxes: e.target.value })} /></Field>
-                  <Field label="Env/caja"><input className="input" type="number" min="0" step="0.01" value={form.entry_units_per_box} onChange={(e) => setForm({ ...form, entry_units_per_box: e.target.value })} /></Field>
-                  <Field label="Env sueltos"><input className="input" type="number" min="0" step="0.01" value={form.entry_loose_units} onChange={(e) => setForm({ ...form, entry_loose_units: e.target.value })} placeholder="Opcional" /></Field>
-                  <div className="rounded-lg bg-campo-50 p-3"><p className="text-xs font-semibold uppercase text-campo-700">Total envases</p><p className="mt-1 text-2xl font-black text-campo-800">{formatNumber(manualQuantity)}</p></div>
-                  <Field label="Tamaño pres."><input className="input" type="number" min="0" step="0.01" value={form.package_size} onChange={(e) => setForm({ ...form, package_size: e.target.value })} placeholder="Ej. 20" /></Field>
+                  <Field label="Producto">
+                    <input className="input" value={form.product} onChange={(e) => setForm({ ...form, product: e.target.value })} required />
+                  </Field>
+                  <Field label="Cajas">
+                    <input className="input" type="number" min="0" step="0.01" value={form.entry_boxes} onChange={(e) => setForm({ ...form, entry_boxes: e.target.value })} />
+                  </Field>
+                  <Field label="Env/caja">
+                    <input className="input" type="number" min="0" step="0.01" value={form.entry_units_per_box} onChange={(e) => setForm({ ...form, entry_units_per_box: e.target.value })} />
+                  </Field>
+                  <Field label="Env sueltos">
+                    <input className="input" type="number" min="0" step="0.01" value={form.entry_loose_units} onChange={(e) => setForm({ ...form, entry_loose_units: e.target.value })} placeholder="Opcional" />
+                  </Field>
+                  <div className="rounded-lg bg-campo-50 p-3">
+                    <p className="text-xs font-semibold uppercase text-campo-700">Total envases</p>
+                    <p className="mt-1 text-2xl font-black text-campo-800">{formatNumber(manualQuantity)}</p>
+                  </div>
+                  <Field label="Tamaño pres.">
+                    <input className="input" type="number" min="0" step="0.01" value={form.package_size} onChange={(e) => setForm({ ...form, package_size: e.target.value })} placeholder="Ej. 20" />
+                  </Field>
                   <Field label="Unidad">
                     <select className="input" value={form.package_unit} onChange={(e) => setForm({ ...form, package_unit: e.target.value })}>
-                      {['gr','kg','ml','lt','un'].map((u) => <option key={u} value={u}>{u}</option>)}
+                      {['gr', 'kg', 'ml', 'lt', 'un'].map((u) => <option key={u} value={u}>{u}</option>)}
                     </select>
                   </Field>
                   <Field label="Ubicación">
@@ -315,8 +357,12 @@ export default function Lots() {
                       {internalLocations.map((loc) => <option key={loc} value={loc}>{loc}</option>)}
                     </select>
                   </Field>
-                  <Field label="Fecha ingreso"><input className="input" type="date" value={form.entry_date} onChange={(e) => setForm({ ...form, entry_date: e.target.value })} required /></Field>
-                  <Field label="Vencimiento"><input className="input" type="date" value={form.expiry_date} onChange={(e) => setForm({ ...form, expiry_date: e.target.value })} /></Field>
+                  <Field label="Fecha ingreso">
+                    <input className="input" type="date" value={form.entry_date} onChange={(e) => setForm({ ...form, entry_date: e.target.value })} required />
+                  </Field>
+                  <Field label="Vencimiento">
+                    <input className="input" type="date" value={form.expiry_date} onChange={(e) => setForm({ ...form, expiry_date: e.target.value })} />
+                  </Field>
                   <button className="btn-primary sm:col-span-2">Crear lote</button>
                 </form>
               )}
@@ -325,37 +371,55 @@ export default function Lots() {
 
           {/* Tabla */}
           <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
-            {/* Encabezado tabla */}
-            <div className="grid bg-campo-700 text-xs font-black uppercase tracking-wide text-white"
-              style={{ gridTemplateColumns: groupByProduct ? '1fr auto auto' : '1fr auto auto auto auto' }}>
-              <div className="px-4 py-2.5">PRODUCTO</div>
-              {!groupByProduct && <div className="px-3 py-2.5 hidden sm:block">ALMACEN</div>}
-              {!groupByProduct && <div className="px-3 py-2.5 text-center">LOTE</div>}
-              {!groupByProduct && <div className="px-3 py-2.5 text-center">VENC</div>}
-              <div className="px-4 py-2.5 text-right">{groupByProduct ? 'LOTES' : 'CANTIDAD'}</div>
-              {groupByProduct && <div className="px-4 py-2.5 text-right">TOTAL ENV</div>}
-            </div>
+
+            {/* Encabezado — solo desktop */}
+            {!groupByProduct ? (
+              <div className="hidden grid-cols-[1fr_auto_auto_auto] sm:grid bg-campo-700 text-xs font-black uppercase tracking-wide text-white">
+                <div className="px-4 py-2.5">PRODUCTO / ALMACEN</div>
+                <div className="px-3 py-2.5 text-center w-20">LOTE</div>
+                <div className="px-3 py-2.5 text-center w-24">VENC</div>
+                <div className="px-4 py-2.5 text-right w-24">CANTIDAD</div>
+              </div>
+            ) : (
+              <div className="hidden grid-cols-[1fr_auto_auto] sm:grid bg-campo-700 text-xs font-black uppercase tracking-wide text-white">
+                <div className="px-4 py-2.5">PRODUCTO</div>
+                <div className="px-4 py-2.5 text-right w-20">LOTES</div>
+                <div className="px-4 py-2.5 text-right w-28">TOTAL ENV</div>
+              </div>
+            )}
 
             {loading ? (
-              <p className="py-10 text-center text-sm font-bold text-slate-400">Cargando inventario...</p>
+              <p className="py-12 text-center text-sm font-bold text-slate-400">Cargando inventario...</p>
             ) : pageRows.length === 0 ? (
-              <p className="py-10 text-center text-sm font-bold text-slate-400">Sin resultados.</p>
+              <p className="py-12 text-center text-sm font-bold text-slate-400">Sin resultados.</p>
             ) : groupByProduct ? (
               pageRows.map((item, i) => (
                 <button
                   key={item.product}
-                  className={`grid w-full text-left transition hover:bg-campo-50 ${i % 2 === 0 ? 'bg-white' : 'bg-slate-50'}`}
-                  style={{ gridTemplateColumns: '1fr auto auto' }}
+                  className={`w-full text-left transition active:bg-campo-50 hover:bg-campo-50 ${i % 2 === 0 ? 'bg-white' : 'bg-slate-50'}`}
                   onClick={() => navigate(`/productos/${encodeURIComponent(item.product)}`)}
                 >
-                  <div className="px-4 py-2.5">
-                    <p className="text-sm font-bold text-slate-900 [overflow-wrap:anywhere]">{item.product}</p>
-                    <p className="text-xs font-semibold text-slate-400">{item.lots} lotes</p>
+                  {/* Móvil */}
+                  <div className="flex items-center justify-between gap-3 px-4 py-3 sm:hidden border-b border-slate-100">
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-bold text-slate-900 [overflow-wrap:anywhere]">{item.product}</p>
+                      <p className="text-xs font-semibold text-slate-400">{item.lots} lotes</p>
+                    </div>
+                    <div className="shrink-0 text-right">
+                      <p className="text-base font-black text-campo-700">{formatNumber(item.quantity)}</p>
+                      <p className="text-xs text-slate-400">env</p>
+                    </div>
                   </div>
-                  <div className="px-4 py-2.5 text-right text-sm font-bold text-slate-700">{item.lots}</div>
-                  <div className="px-4 py-2.5 text-right">
-                    <span className="text-sm font-black text-campo-700">{formatNumber(item.quantity)}</span>
-                    <span className="ml-1 text-xs font-bold text-campo-600">env</span>
+                  {/* Desktop */}
+                  <div className="hidden sm:grid grid-cols-[1fr_auto_auto]">
+                    <div className="px-4 py-2.5">
+                      <p className="text-sm font-bold text-slate-900 [overflow-wrap:anywhere]">{item.product}</p>
+                    </div>
+                    <div className="w-20 px-4 py-2.5 text-right text-sm font-bold text-slate-600">{item.lots}</div>
+                    <div className="w-28 px-4 py-2.5 text-right">
+                      <span className="text-sm font-black text-campo-700">{formatNumber(item.quantity)}</span>
+                      <span className="ml-1 text-xs font-bold text-campo-500">env</span>
+                    </div>
                   </div>
                 </button>
               ))
@@ -365,28 +429,56 @@ export default function Lots() {
                 return (
                   <button
                     key={lot.id}
-                    className={`grid w-full text-left transition hover:bg-campo-50 ${i % 2 === 0 ? 'bg-white' : 'bg-slate-50'}`}
-                    style={{ gridTemplateColumns: '1fr auto auto auto auto' }}
+                    className={`w-full text-left transition active:bg-campo-50 hover:bg-campo-50 ${i % 2 === 0 ? 'bg-white' : 'bg-slate-50'}`}
                     onClick={() => navigate(`/lotes/${lot.id}`, { state: { fromLotsSearch: true, search } })}
                   >
-                    <div className="min-w-0 px-4 py-2.5">
-                      <p className="truncate text-sm font-bold text-slate-900">{cleanProductName(lot.product)}</p>
-                      <p className="truncate text-xs font-semibold text-slate-400 sm:hidden">{lot.clients?.name || '-'}</p>
+                    {/* Móvil: tarjeta compacta */}
+                    <div className="flex items-start justify-between gap-3 px-4 py-3 sm:hidden border-b border-slate-100">
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-bold text-slate-900 [overflow-wrap:anywhere] leading-snug">
+                          {cleanProductName(lot.product)}
+                        </p>
+                        <p className="mt-0.5 text-xs font-semibold text-slate-500 truncate">
+                          {lot.clients?.name || '-'}
+                        </p>
+                        <div className="mt-1 flex items-center gap-2 flex-wrap">
+                          <span className="rounded bg-slate-100 px-1.5 py-0.5 font-mono text-xs font-bold text-slate-600">
+                            {lotLabel(lot.lot_code, lot)}
+                          </span>
+                          {lot.expiry_date && (
+                            <span className={`text-xs ${expiryClass(lot.expiry_date)}`}>
+                              {formatDate(lot.expiry_date)}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      <div className="shrink-0 text-right pt-0.5">
+                        <p className="text-base font-black text-campo-700">{formatNumber(lot.current_quantity)}</p>
+                        {eq
+                          ? <p className="text-xs text-slate-400">{formatNumber(eq.quantity)} {eq.unit}</p>
+                          : <p className="text-xs text-slate-400">env</p>
+                        }
+                      </div>
                     </div>
-                    <div className="hidden px-3 py-2.5 sm:block">
-                      <p className="truncate text-xs font-semibold text-slate-600 max-w-[140px]">{lot.clients?.name || '-'}</p>
-                    </div>
-                    <div className="px-3 py-2.5 text-center">
-                      <span className="rounded bg-slate-100 px-1.5 py-0.5 font-mono text-xs font-bold text-slate-700">
-                        {lotLabel(lot.lot_code, lot)}
-                      </span>
-                    </div>
-                    <div className={`px-3 py-2.5 text-center text-xs ${expiryClass(lot.expiry_date)}`}>
-                      {lot.expiry_date ? formatDate(lot.expiry_date) : '-'}
-                    </div>
-                    <div className="px-4 py-2.5 text-right">
-                      <span className="text-sm font-black text-campo-700">{formatNumber(lot.current_quantity)}</span>
-                      {eq && <p className="text-xs font-semibold text-slate-400">{formatNumber(eq.quantity)} {eq.unit}</p>}
+
+                    {/* Desktop: fila de tabla */}
+                    <div className="hidden sm:grid grid-cols-[1fr_auto_auto_auto]">
+                      <div className="min-w-0 px-4 py-2.5">
+                        <p className="truncate text-sm font-bold text-slate-900">{cleanProductName(lot.product)}</p>
+                        <p className="truncate text-xs font-semibold text-slate-400">{lot.clients?.name || '-'}</p>
+                      </div>
+                      <div className="w-20 px-3 py-2.5 flex items-center justify-center">
+                        <span className="rounded bg-slate-100 px-1.5 py-0.5 font-mono text-xs font-bold text-slate-700">
+                          {lotLabel(lot.lot_code, lot)}
+                        </span>
+                      </div>
+                      <div className={`w-24 px-3 py-2.5 text-center text-xs ${expiryClass(lot.expiry_date)}`}>
+                        {lot.expiry_date ? formatDate(lot.expiry_date) : '-'}
+                      </div>
+                      <div className="w-24 px-4 py-2.5 text-right">
+                        <p className="text-sm font-black text-campo-700">{formatNumber(lot.current_quantity)}</p>
+                        {eq && <p className="text-xs text-slate-400">{formatNumber(eq.quantity)} {eq.unit}</p>}
+                      </div>
                     </div>
                   </button>
                 )
@@ -395,21 +487,35 @@ export default function Lots() {
 
             {/* Paginación */}
             {totalPages > 1 && (
-              <div className="flex items-center justify-between border-t border-slate-100 px-4 py-2.5">
-                <p className="text-xs font-semibold text-slate-500">pág. {safePage} de {totalPages}</p>
+              <div className="flex items-center justify-between border-t border-slate-100 px-4 py-3">
+                <p className="text-xs font-semibold text-slate-500">
+                  {rows.length} {groupByProduct ? 'productos' : 'lotes'} · pág. {safePage}/{totalPages}
+                </p>
                 <div className="flex gap-1">
-                  <button className="btn-secondary !min-h-7 !px-2 !py-1 text-xs disabled:opacity-40" disabled={safePage === 1} onClick={() => setPage((p) => p - 1)}>‹</button>
-                  <button className="btn-secondary !min-h-7 !px-2 !py-1 text-xs disabled:opacity-40" disabled={safePage === totalPages} onClick={() => setPage((p) => p + 1)}>›</button>
+                  <button
+                    className="btn-secondary !min-h-8 !px-2 !py-1 text-xs disabled:opacity-40"
+                    disabled={safePage === 1}
+                    onClick={() => setPage((p) => p - 1)}
+                  >
+                    <ChevronLeft size={16} />
+                  </button>
+                  <button
+                    className="btn-secondary !min-h-8 !px-2 !py-1 text-xs disabled:opacity-40"
+                    disabled={safePage === totalPages}
+                    onClick={() => setPage((p) => p + 1)}
+                  >
+                    <ChevronRight size={16} />
+                  </button>
                 </div>
               </div>
             )}
           </div>
 
           {/* Barra de totales */}
-          <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3">
+          <div className="grid grid-cols-3 divide-x divide-slate-200 rounded-xl border border-slate-200 bg-white">
             <Total label="TOTAL ITEM" value={formatNumber(totalItems)} />
-            <Total label="TOTAL MERCADERÍA" value={`${formatNumber(totalMercaderia)}`} sub={totalMercaderia > 0 ? 'lt/kg' : ''} />
-            <Total label="TOTAL ENVASES" value={formatNumber(totalEnvases)} />
+            <Total label="MERCADERÍA" value={formatNumber(totalMercaderia)} sub={totalMercaderia > 0 ? 'lt/kg' : ''} />
+            <Total label="ENVASES" value={formatNumber(totalEnvases)} />
           </div>
 
         </div>
@@ -420,11 +526,11 @@ export default function Lots() {
 
 function Total({ label, value, sub }) {
   return (
-    <div className="text-center sm:text-left">
-      <p className="text-xs font-black uppercase tracking-wide text-slate-400">{label}</p>
-      <p className="text-base font-black text-slate-900">
+    <div className="px-3 py-3 text-center sm:px-4">
+      <p className="text-[10px] font-black uppercase tracking-wide text-slate-400">{label}</p>
+      <p className="mt-0.5 text-base font-black text-slate-900 leading-none">
         {value}
-        {sub && <span className="ml-1 text-xs font-bold text-slate-400">{sub}</span>}
+        {sub && <span className="ml-1 text-[10px] font-bold text-slate-400">{sub}</span>}
       </p>
     </div>
   )
