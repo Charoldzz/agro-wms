@@ -9,7 +9,7 @@ import { clearOperationalDrafts } from '../lib/drafts'
 const navItems = [
   { to: '/', label: 'Inicio', icon: Home },
   { to: '/operacion', label: 'Operar', icon: Warehouse, roles: ['operador'] },
-  { to: '/lotes', label: 'Lotes', icon: Boxes, roles: ['administrador', 'operador'] },
+  { to: '/lotes', label: 'Almacenes', icon: Boxes, roles: ['administrador', 'operador'] },
   { to: '/despachos', label: 'Solicitudes', icon: Truck, roles: ['cliente'] },
   { to: '/historial', label: 'Movimientos', icon: ClipboardList, roles: ['cliente'] },
   { to: '/movimientos', label: 'Mov.', icon: ClipboardList },

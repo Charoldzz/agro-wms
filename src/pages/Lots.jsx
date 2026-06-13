@@ -5,7 +5,7 @@ import PageHeader from '../components/PageHeader'
 import { useAuth } from '../hooks/useAuth.jsx'
 import { supabase } from '../lib/supabase'
 import { formatDate, formatNumber } from '../lib/format'
-import { cleanProductName, displayLotCode, packageLabel, productCodeLabel, productTotalKey } from '../lib/display'
+import { cleanProductName, displayLotCode, isNoLotDisplay, lotLabel, packageLabel, productCodeLabel, productTotalKey } from '../lib/display'
 import { internalLocations } from '../lib/locations'
 
 const searchOptions = [
@@ -209,7 +209,7 @@ export default function Lots() {
   return (
     <div>
       <PageHeader
-        title="Lotes"
+        title="Almacenes"
         subtitle="Inventario por producto"
       />
 
@@ -342,7 +342,9 @@ export default function Lots() {
             {filteredLots.length === 0 ? (
               <p className="rounded-lg bg-slate-50 p-3 text-sm font-bold text-slate-500">No hay lotes con esa busqueda.</p>
             ) : (
-              filteredLots.map((lot) => (
+              filteredLots.map((lot) => {
+                const visibleLot = displayLotCode(lot.lot_code, lot)
+                return (
                 <button
                   key={lot.id}
                   className="w-full overflow-hidden rounded-lg bg-slate-50 p-3 text-left transition hover:bg-campo-50"
@@ -353,7 +355,7 @@ export default function Lots() {
                     <div className="min-w-0">
                       <p className="text-sm font-black leading-snug text-slate-950 [overflow-wrap:anywhere] sm:text-base">{cleanProductName(lot.product)}</p>
                       <p className="mt-1 text-xs font-semibold leading-snug text-slate-500 [overflow-wrap:anywhere] sm:text-sm">
-                        <span>Lote {displayLotCode(lot.lot_code, lot)}</span>
+                        <span className={isNoLotDisplay(visibleLot) ? 'text-slate-400' : ''}>{lotLabel(lot.lot_code, lot)}</span>
                         <span> - </span>
                         <strong className="font-black text-slate-700">{lot.clients?.name || '-'}</strong>
                         <span> - {lot.location || '-'}</span>
@@ -374,7 +376,8 @@ export default function Lots() {
                     </div>
                   </div>
                 </button>
-              ))
+                )
+              })
             )}
           </div>
         </section>
