@@ -1,7 +1,11 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Link } from 'react-router-dom'
-import { Boxes, CalendarClock, CheckCircle2, ChevronDown, Download, FileText, History, Mail, PackageCheck, Plus, Printer, Search, Send, Truck, X } from 'lucide-react'
-import PageHeader from '../components/PageHeader'
+import { Link, useNavigate } from 'react-router-dom'
+import {
+  ArrowRight, Boxes, CalendarClock, CheckCircle2, ChevronDown,
+  ClipboardList, Download, FileText, History, Minus, Package,
+  PackageCheck, Plus, Printer, Search, Send, ShieldAlert,
+  Truck, X,
+} from 'lucide-react'
 import EmptyState from '../components/EmptyState'
 import ListProductCard from '../components/ListProductCard'
 import { useAuth } from '../hooks/useAuth.jsx'
@@ -10,1028 +14,800 @@ import { normalizeDispatchRequests } from '../lib/dispatchRequests'
 import { formatDate, formatNumber, movementLabel } from '../lib/format'
 import { supabase } from '../lib/supabase'
 
-function escapeHtml(value) {
-  return String(value || '')
-    .replaceAll('&', '&amp;')
-    .replaceAll('<', '&lt;')
-    .replaceAll('>', '&gt;')
-    .replaceAll('"', '&quot;')
+/* ─── helpers ─────────────────────────────────────────────────────── */
+
+function escapeHtml(v) {
+  return String(v || '').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;')
 }
 
 function daysUntil(expiryDate) {
   if (!expiryDate) return null
-  const today = new Date()
-  today.setHours(0, 0, 0, 0)
+  const today = new Date(); today.setHours(0,0,0,0)
   return Math.ceil((new Date(`${expiryDate}T00:00:00`) - today) / 86400000)
 }
 
 function lotStatus(lot) {
   const days = daysUntil(lot.expiry_date)
-  if (days !== null && days < 0) return { label: 'Vencido', className: 'bg-red-50 text-red-700' }
-  if (lot.status === 'retenido') return { label: 'Retenido', className: 'bg-orange-50 text-orange-700' }
-  if (lot.status === 'cerrado') return { label: 'Cerrado', className: 'bg-slate-100 text-slate-600' }
-  if (days !== null && days <= 90) return { label: 'Por vencer', className: 'bg-amber-50 text-amber-800' }
-  return { label: 'Disponible', className: 'bg-campo-50 text-campo-700' }
+  if (days !== null && days < 0) return { label: 'Vencido',   cls: 'bg-red-50 text-red-700' }
+  if (lot.status === 'retenido')  return { label: 'Retenido',  cls: 'bg-orange-50 text-orange-700' }
+  if (lot.status === 'cerrado')   return { label: 'Cerrado',   cls: 'bg-slate-100 text-slate-600' }
+  if (days !== null && days <= 90) return { label: 'Por vencer', cls: 'bg-amber-50 text-amber-800' }
+  return { label: 'Disponible', cls: 'bg-campo-50 text-campo-700' }
 }
 
 function lotEquivalent(lot) {
-  const packageSize = Number(lot?.package_size || 0)
-  if (packageSize <= 0 || !lot?.package_unit) return null
-  return {
-    quantity: Number(lot.current_quantity || 0) * packageSize,
-    unit: lot.package_unit,
-  }
+  const s = Number(lot?.package_size || 0)
+  if (s <= 0 || !lot?.package_unit) return null
+  return { quantity: Number(lot.current_quantity || 0) * s, unit: lot.package_unit }
 }
 
 function equivalentTotalsLabel(equivalents = {}) {
   const totals = Object.entries(equivalents)
-    .filter(([, quantity]) => Number(quantity || 0) > 0)
-    .sort(([a], [b]) => a.localeCompare(b, 'es'))
-
-  if (totals.length === 0) return 'Equivalente sin dato'
-  return totals.map(([unit, quantity]) => `${formatNumber(quantity)} ${unit}`).join(' / ')
+    .filter(([, q]) => Number(q || 0) > 0)
+    .sort(([a],[b]) => a.localeCompare(b,'es'))
+  if (totals.length === 0) return 'Sin equivalente'
+  return totals.map(([unit, qty]) => `${formatNumber(qty)} ${unit}`).join(' / ')
 }
 
-function normalizeClientName(value) {
-  return String(value || '')
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .replace(/\s+/g, ' ')
-    .trim()
-    .toUpperCase()
+function normalizeClientName(v) {
+  return String(v||'').normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/\s+/g,' ').trim().toUpperCase()
 }
 
 async function findClientIdByName(clientName) {
-  const normalizedName = normalizeClientName(clientName)
-  if (!normalizedName || normalizedName === 'CLIENTE') return null
-
-  const { data: exactMatches } = await supabase
-    .from('clients')
-    .select('id, name')
-    .eq('inventory_source', 'stock_independiente')
-    .ilike('name', clientName)
-    .limit(2)
-
-  if ((exactMatches || []).length === 1) return exactMatches[0].id
-
-  const { data: clients } = await supabase
-    .from('clients')
-    .select('id, name')
-    .eq('inventory_source', 'stock_independiente')
-    .limit(10000)
-
-  const matches = (clients || []).filter((client) => normalizeClientName(client.name) === normalizedName)
+  const n = normalizeClientName(clientName)
+  if (!n || n === 'CLIENTE') return null
+  const { data: exact } = await supabase.from('clients').select('id,name').eq('inventory_source','stock_independiente').ilike('name', clientName).limit(2)
+  if ((exact||[]).length === 1) return exact[0].id
+  const { data: all } = await supabase.from('clients').select('id,name').eq('inventory_source','stock_independiente').limit(10000)
+  const matches = (all||[]).filter(c => normalizeClientName(c.name) === n)
   return matches.length === 1 ? matches[0].id : null
 }
 
-const REQUEST_DRAFT_KEY = 'todo-agricola-client-dispatch-draft'
-
-function readRequestDraft() {
-  try {
-    const draft = JSON.parse(localStorage.getItem(REQUEST_DRAFT_KEY) || 'null')
-    if (!draft) return { lotId: '', quantity: '', notes: '', items: [] }
-    return {
-      lotId: draft.lotId || '',
-      quantity: draft.quantity || '',
-      notes: draft.notes || '',
-      items: Array.isArray(draft.items) ? draft.items : [],
-    }
-  } catch {
-    return { lotId: '', quantity: '', notes: '', items: [] }
-  }
+const STATUS_MAP = {
+  aprobado:   { label: 'En almacén',  cls: 'bg-campo-100 text-campo-800' },
+  despachado: { label: 'Despachado',  cls: 'bg-slate-100 text-slate-700' },
+  rechazado:  { label: 'Rechazado',   cls: 'bg-red-50 text-red-700' },
 }
+function requestStatus(s) { return STATUS_MAP[s] || { label: 'Recibido', cls: 'bg-amber-50 text-amber-800' } }
 
-function writeRequestDraft(draft) {
-  localStorage.setItem(REQUEST_DRAFT_KEY, JSON.stringify(draft))
+/* ─── draft ────────────────────────────────────────────────────────── */
+const DRAFT_KEY = 'todo-agricola-client-dispatch-draft'
+function readDraft() {
+  try { const d = JSON.parse(localStorage.getItem(DRAFT_KEY) || 'null'); return d || { lotId:'', quantity:'', notes:'', items:[] } } catch { return { lotId:'', quantity:'', notes:'', items:[] } }
 }
+function writeDraft(d) { localStorage.setItem(DRAFT_KEY, JSON.stringify(d)) }
+function clearDraft()  { localStorage.removeItem(DRAFT_KEY) }
 
-function clearRequestDraft() {
-  localStorage.removeItem(REQUEST_DRAFT_KEY)
-}
-
+/* ═══════════════════════════════════════════════════════════════════ */
 export default function ClientPortal({ view = 'inventory' }) {
   const { user, profile } = useAuth()
-  const initialDraft = useMemo(readRequestDraft, [])
-  const [lots, setLots] = useState([])
-  const [movements, setMovements] = useState([])
-  const [requests, setRequests] = useState([])
-  const [search, setSearch] = useState('')
-  const [requestLotId, setRequestLotId] = useState(initialDraft.lotId)
-  const [requestQuantity, setRequestQuantity] = useState(initialDraft.quantity)
-  const [requestNotes, setRequestNotes] = useState(initialDraft.notes)
-  const [requestItems, setRequestItems] = useState(initialDraft.items)
-  const [editingRequestLotId, setEditingRequestLotId] = useState('')
-  const [requestMessage, setRequestMessage] = useState('')
-  const [requestSuccess, setRequestSuccess] = useState(null)
-  const [expandedInventoryProduct, setExpandedInventoryProduct] = useState('')
-  const [showAllInventoryProducts, setShowAllInventoryProducts] = useState(false)
+  const navigate = useNavigate()
+  const initialDraft = useMemo(readDraft, [])
+
+  const [lots,       setLots]       = useState([])
+  const [movements,  setMovements]  = useState([])
+  const [requests,   setRequests]   = useState([])
+  const [loading,    setLoading]    = useState(true)
+  const [search,     setSearch]     = useState('')
+  const [expandedProduct, setExpandedProduct] = useState('')
+  const [showAllProducts, setShowAllProducts] = useState(false)
   const [selectedMovement, setSelectedMovement] = useState(null)
 
-  useEffect(() => {
-    if (!user?.id) return
-    loadData()
-  }, [user?.id, profile?.client_id])
+  // request form
+  const [reqProductName, setReqProductName] = useState('')
+  const [reqLotId,       setReqLotId]       = useState(initialDraft.lotId)
+  const [reqQuantity,    setReqQuantity]     = useState(initialDraft.quantity)
+  const [reqNotes,       setReqNotes]        = useState(initialDraft.notes)
+  const [reqItems,       setReqItems]        = useState(initialDraft.items)
+  const [editingLotId,   setEditingLotId]    = useState('')
+  const [reqMessage,     setReqMessage]      = useState('')
+  const [reqSuccess,     setReqSuccess]      = useState(null)
 
-  useEffect(() => {
-    writeRequestDraft({
-      lotId: requestLotId,
-      quantity: requestQuantity,
-      notes: requestNotes,
-      items: requestItems,
-    })
-  }, [requestLotId, requestQuantity, requestNotes, requestItems])
+  useEffect(() => { if (user?.id) loadData() }, [user?.id, profile?.client_id])
+  useEffect(() => { writeDraft({ lotId: reqLotId, quantity: reqQuantity, notes: reqNotes, items: reqItems }) }, [reqLotId, reqQuantity, reqNotes, reqItems])
 
   async function loadData() {
+    setLoading(true)
     const { data: lotsData } = await supabase
       .from('lots')
-      .select('id, lot_code, client_id, product, solucion_product_code, current_quantity, package_size, package_unit, location, entry_date, expiry_date, status, clients(name, contact)')
-      .eq('inventory_source', 'stock_independiente')
-      .eq('status', 'activo')
+      .select('id,lot_code,client_id,product,solucion_product_code,current_quantity,package_size,package_unit,location,entry_date,expiry_date,status,clients(name,contact)')
+      .eq('inventory_source','stock_independiente')
+      .eq('status','activo')
       .gt('current_quantity', 0)
       .order('product')
-
     setLots(lotsData || [])
 
-    const lotIds = (lotsData || []).map((lot) => lot.id)
-    const { data: movementData } = lotIds.length
-      ? await supabase
-        .from('movements')
-        .select('id, type, quantity, previous_quantity, new_quantity, to_location, notes, created_at, lots(lot_code, product, solucion_product_code, package_size, package_unit, location)')
-        .in('lot_id', lotIds)
-        .in('type', ['entrada', 'salida'])
-        .order('created_at', { ascending: false })
-        .limit(80)
+    const lotIds = (lotsData||[]).map(l => l.id)
+    const { data: movData } = lotIds.length
+      ? await supabase.from('movements')
+          .select('id,type,quantity,previous_quantity,new_quantity,to_location,notes,created_at,lots(lot_code,product,solucion_product_code,package_size,package_unit,location)')
+          .in('lot_id', lotIds).in('type',['entrada','salida'])
+          .order('created_at',{ ascending:false }).limit(80)
       : { data: [] }
+    setMovements(movData || [])
 
-    setMovements(movementData || [])
-
-    const { data: requestData } = await supabase
+    const { data: reqData } = await supabase
       .from('client_dispatch_requests')
-      .select('id, client_id, lot_id, product, quantity, items, notes, status, admin_notes, created_at, reviewed_at, clients(name), lots(id, lot_code, product, solucion_product_code, current_quantity, package_size, package_unit, location, expiry_date, status)')
-      .order('created_at', { ascending: false })
-
-    setRequests(await normalizeDispatchRequests(requestData || [], lotsData || []))
+      .select('id,client_id,lot_id,product,quantity,items,notes,status,admin_notes,created_at,reviewed_at,clients(name),lots(id,lot_code,product,solucion_product_code,current_quantity,package_size,package_unit,location,expiry_date,status)')
+      .order('created_at',{ ascending:false })
+    setRequests(await normalizeDispatchRequests(reqData||[], lotsData||[]))
+    setLoading(false)
   }
 
+  /* ─── derived ─────────────────────────────────────────────────── */
   const filteredLots = useMemo(() => {
     const term = search.toLowerCase()
-    return lots.filter((lot) =>
-      [lot.product, productCodeLabel(lot), lot.lot_code, displayLotCode(lot.lot_code, lot), lot.location, lot.status]
-        .filter(Boolean)
-        .some((value) => value.toLowerCase().includes(term)),
+    return lots.filter(l =>
+      [l.product, productCodeLabel(l), l.lot_code, displayLotCode(l.lot_code,l), l.location]
+        .filter(Boolean).some(v => v.toLowerCase().includes(term))
     )
   }, [lots, search])
 
-  const totalStock = lots.reduce((sum, lot) => sum + Number(lot.current_quantity || 0), 0)
-  const expiring = lots.filter((lot) => {
-    const days = daysUntil(lot.expiry_date)
-    return days !== null && days <= 90
-  })
-  const retainedLots = lots.filter((lot) => ['retenido', 'cerrado'].includes(lot.status) || lotStatus(lot).label === 'Vencido')
-  const activeRequests = requests.filter((request) => !['despachado', 'rechazado'].includes(request.status))
-  const productCount = new Set(lots.map((lot) => lot.product).filter(Boolean)).size
-  const clientName = lots[0]?.clients?.name || profile?.full_name || 'Cliente'
-  const selectedRequestLot = lots.find((lot) => lot.id === requestLotId)
-  const requestsView = view === 'requests'
-  const movementsView = view === 'movements'
-  const inventoryView = !requestsView && !movementsView
+  const totalStock    = lots.reduce((s,l) => s + Number(l.current_quantity||0), 0)
+  const productCount  = new Set(lots.map(l => l.product).filter(Boolean)).size
+  const expiring      = lots.filter(l => { const d = daysUntil(l.expiry_date); return d !== null && d <= 90 })
+  const alerts        = lots.filter(l => lotStatus(l).label !== 'Disponible' && lotStatus(l).label !== 'Por vencer')
+  const activeRequests = requests.filter(r => !['despachado','rechazado'].includes(r.status))
+  const clientName    = lots[0]?.clients?.name || profile?.full_name || 'Cliente'
+
   const inventoryProducts = useMemo(() => {
-    const groups = filteredLots.reduce((acc, lot) => {
-      const product = cleanProductName(lot.product)
-      if (!acc[product]) {
-        acc[product] = {
-          product,
-          quantity: 0,
-          equivalents: {},
-          lots: [],
-          expiring: 0,
-          retained: 0,
-        }
-      }
-
-      acc[product].quantity += Number(lot.current_quantity || 0)
-      acc[product].lots.push(lot)
-
-      const equivalent = lotEquivalent(lot)
-      if (equivalent) {
-        acc[product].equivalents[equivalent.unit] = Number(acc[product].equivalents[equivalent.unit] || 0) + equivalent.quantity
-      }
-
-      const status = lotStatus(lot).label
-      if (status === 'Por vencer' || status === 'Vencido') acc[product].expiring += 1
-      if (status === 'Retenido') acc[product].retained += 1
-
-      return acc
-    }, {})
-
-    return Object.values(groups)
-      .map((group) => ({
-        ...group,
-        lots: group.lots.sort((a, b) => {
-          const expiryOrder = (a.expiry_date || '9999-12-31').localeCompare(b.expiry_date || '9999-12-31')
-          if (expiryOrder !== 0) return expiryOrder
-          return displayLotCode(a.lot_code, a).localeCompare(displayLotCode(b.lot_code, b), 'es', { numeric: true })
-        }),
-      }))
-      .sort((a, b) => a.product.localeCompare(b.product, 'es', { numeric: true }))
+    const map = {}
+    filteredLots.forEach(lot => {
+      const key = cleanProductName(lot.product)
+      if (!map[key]) map[key] = { product:key, quantity:0, equivalents:{}, lots:[], expiring:0, retained:0 }
+      map[key].quantity += Number(lot.current_quantity||0)
+      map[key].lots.push(lot)
+      const eq = lotEquivalent(lot)
+      if (eq) map[key].equivalents[eq.unit] = Number(map[key].equivalents[eq.unit]||0) + eq.quantity
+      const st = lotStatus(lot).label
+      if (st === 'Por vencer' || st === 'Vencido') map[key].expiring++
+      if (st === 'Retenido') map[key].retained++
+    })
+    return Object.values(map).map(g => ({
+      ...g,
+      lots: g.lots.sort((a,b) => (a.expiry_date||'9999-12-31').localeCompare(b.expiry_date||'9999-12-31')),
+    })).sort((a,b) => a.product.localeCompare(b.product,'es',{numeric:true}))
   }, [filteredLots])
-  const visibleInventoryProducts = showAllInventoryProducts || search.trim()
-    ? inventoryProducts
-    : inventoryProducts.slice(0, 8)
 
-  function addRequestItem() {
-    setRequestMessage('')
+  const visibleProducts = (showAllProducts || search.trim()) ? inventoryProducts : inventoryProducts.slice(0,8)
 
-    const selectedLot = selectedRequestLot
-    const quantity = Number(requestQuantity || 0)
+  // request: unique product names for step 1 select
+  const reqProductOptions = useMemo(() => {
+    const seen = new Set()
+    return lots.filter(l => { if(seen.has(cleanProductName(l.product))) return false; seen.add(cleanProductName(l.product)); return true })
+      .map(l => cleanProductName(l.product)).sort()
+  }, [lots])
 
-    if (!selectedLot) {
-      setRequestMessage('Selecciona un lote.')
-      return
-    }
-    if (quantity <= 0) {
-      setRequestMessage('Escribe una cantidad mayor a cero.')
-      return
-    }
-    if (quantity > Number(selectedLot.current_quantity || 0)) {
-      setRequestMessage('La cantidad solicitada supera los envases disponibles en ese lote.')
-      return
-    }
-    if (lotStatus(selectedLot).label !== 'Disponible' && lotStatus(selectedLot).label !== 'Por vencer') {
-      setRequestMessage('Este lote no esta disponible para solicitar despacho.')
-      return
-    }
+  // request: lots for selected product
+  const reqProductLots = useMemo(() => {
+    if (!reqProductName) return []
+    return lots.filter(l => cleanProductName(l.product) === reqProductName)
+  }, [lots, reqProductName])
 
-    setRequestItems((current) => {
-      const existing = current.find((item) => item.lot_id === selectedLot.id)
+  const selectedLot = lots.find(l => l.id === reqLotId)
+
+  /* ─── request actions ─────────────────────────────────────────── */
+  function addReqItem() {
+    setReqMessage('')
+    const qty = Number(reqQuantity||0)
+    if (!selectedLot) { setReqMessage('Selecciona un lote.'); return }
+    if (qty <= 0) { setReqMessage('Ingresa una cantidad mayor a 0.'); return }
+    if (qty > Number(selectedLot.current_quantity||0)) { setReqMessage('La cantidad supera los envases disponibles.'); return }
+    if (!['Disponible','Por vencer'].includes(lotStatus(selectedLot).label)) { setReqMessage('Este lote no está disponible.'); return }
+    setReqItems(cur => {
+      const existing = cur.find(i => i.lot_id === selectedLot.id)
       if (existing) {
-        const nextQuantity = editingRequestLotId === selectedLot.id ? quantity : Number(existing.quantity || 0) + quantity
-        if (nextQuantity > Number(selectedLot.current_quantity || 0)) {
-          setRequestMessage('Ese lote no tiene suficientes envases disponibles para sumar esa cantidad.')
-          return current
-        }
-        return current.map((item) =>
-          item.lot_id === selectedLot.id
-            ? {
-                ...item,
-                client_id: selectedLot.client_id,
-                client_name: selectedLot.clients?.name || clientName,
-                solucion_product_code: selectedLot.solucion_product_code,
-                quantity: nextQuantity,
-                available: selectedLot.current_quantity,
-              }
-            : item,
-        )
+        const next = editingLotId === selectedLot.id ? qty : Number(existing.quantity||0) + qty
+        if (next > Number(selectedLot.current_quantity||0)) { setReqMessage('Cantidad supera stock disponible.'); return cur }
+        return cur.map(i => i.lot_id === selectedLot.id ? { ...i, quantity: next, available: selectedLot.current_quantity } : i)
       }
-      return [
-        ...current,
-        {
-          lot_id: selectedLot.id,
-          client_id: selectedLot.client_id,
-          client_name: selectedLot.clients?.name || clientName,
-          lot_code: selectedLot.lot_code,
-          product: selectedLot.product,
-          solucion_product_code: selectedLot.solucion_product_code,
-          quantity,
-          package_size: selectedLot.package_size,
-          package_unit: selectedLot.package_unit,
-          location: selectedLot.location,
-          available: selectedLot.current_quantity,
-        },
-      ]
+      return [...cur, { lot_id: selectedLot.id, client_id: selectedLot.client_id, client_name: selectedLot.clients?.name||clientName, lot_code: selectedLot.lot_code, product: selectedLot.product, solucion_product_code: selectedLot.solucion_product_code, quantity: qty, package_size: selectedLot.package_size, package_unit: selectedLot.package_unit, location: selectedLot.location, available: selectedLot.current_quantity }]
     })
-    setRequestLotId('')
-    setRequestQuantity('')
-    setEditingRequestLotId('')
+    setReqLotId(''); setReqQuantity(''); setEditingLotId(''); setReqProductName('')
   }
 
-  function removeRequestItem(lotId) {
-    setRequestItems((current) => current.filter((item) => item.lot_id !== lotId))
-    if (editingRequestLotId === lotId) {
-      setEditingRequestLotId('')
-      setRequestLotId('')
-      setRequestQuantity('')
-    }
+  function removeReqItem(lotId) {
+    setReqItems(cur => cur.filter(i => i.lot_id !== lotId))
+    if (editingLotId === lotId) { setEditingLotId(''); setReqLotId(''); setReqQuantity('') }
   }
 
-  function editRequestItem(item) {
-    setEditingRequestLotId(item.lot_id)
-    setRequestLotId(item.lot_id)
-    setRequestQuantity(String(item.quantity || ''))
-    setRequestMessage('Editando producto de la solicitud.')
+  function editReqItem(item) {
+    setEditingLotId(item.lot_id); setReqLotId(item.lot_id); setReqQuantity(String(item.quantity||''))
+    setReqProductName(cleanProductName(item.product)); setReqMessage('Editando item de la lista.')
   }
 
-  function clearRequestCart() {
-    setRequestLotId('')
-    setRequestQuantity('')
-    setRequestItems([])
-    setRequestNotes('')
-    setEditingRequestLotId('')
-    setRequestMessage('')
-    setRequestSuccess(null)
-    clearRequestDraft()
+  function clearCart() {
+    setReqLotId(''); setReqQuantity(''); setReqItems([]); setReqNotes('')
+    setEditingLotId(''); setReqMessage(''); setReqSuccess(null); setReqProductName(''); clearDraft()
   }
 
-  async function createDispatchRequest(event) {
-    event.preventDefault()
-    setRequestMessage('')
-
-    if (requestItems.length === 0) {
-      setRequestMessage('Agrega al menos un producto a la lista.')
-      return
-    }
-
-    const normalizedRequest = await normalizeDispatchRequests({
-      items: requestItems,
-      client_id: profile?.client_id || null,
-      client_name: clientName,
-      clients: { name: clientName },
-    }, lots)
-    const freshItems = normalizedRequest?.items || []
-    const firstItem = freshItems[0]
-    const firstLot = lots.find((lot) => lot.id === firstItem?.lot_id)
-    const overStockItem = freshItems.find((item) => Number(item.quantity || 0) > Number(item.current_quantity ?? item.available ?? 0))
-    const requestClientIds = Array.from(new Set(freshItems.map((item) => item.client_id).filter(Boolean)))
-    const requestClientId = profile?.client_id || (requestClientIds.length === 1 ? requestClientIds[0] : firstLot?.client_id) || await findClientIdByName(clientName)
-    const totalQuantity = freshItems.reduce((sum, item) => sum + Number(item.quantity || 0), 0)
-
-    if (!firstItem || !requestClientId) {
-      setRequestMessage('No se pudo validar el cliente de la solicitud. Recarga la pagina e intenta de nuevo.')
-      return
-    }
-    if (requestClientIds.length > 1) {
-      setRequestMessage('La solicitud debe tener productos de un solo cliente.')
-      return
-    }
-    if (overStockItem) {
-      setRequestMessage(`${cleanProductName(overStockItem.product)} solo tiene ${formatNumber(overStockItem.current_quantity ?? overStockItem.available ?? 0)} envases disponibles.`)
-      return
-    }
-
+  async function submitRequest(e) {
+    e.preventDefault(); setReqMessage('')
+    if (reqItems.length === 0) { setReqMessage('Agrega al menos un producto.'); return }
+    const norm = await normalizeDispatchRequests({ items: reqItems, client_id: profile?.client_id||null, client_name: clientName, clients:{ name: clientName } }, lots)
+    const fresh = norm?.items || []
+    const over  = fresh.find(i => Number(i.quantity||0) > Number(i.current_quantity ?? i.available ?? 0))
+    const clientIds = [...new Set(fresh.map(i => i.client_id).filter(Boolean))]
+    const clientId  = profile?.client_id || (clientIds.length === 1 ? clientIds[0] : fresh[0]?.client_id) || await findClientIdByName(clientName)
+    if (!fresh[0] || !clientId) { setReqMessage('No se pudo validar el cliente. Recarga e intenta de nuevo.'); return }
+    if (clientIds.length > 1)   { setReqMessage('La solicitud debe ser de un solo cliente.'); return }
+    if (over) { setReqMessage(`${cleanProductName(over.product)} solo tiene ${formatNumber(over.current_quantity ?? over.available ?? 0)} env. disponibles.`); return }
     const { error } = await supabase.from('client_dispatch_requests').insert({
-      client_id: requestClientId,
-      lot_id: firstItem.lot_id,
-      product: freshItems.length === 1 ? firstItem.product : `Lista de despacho (${freshItems.length} productos)`,
-      quantity: totalQuantity,
-      items: freshItems.map((item) => ({
-        ...item,
-        client_id: item.client_id || requestClientId,
-        client_name: item.client_name || clientName,
-      })),
-      notes: requestNotes.trim() || null,
-      status: 'aprobado',
-      requested_by: user.id,
+      client_id: clientId, lot_id: fresh[0].lot_id,
+      product: fresh.length === 1 ? fresh[0].product : `Lista de despacho (${fresh.length} productos)`,
+      quantity: fresh.reduce((s,i) => s + Number(i.quantity||0), 0),
+      items: fresh.map(i => ({ ...i, client_id: i.client_id||clientId, client_name: i.client_name||clientName })),
+      notes: reqNotes.trim()||null, status:'aprobado', requested_by: user.id,
     })
-
-    if (error) {
-      setRequestMessage('No se pudo enviar la solicitud. Ejecuta el SQL client_dispatch_requests.sql en Supabase.')
-      return
-    }
-
-    setRequestLotId('')
-    setRequestQuantity('')
-    setRequestItems([])
-    setRequestNotes('')
-    setEditingRequestLotId('')
-    clearRequestDraft()
-    setRequestSuccess({
-      clientName,
-      items: freshItems,
-      createdAt: new Date().toISOString(),
-    })
-    if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(80)
-    setRequestMessage('')
+    if (error) { setReqMessage('No se pudo enviar la solicitud. Contacta a almacén.'); return }
+    setReqLotId(''); setReqQuantity(''); setReqItems([]); setReqNotes(''); setEditingLotId(''); setReqProductName(''); clearDraft()
+    setReqSuccess({ clientName, items: fresh, createdAt: new Date().toISOString() })
+    if (navigator.vibrate) navigator.vibrate(80)
     loadData()
   }
 
-  function exportInventoryExcel() {
-    const headers = ['Cliente', 'Producto', 'Lote', 'Envases', 'Presentacion', 'Equivalente', 'Ubicacion', 'Ingreso', 'Vencimiento', 'Estado']
-    const rows = lots.map((lot) => [
-      clientName,
-      cleanProductName(lot.product),
-      displayLotCode(lot.lot_code, lot),
-      formatNumber(lot.current_quantity),
-      lot.package_size ? `${formatNumber(lot.package_size)} ${lot.package_unit || ''}` : '',
-      lot.package_size ? `${formatNumber(Number(lot.current_quantity || 0) * Number(lot.package_size || 0))} ${lot.package_unit || ''}` : '',
-      lot.location || '',
-      lot.entry_date ? formatDate(lot.entry_date) : '',
-      lot.expiry_date ? formatDate(lot.expiry_date) : '',
-      lotStatus(lot).label,
-    ])
-    const htmlRows = [headers, ...rows]
-      .map((row) => `<tr>${row.map((cell) => `<td>${escapeHtml(cell)}</td>`).join('')}</tr>`)
-      .join('')
-    const html = `<html><head><meta charset="utf-8" /></head><body><table>${htmlRows}</table></body></html>`
-    const blob = new Blob([html], { type: 'application/vnd.ms-excel;charset=utf-8' })
-    const url = URL.createObjectURL(blob)
-    const link = document.createElement('a')
-    link.href = url
-    link.download = `inventario-${clientName.replace(/[^a-z0-9]+/gi, '-').toLowerCase()}-${new Date().toISOString().slice(0, 10)}.xls`
-    link.click()
-    URL.revokeObjectURL(url)
+  /* ─── exports ─────────────────────────────────────────────────── */
+  function exportExcel() {
+    const headers = ['Cliente','Producto','Lote','Envases','Presentacion','Equivalente','Ubicacion','Ingreso','Vencimiento','Estado']
+    const rows = lots.map(l => [clientName, cleanProductName(l.product), displayLotCode(l.lot_code,l), formatNumber(l.current_quantity), l.package_size?`${formatNumber(l.package_size)} ${l.package_unit||''}`:'', l.package_size?`${formatNumber(Number(l.current_quantity||0)*Number(l.package_size||0))} ${l.package_unit||''}`:'', l.location||'', l.entry_date?formatDate(l.entry_date):'', l.expiry_date?formatDate(l.expiry_date):'', lotStatus(l).label])
+    const html = `<html><head><meta charset="utf-8"/></head><body><table>${[headers,...rows].map(r=>`<tr>${r.map(c=>`<td>${escapeHtml(c)}</td>`).join('')}</tr>`).join('')}</table></body></html>`
+    const blob = new Blob([html],{type:'application/vnd.ms-excel;charset=utf-8'})
+    const url = URL.createObjectURL(blob); const a = document.createElement('a')
+    a.href=url; a.download=`inventario-${clientName.replace(/[^a-z0-9]+/gi,'-').toLowerCase()}-${new Date().toISOString().slice(0,10)}.xls`; a.click(); URL.revokeObjectURL(url)
   }
 
-  function printInventoryPdf() {
-    const rows = lots
-      .map((lot) => {
-        const equivalent = Number(lot.current_quantity || 0) * Number(lot.package_size || 0)
-        return `
-          <tr>
-            <td>${escapeHtml(cleanProductName(lot.product))}</td>
-            <td>${escapeHtml(displayLotCode(lot.lot_code, lot))}</td>
-            <td>${escapeHtml(formatNumber(lot.current_quantity))}</td>
-            <td>${escapeHtml(Number(lot.package_size) > 0 ? `${formatNumber(equivalent)} ${lot.package_unit || ''}` : '-')}</td>
-            <td>${escapeHtml(lot.location || '-')}</td>
-            <td>${escapeHtml(lot.expiry_date ? formatDate(lot.expiry_date) : '-')}</td>
-            <td>${escapeHtml(lotStatus(lot).label)}</td>
-          </tr>
-        `
-      })
-      .join('')
-    const printWindow = window.open('', '_blank')
-    if (!printWindow) return
-
-    printWindow.document.write(`
-      <!doctype html>
-      <html>
-        <head>
-          <title>Inventario ${escapeHtml(clientName)}</title>
-          <meta name="viewport" content="width=device-width, initial-scale=1" />
-          <style>
-            body { color: #0f172a; font-family: Arial, sans-serif; margin: 24px; }
-            h1 { margin: 0 0 4px; }
-            table { border-collapse: collapse; margin-top: 18px; width: 100%; }
-            th, td { border-bottom: 1px solid #cbd5e1; font-size: 12px; padding: 8px; text-align: left; }
-            th { background: #f1f5f9; }
-            .terms { color: #475569; font-size: 11px; margin-top: 18px; }
-            @media print { body { margin: 12mm; } }
-          </style>
-        </head>
-        <body>
-          <h1>Todo Agricola Boliviana Ltda</h1>
-          <strong>Inventario actual - ${escapeHtml(clientName)}</strong>
-          <p>Emitido: ${escapeHtml(formatDate(new Date().toISOString()))}</p>
-          <table>
-            <thead>
-              <tr><th>Producto</th><th>Lote</th><th>Envases</th><th>Equivalente</th><th>Ubicacion</th><th>Vence</th><th>Estado</th></tr>
-            </thead>
-            <tbody>${rows}</tbody>
-          </table>
-          <p class="terms">Informacion referencial sujeta a validacion operativa de Todo Agricola.</p>
-          <script>window.addEventListener('load', () => window.print())</script>
-        </body>
-      </html>
-    `)
-    printWindow.document.close()
+  function printPdf() {
+    const rows = lots.map(l=>`<tr><td>${escapeHtml(cleanProductName(l.product))}</td><td>${escapeHtml(displayLotCode(l.lot_code,l))}</td><td>${escapeHtml(formatNumber(l.current_quantity))}</td><td>${escapeHtml(Number(l.package_size)>0?`${formatNumber(Number(l.current_quantity||0)*Number(l.package_size||0))} ${l.package_unit||''}`:'-')}</td><td>${escapeHtml(l.location||'-')}</td><td>${escapeHtml(l.expiry_date?formatDate(l.expiry_date):'-')}</td><td>${escapeHtml(lotStatus(l).label)}</td></tr>`).join('')
+    const w = window.open('','_blank'); if(!w) return
+    w.document.write(`<!doctype html><html><head><title>Inventario ${escapeHtml(clientName)}</title><meta name="viewport" content="width=device-width,initial-scale=1"/><style>body{color:#0f172a;font-family:Arial,sans-serif;margin:24px}h1{margin:0 0 4px}table{border-collapse:collapse;margin-top:18px;width:100%}th,td{border-bottom:1px solid #cbd5e1;font-size:12px;padding:8px;text-align:left}th{background:#f1f5f9}.terms{color:#475569;font-size:11px;margin-top:18px}@media print{body{margin:12mm}}</style></head><body><h1>Todo Agricola Boliviana Ltda</h1><strong>Inventario actual - ${escapeHtml(clientName)}</strong><p>Emitido: ${escapeHtml(formatDate(new Date().toISOString()))}</p><table><thead><tr><th>Producto</th><th>Lote</th><th>Envases</th><th>Equivalente</th><th>Ubicacion</th><th>Vence</th><th>Estado</th></tr></thead><tbody>${rows}</tbody></table><p class="terms">Informacion referencial sujeta a validacion operativa de Todo Agricola.</p><script>window.addEventListener('load',()=>window.print())</script></body></html>`)
+    w.document.close()
   }
 
-  function printMovementReceipt(movement) {
-    const lot = movement.lots || {}
-    const equivalent = Number(movement.quantity || 0) * Number(lot.package_size || 0)
-    const receiptType = movement.type === 'salida' ? 'despacho' : movementLabel(movement.type).toLowerCase()
-    const printWindow = window.open('', '_blank')
-    if (!printWindow) return
-
-    printWindow.document.write(`
-      <!doctype html>
-      <html>
-        <head>
-          <title>Comprobante ${escapeHtml(displayLotCode(lot.lot_code, lot))}</title>
-          <meta name="viewport" content="width=device-width, initial-scale=1" />
-          <style>
-            body { color: #0f172a; font-family: Arial, sans-serif; margin: 24px; }
-            h1 { margin: 0 0 4px; }
-            .box { border: 1px solid #cbd5e1; border-radius: 8px; margin-top: 14px; padding: 12px; }
-            .grid { display: grid; gap: 10px; grid-template-columns: repeat(2, 1fr); }
-            strong { display: block; }
-            @media print { body { margin: 12mm; } }
-          </style>
-        </head>
-        <body>
-          <h1>Todo Agricola Boliviana Ltda</h1>
-          <p>Comprobante de ${escapeHtml(receiptType)} para ${escapeHtml(clientName)}</p>
-          <div class="box grid">
-            <div><strong>Fecha</strong>${escapeHtml(formatDate(movement.created_at))}</div>
-            <div><strong>Movimiento</strong>${escapeHtml(movementLabel(movement.type))}</div>
-            <div><strong>Codigo</strong>${escapeHtml(productCodeLabel(lot) || '-')}</div>
-            <div><strong>Lote</strong>${escapeHtml(displayLotCode(lot.lot_code, lot))}</div>
-            <div><strong>Producto</strong>${escapeHtml(cleanProductName(lot.product))}</div>
-            <div><strong>Cantidad</strong>${escapeHtml(formatNumber(movement.quantity))} envases</div>
-            <div><strong>Equivalente</strong>${escapeHtml(Number(lot.package_size) > 0 ? `${formatNumber(equivalent)} ${lot.package_unit || ''}` : '-')}</div>
-            <div><strong>Ubicacion</strong>${escapeHtml(lot.location || '-')}</div>
-          </div>
-          ${movement.notes ? `<div class="box"><strong>Referencia</strong>${escapeHtml(movement.notes)}</div>` : ''}
-          <script>window.addEventListener('load', () => window.print())</script>
-        </body>
-      </html>
-    `)
-    printWindow.document.close()
+  function printReceipt(movement) {
+    const lot = movement.lots||{}; const eq = Number(movement.quantity||0)*Number(lot.package_size||0)
+    const type = movement.type==='salida'?'despacho':movementLabel(movement.type).toLowerCase()
+    const w = window.open('','_blank'); if(!w) return
+    w.document.write(`<!doctype html><html><head><title>Comprobante</title><style>body{color:#0f172a;font-family:Arial,sans-serif;margin:24px}h1{margin:0 0 4px}.box{border:1px solid #cbd5e1;border-radius:8px;margin-top:14px;padding:12px}.grid{display:grid;gap:10px;grid-template-columns:repeat(2,1fr)}strong{display:block}@media print{body{margin:12mm}}</style></head><body><h1>Todo Agricola Boliviana Ltda</h1><p>Comprobante de ${escapeHtml(type)} para ${escapeHtml(clientName)}</p><div class="box grid"><div><strong>Fecha</strong>${escapeHtml(formatDate(movement.created_at))}</div><div><strong>Movimiento</strong>${escapeHtml(movementLabel(movement.type))}</div><div><strong>Codigo</strong>${escapeHtml(productCodeLabel(lot)||'-')}</div><div><strong>Lote</strong>${escapeHtml(displayLotCode(lot.lot_code,lot))}</div><div><strong>Producto</strong>${escapeHtml(cleanProductName(lot.product))}</div><div><strong>Cantidad</strong>${escapeHtml(formatNumber(movement.quantity))} envases</div><div><strong>Equivalente</strong>${escapeHtml(Number(lot.package_size)>0?`${formatNumber(eq)} ${lot.package_unit||''}`:'-')}</div><div><strong>Ubicacion</strong>${escapeHtml(lot.location||'-')}</div></div>${movement.notes?`<div class="box"><strong>Referencia</strong>${escapeHtml(movement.notes)}</div>`:''}<script>window.addEventListener('load',()=>window.print())</script></body></html>`)
+    w.document.close()
   }
 
+  /* ─── views ───────────────────────────────────────────────────── */
+  const isInventory = view === 'inventory'
+  const isRequests  = view === 'requests'
+  const isMovements = view === 'movements'
+
+  /* ═══════════════════ RENDER ════════════════════════════════════ */
   return (
-    <div>
-      <PageHeader
-        title={requestsView ? 'Solicitudes de despacho' : movementsView ? 'Movimientos' : clientName}
-        subtitle={requestsView ? 'Arma listas para almacen y revisa tus solicitudes enviadas' : movementsView ? 'Historial visible de tus productos en almacen' : 'Inventario disponible en almacen'}
-        action={inventoryView ? (
-          <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto">
-            <button className="btn-secondary !min-h-11 !px-3" type="button" onClick={exportInventoryExcel}>
-              <Download size={20} /> Excel
-            </button>
-            <button className="btn-secondary !min-h-11 !px-3" type="button" onClick={printInventoryPdf}>
-              <FileText size={20} /> PDF
-            </button>
-          </div>
-        ) : null}
-      />
+    <div className="space-y-4 pb-2">
 
-      {inventoryView ? (
-      <section className="grid grid-cols-3 gap-1.5 sm:gap-2">
-        <Metric icon={Boxes} label="Envases disponibles" value={formatNumber(totalStock)} />
-        <Metric icon={PackageCheck} label="Productos" value={productCount} />
-        <Metric icon={CalendarClock} label="Por vencer" value={expiring.length} accent="text-maiz" />
-      </section>
-      ) : null}
-
-      {inventoryView ? (
-      <section className="panel mt-4">
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div>
-            <p className="text-xs font-black uppercase text-campo-700">Estado de cuenta</p>
-            <h2 className="mt-1 text-xl font-black text-slate-950">{clientName}</h2>
-            <p className="mt-1 text-sm font-semibold text-slate-500">
-              Resumen ejecutivo del inventario disponible y movimientos visibles.
+      {/* ── DASHBOARD (Inicio) ─────────────────────────────────── */}
+      {isInventory && (
+        <>
+          {/* Greeting */}
+          <div className="rounded-2xl bg-campo-700 px-5 py-5 text-white shadow-sm">
+            <p className="text-xs font-bold uppercase tracking-wider text-campo-200">Bienvenido</p>
+            <h1 className="mt-1 text-xl font-black leading-snug [overflow-wrap:anywhere]">{clientName}</h1>
+            <p className="mt-0.5 text-sm font-semibold text-campo-200">
+              {new Intl.DateTimeFormat('es-BO',{weekday:'long',day:'numeric',month:'long'}).format(new Date())}
             </p>
-          </div>
-          <div className="rounded-lg bg-campo-50 px-3 py-2 text-right text-campo-800">
-            <p className="text-xs font-black uppercase">Inventario actual</p>
-            <p className="text-2xl font-black">{formatNumber(totalStock)} env.</p>
-          </div>
-        </div>
-        <div className="mt-4 grid gap-2 sm:grid-cols-4">
-          <StatementItem label="Lotes visibles" value={lots.length} />
-          <StatementItem label="Solicitudes activas" value={activeRequests.length} />
-          <StatementItem label="Por vencer" value={expiring.length} tone="amber" />
-          <StatementItem label="Observados" value={retainedLots.length} tone={retainedLots.length ? 'red' : 'campo'} />
-        </div>
-        <div className="mt-4 grid gap-2 lg:grid-cols-2">
-          <div className="rounded-lg bg-slate-50 p-3">
-            <p className="text-xs font-black uppercase text-slate-400">Ultimos movimientos</p>
-            <div className="mt-2 space-y-1.5">
-              {movements.slice(0, 3).length === 0 ? (
-                <p className="text-sm font-bold text-slate-500">Sin movimientos visibles.</p>
-              ) : movements.slice(0, 3).map((movement) => (
-                <p key={movement.id} className="text-sm font-bold text-slate-700 [overflow-wrap:anywhere]">
-                  {movementLabel(movement.type)} - {cleanProductName(movement.lots?.product)} - {formatNumber(movement.quantity)} env.
-                </p>
-              ))}
+            <div className="mt-4 flex flex-wrap gap-2">
+              <button
+                className="inline-flex items-center gap-2 rounded-xl bg-white px-4 py-2.5 text-sm font-black text-campo-800 shadow transition hover:bg-campo-50 active:scale-[0.98]"
+                onClick={() => navigate('/despachos')}
+              >
+                <Truck size={16} /> Solicitar despacho <ArrowRight size={14} />
+              </button>
+              <div className="flex gap-2">
+                <button className="inline-flex items-center gap-1.5 rounded-xl border border-white/30 bg-white/10 px-3 py-2.5 text-xs font-bold text-white transition hover:bg-white/20" onClick={exportExcel}>
+                  <Download size={14} /> Excel
+                </button>
+                <button className="inline-flex items-center gap-1.5 rounded-xl border border-white/30 bg-white/10 px-3 py-2.5 text-xs font-bold text-white transition hover:bg-white/20" onClick={printPdf}>
+                  <FileText size={14} /> PDF
+                </button>
+              </div>
             </div>
           </div>
-          <div className="rounded-lg bg-slate-50 p-3">
-            <p className="text-xs font-black uppercase text-slate-400">Solicitudes</p>
-            <div className="mt-2 space-y-1.5">
-              {activeRequests.slice(0, 3).length === 0 ? (
-                <p className="text-sm font-bold text-slate-500">Sin solicitudes activas.</p>
-              ) : activeRequests.slice(0, 3).map((request) => (
-                <p key={request.id} className="text-sm font-bold text-slate-700 [overflow-wrap:anywhere]">
-                  {clientRequestStatusLabel(request.status)} - {Array.isArray(request.items) ? `${request.items.length} productos` : cleanProductName(request.product)}
-                </p>
-              ))}
-            </div>
-          </div>
-        </div>
-      </section>
-      ) : null}
 
-      {inventoryView ? (
-      <section className="my-4 flex items-center rounded-lg border border-slate-200 bg-white px-3">
-        <Search size={20} className="text-slate-400" />
-        <input
-          className="min-h-12 flex-1 bg-transparent px-2 outline-none"
-          placeholder="Buscar producto, lote, estado o ubicacion..."
-          value={search}
-          onChange={(event) => setSearch(event.target.value)}
-        />
-      </section>
-      ) : null}
-
-      {inventoryView || requestsView ? (
-      <section className={`grid gap-4 ${requestsView ? '' : 'lg:grid-cols-[1.3fr_.7fr]'}`}>
-        {inventoryView ? (
-        <div className="panel">
-          <div className="mb-3 flex flex-wrap items-start justify-between gap-2">
-            <div>
-              <h2 className="font-black text-slate-950">Productos almacenados</h2>
-              <p className="text-sm font-semibold text-slate-500">Resumen ordenado por producto. Abre uno para revisar sus lotes.</p>
-            </div>
-            <span className="rounded-lg bg-slate-50 px-2 py-1 text-xs font-black text-slate-500">
-              {inventoryProducts.length} producto{inventoryProducts.length === 1 ? '' : 's'}
-            </span>
+          {/* Metrics */}
+          <div className="grid grid-cols-3 gap-2">
+            <MetricCard icon={Boxes} label="Envases en almacén" value={formatNumber(totalStock)} color="campo" />
+            <MetricCard icon={Package} label="Productos" value={productCount} color="slate" />
+            <MetricCard
+              icon={expiring.length > 0 ? CalendarClock : PackageCheck}
+              label={expiring.length > 0 ? 'Por vencer' : 'Sin alertas'}
+              value={expiring.length > 0 ? expiring.length : '✓'}
+              color={expiring.length > 0 ? 'amber' : 'campo'}
+            />
           </div>
-          {filteredLots.length === 0 ? (
-            <EmptyState title="Sin lotes visibles" text="Este usuario cliente todavia no esta vinculado al cliente correcto del inventario actual." />
+
+          {/* Active requests banner */}
+          {activeRequests.length > 0 && (
+            <button
+              className="flex w-full items-center justify-between gap-3 rounded-xl border border-campo-200 bg-campo-50 px-4 py-3 text-left transition hover:bg-campo-100"
+              onClick={() => navigate('/despachos')}
+            >
+              <div className="flex items-center gap-2">
+                <ClipboardList size={18} className="text-campo-700" />
+                <span className="text-sm font-black text-campo-800">
+                  {activeRequests.length} solicitud{activeRequests.length > 1 ? 'es' : ''} pendiente{activeRequests.length > 1 ? 's' : ''} en almacén
+                </span>
+              </div>
+              <ArrowRight size={16} className="shrink-0 text-campo-600" />
+            </button>
+          )}
+
+          {/* Expiry alert */}
+          {expiring.length > 0 && (
+            <div className="flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
+              <CalendarClock size={18} className="mt-0.5 shrink-0 text-amber-700" />
+              <p className="text-sm font-bold text-amber-800">
+                {expiring.length} lote{expiring.length > 1 ? 's' : ''} próximo{expiring.length > 1 ? 's' : ''} a vencer en los próximos 90 días.
+              </p>
+            </div>
+          )}
+
+          {/* Retained alert */}
+          {alerts.length > 0 && (
+            <div className="flex items-start gap-3 rounded-xl border border-orange-200 bg-orange-50 px-4 py-3">
+              <ShieldAlert size={18} className="mt-0.5 shrink-0 text-orange-700" />
+              <p className="text-sm font-bold text-orange-800">
+                {alerts.length} lote{alerts.length > 1 ? 's' : ''} retenido{alerts.length > 1 ? 's' : ''} o cerrado{alerts.length > 1 ? 's' : ''}.
+              </p>
+            </div>
+          )}
+
+          {/* Search */}
+          <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3">
+            <Search size={17} className="shrink-0 text-slate-400" />
+            <input
+              className="min-h-11 flex-1 bg-transparent text-sm outline-none placeholder:text-slate-400"
+              placeholder="Buscar producto, lote, ubicación..."
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+            />
+            {search && (
+              <button className="text-slate-400 hover:text-slate-700" onClick={() => setSearch('')}>
+                <X size={15} />
+              </button>
+            )}
+          </div>
+
+          {/* Product list */}
+          {loading ? (
+            <p className="py-10 text-center text-sm font-bold text-slate-400">Cargando inventario...</p>
+          ) : filteredLots.length === 0 ? (
+            <EmptyState title="Sin productos" text="No hay inventario disponible en este momento." />
           ) : (
-            <div className={`${showAllInventoryProducts && !search.trim() ? 'clean-scroll max-h-[62vh] overflow-y-auto overscroll-contain rounded-lg border border-slate-100 bg-white/70 p-1 pr-2' : 'space-y-2'}`}>
-              {visibleInventoryProducts.map((group) => {
-                const isExpanded = expandedInventoryProduct === group.product
+            <div className="space-y-2">
+              {visibleProducts.map(group => {
+                const isOpen = expandedProduct === group.product
                 return (
-                  <article key={group.product} className={`${showAllInventoryProducts && !search.trim() ? 'mb-2 last:mb-0' : ''} overflow-hidden rounded-lg border border-slate-100 bg-slate-50/90`}>
+                  <article key={group.product} className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
                     <button
-                      className="flex w-full flex-col gap-3 p-3 text-left transition hover:bg-campo-50/70 sm:flex-row sm:items-center sm:justify-between"
-                      type="button"
-                      onClick={() => setExpandedInventoryProduct(isExpanded ? '' : group.product)}
+                      className="flex w-full items-center justify-between gap-3 px-4 py-3.5 text-left transition hover:bg-campo-50/60"
+                      onClick={() => setExpandedProduct(isOpen ? '' : group.product)}
                     >
-                      <div className="min-w-0">
+                      <div className="min-w-0 flex-1">
                         <p className="font-black text-slate-950 [overflow-wrap:anywhere]">{group.product}</p>
-                        <div className="mt-1 flex flex-wrap gap-1.5 text-xs font-bold text-slate-500">
-                          <span>{group.lots.length} lote{group.lots.length === 1 ? '' : 's'}</span>
-                          {group.expiring ? <span className="rounded-full bg-amber-50 px-2 py-0.5 text-amber-800">{group.expiring} por vencer</span> : null}
-                          {group.retained ? <span className="rounded-full bg-orange-50 px-2 py-0.5 text-orange-700">{group.retained} retenido{group.retained === 1 ? '' : 's'}</span> : null}
+                        <div className="mt-1 flex flex-wrap items-center gap-2 text-xs font-semibold text-slate-500">
+                          <span>{group.lots.length} lote{group.lots.length > 1 ? 's' : ''}</span>
+                          {group.expiring > 0 && <span className="rounded-full bg-amber-50 px-2 py-0.5 text-amber-700">{group.expiring} por vencer</span>}
+                          {group.retained > 0 && <span className="rounded-full bg-orange-50 px-2 py-0.5 text-orange-700">{group.retained} retenido</span>}
                         </div>
                       </div>
-                      <div className="flex w-full items-center justify-between gap-2 sm:w-auto sm:justify-end">
-                        <div className="rounded-lg bg-white px-3 py-2 text-right shadow-sm">
-                          <p className="text-lg font-black leading-none text-campo-800">{formatNumber(group.quantity)} env.</p>
-                          <p className="mt-1 text-xs font-bold text-slate-500">{equivalentTotalsLabel(group.equivalents)}</p>
+                      <div className="flex shrink-0 items-center gap-2">
+                        <div className="text-right">
+                          <p className="text-base font-black text-campo-700">{formatNumber(group.quantity)} <span className="text-xs font-bold text-campo-500">env.</span></p>
+                          <p className="text-[10px] font-semibold text-slate-400">{equivalentTotalsLabel(group.equivalents)}</p>
                         </div>
-                        <ChevronDown className={`shrink-0 text-slate-400 transition ${isExpanded ? 'rotate-180' : ''}`} size={20} />
+                        <ChevronDown size={18} className={`text-slate-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
                       </div>
                     </button>
 
-                    {isExpanded ? (
-                      <div className="grid gap-2 border-t border-slate-100 bg-white p-2">
-                        {group.lots.map((lot) => {
-                          const status = lotStatus(lot)
-                          const equivalent = lotEquivalent(lot)
+                    {isOpen && (
+                      <div className="divide-y divide-slate-100 border-t border-slate-100">
+                        {group.lots.map(lot => {
+                          const st  = lotStatus(lot)
+                          const eq  = lotEquivalent(lot)
                           return (
-                            <Link key={lot.id} className="rounded-lg border border-slate-100 p-3 transition hover:border-campo-100 hover:bg-campo-50/60" to={`/lotes/${lot.id}`}>
-                              <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-                                <div className="min-w-0">
-                                  <div className="flex flex-wrap items-center gap-2">
-                                    <p className="font-black text-slate-900">{lotLabel(lot.lot_code, lot)}</p>
-                                    <span className={`rounded-full px-2 py-1 text-xs font-bold ${status.className}`}>{status.label}</span>
-                                  </div>
-                                  <p className="text-sm font-semibold text-slate-500">{lot.location || '-'} - Vence: {lot.expiry_date ? formatDate(lot.expiry_date) : 'Sin dato'}</p>
+                            <Link key={lot.id} to={`/lotes/${lot.id}`} className="flex items-center justify-between gap-3 px-4 py-3 transition hover:bg-campo-50/40">
+                              <div className="min-w-0">
+                                <div className="flex flex-wrap items-center gap-2">
+                                  <p className="text-sm font-black text-slate-900">{lotLabel(lot.lot_code, lot)}</p>
+                                  <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${st.cls}`}>{st.label}</span>
                                 </div>
-                                <div className="flex flex-wrap gap-2 text-xs font-black">
-                                  <span className="rounded-lg bg-campo-50 px-2 py-1 text-campo-800">{formatNumber(lot.current_quantity)} env.</span>
-                                  <span className="rounded-lg bg-slate-50 px-2 py-1 text-slate-600">
-                                    {equivalent ? `${formatNumber(equivalent.quantity)} ${equivalent.unit}` : 'Equivalente sin dato'}
-                                  </span>
-                                </div>
+                                <p className="mt-0.5 text-xs font-semibold text-slate-500">
+                                  {lot.location || 'Sin ubicación'} · Vence: {lot.expiry_date ? formatDate(lot.expiry_date) : 'Sin dato'}
+                                </p>
+                              </div>
+                              <div className="shrink-0 text-right">
+                                <p className="text-sm font-black text-campo-700">{formatNumber(lot.current_quantity)} env.</p>
+                                {eq && <p className="text-[10px] font-semibold text-slate-400">{formatNumber(eq.quantity)} {eq.unit}</p>}
                               </div>
                             </Link>
                           )
                         })}
                       </div>
-                    ) : null}
+                    )}
                   </article>
                 )
               })}
-              {!search.trim() && inventoryProducts.length > 8 ? (
-                <button className="btn-secondary w-full !min-h-11" type="button" onClick={() => setShowAllInventoryProducts((value) => !value)}>
-                  {showAllInventoryProducts ? 'Ver menos productos' : `Ver todos los productos (${inventoryProducts.length})`}
+
+              {!search.trim() && inventoryProducts.length > 8 && (
+                <button
+                  className="w-full rounded-xl border border-slate-200 bg-white py-3 text-sm font-bold text-slate-600 transition hover:bg-slate-50"
+                  onClick={() => setShowAllProducts(v => !v)}
+                >
+                  {showAllProducts ? 'Ver menos' : `Ver todos los productos (${inventoryProducts.length})`}
                 </button>
-              ) : null}
+              )}
+            </div>
+          )}
+
+          {/* Recent movements */}
+          {movements.length > 0 && (
+            <div className="rounded-xl border border-slate-200 bg-white shadow-sm">
+              <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3">
+                <div className="flex items-center gap-2">
+                  <History size={16} className="text-campo-700" />
+                  <p className="text-sm font-black text-slate-950">Últimos movimientos</p>
+                </div>
+                <button className="text-xs font-bold text-campo-700 hover:underline" onClick={() => navigate('/historial')}>
+                  Ver todos
+                </button>
+              </div>
+              <div className="divide-y divide-slate-100">
+                {movements.slice(0,4).map(m => {
+                  const lot = m.lots || {}
+                  return (
+                    <div key={m.id} className="flex items-center gap-3 px-4 py-3">
+                      <span className={`shrink-0 rounded-lg px-2 py-1 text-[10px] font-black uppercase ${m.type === 'entrada' ? 'bg-campo-100 text-campo-800' : 'bg-red-50 text-red-700'}`}>
+                        {m.type === 'entrada' ? 'Ingreso' : 'Salida'}
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-bold text-slate-900 truncate">{cleanProductName(lot.product)}</p>
+                        <p className="text-xs font-semibold text-slate-400">{formatDate(m.created_at)}</p>
+                      </div>
+                      <p className="shrink-0 text-sm font-black text-campo-700">{formatNumber(m.quantity)} env.</p>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          )}
+        </>
+      )}
+
+      {/* ── SOLICITUDES ───────────────────────────────────────────── */}
+      {isRequests && (
+        <div className="space-y-4">
+          <div className="rounded-2xl bg-campo-700 px-5 py-5 text-white">
+            <p className="text-xs font-bold uppercase tracking-wider text-campo-200">Portal de cliente</p>
+            <h1 className="mt-1 text-xl font-black">Solicitar despacho</h1>
+            <p className="mt-0.5 text-sm font-semibold text-campo-200">Armá tu lista y enviala directamente a almacén.</p>
+          </div>
+
+          <div className="grid gap-4 lg:grid-cols-[1fr_1fr]">
+
+            {/* Form */}
+            <div className="rounded-xl border border-slate-200 bg-white shadow-sm">
+              <div className="border-b border-slate-100 px-4 py-3">
+                <p className="font-black text-slate-950">Nueva solicitud</p>
+                <p className="text-xs font-semibold text-slate-500">Seleccioná producto, lote y cantidad.</p>
+              </div>
+
+              {reqSuccess ? (
+                <div className="p-4">
+                  <div className="rounded-xl bg-campo-700 p-5 text-white">
+                    <div className="flex items-start gap-3">
+                      <CheckCircle2 size={32} className="shrink-0" />
+                      <div>
+                        <p className="text-lg font-black">¡Solicitud enviada!</p>
+                        <p className="mt-0.5 text-sm font-semibold text-campo-200">{reqSuccess.items.length} producto{reqSuccess.items.length > 1 ? 's' : ''} en camino a almacén.</p>
+                      </div>
+                    </div>
+                    <div className="mt-4 space-y-2">
+                      {reqSuccess.items.map(item => (
+                        <div key={item.lot_id} className="rounded-lg bg-white/10 px-3 py-2">
+                          <p className="text-sm font-black [overflow-wrap:anywhere]">{cleanProductName(item.product)}</p>
+                          <p className="text-xs font-semibold text-campo-200">{formatNumber(item.quantity)} env. · {lotLabel(item.lot_code, item)}</p>
+                        </div>
+                      ))}
+                    </div>
+                    <button className="mt-4 w-full rounded-lg bg-white py-2.5 font-black text-campo-800" onClick={() => setReqSuccess(null)}>
+                      Nueva solicitud
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <form className="space-y-4 p-4" onSubmit={submitRequest} noValidate>
+
+                  {/* Step 1: producto */}
+                  <label className="block">
+                    <span className="text-xs font-black uppercase tracking-wide text-slate-500">1 · Producto</span>
+                    <select
+                      className="input mt-1.5"
+                      value={reqProductName}
+                      onChange={e => { setReqProductName(e.target.value); setReqLotId('') }}
+                    >
+                      <option value="">Seleccionar producto...</option>
+                      {reqProductOptions.map(p => (
+                        <option key={p} value={p}>{p}</option>
+                      ))}
+                    </select>
+                  </label>
+
+                  {/* Step 2: lote */}
+                  {reqProductName && (
+                    <label className="block">
+                      <span className="text-xs font-black uppercase tracking-wide text-slate-500">2 · Lote</span>
+                      <select className="input mt-1.5" value={reqLotId} onChange={e => setReqLotId(e.target.value)}>
+                        <option value="">Seleccionar lote...</option>
+                        {reqProductLots.map(l => (
+                          <option key={l.id} value={l.id}>
+                            {lotLabel(l.lot_code, l)} · {formatNumber(l.current_quantity)} env. {l.expiry_date ? `· Vence ${formatDate(l.expiry_date)}` : ''}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                  )}
+
+                  {/* Selected lot info */}
+                  {selectedLot && (
+                    <div className="rounded-xl border border-campo-100 bg-campo-50 px-3 py-3">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <p className="text-sm font-black text-slate-900 [overflow-wrap:anywhere]">{cleanProductName(selectedLot.product)}</p>
+                          <p className="mt-0.5 text-xs font-semibold text-slate-500">
+                            {lotLabel(selectedLot.lot_code, selectedLot)} · {selectedLot.location || 'Sin ubicación'}
+                          </p>
+                          {selectedLot.expiry_date && (
+                            <p className="text-xs font-semibold text-slate-500">Vence: {formatDate(selectedLot.expiry_date)}</p>
+                          )}
+                        </div>
+                        <div className="shrink-0 rounded-lg bg-white px-3 py-2 text-right shadow-sm">
+                          <p className="text-lg font-black text-campo-700">{formatNumber(selectedLot.current_quantity)}</p>
+                          <p className="text-[10px] font-bold text-slate-500">env. disp.</p>
+                        </div>
+                      </div>
+                      {packageLabel(selectedLot) && (
+                        <p className="mt-2 text-xs font-semibold text-campo-700">Presentación: {packageLabel(selectedLot)}</p>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Step 3: cantidad */}
+                  {reqLotId && (
+                    <label className="block">
+                      <span className="text-xs font-black uppercase tracking-wide text-slate-500">3 · Cantidad de envases</span>
+                      <input
+                        className="input mt-1.5"
+                        inputMode="decimal"
+                        type="text"
+                        placeholder="Ej: 50"
+                        value={reqQuantity}
+                        onChange={e => { const v = e.target.value.replace(',','.'); if(/^\d*\.?\d*$/.test(v)) setReqQuantity(v) }}
+                      />
+                    </label>
+                  )}
+
+                  {/* Add button */}
+                  {reqLotId && (
+                    <button className="btn-secondary w-full" type="button" onClick={addReqItem}>
+                      <Plus size={18} />
+                      {editingLotId ? 'Guardar cambio' : 'Agregar a la lista'}
+                    </button>
+                  )}
+
+                  {/* Cart */}
+                  {reqItems.length > 0 && (
+                    <div className="space-y-2 rounded-xl border border-slate-200 bg-slate-50 p-3">
+                      <div className="flex items-center justify-between">
+                        <p className="text-xs font-black uppercase text-slate-500">Lista de despacho · {reqItems.length} item{reqItems.length > 1 ? 's' : ''}</p>
+                        <button className="text-xs font-bold text-red-500 hover:underline" type="button" onClick={clearCart}>Vaciar</button>
+                      </div>
+                      {reqItems.map(item => (
+                        <div key={item.lot_id} className="flex items-center gap-2 rounded-lg bg-white px-3 py-2.5 shadow-sm">
+                          <div className="min-w-0 flex-1">
+                            <p className="text-sm font-black text-slate-900 [overflow-wrap:anywhere]">{cleanProductName(item.product)}</p>
+                            <p className="text-xs font-semibold text-slate-500">{lotLabel(item.lot_code, item)} · {formatNumber(item.quantity)} env.</p>
+                          </div>
+                          <div className="flex shrink-0 gap-1">
+                            <button className="rounded-lg p-1.5 text-slate-400 hover:bg-campo-50 hover:text-campo-700" type="button" onClick={() => editReqItem(item)} title="Editar">
+                              <Minus size={14} />
+                            </button>
+                            <button className="rounded-lg p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-600" type="button" onClick={() => removeReqItem(item.lot_id)} title="Quitar">
+                              <X size={14} />
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Notes */}
+                  {reqItems.length > 0 && (
+                    <label className="block">
+                      <span className="text-xs font-black uppercase tracking-wide text-slate-500">Observación (opcional)</span>
+                      <textarea className="input mt-1.5" rows={2} placeholder="Instrucciones especiales para almacén..." value={reqNotes} onChange={e => setReqNotes(e.target.value)} />
+                    </label>
+                  )}
+
+                  {reqMessage && (
+                    <p className="rounded-lg bg-amber-50 px-3 py-2.5 text-sm font-bold text-amber-800">{reqMessage}</p>
+                  )}
+
+                  {reqItems.length > 0 && (
+                    <button className="btn-primary w-full" type="submit">
+                      <Send size={18} /> Enviar solicitud a almacén
+                    </button>
+                  )}
+                </form>
+              )}
+            </div>
+
+            {/* Request history */}
+            <div className="rounded-xl border border-slate-200 bg-white shadow-sm">
+              <div className="border-b border-slate-100 px-4 py-3">
+                <p className="font-black text-slate-950">Mis solicitudes</p>
+                <p className="text-xs font-semibold text-slate-500">{requests.length} solicitud{requests.length !== 1 ? 'es' : ''} en total</p>
+              </div>
+              <div className="divide-y divide-slate-100 overflow-y-auto" style={{maxHeight:'520px'}}>
+                {requests.length === 0 ? (
+                  <p className="px-4 py-8 text-center text-sm font-bold text-slate-400">Todavía no hay solicitudes.</p>
+                ) : (
+                  requests.map(req => {
+                    const st = requestStatus(req.status)
+                    const items = Array.isArray(req.items) && req.items.length > 0 ? req.items : null
+                    return (
+                      <div key={req.id} className="px-4 py-3.5">
+                        <div className="flex items-start justify-between gap-2">
+                          <p className="min-w-0 text-sm font-black text-slate-900 [overflow-wrap:anywhere]">
+                            {items ? `${items.length} producto${items.length > 1 ? 's' : ''}` : cleanProductName(req.product || req.lots?.product)}
+                          </p>
+                          <span className={`shrink-0 rounded-full px-2.5 py-1 text-[10px] font-black ${st.cls}`}>{st.label}</span>
+                        </div>
+                        {items && (
+                          <div className="mt-1.5 space-y-0.5">
+                            {items.slice(0,3).map(item => (
+                              <p key={item.lot_id} className="text-xs font-semibold text-slate-500">
+                                · {cleanProductName(item.product)} — {formatNumber(item.quantity)} env.
+                              </p>
+                            ))}
+                            {items.length > 3 && <p className="text-xs font-semibold text-slate-400">+ {items.length - 3} más</p>}
+                          </div>
+                        )}
+                        {!items && (
+                          <p className="mt-0.5 text-xs font-semibold text-slate-500">
+                            {lotLabel(req.lots?.lot_code, req.lots)} · {formatNumber(req.quantity)} env.
+                          </p>
+                        )}
+                        <div className="mt-2 flex items-center justify-between gap-2">
+                          <p className="text-[10px] font-semibold text-slate-400">{formatDate(req.created_at)}</p>
+                          {req.admin_notes && (
+                            <p className="text-xs font-semibold text-slate-600 italic">{req.admin_notes}</p>
+                          )}
+                        </div>
+                      </div>
+                    )
+                  })
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── MOVIMIENTOS ───────────────────────────────────────────── */}
+      {isMovements && (
+        <div className="space-y-4">
+          <div className="rounded-2xl bg-campo-700 px-5 py-5 text-white">
+            <p className="text-xs font-bold uppercase tracking-wider text-campo-200">Portal de cliente</p>
+            <h1 className="mt-1 text-xl font-black">Historial de movimientos</h1>
+            <p className="mt-0.5 text-sm font-semibold text-campo-200">{movements.length} movimientos visibles de tus productos.</p>
+          </div>
+
+          {loading ? (
+            <p className="py-10 text-center text-sm font-bold text-slate-400">Cargando movimientos...</p>
+          ) : movements.length === 0 ? (
+            <EmptyState title="Sin movimientos" text="No hay movimientos registrados para tus productos." />
+          ) : (
+            <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+              <div className="divide-y divide-slate-100">
+                {movements.map(m => {
+                  const lot = m.lots || {}
+                  const eq  = Number(m.quantity||0) * Number(lot.package_size||0)
+                  return (
+                    <div key={m.id} className="flex items-center gap-3 px-4 py-3.5">
+                      <span className={`shrink-0 rounded-lg px-2 py-1.5 text-[10px] font-black uppercase leading-none ${m.type === 'entrada' ? 'bg-campo-100 text-campo-800' : 'bg-red-50 text-red-700'}`}>
+                        {m.type === 'entrada' ? 'Ingreso' : 'Salida'}
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-black text-slate-900 [overflow-wrap:anywhere]">{cleanProductName(lot.product)}</p>
+                        <p className="text-xs font-semibold text-slate-500">
+                          {lotLabel(lot.lot_code, lot)} · {formatDate(m.created_at)}
+                          {Number(lot.package_size) > 0 ? ` · ${formatNumber(eq)} ${lot.package_unit||''}` : ''}
+                        </p>
+                      </div>
+                      <div className="flex shrink-0 items-center gap-2">
+                        <span className="text-sm font-black text-campo-700">{formatNumber(m.quantity)} env.</span>
+                        <button
+                          className="rounded-lg border border-slate-200 p-1.5 text-slate-400 hover:text-campo-700"
+                          type="button"
+                          title="Imprimir comprobante"
+                          onClick={() => printReceipt(m)}
+                        >
+                          <Printer size={15} />
+                        </button>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
             </div>
           )}
         </div>
-        ) : null}
+      )}
 
-        <aside className="space-y-4">
-          {requestsView ? (
-          <section className="panel">
-            <div className="mb-3 flex items-start gap-2">
-              <Send size={20} className="mt-0.5 text-campo-700" />
-              <div>
-                <h3 className="font-bold text-slate-950">Solicitar despacho</h3>
-                <p className="text-xs font-semibold text-slate-500">Arma una lista por producto. Al enviarla, almacen la recibe directamente.</p>
-              </div>
-            </div>
-            {requestSuccess ? (
-              <div className="rounded-xl bg-campo-900 p-5 text-white shadow-lg">
-                <div className="flex items-start gap-3">
-                  <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full border border-white/40 bg-white/10">
-                    <CheckCircle2 size={28} />
-                  </span>
-                  <div className="min-w-0">
-                    <p className="text-xl font-black">Solicitud enviada a almacen</p>
-                    <p className="mt-1 text-sm font-semibold text-white/80">
-                      {requestSuccess.clientName} - {requestSuccess.items.length} producto{requestSuccess.items.length === 1 ? '' : 's'}
-                    </p>
-                  </div>
-                </div>
-                <div className="mt-4 space-y-2">
-                  {requestSuccess.items.map((item) => (
-                    <div key={item.lot_id} className="rounded-lg bg-white/10 p-3">
-                      <p className="font-black [overflow-wrap:anywhere]">{cleanProductName(item.product)}</p>
-                      <p className="mt-1 text-sm font-semibold text-white/80">
-                        {formatNumber(item.quantity)} env. - {lotLabel(item.lot_code, item)}
-                      </p>
-                    </div>
-                  ))}
-                </div>
-                <button className="mt-4 min-h-11 w-full rounded-lg bg-white px-4 py-2 font-black text-campo-900" type="button" onClick={() => setRequestSuccess(null)}>
-                  Nueva solicitud
-                </button>
-              </div>
-            ) : (
-            <form className="space-y-3" onSubmit={createDispatchRequest} noValidate>
-              <label>
-                <span className="label">Producto / lote</span>
-                <select className="input mt-1" value={requestLotId} onChange={(event) => setRequestLotId(event.target.value)}>
-                  <option value="">Seleccionar</option>
-                  {lots.map((lot) => (
-                    <option key={lot.id} value={lot.id}>
-                      {cleanProductName(lot.product)} - {lotLabel(lot.lot_code, lot)} ({formatNumber(lot.current_quantity)} env.)
-                    </option>
-                  ))}
-                </select>
-              </label>
-              {selectedRequestLot ? (
-                <div className="rounded-lg border border-campo-100 bg-campo-50/80 p-3">
-                  <div className="flex flex-wrap items-start justify-between gap-2">
-                    <div className="min-w-0">
-                      <p className="font-black text-slate-950 [overflow-wrap:anywhere]">{cleanProductName(selectedRequestLot.product)}</p>
-                      <p className="text-xs font-bold text-slate-600">
-                        Presentacion: {packageLabel(selectedRequestLot) || 'Sin dato'} - {lotLabel(selectedRequestLot.lot_code, selectedRequestLot)}
-                      </p>
-                    </div>
-                    <span className="rounded-lg bg-white px-2 py-1 text-sm font-black text-campo-800">
-                      {formatNumber(selectedRequestLot.current_quantity)} env. disponibles
-                    </span>
-                  </div>
-                  <p className="mt-2 text-xs font-semibold text-slate-500">
-                    {selectedRequestLot.location || '-'} - {lotStatus(selectedRequestLot).label}
-                  </p>
-                </div>
-              ) : null}
-              <label>
-                <span className="label">Envases solicitados</span>
-                <input
-                  className="input mt-1"
-                  inputMode="decimal"
-                  type="text"
-                  value={requestQuantity}
-                  onChange={(event) => {
-                    const value = event.target.value.replace(',', '.')
-                    if (/^\d*\.?\d*$/.test(value)) setRequestQuantity(value)
-                  }}
-                />
-              </label>
-              <button className="btn-secondary w-full" type="button" onClick={addRequestItem}>
-                <Plus size={20} /> {editingRequestLotId ? 'Guardar cambio en lista' : 'Agregar a la lista'}
-              </button>
-              {requestItems.length > 0 ? (
-                <div className="space-y-2 rounded-lg bg-slate-50 p-2">
-                  <div className="rounded-lg bg-white p-3">
-                    <p className="text-xs font-bold uppercase text-campo-700">Lista de despacho</p>
-                    <p className="text-sm font-semibold text-slate-600">
-                      {requestItems.length} producto{requestItems.length === 1 ? '' : 's'} agregado{requestItems.length === 1 ? '' : 's'}. Revisa cada cantidad antes de enviar.
-                    </p>
-                  </div>
-                  {requestItems.map((item) => (
-                    <ListProductCard
-                      key={item.lot_id}
-                      title={cleanProductName(item.product)}
-                      envases={item.quantity}
-                      equivalent={Number(item.package_size) > 0 ? Number(item.quantity || 0) * Number(item.package_size || 0) : null}
-                      equivalentUnit={item.package_unit}
-                      presentation={packageLabel(item) || 'Sin dato'}
-                      secondary={`${lotLabel(item.lot_code, item)} - ${item.location || '-'}`}
-                      detailTitle="Producto solicitado"
-                      detailRows={[
-                        { label: 'Envases solicitados', value: `${formatNumber(item.quantity)} env.` },
-                        { label: 'Equivalente', value: Number(item.package_size) > 0 ? `${formatNumber(Number(item.quantity || 0) * Number(item.package_size || 0))} ${item.package_unit || ''}` : 'Sin dato' },
-                        { label: 'Presentacion', value: packageLabel(item) || 'Sin dato' },
-                        { label: 'Codigo', value: productCodeLabel(item) || '-' },
-                        { label: 'Lote', value: displayLotCode(item.lot_code, item) },
-                        { label: 'Ubicacion', value: item.location || '-' },
-                        { label: 'Disponible', value: `${formatNumber(item.available)} env.` },
-                      ]}
-                      onEdit={() => editRequestItem(item)}
-                      onRemove={() => removeRequestItem(item.lot_id)}
-                    />
-                  ))}
-                  <button className="btn-secondary w-full !min-h-10 !py-2" type="button" onClick={clearRequestCart}>
-                    Vaciar carrito
-                  </button>
-                </div>
-              ) : null}
-              <label>
-                <span className="label">Observacion</span>
-                <textarea className="input mt-1" rows="3" value={requestNotes} onChange={(event) => setRequestNotes(event.target.value)} />
-              </label>
-              {requestMessage ? (
-                <div className="rounded-lg bg-campo-50 p-3 text-sm font-bold text-campo-700">{requestMessage}</div>
-              ) : null}
-              <button className="btn-primary w-full" type="submit">
-                <Truck size={20} /> Enviar solicitud
-              </button>
-            </form>
-            )}
-          </section>
-          ) : null}
-
-          <section className="panel">
-            <div className="mb-3 flex items-center gap-2">
-              <Mail size={20} className="text-campo-700" />
-              <h3 className="font-bold text-slate-950">Contacto rapido</h3>
-            </div>
-            <p className="text-sm font-semibold text-slate-600">Para consultas o coordinacion, escribe a Todo Agricola.</p>
-            <a className="btn-secondary mt-3 w-full" href="mailto:hgarayd@outlook.com?subject=Consulta%20de%20inventario%20Todo%20Agricola">
-              <Mail size={20} /> Solicitar informacion
-            </a>
-          </section>
-
-          <section className="rounded-lg border border-slate-200 bg-white/80 p-3 text-xs font-semibold text-slate-500">
-            La informacion del portal es referencial y queda sujeta a validacion operativa de Todo Agricola. La solicitud pasa directo a almacen para preparar el despacho.
-          </section>
-        </aside>
-      </section>
-      ) : null}
-
-      {movementsView ? (
-      <section className="mt-5 grid gap-4">
-        <Panel title="Historial de movimientos" icon={History} scroll={false}>
-          {movements.length === 0 ? (
-            <p className="rounded-lg bg-slate-50 p-3 text-sm font-bold text-slate-600">Sin movimientos visibles.</p>
-          ) : (
-            movements.map((movement) => (
-              <MovementHistoryCard key={movement.id} movement={movement} onOpen={setSelectedMovement} onPrint={printMovementReceipt} />
-            ))
-          )}
-        </Panel>
-      </section>
-      ) : null}
-
-      {requestsView ? (
-      <section className="mt-5 grid gap-4">
-        <Panel title="Solicitudes" icon={Truck}>
-          {requests.length === 0 ? (
-            <p className="rounded-lg bg-slate-50 p-3 text-sm font-bold text-slate-600">Todavia no hay solicitudes.</p>
-          ) : (
-            requests.slice(0, 8).map((request) => (
-              <div key={request.id} className="rounded-lg bg-slate-50 p-3">
-                <div className="flex justify-between gap-3">
-                <p className="font-bold text-slate-950">{cleanProductName(request.product || request.lots?.product)}</p>
-                  <span className={`rounded-full px-2 py-1 text-xs font-bold ${request.status === 'aprobado' ? 'bg-campo-50 text-campo-700' : request.status === 'rechazado' ? 'bg-red-50 text-red-700' : request.status === 'despachado' ? 'bg-slate-100 text-slate-700' : 'bg-amber-50 text-amber-800'}`}>
-                    {clientRequestStatusLabel(request.status)}
-                  </span>
-                </div>
-                <p className="text-sm font-semibold text-slate-500">
-                  {Array.isArray(request.items) && request.items.length > 1
-                    ? `${request.items.length} productos en la solicitud`
-                    : `${lotLabel(request.lots?.lot_code, request.lots)} - ${formatNumber(request.quantity)} env.`}
-                </p>
-                <p className="mt-1 text-xs font-semibold text-slate-400">{formatDate(request.created_at)}</p>
-                {request.admin_notes ? <p className="mt-2 text-xs font-semibold text-slate-600">{request.admin_notes}</p> : null}
-              </div>
-            ))
-          )}
-        </Panel>
-      </section>
-      ) : null}
-
-      {selectedMovement ? (
-        <MovementDetail
+      {/* Movement detail modal */}
+      {selectedMovement && (
+        <MovementModal
           movement={selectedMovement}
+          clientName={clientName}
           onClose={() => setSelectedMovement(null)}
-          onPrint={() => printMovementReceipt(selectedMovement)}
+          onPrint={() => { printReceipt(selectedMovement); setSelectedMovement(null) }}
         />
-      ) : null}
+      )}
     </div>
   )
 }
 
-function Metric({ icon: Icon, label, value, accent = 'text-campo-700' }) {
+/* ─── sub-components ─────────────────────────────────────────────── */
+
+function MetricCard({ icon: Icon, label, value, color = 'campo' }) {
+  const colors = {
+    campo: 'bg-campo-50 text-campo-700',
+    slate: 'bg-slate-50 text-slate-600',
+    amber: 'bg-amber-50 text-amber-700',
+  }
   return (
-    <div className="min-w-0 rounded-lg border border-slate-200 bg-white/80 px-2 py-2 shadow-soft sm:px-3">
-      <div className="flex items-center gap-1.5">
-        <Icon className={`${accent} shrink-0`} size={15} />
-        <p className="min-w-0 text-[10px] font-bold leading-tight text-slate-500 [overflow-wrap:anywhere] sm:text-xs">{label}</p>
-      </div>
-      <p className="mt-1 text-base font-black leading-tight text-slate-950 tabular-nums sm:text-lg">{value}</p>
+    <div className={`flex flex-col gap-1.5 rounded-xl px-3 py-3 ${colors[color]}`}>
+      <Icon size={18} />
+      <p className="text-xl font-black leading-none tabular-nums">{value}</p>
+      <p className="text-[10px] font-bold leading-snug opacity-80">{label}</p>
     </div>
   )
 }
 
-function StatementItem({ label, value, tone = 'campo' }) {
-  const toneClass = {
-    campo: 'bg-campo-50 text-campo-800',
-    amber: 'bg-amber-50 text-amber-800',
-    red: 'bg-red-50 text-red-700',
-  }[tone]
-
-  return (
-    <div className={`rounded-lg px-3 py-2 ${toneClass}`}>
-      <p className="text-xs font-black uppercase opacity-70">{label}</p>
-      <p className="mt-1 text-xl font-black">{formatNumber(value)}</p>
-    </div>
-  )
-}
-
-function Panel({ title, icon: Icon, children, scroll = true }) {
-  return (
-    <section className="panel">
-      <div className="mb-3 flex items-center gap-2">
-        <Icon size={20} className="text-campo-700" />
-        <h3 className="font-bold text-slate-950">{title}</h3>
-      </div>
-      <div className={`${scroll ? 'max-h-[360px] overflow-y-auto pr-1' : ''} space-y-2`}>{children}</div>
-    </section>
-  )
-}
-
-function MovementHistoryCard({ movement, onOpen, onPrint }) {
+function MovementModal({ movement, clientName, onClose, onPrint }) {
   const lot = movement.lots || {}
-  const equivalent = Number(movement.quantity || 0) * Number(lot.package_size || 0)
-
+  const eq  = Number(movement.quantity||0) * Number(lot.package_size||0)
   return (
-    <article
-      className="grid cursor-pointer gap-2 rounded-lg bg-slate-50 p-3 transition hover:bg-campo-50/70 sm:grid-cols-[1fr_auto]"
-      role="button"
-      tabIndex={0}
-      onClick={() => onOpen(movement)}
-      onKeyDown={(event) => {
-        if (event.key === 'Enter' || event.key === ' ') {
-          event.preventDefault()
-          onOpen(movement)
-        }
-      }}
-      title="Ver movimiento"
-    >
-      <div className="min-w-0">
-        <div className="flex flex-wrap items-start gap-2">
-          <p className="min-w-0 flex-1 font-black text-slate-950 [overflow-wrap:anywhere]">{cleanProductName(lot.product)}</p>
-          <span className="rounded-lg bg-campo-50 px-2 py-1 text-sm font-black text-campo-800">{formatNumber(movement.quantity)} env.</span>
-        </div>
-        <p className="text-sm font-semibold text-slate-500">{movementLabel(movement.type)} - {lotLabel(lot.lot_code, lot)}</p>
-        <p className="text-xs font-semibold text-slate-400">
-          {formatDate(movement.created_at)}
-          {Number(lot.package_size) > 0 ? ` - ${formatNumber(equivalent)} ${lot.package_unit || ''}` : ''}
-        </p>
-      </div>
-      <button
-        className="btn-secondary !min-h-10 !px-3 self-start"
-        type="button"
-        title="Imprimir comprobante"
-        onClick={(event) => {
-          event.stopPropagation()
-          onPrint(movement)
-        }}
-      >
-        <Printer size={17} />
-      </button>
-    </article>
-  )
-}
-
-function MovementDetail({ movement, onClose, onPrint }) {
-  const lot = movement.lots || {}
-  const equivalent = Number(movement.quantity || 0) * Number(lot.package_size || 0)
-
-  return (
-    <div data-modal-backdrop="true" className="fixed inset-0 z-50 flex items-end overflow-y-auto bg-slate-950/45 p-4 sm:items-center sm:justify-center" onClick={onClose}>
-      <section className="max-h-[92dvh] w-full max-w-md overflow-y-auto overscroll-contain rounded-xl bg-white p-4 shadow-xl" onClick={(event) => event.stopPropagation()}>
+    <div className="fixed inset-0 z-50 flex items-end bg-black/40 p-4 sm:items-center sm:justify-center" onClick={onClose}>
+      <section className="w-full max-w-md overflow-y-auto rounded-xl bg-white p-5 shadow-xl" onClick={e => e.stopPropagation()}>
         <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0">
-            <p className="text-xs font-bold uppercase text-campo-700">Movimiento en almacen</p>
+          <div>
+            <p className="text-xs font-black uppercase text-campo-700">Movimiento · {movementLabel(movement.type)}</p>
             <h3 className="mt-1 text-lg font-black leading-snug text-slate-950 [overflow-wrap:anywhere]">{cleanProductName(lot.product)}</h3>
           </div>
-          <button className="btn-secondary !min-h-10 !px-3" type="button" onClick={onClose} title="Cerrar">
-            <X size={18} />
-          </button>
+          <button className="btn-secondary !min-h-9 !px-2.5" onClick={onClose}><X size={16} /></button>
         </div>
-        <dl className="mt-4 grid gap-2 rounded-lg bg-slate-50 p-3 text-sm font-bold text-slate-700">
-          <DetailRow label="Movimiento" value={movementLabel(movement.type)} />
-          <DetailRow label="Fecha" value={formatDate(movement.created_at)} />
-          <DetailRow label="Codigo" value={productCodeLabel(lot) || '-'} />
-          <DetailRow label="Lote" value={displayLotCode(lot.lot_code, lot)} />
-          <DetailRow label="Envases" value={`${formatNumber(movement.quantity)} env.`} />
-          <DetailRow label="Equivalente" value={Number(lot.package_size) > 0 ? `${formatNumber(equivalent)} ${lot.package_unit || ''}` : 'Sin dato'} />
-          <DetailRow label="Ubicacion" value={lot.location || '-'} />
+        <dl className="mt-4 grid gap-2 rounded-xl bg-slate-50 p-3 text-sm">
+          {[
+            ['Fecha',       formatDate(movement.created_at)],
+            ['Lote',        displayLotCode(lot.lot_code, lot)],
+            ['Envases',     `${formatNumber(movement.quantity)} env.`],
+            ['Equivalente', Number(lot.package_size) > 0 ? `${formatNumber(eq)} ${lot.package_unit||''}` : 'Sin dato'],
+            ['Ubicación',   lot.location || '-'],
+          ].map(([label, val]) => (
+            <div key={label} className="flex items-start justify-between gap-3">
+              <dt className="font-semibold text-slate-500">{label}</dt>
+              <dd className="font-black text-slate-900 text-right [overflow-wrap:anywhere]">{val}</dd>
+            </div>
+          ))}
         </dl>
-        <button className="btn-primary mt-3 w-full" type="button" onClick={onPrint}>
-          <Printer size={18} /> Imprimir comprobante
-        </button>
+        <button className="btn-primary mt-3 w-full" onClick={onPrint}><Printer size={16} /> Imprimir comprobante</button>
       </section>
     </div>
   )
-}
-
-function DetailRow({ label, value }) {
-  return (
-    <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,13rem)] items-start gap-3">
-      <dt className="text-slate-500">{label}</dt>
-      <dd className="min-w-0 text-right text-slate-950 [overflow-wrap:anywhere]">{value || '-'}</dd>
-    </div>
-  )
-}
-
-function clientRequestStatusLabel(status) {
-  if (status === 'aprobado') return 'En almacen'
-  if (status === 'despachado') return 'Despachado'
-  if (status === 'rechazado') return 'No atendido'
-  return 'Recibido'
 }
