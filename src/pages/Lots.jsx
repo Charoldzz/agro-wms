@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
-import { useLocation, useNavigate } from 'react-router-dom'
-import { CalendarClock, ChevronLeft, ChevronRight, ClipboardList, Menu, X } from 'lucide-react'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
+import { CalendarClock, ChevronLeft, ChevronRight, ClipboardList, LogOut, Menu, PackagePlus, X } from 'lucide-react'
 import { useAuth } from '../hooks/useAuth.jsx'
 import { supabase } from '../lib/supabase'
 import { formatDate, formatNumber } from '../lib/format'
@@ -43,7 +43,8 @@ function expiryClass(dateStr) {
 }
 
 export default function Lots() {
-  const { isAdmin } = useAuth()
+  const { isAdmin, profile } = useAuth()
+  const canOperate = isAdmin || profile?.role === 'operador'
   const navigate = useNavigate()
   const location = useLocation()
 
@@ -159,6 +160,25 @@ export default function Lots() {
 
   return (
     <div className="flex h-full min-h-0 flex-col gap-3">
+
+      {canOperate && (
+        <div className="grid grid-cols-2 gap-3">
+          <Link
+            className="btn-primary min-h-20 !flex-col !items-start !justify-between !px-5 !py-4 text-left text-lg sm:min-h-24"
+            to="/operacion/nuevo-ingreso"
+          >
+            <PackagePlus size={26} className="opacity-80" />
+            <span>Nuevo ingreso</span>
+          </Link>
+          <Link
+            className="inline-flex min-h-20 flex-col items-start justify-between gap-2 rounded-lg bg-maiz px-5 py-4 text-left text-lg font-semibold text-slate-950 shadow-soft transition active:scale-[0.99] sm:min-h-24"
+            to="/nueva-salida"
+          >
+            <LogOut size={26} className="opacity-70" />
+            <span>Nueva salida</span>
+          </Link>
+        </div>
+      )}
 
       {location.state?.qrFallback && (
         <div className="rounded-lg border border-orange-200 bg-orange-50 p-3 text-sm font-bold text-orange-900">

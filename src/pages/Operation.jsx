@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
-import { ClipboardPenLine, LogOut, PackagePlus, ScanLine, Wrench, X } from 'lucide-react'
+import { X } from 'lucide-react'
 import PageHeader from '../components/PageHeader'
 import { cleanProductName, displayLotCode, packageLabel } from '../lib/display'
 import { normalizeDispatchRequests } from '../lib/dispatchRequests'
@@ -176,40 +176,9 @@ export default function Operation() {
 
   return (
     <div>
-      <PageHeader title="Modo operario" subtitle="Ingresos, despachos y control de almacen" />
+      <PageHeader title="Pendientes" subtitle="Despachos, revisiones y alertas de vencimiento" />
 
-      <section className="grid gap-3 sm:grid-cols-2">
-        <Link className="btn-primary min-h-32 !items-start !justify-between !px-5 !py-5 text-left text-xl sm:min-h-40" to="/operacion/nuevo-ingreso">
-          <span className="flex h-12 w-12 items-center justify-center rounded-lg bg-white/15">
-            <PackagePlus size={30} />
-          </span>
-          <span>Nuevo ingreso</span>
-        </Link>
-        <Link className="inline-flex min-h-32 flex-col items-start justify-between gap-3 rounded-lg bg-maiz px-5 py-5 text-left text-xl font-semibold text-slate-950 shadow-soft transition active:scale-[0.99] sm:min-h-40" to="/operacion/despacho-lista?nuevo=1">
-          <span className="flex h-12 w-12 items-center justify-center rounded-lg bg-white/35">
-            <LogOut size={28} />
-          </span>
-          <span>Despacho</span>
-        </Link>
-        <Link className="inline-flex min-h-32 flex-col items-start justify-between gap-3 rounded-lg bg-orange-500 px-5 py-5 text-left text-xl font-semibold text-white shadow-soft transition active:scale-[0.99] sm:min-h-40" to="/operacion/reparacion-traslado">
-          <span className="flex h-12 w-12 items-center justify-center rounded-lg bg-white/15">
-            <Wrench size={28} />
-          </span>
-          <span>Reparacion / Traslado</span>
-        </Link>
-        <Link className="btn-secondary min-h-32 !items-start !justify-between !px-5 !py-5 text-left text-xl sm:min-h-40" to="/scanner">
-          <span className="flex h-12 w-12 items-center justify-center rounded-lg bg-campo-50 text-campo-700">
-            <ScanLine size={28} />
-          </span>
-          <span>Consultar QR</span>
-        </Link>
-      </section>
-
-      <Link className="btn-secondary mt-3 w-full justify-between" to="/operacion/correcciones">
-        <span className="inline-flex items-center gap-2"><ClipboardPenLine size={20} /> Solicitar correccion operativa</span>
-      </Link>
-
-      <section className="mt-5">
+      <section className="mt-0">
         <div className="mb-3 flex items-center justify-between gap-3">
           <h3 className="text-sm font-bold uppercase text-slate-500">Trabajo del dia</h3>
           <span className="rounded-full bg-campo-50 px-3 py-1 text-xs font-bold text-campo-700">

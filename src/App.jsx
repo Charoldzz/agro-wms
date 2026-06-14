@@ -53,7 +53,7 @@ function AppRoutes() {
   const { profile, profileLoading } = useAuth()
   if (profileLoading && !profile) return <LoadingScreen />
 
-  const homeElement = profile?.role === 'operador' ? <Navigate to="/lotes" replace /> : profile?.role === 'cliente' ? <ClientPortal /> : <Dashboard />
+  const homeElement = profile?.role === 'cliente' ? <ClientPortal /> : <Navigate to="/lotes" replace />
 
   return (
     <Routes>

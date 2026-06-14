@@ -1,21 +1,24 @@
 import { Outlet, NavLink, useLocation, useNavigate } from 'react-router-dom'
-import { ArrowLeft, BarChart2, Boxes, ClipboardList, Home, LayoutList, LogOut, PackagePlus, RefreshCcw, ShieldAlert, Truck, Users, Warehouse, Wifi, WifiOff } from 'lucide-react'
+import { ArrowLeft, BarChart2, Boxes, ClipboardCheck, ClipboardList, LayoutList, LogOut, PackagePlus, RefreshCcw, ShieldAlert, Truck, Users, Wifi, WifiOff } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../hooks/useAuth.jsx'
 import { getQueuedMovementCount, syncQueuedMovements } from '../lib/offlineQueue'
 import { clearOperationalDrafts } from '../lib/drafts'
 
-const navItems = [
-  { to: '/', label: 'Inicio', icon: Home },
-  { to: '/operacion', label: 'Operar', icon: Warehouse, roles: ['administrador'] },
-  { to: '/lotes', label: 'Almacenes', icon: Boxes, roles: ['administrador'] },
-  { to: '/despachos', label: 'Solicitudes', icon: Truck, roles: ['cliente'] },
-  { to: '/historial', label: 'Movimientos', icon: ClipboardList, roles: ['cliente'] },
-  { to: '/movimientos', label: 'Mov.', icon: ClipboardList, roles: ['administrador'] },
-  { to: '/offline', label: 'Offline', icon: ShieldAlert, roles: ['administrador'] },
-  { to: '/clientes', label: 'Clientes', icon: Users, roles: ['administrador'] },
-  { to: '/catalogo', label: 'Catalogo', icon: LayoutList, roles: ['administrador'] },
+const adminNavItems = [
+  { to: '/lotes', label: 'Almacenes', icon: Boxes },
+  { to: '/operacion', label: 'Pendientes', icon: ClipboardCheck },
+  { to: '/movimientos', label: 'Movimientos', icon: ClipboardList },
+  { to: '/offline', label: 'Offline', icon: ShieldAlert },
+  { to: '/clientes', label: 'Clientes', icon: Users },
+  { to: '/catalogo', label: 'Catalogo', icon: LayoutList },
+]
+
+const clienteNavItems = [
+  { to: '/', label: 'Inicio', icon: Boxes },
+  { to: '/despachos', label: 'Solicitudes', icon: Truck },
+  { to: '/historial', label: 'Movimientos', icon: ClipboardList },
 ]
 
 const operadorNavItems = [
@@ -38,8 +41,8 @@ export default function AppLayout() {
     profile?.role === 'operador'
       ? operadorNavItems
       : profile?.role === 'cliente'
-        ? navItems.filter((item) => item.to === '/' || item.roles?.includes('cliente'))
-        : navItems.filter((item) => !item.roles || item.roles.includes('administrador'))
+        ? clienteNavItems
+        : adminNavItems
   const mainTabPaths = new Set(['/', '/operacion', '/lotes', '/movimientos', '/offline', '/clientes', '/catalogo', '/despachos', '/historial', '/nueva-salida', '/kardex'])
   const showBackButton = !mainTabPaths.has(location.pathname)
 
