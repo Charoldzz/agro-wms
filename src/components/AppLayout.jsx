@@ -1,5 +1,5 @@
 import { Outlet, NavLink, useLocation, useNavigate } from 'react-router-dom'
-import { ArrowLeft, Boxes, ClipboardList, Home, LayoutList, LogOut, RefreshCcw, ShieldAlert, Truck, Users, Warehouse, Wifi, WifiOff } from 'lucide-react'
+import { ArrowLeft, BarChart2, Boxes, ClipboardList, Home, LayoutList, LogOut, PackagePlus, RefreshCcw, ShieldAlert, Truck, Users, Warehouse, Wifi, WifiOff } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../hooks/useAuth.jsx'
@@ -8,14 +8,22 @@ import { clearOperationalDrafts } from '../lib/drafts'
 
 const navItems = [
   { to: '/', label: 'Inicio', icon: Home },
-  { to: '/operacion', label: 'Operar', icon: Warehouse, roles: ['operador'] },
-  { to: '/lotes', label: 'Almacenes', icon: Boxes, roles: ['administrador', 'operador'] },
+  { to: '/operacion', label: 'Operar', icon: Warehouse, roles: ['administrador'] },
+  { to: '/lotes', label: 'Almacenes', icon: Boxes, roles: ['administrador'] },
   { to: '/despachos', label: 'Solicitudes', icon: Truck, roles: ['cliente'] },
   { to: '/historial', label: 'Movimientos', icon: ClipboardList, roles: ['cliente'] },
-  { to: '/movimientos', label: 'Mov.', icon: ClipboardList },
-  { to: '/offline', label: 'Offline', icon: ShieldAlert },
-  { to: '/clientes', label: 'Clientes', icon: Users },
-  { to: '/catalogo', label: 'Catalogo', icon: LayoutList },
+  { to: '/movimientos', label: 'Mov.', icon: ClipboardList, roles: ['administrador'] },
+  { to: '/offline', label: 'Offline', icon: ShieldAlert, roles: ['administrador'] },
+  { to: '/clientes', label: 'Clientes', icon: Users, roles: ['administrador'] },
+  { to: '/catalogo', label: 'Catalogo', icon: LayoutList, roles: ['administrador'] },
+]
+
+const operadorNavItems = [
+  { to: '/lotes', label: 'Almacenes', icon: Boxes },
+  { to: '/operacion/nuevo-ingreso', label: 'Ingreso', icon: PackagePlus },
+  { to: '/nueva-salida', label: 'Salida', icon: LogOut },
+  { to: '/movimientos', label: 'Movimientos', icon: ClipboardList },
+  { to: '/kardex', label: 'Kardex', icon: BarChart2 },
 ]
 
 export default function AppLayout() {
@@ -28,11 +36,11 @@ export default function AppLayout() {
   const [lastSync, setLastSync] = useState('')
   const visibleNavItems =
     profile?.role === 'operador'
-      ? navItems.filter((item) => item.roles?.includes('operador'))
+      ? operadorNavItems
       : profile?.role === 'cliente'
         ? navItems.filter((item) => item.to === '/' || item.roles?.includes('cliente'))
         : navItems.filter((item) => !item.roles || item.roles.includes('administrador'))
-  const mainTabPaths = new Set(['/', '/operacion', '/lotes', '/movimientos', '/offline', '/clientes', '/catalogo', '/despachos', '/historial'])
+  const mainTabPaths = new Set(['/', '/operacion', '/lotes', '/movimientos', '/offline', '/clientes', '/catalogo', '/despachos', '/historial', '/nueva-salida', '/kardex'])
   const showBackButton = !mainTabPaths.has(location.pathname)
 
   async function signOut() {
@@ -50,7 +58,7 @@ export default function AppLayout() {
       if (returnTo) return navigate(returnTo)
       return navigate(-1)
     }
-    if (path.startsWith('/operacion/')) return navigate('/operacion')
+    if (path.startsWith('/operacion/')) return navigate(profile?.role === 'operador' ? '/lotes' : '/operacion')
     if (profile?.role === 'cliente' && path.match(/^\/lotes\/[^/]+$/)) return navigate('/')
     if (path.startsWith('/productos/') || path.startsWith('/vencimientos') || path.match(/^\/lotes\/[^/]+$/)) return navigate('/lotes')
     if (path.startsWith('/pendientes') || path.startsWith('/solicitudes')) return navigate('/')

@@ -15,6 +15,8 @@ import ProductLots from './pages/ProductLots'
 import Operation from './pages/Operation'
 import ExpiringLots from './pages/ExpiringLots'
 import OperatorEntry from './pages/OperatorEntry'
+import NuevaSalida from './pages/NuevaSalida'
+import Kardex from './pages/Kardex'
 import OperatorService from './pages/OperatorService'
 import DispatchList from './pages/DispatchList'
 import OfflineAudit from './pages/OfflineAudit'
@@ -51,7 +53,7 @@ function AppRoutes() {
   const { profile, profileLoading } = useAuth()
   if (profileLoading && !profile) return <LoadingScreen />
 
-  const homeElement = profile?.role === 'operador' ? <Operation /> : profile?.role === 'cliente' ? <ClientPortal /> : <Dashboard />
+  const homeElement = profile?.role === 'operador' ? <Navigate to="/lotes" replace /> : profile?.role === 'cliente' ? <ClientPortal /> : <Dashboard />
 
   return (
     <Routes>
@@ -68,6 +70,8 @@ function AppRoutes() {
         <Route path="operacion" element={<Operation />} />
         <Route path="qr/:token" element={<QrGate />} />
         <Route path="operacion/nuevo-ingreso" element={<RoleRoute roles={['administrador', 'operador']}><OperatorEntry /></RoleRoute>} />
+        <Route path="nueva-salida" element={<RoleRoute roles={['administrador', 'operador']}><NuevaSalida /></RoleRoute>} />
+        <Route path="kardex" element={<RoleRoute roles={['administrador', 'operador']}><Kardex /></RoleRoute>} />
         <Route path="operacion/despacho-lista" element={<RoleRoute roles={['administrador', 'operador']}><DispatchList /></RoleRoute>} />
         <Route path="operacion/reparacion-traslado" element={<RoleRoute roles={['administrador', 'operador']}><OperatorService /></RoleRoute>} />
         <Route path="operacion/correcciones" element={<RoleRoute roles={['administrador', 'operador']}><CorrectionRequests /></RoleRoute>} />
@@ -77,7 +81,7 @@ function AppRoutes() {
         <Route path="productos/:name" element={<RoleRoute roles={['administrador', 'operador', 'cliente']}><ProductLots /></RoleRoute>} />
         <Route path="vencimientos" element={<RoleRoute roles={['administrador', 'operador', 'cliente']}><ExpiringLots /></RoleRoute>} />
         <Route path="scanner" element={<Scanner />} />
-        <Route path="movimientos" element={<RoleRoute roles={['administrador']}><Movements /></RoleRoute>} />
+        <Route path="movimientos" element={<RoleRoute roles={['administrador', 'operador']}><Movements /></RoleRoute>} />
         <Route path="offline" element={<RoleRoute roles={['administrador']}><OfflineAudit /></RoleRoute>} />
         <Route path="solicitudes" element={<RoleRoute roles={['administrador']}><ClientRequestsAdmin /></RoleRoute>} />
         <Route path="despachos" element={<RoleRoute roles={['cliente']}><ClientPortal view="requests" /></RoleRoute>} />
