@@ -1,5 +1,5 @@
 import { Outlet, NavLink, useLocation, useNavigate } from 'react-router-dom'
-import { ArrowLeft, BarChart2, Boxes, ClipboardCheck, ClipboardList, LayoutList, LogOut, PackagePlus, RefreshCcw, ShieldAlert, Truck, Users, Wifi, WifiOff } from 'lucide-react'
+import { ArrowLeft, BarChart2, Boxes, ClipboardCheck, ClipboardList, LogOut, PackagePlus, RefreshCcw, ShieldAlert, Truck, Wifi, WifiOff } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../hooks/useAuth.jsx'
@@ -11,8 +11,6 @@ const adminNavItems = [
   { to: '/operacion', label: 'Pendientes', icon: ClipboardCheck },
   { to: '/movimientos', label: 'Movimientos', icon: ClipboardList },
   { to: '/offline', label: 'Offline', icon: ShieldAlert },
-  { to: '/clientes', label: 'Clientes', icon: Users },
-  { to: '/catalogo', label: 'Catalogo', icon: LayoutList },
 ]
 
 const clienteNavItems = [
@@ -43,7 +41,7 @@ export default function AppLayout() {
       : profile?.role === 'cliente'
         ? clienteNavItems
         : adminNavItems
-  const mainTabPaths = new Set(['/', '/operacion', '/lotes', '/movimientos', '/offline', '/clientes', '/catalogo', '/despachos', '/historial'])
+  const mainTabPaths = new Set(['/', '/operacion', '/lotes', '/movimientos', '/offline', '/despachos', '/historial'])
   const showBackButton = !mainTabPaths.has(location.pathname)
 
   async function signOut() {

@@ -1,11 +1,13 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
-import { CalendarClock, ChevronLeft, ChevronRight, ClipboardList, LogOut, Menu, PackagePlus, Plus, X } from 'lucide-react'
+import { Building2, CalendarClock, ChevronLeft, ChevronRight, ClipboardList, LayoutList, LogOut, Menu, PackagePlus, Plus, X } from 'lucide-react'
 import { useAuth } from '../hooks/useAuth.jsx'
 import { supabase } from '../lib/supabase'
 import { formatDate, formatNumber } from '../lib/format'
 import { cleanProductName, displayLotCode, lotLabel, productCodeLabel } from '../lib/display'
 import NewProductModal from '../components/NewProductModal'
+import EmpresasModal from '../components/EmpresasModal'
+import CatalogoModal from '../components/CatalogoModal'
 
 const LOTS_CACHE_KEY = 'todo-agricola-lots-cache'
 const CLIENTS_CACHE_KEY = 'todo-agricola-clients-cache'
@@ -45,6 +47,8 @@ export default function Lots() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
 
   const [showProductModal, setShowProductModal] = useState(false)
+  const [showEmpresasModal, setShowEmpresasModal] = useState(false)
+  const [showCatalogoModal, setShowCatalogoModal] = useState(false)
 
   useEffect(() => { loadData() }, [])
 
@@ -55,7 +59,6 @@ export default function Lots() {
         .from('lots')
         .select('*, clients(name)')
         .eq('inventory_source', 'stock_independiente')
-        .in('status', ['activo', 'completado'])
         .order('product', { ascending: true }),
       supabase.from('clients').select('*').eq('inventory_source', 'stock_independiente').order('name'),
     ])
@@ -286,15 +289,29 @@ export default function Lots() {
             )}
           </div>
 
-          {/* Botón Producto (solo admin) */}
+          {/* Botones de admin */}
           {isAdmin && (
-            <div>
+            <div className="flex flex-wrap gap-2">
               <button
                 className="inline-flex items-center gap-1.5 rounded-lg border border-campo-200 bg-campo-100 px-3 py-1.5 text-xs font-bold text-campo-800 shadow-sm transition hover:bg-campo-200 active:scale-[0.98]"
                 onClick={() => setShowProductModal(true)}
               >
                 <Plus size={14} />
                 Producto
+              </button>
+              <button
+                className="btn-secondary !min-h-8 !px-3 !py-1.5 text-xs"
+                onClick={() => setShowCatalogoModal(true)}
+              >
+                <LayoutList size={14} />
+                Catálogo
+              </button>
+              <button
+                className="btn-secondary !min-h-8 !px-3 !py-1.5 text-xs"
+                onClick={() => setShowEmpresasModal(true)}
+              >
+                <Building2 size={14} />
+                Empresas
               </button>
             </div>
           )}
@@ -437,6 +454,20 @@ export default function Lots() {
           clients={clientsWithPrefix}
           onClose={() => setShowProductModal(false)}
           onSaved={loadData}
+        />
+      )}
+
+      {showEmpresasModal && (
+        <EmpresasModal
+          onClose={() => setShowEmpresasModal(false)}
+          onSaved={loadData}
+        />
+      )}
+
+      {showCatalogoModal && (
+        <CatalogoModal
+          clients={clients}
+          onClose={() => setShowCatalogoModal(false)}
         />
       )}
     </div>
