@@ -88,6 +88,7 @@ export default function ClientPortal({ view = 'inventory' }) {
   const [requests,   setRequests]   = useState([])
   const [loading,    setLoading]    = useState(true)
   const [showExpiryModal, setShowExpiryModal] = useState(false)
+  const [showProductsModal, setShowProductsModal] = useState(false)
   const [search,     setSearch]     = useState('')
   const [expandedProduct, setExpandedProduct] = useState('')
   const [showAllProducts, setShowAllProducts] = useState(false)
@@ -307,7 +308,7 @@ export default function ClientPortal({ view = 'inventory' }) {
           {/* Metrics */}
           <div className="grid grid-cols-3 gap-2">
             <MetricCard icon={Boxes} label="Envases en almacén" value={formatNumber(totalStock)} color="campo" />
-            <MetricCard icon={Package} label="Productos" value={productCount} color="slate" />
+            <MetricCard icon={Package} label="Productos" value={productCount} color="slate" onClick={() => setShowProductsModal(true)} />
             <MetricCard
               icon={expiring.length > 0 ? CalendarClock : PackageCheck}
               label={expiring.length > 0 ? 'Por vencer' : 'Sin alertas'}
@@ -724,6 +725,14 @@ export default function ClientPortal({ view = 'inventory' }) {
         </div>
       )}
 
+      {/* Products modal */}
+      {showProductsModal && (
+        <ProductsModal
+          lots={lots}
+          onClose={() => setShowProductsModal(false)}
+        />
+      )}
+
       {/* Expiry modal */}
       {showExpiryModal && (
         <ExpiryModal
@@ -768,6 +777,68 @@ function MetricCard({ icon: Icon, label, value, color = 'campo', onClick }) {
       <Icon size={18} />
       <p className="text-xl font-black leading-none tabular-nums">{value}</p>
       <p className="text-[10px] font-bold leading-snug opacity-80">{label}</p>
+    </div>
+  )
+}
+
+function ProductsModal({ lots, onClose }) {
+  const [q, setQ] = useState('')
+  const products = useMemo(() => {
+    const map = new Map()
+    lots.forEach(l => {
+      const name = cleanProductName(l.product)
+      if (!name) return
+      const entry = map.get(name) || { name, totalQty: 0, lotCount: 0 }
+      entry.totalQty += Number(l.current_quantity || 0)
+      entry.lotCount += 1
+      map.set(name, entry)
+    })
+    return [...map.values()].sort((a, b) => a.name.localeCompare(b.name, 'es'))
+  }, [lots])
+
+  const filtered = q.trim()
+    ? products.filter(p => p.name.toLowerCase().includes(q.trim().toLowerCase()))
+    : products
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end bg-black/40 p-4 sm:items-center sm:justify-center" onClick={onClose}>
+      <section className="w-full max-w-md overflow-hidden rounded-2xl bg-white shadow-xl" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
+          <div>
+            <h3 className="font-black text-slate-950">Productos en almacén</h3>
+            <p className="text-xs font-semibold text-slate-500">{products.length} producto{products.length !== 1 ? 's' : ''}</p>
+          </div>
+          <button className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100" onClick={onClose}><X size={18} /></button>
+        </div>
+        <div className="border-b border-slate-100 px-4 py-2.5">
+          <div className="flex items-center gap-2 rounded-lg bg-slate-50 px-3 py-2">
+            <Search size={14} className="shrink-0 text-slate-400" />
+            <input
+              autoFocus
+              type="text"
+              placeholder="Buscar producto..."
+              value={q}
+              onChange={e => setQ(e.target.value)}
+              className="w-full bg-transparent text-sm font-semibold text-slate-900 placeholder-slate-400 outline-none"
+            />
+            {q && <button onClick={() => setQ('')} className="text-slate-400"><X size={14} /></button>}
+          </div>
+        </div>
+        <ul className="max-h-[55dvh] divide-y divide-slate-100 overflow-y-auto">
+          {filtered.length === 0 && (
+            <li className="px-5 py-8 text-center text-sm font-semibold text-slate-400">Sin resultados</li>
+          )}
+          {filtered.map(p => (
+            <li key={p.name} className="flex items-center justify-between gap-3 px-5 py-3.5">
+              <p className="min-w-0 text-sm font-bold text-slate-900 [overflow-wrap:anywhere]">{p.name}</p>
+              <div className="shrink-0 text-right">
+                <p className="text-sm font-black text-campo-700">{formatNumber(p.totalQty)} env.</p>
+                <p className="text-[10px] font-semibold text-slate-400">{p.lotCount} lote{p.lotCount !== 1 ? 's' : ''}</p>
+              </div>
+            </li>
+          ))}
+        </ul>
+      </section>
     </div>
   )
 }
