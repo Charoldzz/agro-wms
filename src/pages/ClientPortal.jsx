@@ -87,6 +87,7 @@ export default function ClientPortal({ view = 'inventory' }) {
   const [movements,  setMovements]  = useState([])
   const [requests,   setRequests]   = useState([])
   const [loading,    setLoading]    = useState(true)
+  const [showExpiryModal, setShowExpiryModal] = useState(false)
   const [search,     setSearch]     = useState('')
   const [expandedProduct, setExpandedProduct] = useState('')
   const [showAllProducts, setShowAllProducts] = useState(false)
@@ -312,6 +313,7 @@ export default function ClientPortal({ view = 'inventory' }) {
               label={expiring.length > 0 ? 'Por vencer' : 'Sin alertas'}
               value={expiring.length > 0 ? expiring.length : '✓'}
               color={expiring.length > 0 ? 'amber' : 'campo'}
+              onClick={expiring.length > 0 ? () => setShowExpiryModal(true) : undefined}
             />
           </div>
 
@@ -329,26 +331,6 @@ export default function ClientPortal({ view = 'inventory' }) {
               </div>
               <span className="text-xs font-bold text-campo-600">Ver →</span>
             </Link>
-          )}
-
-          {/* Expiry alert */}
-          {expiring.length > 0 && (
-            <div className="flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
-              <CalendarClock size={18} className="mt-0.5 shrink-0 text-amber-700" />
-              <p className="text-sm font-bold text-amber-800">
-                {expiring.length} lote{expiring.length > 1 ? 's' : ''} próximo{expiring.length > 1 ? 's' : ''} a vencer en los próximos 90 días.
-              </p>
-            </div>
-          )}
-
-          {/* Retained alert */}
-          {alerts.length > 0 && (
-            <div className="flex items-start gap-3 rounded-xl border border-orange-200 bg-orange-50 px-4 py-3">
-              <ShieldAlert size={18} className="mt-0.5 shrink-0 text-orange-700" />
-              <p className="text-sm font-bold text-orange-800">
-                {alerts.length} lote{alerts.length > 1 ? 's' : ''} retenido{alerts.length > 1 ? 's' : ''} o cerrado{alerts.length > 1 ? 's' : ''}.
-              </p>
-            </div>
           )}
 
           {/* Search */}
@@ -742,6 +724,14 @@ export default function ClientPortal({ view = 'inventory' }) {
         </div>
       )}
 
+      {/* Expiry modal */}
+      {showExpiryModal && (
+        <ExpiryModal
+          lots={lots}
+          onClose={() => setShowExpiryModal(false)}
+        />
+      )}
+
       {/* Movement detail modal */}
       {selectedMovement && (
         <MovementModal
@@ -757,17 +747,72 @@ export default function ClientPortal({ view = 'inventory' }) {
 
 /* ─── sub-components ─────────────────────────────────────────────── */
 
-function MetricCard({ icon: Icon, label, value, color = 'campo' }) {
+function MetricCard({ icon: Icon, label, value, color = 'campo', onClick }) {
   const colors = {
     campo: 'bg-campo-50 text-campo-700',
     slate: 'bg-slate-50 text-slate-600',
     amber: 'bg-amber-50 text-amber-700',
   }
+  const base = `flex flex-col gap-1.5 rounded-xl px-3 py-3 ${colors[color]}`
+  if (onClick) {
+    return (
+      <button type="button" className={`${base} w-full text-left transition active:scale-[0.97] hover:brightness-95`} onClick={onClick}>
+        <Icon size={18} />
+        <p className="text-xl font-black leading-none tabular-nums">{value}</p>
+        <p className="text-[10px] font-bold leading-snug opacity-80">{label}</p>
+      </button>
+    )
+  }
   return (
-    <div className={`flex flex-col gap-1.5 rounded-xl px-3 py-3 ${colors[color]}`}>
+    <div className={base}>
       <Icon size={18} />
       <p className="text-xl font-black leading-none tabular-nums">{value}</p>
       <p className="text-[10px] font-bold leading-snug opacity-80">{label}</p>
+    </div>
+  )
+}
+
+function ExpiryModal({ lots, onClose }) {
+  const alertLots = lots
+    .map(l => ({ ...l, days: daysUntil(l.expiry_date) }))
+    .filter(l => l.days !== null && l.days <= 90)
+    .sort((a, b) => a.days - b.days)
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end bg-black/40 p-4 sm:items-center sm:justify-center" onClick={onClose}>
+      <section className="w-full max-w-md overflow-hidden rounded-2xl bg-white shadow-xl" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
+          <div>
+            <h3 className="font-black text-slate-950">Lotes próximos a vencer</h3>
+            <p className="text-xs font-semibold text-slate-500">{alertLots.length} lote{alertLots.length !== 1 ? 's' : ''} en los próximos 90 días</p>
+          </div>
+          <button className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100" onClick={onClose}><X size={18} /></button>
+        </div>
+        <div className="max-h-[60dvh] divide-y divide-slate-100 overflow-y-auto">
+          {alertLots.map(lot => {
+            const expired = lot.days < 0
+            return (
+              <div key={lot.id} className="flex items-center gap-3 px-5 py-3.5">
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-black text-slate-900 [overflow-wrap:anywhere]">{cleanProductName(lot.product)}</p>
+                  <p className="mt-0.5 text-xs font-semibold text-slate-500">
+                    {lotLabel(lot.lot_code, lot)} · {lot.location || 'Sin ubicación'}
+                  </p>
+                </div>
+                <div className="shrink-0 text-right">
+                  <p className="text-sm font-black text-campo-700">{formatNumber(lot.current_quantity)} env.</p>
+                  <span className={`rounded-full px-2 py-0.5 text-[10px] font-black ${expired ? 'bg-red-50 text-red-700' : 'bg-amber-50 text-amber-700'}`}>
+                    {expired ? `Vencido hace ${Math.abs(lot.days)}d` : `Vence en ${lot.days}d`}
+                  </span>
+                </div>
+              </div>
+            )
+          })}
+        </div>
+        <div className="border-t border-slate-100 px-5 py-3">
+          <p className="text-[10px] font-semibold text-slate-400">Contacta a Todo Agrícola para coordinar el manejo de estos lotes.</p>
+        </div>
+      </section>
     </div>
   )
 }
