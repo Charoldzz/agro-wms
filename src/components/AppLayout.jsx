@@ -128,7 +128,7 @@ export default function AppLayout() {
   }, [isOperatorRoot])
 
   return (
-    <div className="app-bg min-h-screen pb-[calc(6.5rem+env(safe-area-inset-bottom))]">
+    <div className="app-bg min-h-screen pb-[calc(7.5rem+env(safe-area-inset-bottom))]">
       <header className="sticky top-0 z-20 border-b border-slate-200 bg-white/95">
         <div className="mx-auto flex max-w-5xl items-center justify-between gap-2 px-4 py-3">
           <div className="flex min-w-0 items-center gap-3">
@@ -199,8 +199,8 @@ export default function AppLayout() {
         <Outlet />
       </main>
 
-      <nav className="fixed inset-x-0 bottom-0 z-30 border-t border-slate-200 bg-white/95 pb-[env(safe-area-inset-bottom)]">
-        <div className="mx-auto flex max-w-5xl justify-center px-2 py-2">
+      <nav className="fixed inset-x-0 bottom-0 z-30 border-t-2 border-slate-200 bg-white pb-[env(safe-area-inset-bottom)]">
+        <div className="mx-auto flex max-w-5xl gap-1.5 px-3 py-2.5">
           {visibleNavItems.map((item) => {
             const Icon = item.icon
             return (
@@ -208,13 +208,15 @@ export default function AppLayout() {
                 key={item.to}
                 to={item.to}
                 className={({ isActive }) =>
-                  `flex flex-1 flex-col items-center justify-center rounded-lg px-1 py-2.5 text-[10px] font-semibold sm:max-w-[100px] sm:py-3 sm:text-[11px] ${
-                    isActive ? 'bg-campo-50 text-campo-700' : 'text-slate-500'
+                  `flex flex-1 flex-col items-center justify-center gap-1 rounded-xl py-3 text-xs font-bold transition-colors ${
+                    isActive
+                      ? 'bg-campo-700 text-white shadow-sm'
+                      : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
                   }`
                 }
               >
-                <Icon size={22} />
-                <span className="mt-0.5 max-w-full truncate">{item.label}</span>
+                <Icon size={26} strokeWidth={2} />
+                <span className="leading-none">{item.label}</span>
               </NavLink>
             )
           })}
