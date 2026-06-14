@@ -56,23 +56,68 @@ export default function Lots() {
 
   async function loadData(includeZero = false) {
     setLoading(true)
-    let lotsQuery = supabase
-      .from('lots')
-      .select('*, clients(name)')
+
+    const baseLots = () =>
+      supabase
+        .from('lots')
+        .select('*, clients(name)')
+        .eq('inventory_source', 'stock_independiente')
+        .order('product', { ascending: true })
+
+    const clientsPromise = supabase
+      .from('clients')
+      .select('*')
       .eq('inventory_source', 'stock_independiente')
-      .order('product', { ascending: true })
+      .order('name')
 
-    // When includeZero=true also try to load lots with completado status (qty=0 after dispatch)
+    let lotsData = null
+    let lotsError = null
+
     if (includeZero) {
-      lotsQuery = lotsQuery.or('status.eq.activo,status.eq.completado')
-    } else {
-      lotsQuery = lotsQuery.eq('status', 'activo')
-    }
+      // Two separate queries: active lots + any lot with current_quantity <= 0
+      const [
+        { data: activeLots, error: e1 },
+        { data: zeroLots, error: e2 },
+        { data: clientsData, error: clientsError },
+      ] = await Promise.all([
+        baseLots().eq('status', 'activo'),
+        baseLots().lte('current_quantity', 0),
+        clientsPromise,
+      ])
 
-    const [{ data: lotsData, error: lotsError }, { data: clientsData, error: clientsError }] = await Promise.all([
-      lotsQuery,
-      supabase.from('clients').select('*').eq('inventory_source', 'stock_independiente').order('name'),
-    ])
+      if (!e1 && !e2) {
+        const seen = new Set()
+        const merged = []
+        for (const lot of [...(activeLots || []), ...(zeroLots || [])]) {
+          if (!seen.has(lot.id)) { seen.add(lot.id); merged.push(lot) }
+        }
+        merged.sort((a, b) => (a.product || '').localeCompare(b.product || '', 'es'))
+        lotsData = merged
+      } else {
+        lotsError = e1 || e2
+      }
+
+      if (clientsData && !clientsError) {
+        setClients(clientsData)
+        localStorage.setItem(CLIENTS_CACHE_KEY, JSON.stringify(clientsData))
+      } else {
+        setClients(JSON.parse(localStorage.getItem(CLIENTS_CACHE_KEY) || '[]'))
+      }
+    } else {
+      const [{ data, error: e }, { data: clientsData, error: clientsError }] = await Promise.all([
+        baseLots().eq('status', 'activo'),
+        clientsPromise,
+      ])
+      lotsData = data
+      lotsError = e
+
+      if (clientsData && !clientsError) {
+        setClients(clientsData)
+        localStorage.setItem(CLIENTS_CACHE_KEY, JSON.stringify(clientsData))
+      } else {
+        setClients(JSON.parse(localStorage.getItem(CLIENTS_CACHE_KEY) || '[]'))
+      }
+    }
 
     if (lotsData && !lotsError) {
       setLots(lotsData)
@@ -83,12 +128,7 @@ export default function Lots() {
       setLots(cached)
       if (cached.length > 0) setCacheNotice('Sin señal: mostrando inventario guardado.')
     }
-    if (clientsData && !clientsError) {
-      setClients(clientsData)
-      localStorage.setItem(CLIENTS_CACHE_KEY, JSON.stringify(clientsData))
-    } else {
-      setClients(JSON.parse(localStorage.getItem(CLIENTS_CACHE_KEY) || '[]'))
-    }
+
     setLoading(false)
   }
 
