@@ -52,83 +52,38 @@ export default function Lots() {
   const [showCatalogoModal, setShowCatalogoModal] = useState(false)
   const [showMovimientosModal, setShowMovimientosModal] = useState(false)
 
-  useEffect(() => { loadData(false) }, [])
+  useEffect(() => { loadData() }, [])
 
-  async function loadData(includeZero = false) {
+  async function loadData() {
     setLoading(true)
-
-    const baseLots = () =>
+    // Fetches ALL activo lots — including those with current_quantity = 0.
+    // Zero-stock lots keep status='activo' after dispatch (the RPC only updates current_quantity).
+    // The UI filter in filteredLots hides/shows them based on showZeroStock.
+    const [{ data: lotsData, error: lotsError }, { data: clientsData, error: clientsError }] = await Promise.all([
       supabase
         .from('lots')
         .select('*, clients(name)')
         .eq('inventory_source', 'stock_independiente')
-        .order('product', { ascending: true })
-
-    const clientsPromise = supabase
-      .from('clients')
-      .select('*')
-      .eq('inventory_source', 'stock_independiente')
-      .order('name')
-
-    let lotsData = null
-    let lotsError = null
-
-    if (includeZero) {
-      // Two separate queries: active lots + any lot with current_quantity <= 0
-      const [
-        { data: activeLots, error: e1 },
-        { data: zeroLots, error: e2 },
-        { data: clientsData, error: clientsError },
-      ] = await Promise.all([
-        baseLots().eq('status', 'activo'),
-        baseLots().lte('current_quantity', 0),
-        clientsPromise,
-      ])
-
-      if (!e1 && !e2) {
-        const seen = new Set()
-        const merged = []
-        for (const lot of [...(activeLots || []), ...(zeroLots || [])]) {
-          if (!seen.has(lot.id)) { seen.add(lot.id); merged.push(lot) }
-        }
-        merged.sort((a, b) => (a.product || '').localeCompare(b.product || '', 'es'))
-        lotsData = merged
-      } else {
-        lotsError = e1 || e2
-      }
-
-      if (clientsData && !clientsError) {
-        setClients(clientsData)
-        localStorage.setItem(CLIENTS_CACHE_KEY, JSON.stringify(clientsData))
-      } else {
-        setClients(JSON.parse(localStorage.getItem(CLIENTS_CACHE_KEY) || '[]'))
-      }
-    } else {
-      const [{ data, error: e }, { data: clientsData, error: clientsError }] = await Promise.all([
-        baseLots().eq('status', 'activo'),
-        clientsPromise,
-      ])
-      lotsData = data
-      lotsError = e
-
-      if (clientsData && !clientsError) {
-        setClients(clientsData)
-        localStorage.setItem(CLIENTS_CACHE_KEY, JSON.stringify(clientsData))
-      } else {
-        setClients(JSON.parse(localStorage.getItem(CLIENTS_CACHE_KEY) || '[]'))
-      }
-    }
+        .eq('status', 'activo')
+        .order('product', { ascending: true }),
+      supabase.from('clients').select('*').eq('inventory_source', 'stock_independiente').order('name'),
+    ])
 
     if (lotsData && !lotsError) {
       setLots(lotsData)
-      if (!includeZero) localStorage.setItem(LOTS_CACHE_KEY, JSON.stringify(lotsData))
+      localStorage.setItem(LOTS_CACHE_KEY, JSON.stringify(lotsData))
       setCacheNotice('')
     } else {
       const cached = JSON.parse(localStorage.getItem(LOTS_CACHE_KEY) || '[]')
       setLots(cached)
       if (cached.length > 0) setCacheNotice('Sin señal: mostrando inventario guardado.')
     }
-
+    if (clientsData && !clientsError) {
+      setClients(clientsData)
+      localStorage.setItem(CLIENTS_CACHE_KEY, JSON.stringify(clientsData))
+    } else {
+      setClients(JSON.parse(localStorage.getItem(CLIENTS_CACHE_KEY) || '[]'))
+    }
     setLoading(false)
   }
 
@@ -302,12 +257,7 @@ export default function Lots() {
                   type="checkbox"
                   className="h-4 w-4 rounded accent-campo-700"
                   checked={showZeroStock}
-                  onChange={(e) => {
-                    const checked = e.target.checked
-                    setShowZeroStock(checked)
-                    setPage(1)
-                    loadData(checked)
-                  }}
+                  onChange={(e) => { setShowZeroStock(e.target.checked); setPage(1) }}
                 />
                 <span className="text-xs font-semibold text-slate-600">Mostrar stock 0</span>
               </label>
