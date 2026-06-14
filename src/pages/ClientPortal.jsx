@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link } from 'react-router-dom'
 import {
-  ArrowRight, Boxes, CalendarClock, CheckCircle2, ChevronDown,
+  Boxes, CalendarClock, CheckCircle2, ChevronDown,
   ClipboardList, Download, FileText, History, Minus, Package,
   PackageCheck, Plus, Printer, Search, Send, ShieldAlert,
   Truck, X,
@@ -81,7 +81,6 @@ function clearDraft()  { localStorage.removeItem(DRAFT_KEY) }
 /* ═══════════════════════════════════════════════════════════════════ */
 export default function ClientPortal({ view = 'inventory' }) {
   const { user, profile } = useAuth()
-  const navigate = useNavigate()
   const initialDraft = useMemo(readDraft, [])
 
   const [lots,       setLots]       = useState([])
@@ -285,23 +284,19 @@ export default function ClientPortal({ view = 'inventory' }) {
         <>
           {/* Greeting */}
           <div className="rounded-2xl bg-campo-700 px-5 py-5 text-white shadow-sm">
-            <p className="text-xs font-bold uppercase tracking-wider text-campo-200">Bienvenido</p>
-            <h1 className="mt-1 text-xl font-black leading-snug [overflow-wrap:anywhere]">{clientName}</h1>
-            <p className="mt-0.5 text-sm font-semibold text-campo-200">
-              {new Intl.DateTimeFormat('es-BO',{weekday:'long',day:'numeric',month:'long'}).format(new Date())}
-            </p>
-            <div className="mt-4 flex flex-wrap gap-2">
-              <button
-                className="inline-flex items-center gap-2 rounded-xl bg-white px-4 py-2.5 text-sm font-black text-campo-800 shadow transition hover:bg-campo-50 active:scale-[0.98]"
-                onClick={() => navigate('/despachos')}
-              >
-                <Truck size={16} /> Solicitar despacho <ArrowRight size={14} />
-              </button>
-              <div className="flex gap-2">
-                <button className="inline-flex items-center gap-1.5 rounded-xl border border-white/30 bg-white/10 px-3 py-2.5 text-xs font-bold text-white transition hover:bg-white/20" onClick={exportExcel}>
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-xs font-bold uppercase tracking-wider text-campo-200">Bienvenido</p>
+                <h1 className="mt-1 text-xl font-black leading-snug [overflow-wrap:anywhere]">{clientName}</h1>
+                <p className="mt-0.5 text-sm font-semibold text-campo-200">
+                  {new Intl.DateTimeFormat('es-BO',{weekday:'long',day:'numeric',month:'long'}).format(new Date())}
+                </p>
+              </div>
+              <div className="flex shrink-0 gap-2 pt-1">
+                <button className="inline-flex items-center gap-1.5 rounded-xl border border-white/30 bg-white/10 px-3 py-2 text-xs font-bold text-white transition hover:bg-white/20" onClick={exportExcel}>
                   <Download size={14} /> Excel
                 </button>
-                <button className="inline-flex items-center gap-1.5 rounded-xl border border-white/30 bg-white/10 px-3 py-2.5 text-xs font-bold text-white transition hover:bg-white/20" onClick={printPdf}>
+                <button className="inline-flex items-center gap-1.5 rounded-xl border border-white/30 bg-white/10 px-3 py-2 text-xs font-bold text-white transition hover:bg-white/20" onClick={printPdf}>
                   <FileText size={14} /> PDF
                 </button>
               </div>
@@ -322,9 +317,9 @@ export default function ClientPortal({ view = 'inventory' }) {
 
           {/* Active requests banner */}
           {activeRequests.length > 0 && (
-            <button
-              className="flex w-full items-center justify-between gap-3 rounded-xl border border-campo-200 bg-campo-50 px-4 py-3 text-left transition hover:bg-campo-100"
-              onClick={() => navigate('/despachos')}
+            <Link
+              to="/despachos"
+              className="flex w-full items-center justify-between gap-3 rounded-xl border border-campo-200 bg-campo-50 px-4 py-3 transition hover:bg-campo-100"
             >
               <div className="flex items-center gap-2">
                 <ClipboardList size={18} className="text-campo-700" />
@@ -332,8 +327,8 @@ export default function ClientPortal({ view = 'inventory' }) {
                   {activeRequests.length} solicitud{activeRequests.length > 1 ? 'es' : ''} pendiente{activeRequests.length > 1 ? 's' : ''} en almacén
                 </span>
               </div>
-              <ArrowRight size={16} className="shrink-0 text-campo-600" />
-            </button>
+              <span className="text-xs font-bold text-campo-600">Ver →</span>
+            </Link>
           )}
 
           {/* Expiry alert */}
@@ -452,9 +447,7 @@ export default function ClientPortal({ view = 'inventory' }) {
                   <History size={16} className="text-campo-700" />
                   <p className="text-sm font-black text-slate-950">Últimos movimientos</p>
                 </div>
-                <button className="text-xs font-bold text-campo-700 hover:underline" onClick={() => navigate('/historial')}>
-                  Ver todos
-                </button>
+                <Link to="/historial" className="text-xs font-bold text-campo-700 hover:underline">Ver todos</Link>
               </div>
               <div className="divide-y divide-slate-100">
                 {movements.slice(0,4).map(m => {
