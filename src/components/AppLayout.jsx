@@ -9,7 +9,6 @@ import { clearOperationalDrafts } from '../lib/drafts'
 const adminNavItems = [
   { to: '/lotes', label: 'Almacenes', icon: Boxes },
   { to: '/operacion', label: 'Pendientes', icon: ClipboardCheck },
-  { to: '/movimientos', label: 'Movimientos', icon: ClipboardList },
   { to: '/offline', label: 'Offline', icon: ShieldAlert },
 ]
 
@@ -201,7 +200,7 @@ export default function AppLayout() {
       </main>
 
       <nav className="fixed inset-x-0 bottom-0 z-30 border-t border-slate-200 bg-white/95 pb-[env(safe-area-inset-bottom)]">
-        <div className={`mx-auto grid max-w-5xl gap-1 px-2 py-2 ${visibleNavItems.length <= 1 ? 'grid-cols-1' : visibleNavItems.length <= 2 ? 'grid-cols-2' : visibleNavItems.length <= 3 ? 'grid-cols-3' : visibleNavItems.length <= 5 ? 'grid-cols-5' : 'grid-cols-6'}`}>
+        <div className="mx-auto flex max-w-5xl justify-center gap-1 px-2 py-2">
           {visibleNavItems.map((item) => {
             const Icon = item.icon
             return (
@@ -209,13 +208,13 @@ export default function AppLayout() {
                 key={item.to}
                 to={item.to}
                 className={({ isActive }) =>
-                  `flex min-h-14 min-w-0 flex-col items-center justify-center rounded-lg px-1 text-[10px] font-semibold sm:min-h-16 sm:text-[11px] ${
+                  `flex w-[68px] shrink-0 flex-col items-center justify-center rounded-lg px-1 py-2 text-[10px] font-semibold sm:w-20 sm:py-3 sm:text-[11px] ${
                     isActive ? 'bg-campo-50 text-campo-700' : 'text-slate-500'
                   }`
                 }
               >
                 <Icon size={22} />
-                <span className="max-w-full truncate">{item.label}</span>
+                <span className="mt-0.5 max-w-full truncate">{item.label}</span>
               </NavLink>
             )
           })}

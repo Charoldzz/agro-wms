@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
-import { Building2, CalendarClock, ChevronLeft, ChevronRight, ClipboardList, LayoutList, LogOut, Menu, PackagePlus, Plus, X } from 'lucide-react'
+import { Building2, CalendarClock, ChevronLeft, ChevronRight, ClipboardList, History, LayoutList, LogOut, Menu, PackagePlus, Plus, X } from 'lucide-react'
 import { useAuth } from '../hooks/useAuth.jsx'
 import { supabase } from '../lib/supabase'
 import { formatDate, formatNumber } from '../lib/format'
@@ -8,6 +8,7 @@ import { cleanProductName, displayLotCode, lotLabel, productCodeLabel } from '..
 import NewProductModal from '../components/NewProductModal'
 import EmpresasModal from '../components/EmpresasModal'
 import CatalogoModal from '../components/CatalogoModal'
+import MovimientosModal from '../components/MovimientosModal'
 
 const LOTS_CACHE_KEY = 'todo-agricola-lots-cache'
 const CLIENTS_CACHE_KEY = 'todo-agricola-clients-cache'
@@ -49,6 +50,7 @@ export default function Lots() {
   const [showProductModal, setShowProductModal] = useState(false)
   const [showEmpresasModal, setShowEmpresasModal] = useState(false)
   const [showCatalogoModal, setShowCatalogoModal] = useState(false)
+  const [showMovimientosModal, setShowMovimientosModal] = useState(false)
 
   useEffect(() => { loadData() }, [])
 
@@ -313,6 +315,13 @@ export default function Lots() {
                 <Building2 size={14} />
                 Empresas
               </button>
+              <button
+                className="btn-secondary !min-h-8 !px-3 !py-1.5 text-xs"
+                onClick={() => setShowMovimientosModal(true)}
+              >
+                <History size={14} />
+                Movimientos
+              </button>
             </div>
           )}
 
@@ -468,6 +477,12 @@ export default function Lots() {
         <CatalogoModal
           clients={clients}
           onClose={() => setShowCatalogoModal(false)}
+        />
+      )}
+
+      {showMovimientosModal && (
+        <MovimientosModal
+          onClose={() => setShowMovimientosModal(false)}
         />
       )}
     </div>
