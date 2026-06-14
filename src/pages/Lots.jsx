@@ -52,21 +52,31 @@ export default function Lots() {
   const [showCatalogoModal, setShowCatalogoModal] = useState(false)
   const [showMovimientosModal, setShowMovimientosModal] = useState(false)
 
-  useEffect(() => { loadData() }, [])
+  useEffect(() => { loadData(false) }, [])
 
-  async function loadData() {
+  async function loadData(includeZero = false) {
     setLoading(true)
+    let lotsQuery = supabase
+      .from('lots')
+      .select('*, clients(name)')
+      .eq('inventory_source', 'stock_independiente')
+      .order('product', { ascending: true })
+
+    // When includeZero=true also try to load lots with completado status (qty=0 after dispatch)
+    if (includeZero) {
+      lotsQuery = lotsQuery.or('status.eq.activo,status.eq.completado')
+    } else {
+      lotsQuery = lotsQuery.eq('status', 'activo')
+    }
+
     const [{ data: lotsData, error: lotsError }, { data: clientsData, error: clientsError }] = await Promise.all([
-      supabase
-        .from('lots')
-        .select('*, clients(name)')
-        .eq('inventory_source', 'stock_independiente')
-        .order('product', { ascending: true }),
+      lotsQuery,
       supabase.from('clients').select('*').eq('inventory_source', 'stock_independiente').order('name'),
     ])
+
     if (lotsData && !lotsError) {
       setLots(lotsData)
-      localStorage.setItem(LOTS_CACHE_KEY, JSON.stringify(lotsData))
+      if (!includeZero) localStorage.setItem(LOTS_CACHE_KEY, JSON.stringify(lotsData))
       setCacheNotice('')
     } else {
       const cached = JSON.parse(localStorage.getItem(LOTS_CACHE_KEY) || '[]')
@@ -252,7 +262,12 @@ export default function Lots() {
                   type="checkbox"
                   className="h-4 w-4 rounded accent-campo-700"
                   checked={showZeroStock}
-                  onChange={(e) => { setShowZeroStock(e.target.checked); setPage(1) }}
+                  onChange={(e) => {
+                    const checked = e.target.checked
+                    setShowZeroStock(checked)
+                    setPage(1)
+                    loadData(checked)
+                  }}
                 />
                 <span className="text-xs font-semibold text-slate-600">Mostrar stock 0</span>
               </label>

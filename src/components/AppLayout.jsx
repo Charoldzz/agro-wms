@@ -200,7 +200,7 @@ export default function AppLayout() {
       </main>
 
       <nav className="fixed inset-x-0 bottom-0 z-30 border-t border-slate-200 bg-white/95 pb-[env(safe-area-inset-bottom)]">
-        <div className="mx-auto flex max-w-5xl justify-center gap-1 px-2 py-2">
+        <div className="mx-auto flex max-w-5xl justify-center px-2 py-2">
           {visibleNavItems.map((item) => {
             const Icon = item.icon
             return (
@@ -208,7 +208,7 @@ export default function AppLayout() {
                 key={item.to}
                 to={item.to}
                 className={({ isActive }) =>
-                  `flex w-[68px] shrink-0 flex-col items-center justify-center rounded-lg px-1 py-2 text-[10px] font-semibold sm:w-20 sm:py-3 sm:text-[11px] ${
+                  `flex flex-1 flex-col items-center justify-center rounded-lg px-1 py-2.5 text-[10px] font-semibold sm:max-w-[100px] sm:py-3 sm:text-[11px] ${
                     isActive ? 'bg-campo-50 text-campo-700' : 'text-slate-500'
                   }`
                 }
