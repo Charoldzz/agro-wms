@@ -5,7 +5,7 @@ import PageHeader from '../components/PageHeader'
 import { useAuth } from '../hooks/useAuth.jsx'
 import { supabase } from '../lib/supabase'
 import { formatNumber } from '../lib/format'
-import { cleanProductName, displayLotCode } from '../lib/display'
+import { cleanProductName } from '../lib/display'
 import { internalLocations } from '../lib/locations'
 import { vibrateSuccess } from '../lib/haptics'
 
@@ -31,7 +31,6 @@ export default function OperatorEntry() {
 
   const [clients, setClients] = useState([])
   const [clientId, setClientId] = useState('')
-  const [date, setDate] = useState(today)
   const [concepto, setConcepto] = useState('Ingreso de producto')
   const [location, setLocation] = useState(internalLocations[0] || 'ALMACEN')
   const [rows, setRows] = useState([emptyRow()])
@@ -41,9 +40,7 @@ export default function OperatorEntry() {
   const [error, setError] = useState('')
   const [success, setSuccess] = useState(false)
 
-  useEffect(() => {
-    loadClients()
-  }, [])
+  useEffect(() => { loadClients() }, [])
 
   useEffect(() => {
     if (clientId) loadClientProducts(clientId)
@@ -66,13 +63,12 @@ export default function OperatorEntry() {
       .eq('inventory_source', 'stock_independiente')
       .order('name')
     const seen = new Set()
-    const unique = (data || []).filter((c) => {
+    setClients((data || []).filter((c) => {
       const key = displayClientName(c.name).toLowerCase()
       if (seen.has(key)) return false
       seen.add(key)
       return true
-    })
-    setClients(unique)
+    }))
   }
 
   async function loadClientProducts(cid) {
@@ -101,6 +97,13 @@ export default function OperatorEntry() {
       setSelectedIdx(Math.max(0, selectedIdx - 1))
       return next
     })
+  }
+
+  function removeRow(id) {
+    if (rows.length <= 1) return
+    const index = rows.findIndex((r) => r.id === id)
+    setRows((r) => r.filter((row) => row.id !== id))
+    setSelectedIdx((prev) => Math.max(0, index <= prev ? prev - 1 : prev))
   }
 
   function updateRow(id, field, value) {
@@ -137,7 +140,7 @@ export default function OperatorEntry() {
         p_driver_name: concepto || 'Ingreso de producto',
         p_driver_document: '',
         p_vehicle_plate: '',
-        p_entry_date: date,
+        p_entry_date: today,
         p_photo_url: null,
         p_notes: concepto || null,
         p_items: items,
@@ -148,7 +151,7 @@ export default function OperatorEntry() {
 
       vibrateSuccess()
       setSuccess(true)
-      setTimeout(() => navigate('/lotes'), 2200)
+      setTimeout(() => navigate(-1), 2200)
     } catch (err) {
       setError(err.message?.includes('duplicate') ? 'Uno de los lotes ya existe. Revisa los codigos de lote.' : (err.message || 'Error al guardar.'))
     } finally {
@@ -158,7 +161,7 @@ export default function OperatorEntry() {
 
   return (
     <div>
-      <PageHeader title="Nuevo ingreso" subtitle="Nota de ingreso de mercadería" />
+      <PageHeader title="Ingreso" subtitle="Nota de ingreso de mercadería" />
 
       <section className="panel mb-4 grid gap-3 sm:grid-cols-2">
         <label className="block">
@@ -170,10 +173,10 @@ export default function OperatorEntry() {
             ))}
           </select>
         </label>
-        <label className="block">
+        <div>
           <span className="label">Fecha</span>
-          <input className="input mt-1" type="date" value={date} onChange={(e) => setDate(e.target.value)} />
-        </label>
+          <div className="input mt-1 cursor-not-allowed select-none bg-slate-100 font-semibold text-slate-600">{today}</div>
+        </div>
         <label className="block">
           <span className="label">Concepto</span>
           <input className="input mt-1" value={concepto} onChange={(e) => setConcepto(e.target.value)} />
@@ -198,11 +201,8 @@ export default function OperatorEntry() {
           onClick={removeSelectedRow}
           disabled={rows.length <= 1}
         >
-          <Trash2 size={17} /> Quitar item (F10)
+          <Trash2 size={17} /> Quitar seleccionado (F10)
         </button>
-        <span className="ml-auto text-xs font-semibold text-slate-500">
-          {rows.length} item{rows.length === 1 ? '' : 's'} · haz clic en una fila para seleccionarla
-        </span>
       </div>
 
       <datalist id="productos-ingreso">
@@ -210,13 +210,14 @@ export default function OperatorEntry() {
       </datalist>
 
       <div className="mb-4 overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm" ref={tableRef}>
-        <table className="w-full border-collapse" style={{ minWidth: '560px' }}>
+        <table className="w-full border-collapse" style={{ minWidth: '600px' }}>
           <colgroup>
-            <col style={{ width: '44px' }} />
+            <col style={{ width: '40px' }} />
             <col />
-            <col style={{ width: '110px' }} />
+            <col style={{ width: '105px' }} />
             <col style={{ width: '120px' }} />
-            <col style={{ width: '100px' }} />
+            <col style={{ width: '95px' }} />
+            <col style={{ width: '34px' }} />
           </colgroup>
           <thead>
             <tr className="bg-campo-700 text-white">
@@ -225,6 +226,7 @@ export default function OperatorEntry() {
               <th className="border-b border-campo-600 px-3 py-2.5 text-center text-xs font-bold uppercase tracking-wide">LOTE</th>
               <th className="border-b border-campo-600 px-3 py-2.5 text-center text-xs font-bold uppercase tracking-wide">VENC</th>
               <th className="border-b border-campo-600 px-3 py-2.5 text-right text-xs font-bold uppercase tracking-wide">CANTIDAD</th>
+              <th className="border-b border-campo-600 px-1 py-2.5"></th>
             </tr>
           </thead>
           <tbody>
@@ -277,13 +279,25 @@ export default function OperatorEntry() {
                     placeholder="0"
                   />
                 </td>
+                <td className="px-1 py-1 text-center">
+                  <button
+                    type="button"
+                    className="flex h-7 w-7 items-center justify-center rounded text-slate-300 hover:bg-red-50 hover:text-red-500 disabled:opacity-30"
+                    onClick={(e) => { e.stopPropagation(); removeRow(row.id) }}
+                    disabled={rows.length <= 1}
+                    title="Eliminar fila"
+                  >
+                    <Trash2 size={13} />
+                  </button>
+                </td>
               </tr>
             ))}
           </tbody>
           <tfoot>
             <tr className="border-t-2 border-slate-200 bg-slate-50">
-              <td colSpan={4} className="px-3 py-2.5 text-sm font-black uppercase text-slate-600">Total cantidad:</td>
+              <td colSpan={5} className="px-3 py-2.5 text-sm font-black uppercase text-slate-600">Total cantidad:</td>
               <td className="px-3 py-2.5 text-right text-sm font-black text-slate-950">{formatNumber(totalQuantity)}</td>
+              <td />
             </tr>
           </tfoot>
         </table>
@@ -295,7 +309,7 @@ export default function OperatorEntry() {
         <div className="mb-4 rounded-xl border border-campo-200 bg-campo-50 p-5 text-center">
           <CheckCircle2 className="mx-auto mb-2 text-campo-700" size={38} />
           <p className="text-base font-black text-campo-800">Ingreso guardado correctamente.</p>
-          <p className="mt-1 text-sm font-semibold text-campo-600">Redirigiendo a almacenes...</p>
+          <p className="mt-1 text-sm font-semibold text-campo-600">Redirigiendo...</p>
         </div>
       ) : (
         <div className="flex gap-3">

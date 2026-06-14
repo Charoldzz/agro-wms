@@ -168,14 +168,14 @@ export default function Lots() {
             to="/operacion/nuevo-ingreso"
           >
             <PackagePlus size={26} className="opacity-80" />
-            <span>Nuevo ingreso</span>
+            <span>Ingreso</span>
           </Link>
           <Link
             className="inline-flex min-h-20 flex-col items-start justify-between gap-2 rounded-lg bg-maiz px-5 py-4 text-left text-lg font-semibold text-slate-950 shadow-soft transition active:scale-[0.99] sm:min-h-24"
             to="/nueva-salida"
           >
             <LogOut size={26} className="opacity-70" />
-            <span>Nueva salida</span>
+            <span>Salida</span>
           </Link>
         </div>
       )}
@@ -282,7 +282,7 @@ export default function Lots() {
                   type="checkbox"
                   className="h-4 w-4 rounded accent-campo-700"
                   checked={showZeroStock}
-                  onChange={(e) => setShowZeroStock(e.target.checked)}
+                  onChange={(e) => { setShowZeroStock(e.target.checked); setPage(1) }}
                 />
                 <span className="text-xs font-semibold text-slate-600">Mostrar stock 0</span>
               </label>

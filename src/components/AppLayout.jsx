@@ -43,7 +43,7 @@ export default function AppLayout() {
       : profile?.role === 'cliente'
         ? clienteNavItems
         : adminNavItems
-  const mainTabPaths = new Set(['/', '/operacion', '/lotes', '/movimientos', '/offline', '/clientes', '/catalogo', '/despachos', '/historial', '/nueva-salida', '/kardex'])
+  const mainTabPaths = new Set(['/', '/operacion', '/lotes', '/movimientos', '/offline', '/clientes', '/catalogo', '/despachos', '/historial'])
   const showBackButton = !mainTabPaths.has(location.pathname)
 
   async function signOut() {
@@ -59,13 +59,8 @@ export default function AppLayout() {
     if (path === '/scanner') {
       const returnTo = new URLSearchParams(location.search).get('return')
       if (returnTo) return navigate(returnTo)
-      return navigate(-1)
     }
-    if (path.startsWith('/operacion/')) return navigate(profile?.role === 'operador' ? '/lotes' : '/operacion')
-    if (profile?.role === 'cliente' && path.match(/^\/lotes\/[^/]+$/)) return navigate('/')
-    if (path.startsWith('/productos/') || path.startsWith('/vencimientos') || path.match(/^\/lotes\/[^/]+$/)) return navigate('/lotes')
-    if (path.startsWith('/pendientes') || path.startsWith('/solicitudes')) return navigate('/')
-    return navigate('/')
+    navigate(-1)
   }
 
   useEffect(() => {

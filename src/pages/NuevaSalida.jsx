@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { CheckCircle2, LogOut, Plus, Trash2 } from 'lucide-react'
+import { CheckCircle2, LogOut, Plus, Trash2, X } from 'lucide-react'
 import PageHeader from '../components/PageHeader'
 import { useAuth } from '../hooks/useAuth.jsx'
 import { supabase } from '../lib/supabase'
-import { formatDate, formatNumber } from '../lib/format'
+import { formatNumber } from '../lib/format'
 import { cleanProductName, displayLotCode } from '../lib/display'
 import { vibrateSuccess } from '../lib/haptics'
 
@@ -43,7 +43,6 @@ export default function NuevaSalida() {
 
   const [clients, setClients] = useState([])
   const [clientId, setClientId] = useState('')
-  const [date, setDate] = useState(today)
   const [concepto, setConcepto] = useState('Salida de producto')
   const [lotesAutomaticos, setLotesAutomaticos] = useState(false)
   const [lots, setLots] = useState([])
@@ -53,9 +52,7 @@ export default function NuevaSalida() {
   const [error, setError] = useState('')
   const [success, setSuccess] = useState(false)
 
-  useEffect(() => {
-    loadClients()
-  }, [])
+  useEffect(() => { loadClients() }, [])
 
   useEffect(() => {
     if (clientId) loadClientLots(clientId)
@@ -78,13 +75,12 @@ export default function NuevaSalida() {
       .eq('inventory_source', 'stock_independiente')
       .order('name')
     const seen = new Set()
-    const unique = (data || []).filter((c) => {
+    setClients((data || []).filter((c) => {
       const key = displayClientName(c.name).toLowerCase()
       if (seen.has(key)) return false
       seen.add(key)
       return true
-    })
-    setClients(unique)
+    }))
   }
 
   async function loadClientLots(cid) {
@@ -117,12 +113,16 @@ export default function NuevaSalida() {
     })
   }
 
+  function removeRow(id) {
+    if (rows.length <= 1) return
+    const index = rows.findIndex((r) => r.id === id)
+    setRows((r) => r.filter((row) => row.id !== id))
+    setSelectedIdx((prev) => Math.max(0, index <= prev ? prev - 1 : prev))
+  }
+
   function selectLot(rowId, lotId) {
     const lot = lots.find((l) => l.id === lotId)
-    if (!lot) {
-      setRows((r) => r.map((row) => row.id === rowId ? { ...row, lot_id: '', product: '', lot_code: '', expiry_date: '', saldo: 0 } : row))
-      return
-    }
+    if (!lot) return
     setRows((r) =>
       r.map((row) =>
         row.id === rowId
@@ -137,6 +137,10 @@ export default function NuevaSalida() {
           : row,
       ),
     )
+  }
+
+  function clearLot(rowId) {
+    setRows((r) => r.map((row) => row.id === rowId ? { ...emptyRow(), id: rowId } : row))
   }
 
   function updateQuantity(rowId, value) {
@@ -188,7 +192,7 @@ export default function NuevaSalida() {
 
       vibrateSuccess()
       setSuccess(true)
-      setTimeout(() => navigate('/lotes'), 2200)
+      setTimeout(() => navigate(-1), 2200)
     } catch (err) {
       setError(err.message || 'Error al guardar la salida.')
     } finally {
@@ -198,7 +202,7 @@ export default function NuevaSalida() {
 
   return (
     <div>
-      <PageHeader title="Nueva salida" subtitle="Nota de salida de mercadería" />
+      <PageHeader title="Salida" subtitle="Nota de salida de mercadería" />
 
       <section className="panel mb-4 grid gap-3 sm:grid-cols-3">
         <label className="block">
@@ -210,10 +214,10 @@ export default function NuevaSalida() {
             ))}
           </select>
         </label>
-        <label className="block">
+        <div>
           <span className="label">Fecha</span>
-          <input className="input mt-1" type="date" value={date} onChange={(e) => setDate(e.target.value)} />
-        </label>
+          <div className="input mt-1 cursor-not-allowed select-none bg-slate-100 font-semibold text-slate-600">{today}</div>
+        </div>
         <label className="block">
           <span className="label">Concepto</span>
           <input className="input mt-1" value={concepto} onChange={(e) => setConcepto(e.target.value)} />
@@ -230,7 +234,7 @@ export default function NuevaSalida() {
           onClick={removeSelectedRow}
           disabled={rows.length <= 1}
         >
-          <Trash2 size={17} /> Quitar item (F10)
+          <Trash2 size={17} /> Quitar seleccionado (F10)
         </button>
         <label className="flex cursor-pointer items-center gap-2 text-sm font-semibold text-slate-700">
           <input
@@ -256,14 +260,15 @@ export default function NuevaSalida() {
       )}
 
       <div className="mb-4 overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm">
-        <table className="w-full border-collapse" style={{ minWidth: '620px' }}>
+        <table className="w-full border-collapse" style={{ minWidth: '680px' }}>
           <colgroup>
-            <col style={{ width: '44px' }} />
+            <col style={{ width: '40px' }} />
             <col />
-            <col style={{ width: '100px' }} />
             <col style={{ width: '105px' }} />
-            <col style={{ width: '95px' }} />
-            <col style={{ width: '100px' }} />
+            <col style={{ width: '110px' }} />
+            <col style={{ width: '80px' }} />
+            <col style={{ width: '90px' }} />
+            <col style={{ width: '34px' }} />
           </colgroup>
           <thead>
             <tr className="bg-campo-700 text-white">
@@ -273,6 +278,7 @@ export default function NuevaSalida() {
               <th className="border-b border-campo-600 px-3 py-2.5 text-center text-xs font-bold uppercase tracking-wide">VENC</th>
               <th className="border-b border-campo-600 px-3 py-2.5 text-right text-xs font-bold uppercase tracking-wide">SALDO</th>
               <th className="border-b border-campo-600 px-3 py-2.5 text-right text-xs font-bold uppercase tracking-wide">CANTIDAD</th>
+              <th className="border-b border-campo-600 px-1 py-2.5"></th>
             </tr>
           </thead>
           <tbody>
@@ -284,18 +290,34 @@ export default function NuevaSalida() {
               >
                 <td className="px-3 py-1.5 text-center text-sm font-bold text-slate-500">{i + 1}</td>
                 <td className="px-2 py-1">
-                  <select
-                    className="w-full rounded border border-transparent bg-transparent px-1 py-1 text-sm focus:border-campo-400 focus:bg-white focus:outline-none"
-                    value={row.lot_id}
-                    onChange={(e) => { setSelectedIdx(i); selectLot(row.id, e.target.value) }}
-                    onFocus={() => setSelectedIdx(i)}
-                    disabled={!clientId || lots.length === 0}
-                  >
-                    <option value="">— Seleccionar lote —</option>
-                    {lots.map((lot) => (
-                      <option key={lot.id} value={lot.id}>{lotOptionLabel(lot)}</option>
-                    ))}
-                  </select>
+                  {row.lot_id ? (
+                    <div className="flex min-w-0 items-center gap-1">
+                      <span className="min-w-0 flex-1 truncate text-sm font-semibold text-slate-900" title={row.product}>
+                        {row.product}
+                      </span>
+                      <button
+                        type="button"
+                        className="shrink-0 rounded p-0.5 text-slate-400 hover:text-red-500"
+                        onClick={(e) => { e.stopPropagation(); setSelectedIdx(i); clearLot(row.id) }}
+                        title="Cambiar lote"
+                      >
+                        <X size={14} />
+                      </button>
+                    </div>
+                  ) : (
+                    <select
+                      className="w-full rounded border border-transparent bg-transparent px-1 py-1 text-sm focus:border-campo-400 focus:bg-white focus:outline-none"
+                      value=""
+                      onChange={(e) => { setSelectedIdx(i); selectLot(row.id, e.target.value) }}
+                      onFocus={() => setSelectedIdx(i)}
+                      disabled={!clientId || lots.length === 0}
+                    >
+                      <option value="">— Seleccionar lote —</option>
+                      {lots.map((lot) => (
+                        <option key={lot.id} value={lot.id}>{lotOptionLabel(lot)}</option>
+                      ))}
+                    </select>
+                  )}
                 </td>
                 <td className="px-3 py-1.5 text-center text-sm font-semibold text-slate-700">
                   {row.lot_code || <span className="text-slate-300">—</span>}
@@ -319,6 +341,17 @@ export default function NuevaSalida() {
                     disabled={!row.lot_id}
                   />
                 </td>
+                <td className="px-1 py-1 text-center">
+                  <button
+                    type="button"
+                    className="flex h-7 w-7 items-center justify-center rounded text-slate-300 hover:bg-red-50 hover:text-red-500 disabled:opacity-30"
+                    onClick={(e) => { e.stopPropagation(); removeRow(row.id) }}
+                    disabled={rows.length <= 1}
+                    title="Eliminar fila"
+                  >
+                    <Trash2 size={13} />
+                  </button>
+                </td>
               </tr>
             ))}
           </tbody>
@@ -326,6 +359,7 @@ export default function NuevaSalida() {
             <tr className="border-t-2 border-slate-200 bg-slate-50">
               <td colSpan={5} className="px-3 py-2.5 text-sm font-black uppercase text-slate-600">Total cantidad:</td>
               <td className="px-3 py-2.5 text-right text-sm font-black text-slate-950">{formatNumber(totalQuantity)}</td>
+              <td />
             </tr>
           </tfoot>
         </table>
@@ -337,7 +371,7 @@ export default function NuevaSalida() {
         <div className="mb-4 rounded-xl border border-campo-200 bg-campo-50 p-5 text-center">
           <CheckCircle2 className="mx-auto mb-2 text-campo-700" size={38} />
           <p className="text-base font-black text-campo-800">Salida guardada correctamente.</p>
-          <p className="mt-1 text-sm font-semibold text-campo-600">Redirigiendo a almacenes...</p>
+          <p className="mt-1 text-sm font-semibold text-campo-600">Redirigiendo...</p>
         </div>
       ) : (
         <div className="flex gap-3">
