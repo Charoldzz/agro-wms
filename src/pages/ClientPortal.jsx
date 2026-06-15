@@ -557,14 +557,21 @@ export default function ClientPortal({ view = 'inventory' }) {
                   {reqLotId && (
                     <label className="block">
                       <span className="text-xs font-black uppercase tracking-wide text-slate-500">3 · Cantidad de envases</span>
-                      <input
-                        className="input mt-1.5"
-                        inputMode="decimal"
-                        type="text"
-                        placeholder="Ej: 50"
-                        value={reqQuantity}
-                        onChange={e => { const v = e.target.value.replace(',','.'); if(/^\d*\.?\d*$/.test(v)) setReqQuantity(v) }}
-                      />
+                      <div className="flex items-center gap-2 mt-1.5">
+                        <input
+                          className="input flex-1"
+                          inputMode="decimal"
+                          type="text"
+                          placeholder="Ej: 50"
+                          value={reqQuantity}
+                          onChange={e => { const v = e.target.value.replace(',','.'); if(/^\d*\.?\d*$/.test(v)) setReqQuantity(v) }}
+                        />
+                        {Number(reqQuantity) > 0 && Number(selectedLot?.package_size) > 0 && selectedLot?.package_unit && (
+                          <span className="shrink-0 rounded-lg bg-campo-50 px-3 py-2 text-sm font-black text-campo-700">
+                            {formatNumber(Number(reqQuantity) * Number(selectedLot.package_size))} {selectedLot.package_unit}
+                          </span>
+                        )}
+                      </div>
                     </label>
                   )}
 
@@ -572,7 +579,7 @@ export default function ClientPortal({ view = 'inventory' }) {
                   {reqLotId && (
                     <button className="btn-secondary w-full" type="button" onClick={addReqItem}>
                       <Plus size={18} />
-                      {editingLotId ? 'Guardar cambio' : 'Agregar a la lista'}
+                      Agregar producto
                     </button>
                   )}
 
