@@ -10,11 +10,8 @@ export default function AppVersion() {
 
     async function checkVersion() {
       try {
-        const response = await fetch(`/app-version.json?t=${Date.now()}`, {
-          cache: 'no-store',
-        })
+        const response = await fetch(`/app-version.json?t=${Date.now()}`, { cache: 'no-store' })
         if (!response.ok) return
-
         const data = await response.json()
         if (!cancelled && data.version && data.version !== APP_VERSION) {
           setLatestVersion(data.version)
@@ -24,9 +21,7 @@ export default function AppVersion() {
       }
     }
 
-    const visibilityCheck = () => {
-      if (document.visibilityState === 'visible') checkVersion()
-    }
+    const visibilityCheck = () => { if (document.visibilityState === 'visible') checkVersion() }
 
     checkVersion()
     const intervalId = window.setInterval(checkVersion, 90000)
@@ -41,28 +36,28 @@ export default function AppVersion() {
     }
   }, [])
 
-  function reloadNow() {
-    window.location.reload()
-  }
-
   return (
-    <>
+    <div className="fixed bottom-[calc(5.75rem+env(safe-area-inset-bottom))] right-2 z-40 sm:bottom-3">
       {hasUpdate ? (
-        <div className="fixed inset-x-3 bottom-[calc(6.3rem+env(safe-area-inset-bottom))] z-40 mx-auto max-w-md rounded-lg border border-campo-200 bg-white/95 p-3 shadow-lg sm:bottom-4 sm:left-auto sm:right-4 sm:mx-0">
-          <div className="flex items-center justify-between gap-3">
-            <div>
-              <p className="text-sm font-black text-slate-950">Nueva version disponible</p>
-              <p className="mt-0.5 text-xs font-semibold text-slate-500">Actualiza cuando termines esta operacion.</p>
-            </div>
-            <button className="btn-primary shrink-0 !min-h-10 !px-3 !py-2 text-sm" type="button" onClick={reloadNow}>
-              Actualizar
-            </button>
-          </div>
+        <div className="flex items-center gap-2 rounded-full border border-campo-300 bg-white px-3 py-1.5 shadow-md">
+          <span className="relative flex h-2 w-2 shrink-0">
+            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-campo-500 opacity-75" />
+            <span className="relative inline-flex h-2 w-2 rounded-full bg-campo-600" />
+          </span>
+          <span className="text-[10px] font-bold text-slate-500">{latestVersion}</span>
+          <button
+            type="button"
+            className="rounded-full bg-campo-700 px-2.5 py-1 text-[10px] font-black text-white transition hover:bg-campo-800"
+            onClick={() => window.location.reload()}
+          >
+            Actualizar
+          </button>
         </div>
-      ) : null}
-      <div data-version-badge="true" className="pointer-events-none fixed bottom-[calc(5.75rem+env(safe-area-inset-bottom))] right-2 z-40 rounded-full border border-white/60 bg-white/70 px-2 py-1 text-[10px] font-bold text-slate-500 shadow-sm sm:bottom-3">
-        {APP_VERSION_LABEL}
-      </div>
-    </>
+      ) : (
+        <div className="pointer-events-none rounded-full border border-white/60 bg-white/70 px-2 py-1 text-[10px] font-bold text-slate-500 shadow-sm">
+          {APP_VERSION_LABEL}
+        </div>
+      )}
+    </div>
   )
 }
