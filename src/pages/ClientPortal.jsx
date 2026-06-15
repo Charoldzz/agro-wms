@@ -544,6 +544,7 @@ export default function ClientPortal({ view = 'inventory' }) {
                         <div className="shrink-0 rounded-lg bg-white px-3 py-2 text-right shadow-sm">
                           <p className="text-lg font-black text-campo-700">{formatNumber(selectedLot.current_quantity)}</p>
                           <p className="text-[10px] font-bold text-slate-500">env. disp.</p>
+                          {(() => { const eq = lotEquivalent(selectedLot); return eq ? <p className="text-[10px] font-semibold text-campo-600">{formatNumber(eq.quantity)} {eq.unit}</p> : null })()}
                         </div>
                       </div>
                       {packageLabel(selectedLot) && (
@@ -586,7 +587,10 @@ export default function ClientPortal({ view = 'inventory' }) {
                         <div key={item.lot_id} className="flex items-center gap-2 rounded-lg bg-white px-3 py-2.5 shadow-sm">
                           <div className="min-w-0 flex-1">
                             <p className="text-sm font-black text-slate-900 [overflow-wrap:anywhere]">{cleanProductName(item.product)}</p>
-                            <p className="text-xs font-semibold text-slate-500">{lotLabel(item.lot_code, item)} · {formatNumber(item.quantity)} env.</p>
+                            <p className="text-xs font-semibold text-slate-500">
+                              {lotLabel(item.lot_code, item)} · {formatNumber(item.quantity)} env.
+                              {Number(item.package_size) > 0 && item.package_unit ? ` · ${formatNumber(Number(item.quantity) * Number(item.package_size))} ${item.package_unit}` : ''}
+                            </p>
                           </div>
                           <div className="flex shrink-0 gap-1">
                             <button className="rounded-lg p-1.5 text-slate-400 hover:bg-campo-50 hover:text-campo-700" type="button" onClick={() => editReqItem(item)} title="Editar">
