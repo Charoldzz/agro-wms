@@ -37,27 +37,29 @@ export default function AppVersion() {
   }, [])
 
   return (
-    <div className="fixed bottom-[calc(5.75rem+env(safe-area-inset-bottom))] right-2 z-40 sm:bottom-3">
-      {hasUpdate ? (
-        <div className="flex items-center gap-2 rounded-full border border-campo-300 bg-white px-3 py-1.5 shadow-md">
+    <div className="fixed inset-x-0 bottom-[calc(5.75rem+env(safe-area-inset-bottom))] z-40 flex justify-center px-3 sm:bottom-3">
+      <div className={`flex items-center gap-2 rounded-full border bg-white px-3 py-1.5 shadow-md ${hasUpdate ? 'border-campo-300' : 'border-white/70'}`}>
+        {hasUpdate ? (
           <span className="relative flex h-2 w-2 shrink-0">
             <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-campo-500 opacity-75" />
             <span className="relative inline-flex h-2 w-2 rounded-full bg-campo-600" />
           </span>
-          <span className="text-[10px] font-bold text-slate-500">{latestVersion}</span>
-          <button
-            type="button"
-            className="rounded-full bg-campo-700 px-2.5 py-1 text-[10px] font-black text-white transition hover:bg-campo-800"
-            onClick={() => window.location.reload()}
-          >
-            Actualizar
-          </button>
-        </div>
-      ) : (
-        <div className="pointer-events-none rounded-full border border-white/60 bg-white/70 px-2 py-1 text-[10px] font-bold text-slate-500 shadow-sm">
-          {APP_VERSION_LABEL}
-        </div>
-      )}
+        ) : null}
+        <span className="text-[10px] font-bold text-slate-500">
+          {hasUpdate ? `Nueva ${latestVersion}` : APP_VERSION_LABEL}
+        </span>
+        <button
+          type="button"
+          className={`rounded-full px-2.5 py-1 text-[10px] font-black transition ${
+            hasUpdate
+              ? 'bg-campo-700 text-white hover:bg-campo-800'
+              : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+          }`}
+          onClick={() => window.location.reload()}
+        >
+          Actualizar
+        </button>
+      </div>
     </div>
   )
 }
