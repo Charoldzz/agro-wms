@@ -56,7 +56,7 @@ export default function Dashboard() {
       supabase
         .from('client_dispatch_requests')
         .select('*, clients(name), lots(id, lot_code, client_id, product, current_quantity, package_size, package_unit, location, expiry_date, status)')
-        .in('status', ['pendiente', 'aprobado'])
+        .in('status', ['pendiente', 'aprobado', 'en_preparacion'])
         .order('created_at', { ascending: false }),
     ])
 
@@ -305,7 +305,7 @@ export default function Dashboard() {
                   <div className="flex flex-wrap items-start justify-between gap-2">
                     <div className="min-w-0">
                       <p className="text-sm font-black text-slate-950 [overflow-wrap:anywhere]">{request.clients?.name || 'Cliente'}</p>
-                      <p className="text-xs font-bold text-amber-700">{request.status === 'aprobado' ? 'En almacen' : 'Solicitado'}</p>
+                      <p className="text-xs font-bold text-amber-700">{request.status === 'en_preparacion' ? 'En preparación' : 'Despacho pendiente'}</p>
                     </div>
                     <span className="rounded-full bg-white px-2 py-1 text-xs font-black text-amber-800">
                       {Array.isArray(request.items) && request.items.length > 1 ? `${request.items.length} items` : `${formatNumber(request.quantity)} env.`}

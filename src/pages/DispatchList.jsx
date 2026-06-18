@@ -373,13 +373,24 @@ export default function DispatchList() {
           }
         : hydratedRequest
 
+      if (requestWithClient?.status === 'pendiente' && user?.id) {
+        const { error: startError } = await supabase.rpc('start_client_dispatch_request', {
+          p_request_id: requestId,
+          p_user_id: user.id,
+        })
+
+        if (!startError) {
+          requestWithClient.status = 'en_preparacion'
+        }
+      }
+
       setApprovedRequest(requestWithClient)
       setOperationClient(resolvedClient)
       setApprovedRequestLoaded(true)
     }
 
     loadApprovedRequest()
-  }, [requestId])
+  }, [requestId, user?.id])
 
   useEffect(() => {
     writeDraft(draftKey, { items, receiverName, receiverDocument, vehiclePlate, dispatchNotes })
@@ -850,7 +861,7 @@ export default function DispatchList() {
         <section className="mb-4 rounded-lg border border-amber-200 bg-amber-50/85 p-3">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="min-w-0">
-              <p className="text-xs font-black uppercase text-amber-700">Despacho aprobado</p>
+              <p className="text-xs font-black uppercase text-amber-700">Despacho en preparación</p>
               <p className="truncate text-sm font-black text-slate-950">{operationClient?.name || deriveDispatchClientName(approvedRequest, items)}</p>
             </div>
             <span className="rounded-lg bg-white px-2.5 py-1 text-xs font-black text-amber-800">

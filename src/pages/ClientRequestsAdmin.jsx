@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
-import { Check, Clock3, Truck, X } from 'lucide-react'
+import { Clock3, Truck, X } from 'lucide-react'
 import PageHeader from '../components/PageHeader'
 import EmptyState from '../components/EmptyState'
 import { useAuth } from '../hooks/useAuth.jsx'
@@ -15,7 +15,6 @@ export default function ClientRequestsAdmin() {
   const pendingOnly = new URLSearchParams(location.search).get('pendientes') === '1'
   const [requests, setRequests] = useState([])
   const [error, setError] = useState('')
-  const [adminNotes, setAdminNotes] = useState({})
 
   useEffect(() => {
     loadRequests()
@@ -34,7 +33,7 @@ export default function ClientRequestsAdmin() {
       .select('*, clients(name), lots(id, lot_code, client_id, product, current_quantity, package_size, package_unit, location, expiry_date, status), requested_by_profile:profiles!client_dispatch_requests_requested_by_fkey(full_name)')
       .order('created_at', { ascending: false })
 
-    if (pendingOnly) query = query.in('status', ['pendiente', 'aprobado'])
+    if (pendingOnly) query = query.in('status', ['pendiente', 'aprobado', 'en_preparacion'])
 
     const { data, error: requestError } = await query
 
@@ -53,7 +52,6 @@ export default function ClientRequestsAdmin() {
       .from('client_dispatch_requests')
       .update({
         status,
-        admin_notes: adminNotes[id] || null,
         reviewed_by: user.id,
         reviewed_at: new Date().toISOString(),
       })
@@ -64,7 +62,6 @@ export default function ClientRequestsAdmin() {
       return
     }
 
-    setAdminNotes((current) => ({ ...current, [id]: '' }))
     loadRequests()
   }
 
@@ -98,8 +95,8 @@ export default function ClientRequestsAdmin() {
                     Solicitado por {request.requested_by_profile?.full_name || 'Usuario'} - {formatDate(request.created_at)}
                   </p>
                 </div>
-                <span className={`rounded-full px-3 py-1 text-xs font-bold ${request.status === 'aprobado' ? 'bg-campo-50 text-campo-700' : request.status === 'rechazado' ? 'bg-red-50 text-red-700' : 'bg-amber-50 text-amber-800'}`}>
-                  {request.status}
+                <span className={`rounded-full px-3 py-1 text-xs font-bold ${request.status === 'en_preparacion' ? 'bg-campo-50 text-campo-700' : request.status === 'rechazado' ? 'bg-red-50 text-red-700' : request.status === 'despachado' ? 'bg-slate-100 text-slate-700' : 'bg-amber-50 text-amber-800'}`}>
+                  {requestStatusLabel(request.status)}
                 </span>
               </div>
 
@@ -128,7 +125,7 @@ export default function ClientRequestsAdmin() {
               {request.notes ? <p className="mt-3 rounded-lg bg-slate-50 p-3 text-sm font-semibold text-slate-600">{request.notes}</p> : null}
               {request.admin_notes ? <p className="mt-3 rounded-lg bg-campo-50 p-3 text-sm font-semibold text-campo-700">Respuesta: {request.admin_notes}</p> : null}
 
-              {request.status === 'pendiente' && pendingOnly ? (
+              {request.status === 'pendiente' ? (
                 <div className="mt-3 grid gap-2 sm:grid-cols-2">
                   <button className="btn-secondary !min-h-11" type="button" onClick={() => reviewRequest(request.id, 'rechazado')}>
                     <X size={18} /> Rechazar
@@ -137,24 +134,9 @@ export default function ClientRequestsAdmin() {
                     <Truck size={18} /> Iniciar despacho
                   </Link>
                 </div>
-              ) : request.status === 'pendiente' ? (
-                <div className="mt-3 grid gap-2 sm:grid-cols-[1fr_140px_140px]">
-                  <input
-                    className="input"
-                    placeholder="Nota para el cliente (opcional)"
-                    value={adminNotes[request.id] || ''}
-                    onChange={(event) => setAdminNotes((current) => ({ ...current, [request.id]: event.target.value }))}
-                  />
-                  <button className="btn-secondary !min-h-11" type="button" onClick={() => reviewRequest(request.id, 'rechazado')}>
-                    <X size={18} /> Rechazar
-                  </button>
-                  <button className="btn-primary !min-h-11" type="button" onClick={() => reviewRequest(request.id, 'aprobado')}>
-                    <Check size={18} /> Aprobar
-                  </button>
-                </div>
-              ) : request.status === 'aprobado' ? (
+              ) : request.status === 'aprobado' || request.status === 'en_preparacion' ? (
                 <Link className="btn-primary mt-3 w-full" to={`/operacion/despacho-lista?request=${request.id}`}>
-                  <Truck size={18} /> Iniciar despacho
+                  <Truck size={18} /> Continuar preparación
                 </Link>
               ) : (
                 <div className="mt-3 flex items-center gap-2 text-xs font-bold text-slate-500">
@@ -167,4 +149,13 @@ export default function ClientRequestsAdmin() {
       </div>
     </div>
   )
+}
+
+function requestStatusLabel(status) {
+  if (status === 'pendiente') return 'Despacho pendiente'
+  if (status === 'aprobado') return 'Despacho pendiente'
+  if (status === 'en_preparacion') return 'En preparación'
+  if (status === 'despachado') return 'Despachado'
+  if (status === 'rechazado') return 'Rechazado'
+  return status || 'Recibido'
 }

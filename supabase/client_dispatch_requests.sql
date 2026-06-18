@@ -23,7 +23,7 @@ create table if not exists public.client_dispatch_requests (
   quantity numeric(12, 2) not null check (quantity > 0),
   items jsonb not null default '[]'::jsonb,
   notes text,
-  status text not null default 'aprobado' check (status in ('pendiente', 'aprobado', 'rechazado', 'despachado')),
+  status text not null default 'pendiente' check (status in ('pendiente', 'aprobado', 'en_preparacion', 'rechazado', 'despachado')),
   admin_notes text,
   requested_by uuid not null constraint client_dispatch_requests_requested_by_fkey references public.profiles(id),
   reviewed_by uuid constraint client_dispatch_requests_reviewed_by_fkey references public.profiles(id),
@@ -63,7 +63,7 @@ on public.client_dispatch_requests for insert
 to authenticated
 with check (
   requested_by = auth.uid()
-  and status = 'aprobado'
+  and status = 'pendiente'
   and reviewed_by is null
   and reviewed_at is null
   and exists (
@@ -91,7 +91,7 @@ create policy "Operadores ven solicitudes aprobadas"
 on public.client_dispatch_requests for select
 to authenticated
 using (
-  status = 'aprobado'
+  status in ('pendiente', 'aprobado', 'en_preparacion')
   and exists (
     select 1
     from public.profiles p
@@ -125,17 +125,13 @@ drop constraint if exists client_dispatch_requests_status_check;
 
 alter table public.client_dispatch_requests
 add constraint client_dispatch_requests_status_check
-check (status in ('pendiente', 'aprobado', 'rechazado', 'despachado'));
+check (status in ('pendiente', 'aprobado', 'en_preparacion', 'rechazado', 'despachado'));
 
 alter table public.client_dispatch_requests
 add column if not exists items jsonb not null default '[]'::jsonb;
 
 alter table public.client_dispatch_requests
-alter column status set default 'aprobado';
-
-update public.client_dispatch_requests
-set status = 'aprobado'
-where status = 'pendiente';
+alter column status set default 'pendiente';
 
 create or replace function public.complete_client_dispatch_request(
   p_request_id uuid,
@@ -167,6 +163,44 @@ begin
     reviewed_by = p_user_id,
     reviewed_at = now()
   where id = p_request_id
-    and status = 'aprobado';
+    and status in ('pendiente', 'aprobado', 'en_preparacion');
 end;
 $$;
+
+grant execute on function public.complete_client_dispatch_request(uuid, uuid) to authenticated;
+
+create or replace function public.start_client_dispatch_request(
+  p_request_id uuid,
+  p_user_id uuid
+)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_role text;
+begin
+  if p_user_id <> auth.uid() then
+    raise exception 'El usuario no coincide con la sesion activa.';
+  end if;
+
+  select role::text into v_role
+  from public.profiles
+  where id = auth.uid();
+
+  if v_role not in ('administrador', 'operador') then
+    raise exception 'No tienes permiso para preparar solicitudes.';
+  end if;
+
+  update public.client_dispatch_requests
+  set
+    status = 'en_preparacion',
+    reviewed_by = p_user_id,
+    reviewed_at = coalesce(reviewed_at, now())
+  where id = p_request_id
+    and status in ('pendiente', 'aprobado');
+end;
+$$;
+
+grant execute on function public.start_client_dispatch_request(uuid, uuid) to authenticated;

@@ -26,7 +26,7 @@ set
   status = 'rechazado',
   admin_notes = trim(concat(coalesce(admin_notes, ''), ' Cerrada por migracion a datos de Solucion.')),
   reviewed_at = coalesce(reviewed_at, now())
-where status in ('pendiente', 'aprobado', 'recibido')
+where status in ('pendiente', 'aprobado', 'en_preparacion', 'recibido')
   and (
     request.client_id is null
     or not exists (
@@ -90,4 +90,4 @@ select
   (select count(*) from public.clients where solucion_codigo is null) as clientes_legacy_restantes,
   (select count(*) from public.lots where inventory_source = 'solucion' and current_quantity > 0) as lotes_solucion_activos,
   (select count(*) from public.lots where inventory_source <> 'solucion') as lotes_legacy_cerrados,
-  (select count(*) from public.client_dispatch_requests where status in ('pendiente', 'aprobado', 'recibido')) as solicitudes_abiertas;
+  (select count(*) from public.client_dispatch_requests where status in ('pendiente', 'aprobado', 'en_preparacion', 'recibido')) as solicitudes_abiertas;

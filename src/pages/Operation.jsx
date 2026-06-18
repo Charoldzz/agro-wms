@@ -74,7 +74,7 @@ export default function Operation() {
       supabase
         .from('client_dispatch_requests')
         .select('*, clients(name), lots(id, lot_code, client_id, product, current_quantity, package_size, package_unit, location, expiry_date, status)')
-        .eq('status', 'aprobado')
+        .in('status', ['pendiente', 'aprobado', 'en_preparacion'])
         .order('created_at', { ascending: false })
         .limit(40),
       supabase

@@ -1,10 +1,6 @@
--- Solicitudes del portal cliente entran directo al tablero del operario.
+-- Solicitudes del portal cliente entran directo al tablero del operario como despacho pendiente.
 alter table public.client_dispatch_requests
-alter column status set default 'aprobado';
-
-update public.client_dispatch_requests
-set status = 'aprobado'
-where status = 'pendiente';
+alter column status set default 'pendiente';
 
 drop policy if exists "Clientes crean solicitudes propias" on public.client_dispatch_requests;
 
@@ -13,7 +9,7 @@ on public.client_dispatch_requests for insert
 to authenticated
 with check (
   requested_by = auth.uid()
-  and status = 'aprobado'
+  and status = 'pendiente'
   and reviewed_by is null
   and reviewed_at is null
   and exists (

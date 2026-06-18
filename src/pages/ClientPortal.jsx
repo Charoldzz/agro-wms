@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import {
   Boxes, CalendarClock, CheckCircle2, ChevronDown,
   ClipboardList, Download, FileText, History, Minus, Package,
-  PackageCheck, Plus, Printer, Search, Send, ShieldAlert,
+  PackageCheck, Plus, Printer, Search, Send,
   Truck, X,
 } from 'lucide-react'
 import EmptyState from '../components/EmptyState'
@@ -49,26 +49,26 @@ function equivalentTotalsLabel(equivalents = {}) {
   return totals.map(([unit, qty]) => `${formatNumber(qty)} ${unit}`).join(' / ')
 }
 
-function normalizeClientName(v) {
-  return String(v||'').normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/\s+/g,' ').trim().toUpperCase()
-}
-
-async function findClientIdByName(clientName) {
-  const n = normalizeClientName(clientName)
-  if (!n || n === 'CLIENTE') return null
-  const { data: exact } = await supabase.from('clients').select('id,name').eq('inventory_source','stock_independiente').ilike('name', clientName).limit(2)
-  if ((exact||[]).length === 1) return exact[0].id
-  const { data: all } = await supabase.from('clients').select('id,name').eq('inventory_source','stock_independiente').limit(10000)
-  const matches = (all||[]).filter(c => normalizeClientName(c.name) === n)
-  return matches.length === 1 ? matches[0].id : null
-}
-
 const STATUS_MAP = {
-  aprobado:   { label: 'En almacén',  cls: 'bg-campo-100 text-campo-800' },
+  pendiente:  { label: 'Despacho pendiente',  cls: 'bg-amber-50 text-amber-800' },
+  aprobado:   { label: 'Despacho pendiente',  cls: 'bg-amber-50 text-amber-800' },
+  en_preparacion: { label: 'En preparación', cls: 'bg-campo-100 text-campo-800' },
   despachado: { label: 'Despachado',  cls: 'bg-slate-100 text-slate-700' },
   rechazado:  { label: 'Rechazado',   cls: 'bg-red-50 text-red-700' },
 }
 function requestStatus(s) { return STATUS_MAP[s] || { label: 'Recibido', cls: 'bg-amber-50 text-amber-800' } }
+
+const REQUEST_STEPS = [
+  { key: 'pendiente', label: 'Pendiente' },
+  { key: 'en_preparacion', label: 'En preparación' },
+  { key: 'despachado', label: 'Despachado' },
+]
+
+function requestStepIndex(status) {
+  if (status === 'despachado') return 2
+  if (status === 'en_preparacion') return 1
+  return 0
+}
 
 /* ─── draft ────────────────────────────────────────────────────────── */
 const DRAFT_KEY = 'todo-agricola-client-dispatch-draft'
@@ -104,15 +104,25 @@ export default function ClientPortal({ view = 'inventory' }) {
   const [reqMessage,     setReqMessage]      = useState('')
   const [reqSuccess,     setReqSuccess]      = useState(null)
 
-  useEffect(() => { if (user?.id) loadData() }, [user?.id, profile?.client_id])
+  useEffect(() => { if (user?.id && profile) loadData() }, [user?.id, profile?.client_id])
   useEffect(() => { writeDraft({ lotId: reqLotId, quantity: reqQuantity, notes: reqNotes, items: reqItems }) }, [reqLotId, reqQuantity, reqNotes, reqItems])
 
   async function loadData() {
     setLoading(true)
+    const clientId = profile?.client_id
+    if (!clientId) {
+      setLots([])
+      setMovements([])
+      setRequests([])
+      setLoading(false)
+      return
+    }
+
     const { data: lotsData } = await supabase
       .from('lots')
       .select('id,lot_code,client_id,product,solucion_product_code,current_quantity,package_size,package_unit,location,entry_date,expiry_date,status,clients(name,contact)')
       .eq('inventory_source','stock_independiente')
+      .eq('client_id', clientId)
       .eq('status','activo')
       .gt('current_quantity', 0)
       .order('product')
@@ -130,6 +140,7 @@ export default function ClientPortal({ view = 'inventory' }) {
     const { data: reqData } = await supabase
       .from('client_dispatch_requests')
       .select('id,client_id,lot_id,product,quantity,items,notes,status,admin_notes,created_at,reviewed_at,clients(name),lots(id,lot_code,product,solucion_product_code,current_quantity,package_size,package_unit,location,expiry_date,status)')
+      .eq('client_id', clientId)
       .order('created_at',{ ascending:false })
     setRequests(await normalizeDispatchRequests(reqData||[], lotsData||[]))
     setLoading(false)
@@ -149,6 +160,9 @@ export default function ClientPortal({ view = 'inventory' }) {
   const expiring      = lots.filter(l => { const d = daysUntil(l.expiry_date); return d !== null && d <= 90 })
   const alerts        = lots.filter(l => lotStatus(l).label !== 'Disponible' && lotStatus(l).label !== 'Por vencer')
   const activeRequests = requests.filter(r => !['despachado','rechazado'].includes(r.status))
+  const pendingDispatchRequests = requests.filter(r => ['pendiente', 'aprobado'].includes(r.status))
+  const preparingDispatchRequests = requests.filter(r => r.status === 'en_preparacion')
+  const dispatchedRequests = requests.filter(r => r.status === 'despachado')
   const clientName    = lots[0]?.clients?.name || profile?.full_name || 'Cliente'
 
   const inventoryProducts = useMemo(() => {
@@ -225,20 +239,22 @@ export default function ClientPortal({ view = 'inventory' }) {
   async function submitRequest(e) {
     e.preventDefault(); setReqMessage('')
     if (reqItems.length === 0) { setReqMessage('Agrega al menos un producto.'); return }
+    const profileClientId = profile?.client_id
+    if (!profileClientId) { setReqMessage('Tu usuario no está vinculado a un cliente. Contacta a almacén.'); return }
     const norm = await normalizeDispatchRequests({ items: reqItems, client_id: profile?.client_id||null, client_name: clientName, clients:{ name: clientName } }, lots)
     const fresh = norm?.items || []
     const over  = fresh.find(i => Number(i.quantity||0) > Number(i.current_quantity ?? i.available ?? 0))
     const clientIds = [...new Set(fresh.map(i => i.client_id).filter(Boolean))]
-    const clientId  = profile?.client_id || (clientIds.length === 1 ? clientIds[0] : fresh[0]?.client_id) || await findClientIdByName(clientName)
+    const clientId  = profileClientId
     if (!fresh[0] || !clientId) { setReqMessage('No se pudo validar el cliente. Recarga e intenta de nuevo.'); return }
-    if (clientIds.length > 1)   { setReqMessage('La solicitud debe ser de un solo cliente.'); return }
+    if (clientIds.some(id => id !== clientId)) { setReqMessage('La solicitud contiene productos de otro cliente. Recarga e intenta de nuevo.'); return }
     if (over) { setReqMessage(`${cleanProductName(over.product)} solo tiene ${formatNumber(over.current_quantity ?? over.available ?? 0)} env. disponibles.`); return }
     const { error } = await supabase.from('client_dispatch_requests').insert({
       client_id: clientId, lot_id: fresh[0].lot_id,
       product: fresh.length === 1 ? fresh[0].product : `Lista de despacho (${fresh.length} productos)`,
       quantity: fresh.reduce((s,i) => s + Number(i.quantity||0), 0),
       items: fresh.map(i => ({ ...i, client_id: i.client_id||clientId, client_name: i.client_name||clientName })),
-      notes: reqNotes.trim()||null, status:'aprobado', requested_by: user.id,
+      notes: reqNotes.trim()||null, status:'pendiente', requested_by: user.id,
     })
     if (error) { setReqMessage('No se pudo enviar la solicitud. Contacta a almacén.'); return }
     setReqLotId(''); setReqQuantity(''); setReqItems([]); setReqNotes(''); setEditingLotId(''); setReqProductName(''); clearDraft()
@@ -276,8 +292,27 @@ export default function ClientPortal({ view = 'inventory' }) {
   const isInventory = view === 'inventory'
   const isRequests  = view === 'requests'
   const isMovements = view === 'movements'
+  const hasClientProfile = Boolean(profile?.client_id)
 
   /* ═══════════════════ RENDER ════════════════════════════════════ */
+  if (!loading && !hasClientProfile) {
+    return (
+      <div className="space-y-4 pb-2">
+        <div className="rounded-2xl bg-campo-700 px-5 py-5 text-white shadow-sm">
+          <p className="text-xs font-bold uppercase tracking-wider text-campo-200">Portal de cliente</p>
+          <h1 className="mt-1 text-xl font-black">Cuenta sin cliente asignado</h1>
+          <p className="mt-0.5 text-sm font-semibold text-campo-200">
+            Tu usuario necesita estar vinculado a un cliente para ver inventario y solicitudes.
+          </p>
+        </div>
+        <EmptyState
+          title="No hay cliente vinculado"
+          text="Contacta a almacén o administración para asignar este usuario a una cuenta de cliente."
+        />
+      </div>
+    )
+  }
+
   return (
     <div className="space-y-4 pb-2">
 
@@ -463,6 +498,12 @@ export default function ClientPortal({ view = 'inventory' }) {
             <p className="mt-0.5 text-sm font-semibold text-campo-200">Armá tu lista y enviala directamente a almacén.</p>
           </div>
 
+          <div className="grid grid-cols-3 gap-2">
+            <MetricCard icon={ClipboardList} label="Pendientes" value={pendingDispatchRequests.length} color="amber" />
+            <MetricCard icon={PackageCheck} label="En preparación" value={preparingDispatchRequests.length} color="campo" />
+            <MetricCard icon={Truck} label="Despachadas" value={dispatchedRequests.length} color="slate" />
+          </div>
+
           <div className="grid gap-4 lg:grid-cols-[1fr_1fr]">
 
             {/* Form */}
@@ -479,7 +520,7 @@ export default function ClientPortal({ view = 'inventory' }) {
                       <CheckCircle2 size={32} className="shrink-0" />
                       <div>
                         <p className="text-lg font-black">¡Solicitud enviada!</p>
-                        <p className="mt-0.5 text-sm font-semibold text-campo-200">{reqSuccess.items.length} producto{reqSuccess.items.length > 1 ? 's' : ''} en camino a almacén.</p>
+                        <p className="mt-0.5 text-sm font-semibold text-campo-200">{reqSuccess.items.length} producto{reqSuccess.items.length > 1 ? 's' : ''} quedaron como despacho pendiente.</p>
                       </div>
                     </div>
                     <div className="mt-4 space-y-2">
@@ -669,6 +710,7 @@ export default function ClientPortal({ view = 'inventory' }) {
                             {lotLabel(req.lots?.lot_code, req.lots)} · {formatNumber(req.quantity)} env.
                           </p>
                         )}
+                        <RequestProgress status={req.status} />
                         <div className="mt-2 flex items-center justify-between gap-2">
                           <p className="text-[10px] font-semibold text-slate-400">{formatDate(req.created_at)}</p>
                           {req.admin_notes && (
@@ -788,6 +830,36 @@ function MetricCard({ icon: Icon, label, value, color = 'campo', onClick }) {
       <Icon size={18} />
       <p className="text-xl font-black leading-none tabular-nums">{value}</p>
       <p className="text-[10px] font-bold leading-snug opacity-80">{label}</p>
+    </div>
+  )
+}
+
+function RequestProgress({ status }) {
+  if (status === 'rechazado') {
+    return (
+      <div className="mt-3 rounded-lg bg-red-50 px-3 py-2 text-xs font-black text-red-700">
+        Solicitud rechazada
+      </div>
+    )
+  }
+
+  const currentStep = requestStepIndex(status)
+
+  return (
+    <div className="mt-3">
+      <div className="grid grid-cols-3 gap-1.5">
+        {REQUEST_STEPS.map((step, index) => {
+          const done = index <= currentStep
+          return (
+            <div key={step.key} className="min-w-0">
+              <div className={`h-1.5 rounded-full ${done ? 'bg-campo-600' : 'bg-slate-200'}`} />
+              <p className={`mt-1 truncate text-[10px] font-black ${done ? 'text-campo-700' : 'text-slate-400'}`}>
+                {step.label}
+              </p>
+            </div>
+          )
+        })}
+      </div>
     </div>
   )
 }
