@@ -2,6 +2,7 @@ import argparse
 import csv
 import json
 import re
+import unicodedata
 import uuid
 from collections import defaultdict
 from datetime import datetime
@@ -114,7 +115,17 @@ def load_from_path(source):
 def read_csv_text(text):
     if not text:
         return []
-    return list(csv.DictReader(text.splitlines()))
+    first_line = text.splitlines()[0] if text.splitlines() else ""
+    delimiter = ";" if first_line.count(";") > first_line.count(",") else ","
+    return list(csv.DictReader(text.splitlines(), delimiter=delimiter))
+
+
+def normalize_lookup_text(value):
+    text = clean_text(value).upper()
+    text = unicodedata.normalize("NFKD", text)
+    text = "".join(char for char in text if not unicodedata.combining(char))
+    text = re.sub(r"[^A-Z0-9]+", " ", text)
+    return re.sub(r"\s+", " ", text).strip()
 
 
 def normalize_unit(unit):
@@ -152,6 +163,28 @@ def extract_package(product_name):
     return None, None
 
 
+def measure_product_key(row):
+    return clean_text(
+        row.get("ProductCode")
+        or row.get("Codigo")
+        or row.get("CodigoProducto")
+        or row.get("Producto")
+    )
+
+
+def measure_name_key(row):
+    return normalize_lookup_text(row.get("Producto") or row.get("Product") or row.get("Name"))
+
+
+def pallet_units_from_measure(row):
+    return decimal_value(
+        row.get("CantidadPorPallet")
+        or row.get("UnitsPerPallet")
+        or row.get("PalletUnits")
+        or row.get("EnvasesPorPallet")
+    )
+
+
 def stock_key(movement):
     return (
         clean_text(movement.get("ProductCode")),
@@ -182,11 +215,15 @@ def build_model(data, csv_data, include_all_warehouses=False):
         if clean_text(warehouse.get("Code"))
     }
 
-    product_measure_rows = {
-        clean_text(row.get("ProductCode")): row
-        for row in read_csv_text(csv_data.get("medidas"))
-        if clean_text(row.get("ProductCode"))
-    }
+    product_measure_rows = {}
+    product_measure_name_rows = {}
+    for row in read_csv_text(csv_data.get("medidas")):
+        product_key = measure_product_key(row)
+        name_key = measure_name_key(row)
+        if product_key:
+            product_measure_rows[product_key] = row
+        if name_key:
+            product_measure_name_rows[name_key] = row
 
     stock = defaultdict(Decimal)
     incoming = defaultdict(Decimal)
@@ -229,10 +266,14 @@ def build_model(data, csv_data, include_all_warehouses=False):
             continue
         product = products.get(product_code, {})
         package_size, package_unit = extract_package(product.get("Name"))
-        measure = product_measure_rows.get(product_code)
+        product_name_key = normalize_lookup_text(product.get("Name"))
+        measure = product_measure_rows.get(product_code) or product_measure_name_rows.get(product_name_key)
+        pallet_units_per_pallet = None
         if measure:
             package_size = package_size or decimal_value(measure.get("UnitSize"))
             package_unit = package_unit or normalize_unit(measure.get("UnitName"))
+            pallet_units = pallet_units_from_measure(measure)
+            pallet_units_per_pallet = pallet_units if pallet_units > 0 else None
         mirror_id = f"{SOURCE_NAME}|{warehouse_code}|{product_code}|{lot_code}|{expiry_date}"
         stock_rows.append({
             "id": stable_uuid(mirror_id),
@@ -250,6 +291,7 @@ def build_model(data, csv_data, include_all_warehouses=False):
             "warehouse": warehouses[warehouse_code],
             "package_size": package_size,
             "package_unit": package_unit,
+            "pallet_units_per_pallet": pallet_units_per_pallet,
         })
 
     return {
@@ -358,6 +400,7 @@ add column if not exists inventory_source text not null default 'app',
 add column if not exists solucion_mirror_id text,
 add column if not exists solucion_product_code text,
 add column if not exists solucion_warehouse_code bigint,
+add column if not exists pallet_units_per_pallet numeric(12, 2),
 add column if not exists solucion_synced_at timestamptz,
 add column if not exists qr_token text;
 
@@ -451,6 +494,7 @@ def build_import_sql(model):
             "incoming_quantity": str(row["incoming"]),
             "outgoing_quantity": str(row["outgoing"]),
             "current_quantity": str(row["quantity"]),
+            "pallet_units_per_pallet": str(row["pallet_units_per_pallet"] or ""),
         }
         stock_rows.append([
             sql_text(row["mirror_id"]),
@@ -476,6 +520,7 @@ def build_import_sql(model):
             "0",
             sql_num(row["package_size"]),
             sql_text(row["package_unit"]),
+            sql_num(row["pallet_units_per_pallet"]),
             sql_text(DEFAULT_LOCATION),
             sql_date(row["entry_date"]) if row["entry_date"] else "current_date",
             sql_date(row["expiry_date"]),
@@ -525,7 +570,7 @@ def build_import_sql(model):
         [
             "id", "lot_code", "client_id", "product", "current_quantity",
             "entry_boxes", "entry_units_per_box", "entry_loose_units",
-            "package_size", "package_unit", "location", "entry_date", "expiry_date",
+            "package_size", "package_unit", "pallet_units_per_pallet", "location", "entry_date", "expiry_date",
             "status", "photo_url", "low_stock_threshold", "inventory_source",
             "solucion_mirror_id", "solucion_product_code", "solucion_warehouse_code",
             "solucion_synced_at", "qr_token",
@@ -538,6 +583,7 @@ def build_import_sql(model):
   current_quantity = excluded.current_quantity,
   package_size = excluded.package_size,
   package_unit = excluded.package_unit,
+  pallet_units_per_pallet = excluded.pallet_units_per_pallet,
   location = excluded.location,
   entry_date = excluded.entry_date,
   expiry_date = excluded.expiry_date,
@@ -608,6 +654,8 @@ def main():
         "products": len(model["products"]),
         "active_stock_lots": len(model["stock_rows"]),
         "total_packages": str(sum(row["quantity"] for row in model["stock_rows"])),
+        "total_billing_pallets": str(sum((row["quantity"] / row["pallet_units_per_pallet"]) for row in model["stock_rows"] if row["pallet_units_per_pallet"])),
+        "stock_lots_without_pallet_rule": sum(1 for row in model["stock_rows"] if not row["pallet_units_per_pallet"]),
         "prepare_sql": str(prepare_path),
         "parts": len(chunks),
     }

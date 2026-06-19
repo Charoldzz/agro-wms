@@ -5,6 +5,7 @@ import EmptyState from '../components/EmptyState'
 import { supabase } from '../lib/supabase'
 import { formatDate, formatNumber } from '../lib/format'
 import { cleanProductName, displayLotCode, packageLabel } from '../lib/display'
+import { lotBillingPallets, sumBillingPallets } from '../lib/pallets'
 
 function safeProductParam(value) {
   try {
@@ -59,10 +60,14 @@ export default function ProductLots() {
     () => productLots.reduce((sum, lot) => sum + Number(lot.current_quantity || 0), 0),
     [productLots],
   )
+  const totalPallets = useMemo(() => sumBillingPallets(productLots), [productLots])
 
   return (
     <div>
-      <PageHeader title={productName || 'Producto'} subtitle={`${productLots.length} lotes - Total ${formatNumber(total)} envases`} />
+      <PageHeader
+        title={productName || 'Producto'}
+        subtitle={`${productLots.length} lotes - Total ${formatNumber(total)} envases - ${formatNumber(totalPallets.value)} pallets`}
+      />
 
       <div className="grid gap-2">
         {productLots.length === 0 ? (
@@ -93,6 +98,9 @@ export default function ProductLots() {
                   </div>
                   <p className="text-xs font-black text-campo-700">
                     {lotEquivalent(lot) ? `${formatNumber(lotEquivalent(lot).quantity)} ${lotEquivalent(lot).unit}` : 'Equiv. sin dato'}
+                  </p>
+                  <p className="text-xs font-black text-amber-700">
+                    {lotBillingPallets(lot) !== null ? `${formatNumber(lotBillingPallets(lot))} pallets` : 'Pallet sin regla'}
                   </p>
                   <p className="text-[10px] font-bold uppercase text-slate-500">
                     {lot.status === 'activo' ? 'Disponible' : lot.status}

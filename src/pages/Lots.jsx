@@ -5,6 +5,7 @@ import { useAuth } from '../hooks/useAuth.jsx'
 import { supabase } from '../lib/supabase'
 import { formatDate, formatNumber } from '../lib/format'
 import { cleanProductName, displayLotCode, lotLabel, productCodeLabel } from '../lib/display'
+import { lotBillingPallets, palletUnitsPerPallet, sumBillingPallets } from '../lib/pallets'
 import NewProductModal from '../components/NewProductModal'
 import EmpresasModal from '../components/EmpresasModal'
 import CatalogoModal from '../components/CatalogoModal'
@@ -127,7 +128,7 @@ export default function Lots() {
 
   const totalItems = filteredLots.length
   const totalMercaderia = filteredLots.reduce((sum, lot) => sum + Number(lot.current_quantity || 0), 0)
-  const totalPallets = filteredLots.reduce((sum, lot) => sum + Number(lot.entry_boxes || 0), 0)
+  const totalPallets = sumBillingPallets(filteredLots)
 
   const selectedClientName = selectedClient ? clients.find((c) => c.id === selectedClient)?.name : ''
   const visibleClients = clients.filter((c) =>
@@ -393,6 +394,8 @@ export default function Lots() {
                   <tbody>
                     {pageRows.map((lot, i) => {
                       const eq = lotEquivalent(lot)
+                      const pallets = lotBillingPallets(lot)
+                      const unitsPerPallet = palletUnitsPerPallet(lot)
                       const isZero = Number(lot.current_quantity || 0) < 1
                       return (
                         <tr
@@ -425,6 +428,15 @@ export default function Lots() {
                                 {formatNumber(eq.quantity)} {eq.unit}
                               </p>
                             )}
+                            {pallets !== null ? (
+                              <p className="text-[11px] font-bold text-amber-700 whitespace-nowrap">
+                                {formatNumber(pallets)} pallets
+                              </p>
+                            ) : unitsPerPallet === null && Number(lot.current_quantity || 0) > 0 ? (
+                              <p className="text-[11px] font-bold text-rose-600 whitespace-nowrap">
+                                sin regla pallet
+                              </p>
+                            ) : null}
                           </td>
                         </tr>
                       )
@@ -464,7 +476,11 @@ export default function Lots() {
           <div className="grid grid-cols-3 divide-x divide-slate-200 rounded-xl border border-slate-200 bg-white">
             <Total label="TOTAL ITEM" value={formatNumber(totalItems)} />
             <Total label="TOTAL MERCADERÍA" value={formatNumber(totalMercaderia)} />
-            <Total label="TOTAL PALLETS" value={totalPallets > 0 ? formatNumber(totalPallets) : '—'} />
+            <Total
+              label="TOTAL PALLETS"
+              value={totalPallets.value > 0 ? formatNumber(totalPallets.value) : '—'}
+              sub={totalPallets.missing > 0 ? `${totalPallets.missing} sin regla` : 'calc.'}
+            />
           </div>
 
         </div>

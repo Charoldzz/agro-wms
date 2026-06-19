@@ -30,6 +30,7 @@ create table public.lots (
   entry_loose_units numeric(12, 2) not null default 0 check (entry_loose_units >= 0),
   package_size numeric(12, 2),
   package_unit text,
+  pallet_units_per_pallet numeric(12, 2) check (pallet_units_per_pallet is null or pallet_units_per_pallet > 0),
   location text not null,
   entry_date date not null default current_date,
   expiry_date date,

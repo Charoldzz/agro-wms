@@ -5,6 +5,7 @@ import PageHeader from '../components/PageHeader'
 import { useAuth } from '../hooks/useAuth.jsx'
 import { supabase } from '../lib/supabase'
 import { formatNumber } from '../lib/format'
+import { lotBillingPallets } from '../lib/pallets'
 
 const initialForm = { name: '', contact: '', notes: '', product_code_prefix: '' }
 
@@ -38,7 +39,7 @@ export default function Clients() {
   async function loadClients() {
     const { data: lotsData } = await supabase
         .from('lots')
-        .select('client_id, current_quantity')
+        .select('client_id, current_quantity, raw_data')
         .eq('inventory_source', 'stock_independiente')
         .eq('status', 'activo')
         .gt('current_quantity', 0)
@@ -46,9 +47,12 @@ export default function Clients() {
     const stats = {}
     ;(lotsData || []).forEach((lot) => {
       if (!lot.client_id) return
-      if (!stats[lot.client_id]) stats[lot.client_id] = { lots: 0, quantity: 0 }
+      if (!stats[lot.client_id]) stats[lot.client_id] = { lots: 0, quantity: 0, pallets: 0, missingPalletRules: 0 }
       stats[lot.client_id].lots += 1
       stats[lot.client_id].quantity += Number(lot.current_quantity || 0)
+      const pallets = lotBillingPallets(lot)
+      if (pallets === null) stats[lot.client_id].missingPalletRules += 1
+      else stats[lot.client_id].pallets += pallets
     })
 
     const clientIds = Object.keys(stats)
@@ -161,7 +165,7 @@ export default function Clients() {
                 <button className="min-w-0 flex-1 text-left" type="button" onClick={() => setSelectedClient(client)}>
                   <h3 className="truncate text-sm font-bold text-slate-900">{client.name}</h3>
                   <p className="truncate text-xs font-semibold text-campo-700">
-                    {formatNumber(clientStats[client.id]?.quantity || 0)} envases · {clientStats[client.id]?.lots || 0} lotes
+                    {formatNumber(clientStats[client.id]?.quantity || 0)} envases · {formatNumber(clientStats[client.id]?.pallets || 0)} pallets
                     {client.product_code_prefix ? <span className="ml-2 rounded bg-campo-50 px-1 font-mono text-campo-600">{client.product_code_prefix}</span> : null}
                   </p>
                 </button>
@@ -194,7 +198,7 @@ export default function Clients() {
                 label="Inventario"
                 value={`${formatNumber(clientStats[selectedClient.id]?.quantity || 0)} envases · ${
                   clientStats[selectedClient.id]?.lots || 0
-                } lotes`}
+                } lotes · ${formatNumber(clientStats[selectedClient.id]?.pallets || 0)} pallets`}
               />
               <Info label="Contacto" value={selectedClient.contact || 'Sin contacto registrado'} />
               {cleanClientNotes(selectedClient.notes) ? (
