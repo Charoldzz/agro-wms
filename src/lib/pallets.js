@@ -17,6 +17,51 @@ function normalizeUnit(value) {
   return unit
 }
 
+function normalizeCompanyName(value) {
+  return String(value || '')
+    .toUpperCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replaceAll('"', '')
+    .replace(/[^A-Z0-9]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
+const PROGRAM_COMPANY_PALLETS = new Map(Object.entries({
+  'ALMACEN G A T BOLIVIA': 107,
+  'AGRO PARCEL': 142,
+  'TECNOMYL S A': 432,
+  'TOTAL AGRO S A': 40,
+  'AGROPECUARIA GUANANDI SRL TEC': 15,
+  'AUBREY REINALDO VIRICA': 10,
+  'TECNOMYL REPROCESO': 8,
+  'DENIS BARBIERI': 42,
+  'TOTAL PEC SRL': 4,
+  'ADILSON SABEC PERES': 114,
+  'AGRO NEULAND DEL SUR SRL': 13,
+  'MAXIAGRO SRL': 761,
+  'FOLCOL S A S': 27,
+  'DISAN SRL': 75,
+  'ZENTTA BIO SRL': 44,
+  'AGRICOLA RIO VICTORIA SRL': 29,
+  'SOGIMA SRL': 8,
+  'UPL BOLIVIA SRL': 754,
+  'AGROCALY SRL': 44,
+  'JACOBO MARTENS FRIESEN': 36,
+  'DAVID WIEBE DYCK': 46,
+  'LA BENDECIDA SRL': 32,
+}))
+
+export function companyBillingPallets(companyName, fallback = null) {
+  const value = PROGRAM_COMPANY_PALLETS.get(normalizeCompanyName(companyName))
+  return value ?? fallback
+}
+
+export function hasCompanyBillingPallets(companyName) {
+  return PROGRAM_COMPANY_PALLETS.has(normalizeCompanyName(companyName))
+}
+
 function unitsByPresentation(lot) {
   const size = Number(lot?.package_size || 0)
   const unit = normalizeUnit(lot?.package_unit)

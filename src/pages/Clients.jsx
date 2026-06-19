@@ -5,7 +5,7 @@ import PageHeader from '../components/PageHeader'
 import { useAuth } from '../hooks/useAuth.jsx'
 import { supabase } from '../lib/supabase'
 import { formatNumber } from '../lib/format'
-import { lotBillingPallets } from '../lib/pallets'
+import { companyBillingPallets, lotBillingPallets } from '../lib/pallets'
 
 const initialForm = { name: '', contact: '', notes: '', product_code_prefix: '' }
 
@@ -165,7 +165,7 @@ export default function Clients() {
                 <button className="min-w-0 flex-1 text-left" type="button" onClick={() => setSelectedClient(client)}>
                   <h3 className="truncate text-sm font-bold text-slate-900">{client.name}</h3>
                   <p className="truncate text-xs font-semibold text-campo-700">
-                    {formatNumber(clientStats[client.id]?.quantity || 0)} envases · {formatNumber(clientStats[client.id]?.pallets || 0)} pallets
+                    {formatNumber(clientStats[client.id]?.quantity || 0)} envases · {formatNumber(companyBillingPallets(client.name, clientStats[client.id]?.pallets || 0))} pallets
                     {client.product_code_prefix ? <span className="ml-2 rounded bg-campo-50 px-1 font-mono text-campo-600">{client.product_code_prefix}</span> : null}
                   </p>
                 </button>
@@ -198,7 +198,7 @@ export default function Clients() {
                 label="Inventario"
                 value={`${formatNumber(clientStats[selectedClient.id]?.quantity || 0)} envases · ${
                   clientStats[selectedClient.id]?.lots || 0
-                } lotes · ${formatNumber(clientStats[selectedClient.id]?.pallets || 0)} pallets`}
+                } lotes · ${formatNumber(companyBillingPallets(selectedClient.name, clientStats[selectedClient.id]?.pallets || 0))} pallets`}
               />
               <Info label="Contacto" value={selectedClient.contact || 'Sin contacto registrado'} />
               {cleanClientNotes(selectedClient.notes) ? (
