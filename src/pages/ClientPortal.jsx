@@ -9,7 +9,7 @@ import {
 import EmptyState from '../components/EmptyState'
 import ListProductCard from '../components/ListProductCard'
 import { useAuth } from '../hooks/useAuth.jsx'
-import { cleanProductName, displayLotCode, lotLabel, packageLabel, productCodeLabel } from '../lib/display'
+import { cleanProductName, displayLotCode, lotLabel, packageLabel, productCode, productCodeLabel } from '../lib/display'
 import { normalizeDispatchRequests } from '../lib/dispatchRequests'
 import { formatDate, formatNumber, movementLabel } from '../lib/format'
 import { supabase } from '../lib/supabase'
@@ -39,6 +39,22 @@ function lotEquivalent(lot) {
   const s = Number(lot?.package_size || 0)
   if (s <= 0 || !lot?.package_unit) return null
   return { quantity: Number(lot.current_quantity || 0) * s, unit: lot.package_unit }
+}
+
+function productIdentityKey(lot) {
+  return [
+    cleanProductName(lot?.product),
+    productCode(lot) || lot?.solucion_product_code || '',
+    Number(lot?.package_size || 0) || '',
+    String(lot?.package_unit || '').trim().toUpperCase(),
+  ].join('|')
+}
+
+function productIdentityLabel(lot) {
+  const name = cleanProductName(lot?.product)
+  const code = productCode(lot) || lot?.solucion_product_code || ''
+  const pack = packageLabel(lot)
+  return [name, code ? `Cod. ${code}` : '', pack].filter(Boolean).join(' · ')
 }
 
 function equivalentTotalsLabel(equivalents = {}) {
@@ -168,8 +184,8 @@ export default function ClientPortal({ view = 'inventory' }) {
   const inventoryProducts = useMemo(() => {
     const map = {}
     filteredLots.forEach(lot => {
-      const key = cleanProductName(lot.product)
-      if (!map[key]) map[key] = { product:key, quantity:0, equivalents:{}, lots:[], expiring:0, retained:0 }
+      const key = productIdentityKey(lot)
+      if (!map[key]) map[key] = { key, product: cleanProductName(lot.product), identity: productIdentityLabel(lot), quantity:0, equivalents:{}, lots:[], expiring:0, retained:0 }
       map[key].quantity += Number(lot.current_quantity||0)
       map[key].lots.push(lot)
       const eq = lotEquivalent(lot)
@@ -181,22 +197,27 @@ export default function ClientPortal({ view = 'inventory' }) {
     return Object.values(map).map(g => ({
       ...g,
       lots: g.lots.sort((a,b) => (a.expiry_date||'9999-12-31').localeCompare(b.expiry_date||'9999-12-31')),
-    })).sort((a,b) => a.product.localeCompare(b.product,'es',{numeric:true}))
+    })).sort((a,b) => a.identity.localeCompare(b.identity,'es',{numeric:true}))
   }, [filteredLots])
 
   const visibleProducts = (showAllProducts || search.trim()) ? inventoryProducts : inventoryProducts.slice(0,8)
 
-  // request: unique product names for step 1 select
+  // request: unique product identities for step 1 select
   const reqProductOptions = useMemo(() => {
-    const seen = new Set()
-    return lots.filter(l => { if(seen.has(cleanProductName(l.product))) return false; seen.add(cleanProductName(l.product)); return true })
-      .map(l => cleanProductName(l.product)).sort()
+    const map = new Map()
+    lots.forEach(lot => {
+      const key = productIdentityKey(lot)
+      if (!map.has(key)) map.set(key, productIdentityLabel(lot))
+    })
+    return [...map.entries()]
+      .map(([key, label]) => ({ key, label }))
+      .sort((a,b) => a.label.localeCompare(b.label,'es',{numeric:true}))
   }, [lots])
 
   // request: lots for selected product
   const reqProductLots = useMemo(() => {
     if (!reqProductName) return []
-    return lots.filter(l => cleanProductName(l.product) === reqProductName)
+    return lots.filter(l => productIdentityKey(l) === reqProductName)
   }, [lots, reqProductName])
 
   const selectedLot = lots.find(l => l.id === reqLotId)
@@ -228,7 +249,8 @@ export default function ClientPortal({ view = 'inventory' }) {
 
   function editReqItem(item) {
     setEditingLotId(item.lot_id); setReqLotId(item.lot_id); setReqQuantity(String(item.quantity||''))
-    setReqProductName(cleanProductName(item.product)); setReqMessage('Editando item de la lista.')
+    const lot = lots.find(l => l.id === item.lot_id) || item
+    setReqProductName(productIdentityKey(lot)); setReqMessage('Editando item de la lista.')
   }
 
   function clearCart() {
@@ -393,15 +415,18 @@ export default function ClientPortal({ view = 'inventory' }) {
           ) : (
             <div className="space-y-2">
               {visibleProducts.map(group => {
-                const isOpen = expandedProduct === group.product
+                const isOpen = expandedProduct === group.key
                 return (
-                  <article key={group.product} className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+                  <article key={group.key} className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
                     <button
                       className="flex w-full items-center justify-between gap-3 px-4 py-3.5 text-left transition hover:bg-campo-50/60"
-                      onClick={() => setExpandedProduct(isOpen ? '' : group.product)}
+                      onClick={() => setExpandedProduct(isOpen ? '' : group.key)}
                     >
                       <div className="min-w-0 flex-1">
                         <p className="font-black text-slate-950 [overflow-wrap:anywhere]">{group.product}</p>
+                        {group.identity !== group.product ? (
+                          <p className="mt-0.5 text-xs font-semibold text-slate-500 [overflow-wrap:anywhere]">{group.identity}</p>
+                        ) : null}
                         <div className="mt-1 flex flex-wrap items-center gap-2 text-xs font-semibold text-slate-500">
                           <span>{group.lots.length} lote{group.lots.length > 1 ? 's' : ''}</span>
                           {group.expiring > 0 && <span className="rounded-full bg-amber-50 px-2 py-0.5 text-amber-700">{group.expiring} por vencer</span>}
@@ -548,8 +573,8 @@ export default function ClientPortal({ view = 'inventory' }) {
                       onChange={e => { setReqProductName(e.target.value); setReqLotId('') }}
                     >
                       <option value="">Seleccionar producto...</option>
-                      {reqProductOptions.map(p => (
-                        <option key={p} value={p}>{p}</option>
+                      {reqProductOptions.map(option => (
+                        <option key={option.key} value={option.key}>{option.label}</option>
                       ))}
                     </select>
                   </label>
@@ -869,18 +894,19 @@ function ProductsModal({ lots, onClose }) {
   const products = useMemo(() => {
     const map = new Map()
     lots.forEach(l => {
+      const key = productIdentityKey(l)
       const name = cleanProductName(l.product)
       if (!name) return
-      const entry = map.get(name) || { name, totalQty: 0, lotCount: 0 }
+      const entry = map.get(key) || { key, name, identity: productIdentityLabel(l), totalQty: 0, lotCount: 0 }
       entry.totalQty += Number(l.current_quantity || 0)
       entry.lotCount += 1
-      map.set(name, entry)
+      map.set(key, entry)
     })
-    return [...map.values()].sort((a, b) => a.name.localeCompare(b.name, 'es'))
+    return [...map.values()].sort((a, b) => a.identity.localeCompare(b.identity, 'es'))
   }, [lots])
 
   const filtered = q.trim()
-    ? products.filter(p => p.name.toLowerCase().includes(q.trim().toLowerCase()))
+    ? products.filter(p => [p.name, p.identity].some(value => value.toLowerCase().includes(q.trim().toLowerCase())))
     : products
 
   return (
@@ -912,8 +938,13 @@ function ProductsModal({ lots, onClose }) {
             <li className="px-5 py-8 text-center text-sm font-semibold text-slate-400">Sin resultados</li>
           )}
           {filtered.map(p => (
-            <li key={p.name} className="flex items-center justify-between gap-3 px-5 py-3.5">
-              <p className="min-w-0 text-sm font-bold text-slate-900 [overflow-wrap:anywhere]">{p.name}</p>
+            <li key={p.key} className="flex items-center justify-between gap-3 px-5 py-3.5">
+              <div className="min-w-0">
+                <p className="text-sm font-bold text-slate-900 [overflow-wrap:anywhere]">{p.name}</p>
+                {p.identity !== p.name ? (
+                  <p className="mt-0.5 text-xs font-semibold text-slate-400 [overflow-wrap:anywhere]">{p.identity}</p>
+                ) : null}
+              </div>
               <div className="shrink-0 text-right">
                 <p className="text-sm font-black text-campo-700">{formatNumber(p.totalQty)} env.</p>
                 <p className="text-[10px] font-semibold text-slate-400">{p.lotCount} lote{p.lotCount !== 1 ? 's' : ''}</p>
