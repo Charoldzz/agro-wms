@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite --host 0.0.0.0",
-    "build": "node scripts/bump-version.js && vite build",
+    "build": "vite build",
+    "version:bump": "node scripts/bump-version.js",
     "preview": "vite preview --host 0.0.0.0",
     "lint": "eslint ."
   },
