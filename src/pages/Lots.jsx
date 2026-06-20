@@ -5,7 +5,7 @@ import { useAuth } from '../hooks/useAuth.jsx'
 import { supabase } from '../lib/supabase'
 import { formatDate, formatNumber } from '../lib/format'
 import { cleanProductName, displayLotCode, lotLabel, productCodeLabel } from '../lib/display'
-import { companyBillingPallets, hasCompanyBillingPallets, lotBillingPallets, palletUnitsPerPallet, sumBillingPallets } from '../lib/pallets'
+import { companyBillingPallets, hasCompanyBillingPallets, sumBillingPallets } from '../lib/pallets'
 import NewProductModal from '../components/NewProductModal'
 import EmpresasModal from '../components/EmpresasModal'
 import CatalogoModal from '../components/CatalogoModal'
@@ -14,12 +14,6 @@ import MovimientosModal from '../components/MovimientosModal'
 const LOTS_CACHE_KEY = 'todo-agricola-lots-cache'
 const CLIENTS_CACHE_KEY = 'todo-agricola-clients-cache'
 const PAGE_SIZE = 50
-
-function lotEquivalent(lot) {
-  const size = Number(lot?.package_size || 0)
-  if (size <= 0 || !lot?.package_unit) return null
-  return { quantity: Number(lot.current_quantity || 0) * size, unit: lot.package_unit }
-}
 
 function expiryClass(dateStr) {
   if (!dateStr) return 'text-slate-400'
@@ -406,9 +400,6 @@ export default function Lots() {
                   </thead>
                   <tbody>
                     {pageRows.map((lot, i) => {
-                      const eq = lotEquivalent(lot)
-                      const pallets = lotBillingPallets(lot)
-                      const unitsPerPallet = palletUnitsPerPallet(lot)
                       const isZero = Number(lot.current_quantity || 0) < 1
                       return (
                         <tr
@@ -436,20 +427,6 @@ export default function Lots() {
                             <p className="text-sm font-black text-campo-700 whitespace-nowrap">
                               {formatNumber(lot.current_quantity)}
                             </p>
-                            {eq && (
-                              <p className="text-xs text-slate-400 whitespace-nowrap">
-                                {formatNumber(eq.quantity)} {eq.unit}
-                              </p>
-                            )}
-                            {pallets !== null ? (
-                              <p className="text-[11px] font-bold text-amber-700 whitespace-nowrap">
-                                {formatNumber(pallets)} pallets
-                              </p>
-                            ) : unitsPerPallet === null && Number(lot.current_quantity || 0) > 0 ? (
-                              <p className="text-[11px] font-bold text-rose-600 whitespace-nowrap">
-                                sin regla pallet
-                              </p>
-                            ) : null}
                           </td>
                         </tr>
                       )

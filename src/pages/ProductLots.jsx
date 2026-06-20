@@ -5,22 +5,12 @@ import EmptyState from '../components/EmptyState'
 import { supabase } from '../lib/supabase'
 import { formatDate, formatNumber } from '../lib/format'
 import { cleanProductName, displayLotCode, packageLabel } from '../lib/display'
-import { lotBillingPallets, sumBillingPallets } from '../lib/pallets'
 
 function safeProductParam(value) {
   try {
     return decodeURIComponent(value || '')
   } catch {
     return value || ''
-  }
-}
-
-function lotEquivalent(lot) {
-  const packageSize = Number(lot?.package_size || 0)
-  if (packageSize <= 0 || !lot?.package_unit) return null
-  return {
-    quantity: Number(lot.current_quantity || 0) * packageSize,
-    unit: lot.package_unit,
   }
 }
 
@@ -60,13 +50,12 @@ export default function ProductLots() {
     () => productLots.reduce((sum, lot) => sum + Number(lot.current_quantity || 0), 0),
     [productLots],
   )
-  const totalPallets = useMemo(() => sumBillingPallets(productLots), [productLots])
 
   return (
     <div>
       <PageHeader
         title={productName || 'Producto'}
-        subtitle={`${productLots.length} lotes - Total ${formatNumber(total)} envases - ${formatNumber(totalPallets.value)} pallets`}
+        subtitle={`${productLots.length} lotes - Total ${formatNumber(total)} envases`}
       />
 
       <div className="grid gap-2">
@@ -96,12 +85,6 @@ export default function ProductLots() {
                     <span className="text-base font-black sm:text-xl">{formatNumber(lot.current_quantity)}</span>
                     <span className="text-xs font-bold text-campo-700">env.</span>
                   </div>
-                  <p className="text-xs font-black text-campo-700">
-                    {lotEquivalent(lot) ? `${formatNumber(lotEquivalent(lot).quantity)} ${lotEquivalent(lot).unit}` : 'Equiv. sin dato'}
-                  </p>
-                  <p className="text-xs font-black text-amber-700">
-                    {lotBillingPallets(lot) !== null ? `${formatNumber(lotBillingPallets(lot))} pallets` : 'Pallet sin regla'}
-                  </p>
                   <p className="text-[10px] font-bold uppercase text-slate-500">
                     {lot.status === 'activo' ? 'Disponible' : lot.status}
                   </p>
