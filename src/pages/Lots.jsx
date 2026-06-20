@@ -469,7 +469,6 @@ export default function Lots() {
             <Total
               label="TOTAL PALLETS"
               value={(officialTotalPallets ?? totalPallets.value) > 0 ? formatNumber(officialTotalPallets ?? totalPallets.value) : '—'}
-              sub={officialTotalPallets !== null ? 'cobranzas' : (totalPallets.missing > 0 ? `${totalPallets.missing} sin regla` : 'calc.')}
             />
           </div>
 
