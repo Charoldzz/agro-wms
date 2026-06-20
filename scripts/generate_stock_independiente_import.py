@@ -32,6 +32,10 @@ def sql_json(value):
     return sql_text(json.dumps(value or {}, ensure_ascii=False, separators=(",", ":"))) + "::jsonb"
 
 
+def sql_values_text(values):
+    return ",\n".join(f"  ({sql_text(value)})" for value in values)
+
+
 def sql_num(value):
     if value is None or value == "":
         return "null"
@@ -594,6 +598,43 @@ def build_import_sql(model):
   solucion_synced_at = now(),
   qr_token = coalesce(public.lots.qr_token, excluded.qr_token)""",
     ))
+
+    current_mirror_ids = [row["mirror_id"] for row in model["stock_rows"]]
+    if current_mirror_ids:
+        current_values = sql_values_text(current_mirror_ids)
+        statements.append(f"""with current_source(mirror_id) as (
+values
+{current_values}
+)
+update public.lots as lot
+set
+  current_quantity = 0,
+  status = 'cerrado'::public.lot_status,
+  solucion_synced_at = now(),
+  updated_at = now()
+where lot.inventory_source = '{SOURCE_NAME}'
+  and lot.solucion_mirror_id is not null
+  and not exists (
+    select 1
+    from current_source
+    where current_source.mirror_id = lot.solucion_mirror_id
+  )
+  and (lot.current_quantity <> 0 or lot.status <> 'cerrado'::public.lot_status);""")
+
+        statements.append(f"""with current_source(mirror_id) as (
+values
+{current_values}
+)
+update public.solucion_stock as stock
+set
+  current_quantity = 0,
+  synced_at = now()
+where not exists (
+    select 1
+    from current_source
+    where current_source.mirror_id = stock.mirror_id
+  )
+  and coalesce(stock.current_quantity, 0) <> 0;""")
 
     statements.append("""select
   (select count(*) from public.clients where inventory_source = 'stock_independiente') as clientes_stock_independiente,
