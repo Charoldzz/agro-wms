@@ -609,7 +609,7 @@ values
 update public.lots as lot
 set
   current_quantity = 0,
-  status = 'cerrado'::public.lot_status,
+  status = 'activo'::public.lot_status,
   solucion_synced_at = now(),
   updated_at = now()
 where lot.inventory_source = '{SOURCE_NAME}'
@@ -619,7 +619,7 @@ where lot.inventory_source = '{SOURCE_NAME}'
     from current_source
     where current_source.mirror_id = lot.solucion_mirror_id
   )
-  and (lot.current_quantity <> 0 or lot.status <> 'cerrado'::public.lot_status);""")
+  and (lot.current_quantity <> 0 or lot.status <> 'activo'::public.lot_status);""")
 
         statements.append(f"""with current_source(mirror_id) as (
 values
