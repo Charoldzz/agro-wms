@@ -1,7 +1,20 @@
 # agro-wms — Contexto del Proyecto
 
 Documento de contexto compartido para cualquier IA (Claude, Codex, etc.).
-**Actualizar este archivo cada vez que se haga un cambio importante.**
+
+---
+
+## INSTRUCCIONES PARA CUALQUIER IA QUE LEA ESTE ARCHIVO
+
+1. **Leer este archivo completo antes de tocar cualquier código.**
+2. **Después de cada cambio importante, actualizar este archivo en el mismo commit:**
+   - Agregar una fila en la tabla "Cambios recientes" con la versión y descripción del cambio
+   - Si cambiaste una regla, archivo clave o comportamiento del sistema, actualizar la sección correspondiente
+   - Si agregaste una tabla o columna en Supabase, agregarla en la sección de tablas
+3. **No revertir ninguna de las reglas listadas en "Reglas importantes".**
+4. **Siempre confirmar con Harold antes de hacer `git push`.**
+
+---
 
 ---
 
