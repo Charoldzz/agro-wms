@@ -3,7 +3,7 @@ import { ArrowLeft, Edit2, Plus, Save, Search, X } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 
 const initialNew = { name: '', product_code_prefix: '', contact: '' }
-const initialEdit = { name: '', product_code_prefix: '', contact: '', notes: '' }
+const initialEdit = { name: '', product_code_prefix: '', contact: '' }
 
 function displayName(name) {
   return String(name || '').replaceAll('"', '').replace(/\s+/g, ' ').trim()
@@ -53,8 +53,7 @@ export default function EmpresasModal({ onClose, onSaved }) {
     }
     const c = clients.find((x) => x.id === selectedId)
     if (!c) return
-    const notesClean = /importado\s+desde\s+excel/i.test(c.notes || '') ? '' : (c.notes || '')
-    setEditForm({ name: c.name || '', product_code_prefix: c.product_code_prefix || '', contact: c.contact || '', notes: notesClean })
+    setEditForm({ name: c.name || '', product_code_prefix: c.product_code_prefix || '', contact: c.contact || '' })
     setError('')
     setMode('edit')
   }
@@ -90,7 +89,6 @@ export default function EmpresasModal({ onClose, onSaved }) {
       name: editForm.name.trim(),
       product_code_prefix: prefix || null,
       contact: editForm.contact.trim() || null,
-      notes: editForm.notes.trim() || null,
     }).eq('id', selectedId)
     setSaving(false)
     if (err) return setError(err.message)
@@ -282,15 +280,6 @@ export default function EmpresasModal({ onClose, onSaved }) {
                 value={editForm.contact}
                 onChange={(e) => setEditForm((f) => ({ ...f, contact: e.target.value }))}
                 placeholder="Opcional"
-              />
-            </label>
-            <label className="block">
-              <span className="text-sm font-bold text-slate-700">Observaciones</span>
-              <textarea
-                className="input mt-1 w-full"
-                rows={3}
-                value={editForm.notes}
-                onChange={(e) => setEditForm((f) => ({ ...f, notes: e.target.value }))}
               />
             </label>
             {error && <p className="text-sm font-bold text-red-600">{error}</p>}
