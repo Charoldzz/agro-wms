@@ -1,0 +1,464 @@
+DOCUMENTACION DE CONTINUIDAD IA - WEB AGRO WMS / TODO AGRICOLA
+Actualizado: 2026-06-20
+Proyecto local: C:\Users\HAROLD\Desktop\agro-wms
+Repositorio GitHub: https://github.com/Charoldzz/agro-wms.git
+Rama principal: main
+Version actual visible en app: v2026.06.20-r3
+Produccion Vercel:
+- https://todo-agricola.vercel.app
+- https://agro-wms.vercel.app
+
+====================================================================
+1. OBJETIVO DE ESTE ARCHIVO
+====================================================================
+
+Este archivo permite que otra IA, Claude, Codex o un desarrollador humano
+entienda rapidamente el estado actual del portal web, que se cambio esta
+semana, como se sincroniza con el Programa Stock Independiente de escritorio
+y que decisiones NO se deben revertir.
+
+El desktop tiene su propio archivo:
+C:\Users\HAROLD\Desktop\PANEL STOCK INDEPENDIENTE PORTATIL-20260619T132524Z-3-001\PANEL STOCK INDEPENDIENTE PORTATIL\DOCUMENTACION_CONTINUIDAD_IA.txt
+
+Este archivo es el equivalente para la web.
+
+====================================================================
+2. TECNOLOGIA Y ESTRUCTURA
+====================================================================
+
+Stack:
+- React 18
+- Vite
+- Tailwind
+- Supabase
+- Vercel
+
+Comandos importantes:
+- Instalar dependencias: npm.cmd install
+- Build local: npm.cmd run build
+- Subir version manual: node scripts\bump-version.js
+- Commit/push: git add, git commit, git push
+
+Nota Windows:
+- En PowerShell puede fallar "npm" por politica de scripts.
+- Usar npm.cmd en lugar de npm.
+
+Archivos principales:
+- src/pages/Lots.jsx: pantalla Inventario / Almacenes web
+- src/pages/Clients.jsx: pantalla Clientes / empresas
+- src/pages/ClientPortal.jsx: portal del cliente
+- src/pages/DispatchList.jsx: operacion / preparacion de despachos
+- src/pages/ClientRequestsAdmin.jsx: seguimiento de solicitudes cliente
+- src/lib/pallets.js: reglas de pallets usadas en web
+- scripts/generate_stock_independiente_import.py: genera SQL desde el programa desktop
+- public/app-version.json: version mostrada en la app
+- src/lib/version.js: version importada por componentes
+
+====================================================================
+3. ESTADO ACTUAL DE LA APP WEB
+====================================================================
+
+La app web trabaja principalmente con datos de Stock Independiente.
+
+En Supabase, los lotes visibles de este origen usan:
+inventory_source = 'stock_independiente'
+
+Los registros historicos/viejos que ya no existen en el programa actual
+NO deben quedar mezclados con los visibles. El importador ahora los archiva
+con:
+inventory_source = 'stock_independiente_archived'
+
+Esto evita que confundan los conteos del inventario.
+
+La app debe mostrar:
+- Sin "Mostrar stock 0": solo items con current_quantity > 0.
+- Con "Mostrar stock 0": todos los items actuales del programa, incluyendo
+  current_quantity = 0.
+
+Valores esperados del corte de datos del 2026-06-20:
+- Items con stock: 398
+- Items total con stock 0 incluido: 737
+- Items con stock 0: 339
+- Total mercaderia: 1.893.534,85
+- Total pallets en Inventario/Almacenes: 2.420,57
+
+Importante:
+- Antes hubo un error donde Supabase mostraba 827 lotes y stock_espejo 1166.
+- Eso era porque se estaban conservando registros viejos.
+- El generador fue corregido para que el corte actual quede limpio.
+
+====================================================================
+4. CAMBIOS IMPORTANTES REALIZADOS ESTA SEMANA
+====================================================================
+
+4.1 Portal de clientes: seguridad y filtro por cliente
+
+Se corrigio el portal para que el cliente vea solo su inventario:
+- ClientPortal.jsx ahora exige profile.client_id.
+- Los lotes se filtran por client_id.
+- Las solicitudes de despacho no permiten mezclar productos de otro cliente.
+- Si un usuario cliente no tiene client_id asignado, aparece bloqueo de cuenta.
+
+4.2 Solicitudes de despacho
+
+Se cambio el flujo para que no dependa de aprobacion manual de admin:
+- Cliente crea solicitud como status = 'pendiente'.
+- Almacen la ve como despacho pendiente.
+- Cuando alguien empieza a prepararla, pasa a 'en_preparacion'.
+- Cuando sale, pasa a 'despachado'.
+
+Estados relevantes:
+- pendiente
+- en_preparacion
+- despachado
+- rechazado
+- aprobado existe como legado y se trata como pendiente en varias partes.
+
+Archivos tocados:
+- src/pages/ClientPortal.jsx
+- src/pages/DispatchList.jsx
+- src/pages/Operation.jsx
+- src/pages/Dashboard.jsx
+- src/pages/AdminPending.jsx
+- src/pages/ClientRequestsAdmin.jsx
+- supabase/client_dispatch_requests.sql
+- supabase/direct_client_dispatch_requests.sql
+- supabase/use_solucion_data_only.sql
+
+SQL relevante agregado:
+- start_client_dispatch_request
+- complete_client_dispatch_request
+
+Nota:
+- Si no se aplicaron esos SQL en Supabase, algunos flujos pueden no existir
+  en base de datos aunque el codigo web ya los use.
+
+4.3 Portal cliente: seguimiento visual de solicitudes
+
+En ClientPortal.jsx se agregaron:
+- Contadores: Pendientes / En preparacion / Despachadas.
+- Barra de progreso por solicitud:
+  Pendiente -> En preparacion -> Despachado.
+
+4.4 Version y boton de actualizacion
+
+Se restauro el indicador compacto de version/actualizacion.
+El usuario pidio que estuviera como antes, abajo a la derecha.
+
+Version actual:
+v2026.06.20-r3
+
+Formato de version decidido:
+vYYYY.MM.DD-rN
+
+Ejemplo:
+v2026.06.20-r3
+
+La version se genera con:
+node scripts\bump-version.js
+
+El build de Vercel NO debe auto-generar otra version por hora.
+package.json build debe seguir siendo:
+"build": "vite build"
+
+4.5 Identidad de productos
+
+Regla clave heredada del desktop:
+NO inferir equivalencias solo por nombre.
+
+Productos con nombres parecidos pero distinta presentacion/codigo deben
+mantenerse separados.
+
+En ClientPortal.jsx se agrego uso de identidad por:
+- nombre limpio
+- codigo producto / solucion_product_code
+- package_size
+- package_unit
+
+Esto evita mezclar productos parecidos.
+
+4.6 Pallets e inventario
+
+Se trabajo mucho en pallets porque habia dos calculos distintos:
+
+A) Pantalla Inventario / Almacenes:
+Debe mostrar TOTAL PALLETS como calculo decimal del stock:
+cantidad / CantidadPorPallet
+
+Valor esperado del corte actual:
+2.420,57
+
+B) Pantalla Cobranzas del desktop:
+Muestra pallets por empresa como enteros por cliente.
+Estos valores se usan como referencia de cobranzas, no como total inferior
+del inventario.
+
+En src/lib/pallets.js existen helpers:
+- palletUnitsPerPallet
+- lotBillingPallets
+- sumBillingPallets
+- companyBillingPallets
+
+Decision actual:
+- Inventario usa sumBillingPallets(filteredLots), debe dar 2.420,57.
+- Clientes puede mostrar pallets por empresa segun la tabla cargada de
+  Cobranzas cuando aplica.
+
+4.7 Se quitaron pallets decimales por lote
+
+El usuario pidio quitar los textos pequenos por fila:
+- "0,13 pallets"
+- "0,1 pallets"
+- "sin regla pallet"
+- equivalentes en litros/kilos dentro del listado
+
+Ahora en el listado de Inventario cada fila muestra solo la cantidad.
+Los pallets se ven:
+- por cliente
+- en el total inferior
+
+4.8 Importador de Stock Independiente
+
+Archivo:
+scripts/generate_stock_independiente_import.py
+
+Objetivo:
+Leer el programa desktop y generar SQL para Supabase.
+
+Entrada esperada:
+Carpeta o ZIP que contenga:
+- ProgramaStockIndependiente\dist\Datos\inventario-independiente.json
+- ProgramaStockIndependiente\dist\config\productos-medidas.csv
+- ProgramaStockIndependiente\dist\config\empresas-precios.csv
+
+Comando usado:
+python scripts\generate_stock_independiente_import.py --source "RUTA_DEL_PROGRAMA_O_ZIP" --output-dir tmp\stock_independiente_import_desktop --max-mb 0.5
+
+Salida:
+- 00_prepare_stock_independiente.sql
+- stock_independiente_import_part_01.sql
+- stock_independiente_import_part_02.sql
+- summary.json
+
+Correccion importante:
+El importador ahora incluye items con cantidad 0 del programa actual.
+No debe importar solo positivos.
+
+Valores generados con el corte actual:
+- stock_lots_total: 737
+- stock_lots_with_quantity: 398
+- stock_lots_zero_quantity: 339
+- total_packages: 1893534.85
+- total_billing_pallets: 2420.570566...
+
+Registros viejos:
+- Los lotes que ya no existen en el programa actual se pasan a:
+  inventory_source = 'stock_independiente_archived'
+- Los registros viejos de solucion_stock se eliminan para que stock_espejo no
+  quede inflado.
+
+Despues de ejecutar los SQL, el resumen esperado en Supabase debe mostrar:
+- lotes_stock_independiente = 737
+- lotes_con_stock = 398
+- lotes_stock_cero = 339
+- envases_stock_independiente = 1893534.85
+- stock_espejo = 737
+
+Si stock_espejo sale 1166 u otro numero mayor, todavia hay registros viejos
+en la tabla espejo o no se ejecuto el SQL corregido.
+
+====================================================================
+5. COMO ACTUALIZAR DATA DESDE EL PROGRAMA DESKTOP
+====================================================================
+
+Paso 1. Recibir el ZIP o carpeta del programa actualizado.
+
+Ejemplo de ruta actual usada:
+C:\Users\HAROLD\Desktop\PANEL STOCK INDEPENDIENTE PORTATIL-20260619T132524Z-3-001\PANEL STOCK INDEPENDIENTE PORTATIL\ProgramaStockIndependiente
+
+Paso 2. Generar SQL:
+
+python scripts\generate_stock_independiente_import.py --source "C:\Users\HAROLD\Desktop\PANEL STOCK INDEPENDIENTE PORTATIL-20260619T132524Z-3-001\PANEL STOCK INDEPENDIENTE PORTATIL\ProgramaStockIndependiente" --output-dir tmp\stock_independiente_import_desktop --max-mb 0.5
+
+Paso 3. Revisar summary.json.
+
+Debe indicar:
+- total de lotes
+- lotes con cantidad
+- lotes en cero
+- total mercaderia
+- total pallets
+
+Paso 4. En Supabase SQL Editor ejecutar en orden:
+
+1. tmp\stock_independiente_import_desktop\00_prepare_stock_independiente.sql
+2. tmp\stock_independiente_import_desktop\stock_independiente_import_part_01.sql
+3. tmp\stock_independiente_import_desktop\stock_independiente_import_part_02.sql
+
+Paso 5. Verificar resultado final.
+
+Consulta util:
+
+select
+  count(*) as total_items,
+  count(*) filter (where current_quantity > 0) as con_stock,
+  count(*) filter (where current_quantity = 0) as stock_cero,
+  coalesce(sum(current_quantity), 0) as total_mercaderia
+from public.lots
+where inventory_source = 'stock_independiente';
+
+Para el corte actual debe dar:
+- total_items = 737
+- con_stock = 398
+- stock_cero = 339
+- total_mercaderia = 1893534.85
+
+====================================================================
+6. DESPLIEGUE
+====================================================================
+
+Git:
+- Rama main
+- Los cambios se empujan a GitHub.
+- Vercel despliega automaticamente.
+
+Vercel:
+- Proyecto: todo-agricola
+- Usuario/tenant: tagribol
+- Produccion:
+  https://todo-agricola.vercel.app
+  https://agro-wms.vercel.app
+
+Ver deployments:
+vercel ls todo-agricola
+
+Ver estado de deployment:
+vercel inspect URL_DEL_DEPLOYMENT
+
+Antes de desplegar cambios de codigo:
+1. npm.cmd run build
+2. node scripts\bump-version.js
+3. git add ...
+4. git commit -m "mensaje"
+5. git push
+6. verificar Vercel
+
+====================================================================
+7. COSAS QUE NO SE DEBEN REVERTIR
+====================================================================
+
+1. No volver al formato de version con hora tipo v2026.06.18.1507.
+   El formato actual es fecha + revision:
+   vYYYY.MM.DD-rN
+
+2. No mezclar productos solo por nombre.
+   Respetar codigo/presentacion.
+
+3. No hacer que las solicitudes de despacho del cliente requieran aprobacion
+   manual de admin.
+   El flujo deseado es directo a almacen como pendiente.
+
+4. No mostrar pallets decimales por cada fila de lote en Inventario.
+   El usuario pidio quitar eso.
+
+5. No dejar registros viejos mezclados como inventory_source =
+   'stock_independiente'.
+   Deben archivarse o limpiarse.
+
+6. No usar stock_espejo como fuente visual de la app si esta inflado.
+   La app usa public.lots con inventory_source = 'stock_independiente'.
+
+7. Si se actualiza data, no importar solo positivos.
+   El programa desktop muestra 737 items con stock 0 incluido; la web debe
+   poder mostrar esos 737 cuando se active "Mostrar stock 0".
+
+====================================================================
+8. ESTADO ACTUAL DE PENDIENTES
+====================================================================
+
+Pendiente principal:
+- Ejecutar en Supabase los SQL corregidos generados en:
+  tmp\stock_independiente_import_desktop
+
+Luego verificar:
+- App sin Mostrar stock 0: 398 items.
+- App con Mostrar stock 0: 737 items.
+- Total mercaderia: 1.893.534,85.
+- Total pallets: 2.420,57.
+- Supabase stock_espejo: 737.
+
+Pendiente tecnico:
+- Instalar/configurar Supabase CLI si se quiere aplicar SQL desde terminal.
+  Actualmente se esta aplicando manualmente por Supabase SQL Editor.
+
+Pendiente posible:
+- Revisar "productos_espejo = 667".
+  No afecta directamente Inventario si lots esta correcto, pero puede
+  limpiarse o separarse si confunde.
+
+Pendiente posible:
+- Mejorar performance del bundle de Vite.
+  Build advierte que el JS principal supera 500 kB.
+  No es error; la app compila.
+
+====================================================================
+9. NOTAS DE CONVERSACION Y DECISIONES DEL USUARIO
+====================================================================
+
+Usuario:
+- Quiere avanzar por partes, primero lo esencial.
+- Prefiere cosas simples y funcionales.
+- No quiere que el admin tenga que aprobar solicitudes de despacho porque
+  demora mucho.
+- Quiere que almacen reciba solicitudes como "despacho pendiente".
+- Quiere version/boton de actualizacion visible y ordenado.
+- Quiere que Inventario refleje los datos del programa desktop.
+- Quiere que los stock 0 sigan existiendo y se muestren solo con checkbox.
+- Quiere que los historicos/viejos no confundan conteos.
+- Quiere un documento de continuidad para poder trabajar con Claude u otra IA.
+
+====================================================================
+10. ULTIMOS COMMITS IMPORTANTES
+====================================================================
+
+6b522c6 Match inventory pallet total and clean stock mirror
+6df865e Import current zero-stock inventory rows
+36e999c Keep zero stock lots visible in imports
+4c11a9c Close missing stock lots during import
+0e8e536 Hide pallet total source label
+d6b410d Hide per-lot pallet details
+bf8b00e Match billing pallet totals by company
+b31edd5 Add pallet fallback rules by presentation
+81e5167 Calculate billing pallets from stock rules
+e139475 Preserve product identity in client portal
+4d04591 Use date revision app versions
+e5808bc Restore compact app update indicator
+775137d Show app version and refresh control
+9cab410 Improve client dispatch request flow
+
+Nota:
+El commit 4c11a9c fue luego corregido por commits posteriores. La decision
+final NO es cerrar stock 0, sino conservar items actuales en 0 y archivar solo
+los registros que ya no existen en el programa actual.
+
+====================================================================
+11. RESUMEN CORTO PARA UNA IA NUEVA
+====================================================================
+
+Estas trabajando en la web agro-wms.
+El estado mas importante:
+- React/Vite/Supabase/Vercel.
+- Version actual: v2026.06.20-r3.
+- Produccion: todo-agricola.vercel.app.
+- La data viene del Programa Stock Independiente desktop.
+- Importador clave: scripts/generate_stock_independiente_import.py.
+- Para el corte actual, la app debe coincidir con el desktop:
+  398 items con stock, 737 con stock 0 incluido, mercaderia 1.893.534,85,
+  pallets 2.420,57.
+- Ejecutar SQL generado en tmp\stock_independiente_import_desktop para
+  actualizar Supabase.
+- No mezclar productos por nombre.
+- No mostrar pallets decimales por lote.
+- No dejar historicos como stock_independiente.
+
+FIN DEL DOCUMENTO.
