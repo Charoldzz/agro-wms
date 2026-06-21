@@ -75,12 +75,18 @@ La app debe mostrar:
 - Con "Mostrar stock 0": todos los items actuales del programa, incluyendo
   current_quantity = 0.
 
-Valores esperados del corte de datos del 2026-06-20:
+Valores de referencia del corte de datos revisado el 2026-06-20:
 - Items con stock: 398
 - Items total con stock 0 incluido: 737
 - Items con stock 0: 339
 - Total mercaderia: 1.893.534,85
 - Total pallets en Inventario/Almacenes: 2.420,57
+
+Estos numeros NO son constantes del sistema. Solo documentan el corte usado
+para validar la importacion durante esta semana. Si el programa desktop se
+actualiza con nuevos ingresos o despachos, estos numeros deben cambiar. La
+regla real es que la web y Supabase deben sacar los datos desde el mismo
+archivo actualizado del programa desktop y calcularlos de la misma manera.
 
 Importante:
 - Antes hubo un error donde Supabase mostraba 827 lotes y stock_espejo 1166.
@@ -185,8 +191,10 @@ A) Pantalla Inventario / Almacenes:
 Debe mostrar TOTAL PALLETS como calculo decimal del stock:
 cantidad / CantidadPorPallet
 
-Valor esperado del corte actual:
+Valor de referencia del corte validado el 2026-06-20:
 2.420,57
+
+Ese valor cambia cuando cambia el inventario del desktop.
 
 B) Pantalla Cobranzas del desktop:
 Muestra pallets por empresa como enteros por cliente.
@@ -200,7 +208,9 @@ En src/lib/pallets.js existen helpers:
 - companyBillingPallets
 
 Decision actual:
-- Inventario usa sumBillingPallets(filteredLots), debe dar 2.420,57.
+- Inventario usa sumBillingPallets(filteredLots).
+- Debe coincidir con el total de pallets de la pantalla Almacenes del desktop
+  para el corte de datos que se haya importado.
 - Clientes puede mostrar pallets por empresa segun la tabla cargada de
   Cobranzas cuando aplica.
 
@@ -244,12 +254,15 @@ Correccion importante:
 El importador ahora incluye items con cantidad 0 del programa actual.
 No debe importar solo positivos.
 
-Valores generados con el corte actual:
+Valores generados con el corte validado el 2026-06-20:
 - stock_lots_total: 737
 - stock_lots_with_quantity: 398
 - stock_lots_zero_quantity: 339
 - total_packages: 1893534.85
 - total_billing_pallets: 2420.570566...
+
+Estos valores son una referencia historica del corte probado. En cada nueva
+actualizacion deben recalcularse desde el programa desktop recibido.
 
 Registros viejos:
 - Los lotes que ya no existen en el programa actual se pasan a:
@@ -257,12 +270,16 @@ Registros viejos:
 - Los registros viejos de solucion_stock se eliminan para que stock_espejo no
   quede inflado.
 
-Despues de ejecutar los SQL, el resumen esperado en Supabase debe mostrar:
+Despues de ejecutar los SQL del corte validado el 2026-06-20, el resumen en
+Supabase debia mostrar:
 - lotes_stock_independiente = 737
 - lotes_con_stock = 398
 - lotes_stock_cero = 339
 - envases_stock_independiente = 1893534.85
 - stock_espejo = 737
+
+Para futuros cortes, esos numeros deben coincidir con el programa desktop
+actualizado, no con estos valores fijos.
 
 Si stock_espejo sale 1166 u otro numero mayor, todavia hay registros viejos
 en la tabla espejo o no se ejecuto el SQL corregido.
@@ -307,11 +324,14 @@ select
 from public.lots
 where inventory_source = 'stock_independiente';
 
-Para el corte actual debe dar:
+Para el corte validado el 2026-06-20 dio:
 - total_items = 737
 - con_stock = 398
 - stock_cero = 339
 - total_mercaderia = 1893534.85
+
+En cortes futuros, estos valores deben cambiar si cambio la data del programa
+desktop.
 
 ====================================================================
 6. DESPLIEGUE
@@ -369,8 +389,9 @@ Antes de desplegar cambios de codigo:
    La app usa public.lots con inventory_source = 'stock_independiente'.
 
 7. Si se actualiza data, no importar solo positivos.
-   El programa desktop muestra 737 items con stock 0 incluido; la web debe
-   poder mostrar esos 737 cuando se active "Mostrar stock 0".
+   La web debe poder mostrar los mismos items totales del programa desktop
+   cuando se active "Mostrar stock 0". En el corte validado eran 737, pero
+   ese numero cambia con ingresos/despachos.
 
 ====================================================================
 8. ESTADO ACTUAL DE PENDIENTES
@@ -381,6 +402,14 @@ Pendiente principal:
   tmp\stock_independiente_import_desktop
 
 Luego verificar:
+- App sin Mostrar stock 0: mismo conteo de items con stock que el desktop.
+- App con Mostrar stock 0: mismo conteo total de items que el desktop.
+- Total mercaderia: mismo total de mercaderia que el desktop.
+- Total pallets: mismo total de pallets de Almacenes que el desktop.
+- Supabase stock_espejo: mismo total de filas actuales importadas, sin
+  registros historicos/viejos mezclados.
+
+Referencia del corte validado el 2026-06-20:
 - App sin Mostrar stock 0: 398 items.
 - App con Mostrar stock 0: 737 items.
 - Total mercaderia: 1.893.534,85.
@@ -452,9 +481,10 @@ El estado mas importante:
 - Produccion: todo-agricola.vercel.app.
 - La data viene del Programa Stock Independiente desktop.
 - Importador clave: scripts/generate_stock_independiente_import.py.
-- Para el corte actual, la app debe coincidir con el desktop:
+- La app debe coincidir con el desktop para cada corte importado.
+  Como referencia historica, el corte validado el 2026-06-20 daba:
   398 items con stock, 737 con stock 0 incluido, mercaderia 1.893.534,85,
-  pallets 2.420,57.
+  pallets 2.420,57. Esos numeros no son fijos.
 - Ejecutar SQL generado en tmp\stock_independiente_import_desktop para
   actualizar Supabase.
 - No mezclar productos por nombre.
