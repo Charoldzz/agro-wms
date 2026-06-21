@@ -5,14 +5,18 @@ import PageHeader from '../components/PageHeader'
 import { useAuth } from '../hooks/useAuth.jsx'
 import { supabase } from '../lib/supabase'
 import { formatNumber } from '../lib/format'
-import { cleanProductName } from '../lib/display'
 import { internalLocations } from '../lib/locations'
 import { vibrateSuccess } from '../lib/haptics'
 
 const today = new Date().toISOString().slice(0, 10)
 
 function emptyRow() {
-  return { id: crypto.randomUUID(), product: '', lot_code: '', expiry_date: '', quantity: '' }
+  return { id: crypto.randomUUID(), product: '', lot_code: '', expiry_date: '', cajas: '', uds: '', galones: '', bidones: '', tambores: '', pallets: '' }
+}
+
+function rowTotal(row) {
+  return ['cajas', 'uds', 'galones', 'bidones', 'tambores', 'pallets']
+    .reduce((sum, f) => sum + Number(row[f] || 0), 0)
 }
 
 function createLotCode(index = 0) {
@@ -75,13 +79,14 @@ export default function OperatorEntry() {
 
   async function loadClientProducts(cid) {
     const { data } = await supabase
-      .from('lots')
-      .select('product')
-      .eq('inventory_source', 'stock_independiente')
+      .from('product_catalog')
+      .select('name, package_size, package_unit')
       .eq('client_id', cid)
-      .order('product')
-    const unique = [...new Set((data || []).map((l) => cleanProductName(l.product)))].sort()
-    setProducts(unique)
+      .order('name')
+    const items = (data || []).map((p) =>
+      p.package_size && p.package_unit ? `${p.name} X ${p.package_size} ${p.package_unit}` : p.name
+    )
+    setProducts([...new Set(items)].sort())
   }
 
   function addRow() {
@@ -112,10 +117,7 @@ export default function OperatorEntry() {
     setRows((r) => r.map((row) => (row.id === id ? { ...row, [field]: value } : row)))
   }
 
-  const totalQuantity = useMemo(
-    () => rows.reduce((sum, r) => sum + Number(r.quantity || 0), 0),
-    [rows],
-  )
+  const totalQuantity = useMemo(() => rows.reduce((sum, r) => sum + rowTotal(r), 0), [rows])
 
   async function save() {
     setError('')
@@ -123,7 +125,7 @@ export default function OperatorEntry() {
     if (!contacto.trim()) { setError('El contacto es obligatorio.'); return }
     if (!transportista.trim()) { setError('El transportista es obligatorio.'); return }
     if (!placa.trim()) { setError('La placa es obligatoria.'); return }
-    const validRows = rows.filter((r) => r.product?.trim() && Number(r.quantity || 0) > 0)
+    const validRows = rows.filter((r) => r.product?.trim() && rowTotal(r) > 0)
     if (validRows.length === 0) { setError('Agrega al menos un item con producto y cantidad.'); return }
 
     setSaving(true)
@@ -131,9 +133,9 @@ export default function OperatorEntry() {
       const items = validRows.map((r, i) => ({
         lot_code: r.lot_code?.trim() || createLotCode(i),
         product: r.product.trim(),
-        box_count: 0,
+        box_count: Number(r.cajas || 0),
         units_per_box: 0,
-        loose_units: Number(r.quantity),
+        loose_units: ['uds', 'galones', 'bidones', 'tambores', 'pallets'].reduce((s, f) => s + Number(r[f] || 0), 0),
         package_size: null,
         package_unit: null,
         location: internalLocations[0] || 'ALMACEN',
@@ -214,28 +216,22 @@ export default function OperatorEntry() {
         </button>
       </div>
 
-      <datalist id="productos-ingreso">
-        {products.map((p) => <option key={p} value={p} />)}
-      </datalist>
-
       <div className="mb-4 overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm" ref={tableRef}>
-        <table className="w-full border-collapse" style={{ minWidth: '600px' }}>
-          <colgroup>
-            <col style={{ width: '40px' }} />
-            <col />
-            <col style={{ width: '105px' }} />
-            <col style={{ width: '120px' }} />
-            <col style={{ width: '95px' }} />
-            <col style={{ width: '34px' }} />
-          </colgroup>
+        <table className="w-full border-collapse" style={{ minWidth: '960px' }}>
           <thead>
             <tr className="bg-campo-700 text-white">
-              <th className="border-b border-campo-600 px-3 py-2.5 text-center text-xs font-bold uppercase tracking-wide">N°</th>
-              <th className="border-b border-campo-600 px-3 py-2.5 text-left text-xs font-bold uppercase tracking-wide">PRODUCTO</th>
-              <th className="border-b border-campo-600 px-3 py-2.5 text-center text-xs font-bold uppercase tracking-wide">LOTE</th>
-              <th className="border-b border-campo-600 px-3 py-2.5 text-center text-xs font-bold uppercase tracking-wide">VENC</th>
-              <th className="border-b border-campo-600 px-3 py-2.5 text-right text-xs font-bold uppercase tracking-wide">CANTIDAD</th>
-              <th className="border-b border-campo-600 px-1 py-2.5"></th>
+              <th className="border-b border-campo-600 px-2 py-2.5 text-center text-xs font-bold uppercase tracking-wide" style={{width:'36px'}}>N°</th>
+              <th className="border-b border-campo-600 px-2 py-2.5 text-left text-xs font-bold uppercase tracking-wide">PRODUCTO</th>
+              <th className="border-b border-campo-600 px-2 py-2.5 text-center text-xs font-bold uppercase tracking-wide" style={{width:'100px'}}>LOTE</th>
+              <th className="border-b border-campo-600 px-2 py-2.5 text-center text-xs font-bold uppercase tracking-wide" style={{width:'110px'}}>VENC</th>
+              <th className="border-b border-campo-600 px-2 py-2.5 text-right text-xs font-bold uppercase tracking-wide" style={{width:'64px'}}>CAJAS</th>
+              <th className="border-b border-campo-600 px-2 py-2.5 text-right text-xs font-bold uppercase tracking-wide" style={{width:'64px'}}>UDS</th>
+              <th className="border-b border-campo-600 px-2 py-2.5 text-right text-xs font-bold uppercase tracking-wide" style={{width:'72px'}}>GALONES</th>
+              <th className="border-b border-campo-600 px-2 py-2.5 text-right text-xs font-bold uppercase tracking-wide" style={{width:'72px'}}>BIDONES</th>
+              <th className="border-b border-campo-600 px-2 py-2.5 text-right text-xs font-bold uppercase tracking-wide" style={{width:'78px'}}>TAMBORES</th>
+              <th className="border-b border-campo-600 px-2 py-2.5 text-right text-xs font-bold uppercase tracking-wide" style={{width:'68px'}}>PALLETS</th>
+              <th className="border-b border-campo-600 px-2 py-2.5 text-right text-xs font-bold uppercase tracking-wide" style={{width:'80px'}}>CANTIDAD</th>
+              <th className="border-b border-campo-600 px-1 py-2.5" style={{width:'32px'}}></th>
             </tr>
           </thead>
           <tbody>
@@ -245,17 +241,17 @@ export default function OperatorEntry() {
                 className={`cursor-pointer border-b border-slate-100 transition-colors ${selectedIdx === i ? 'bg-blue-50 ring-1 ring-inset ring-blue-200' : 'hover:bg-slate-50'}`}
                 onClick={() => setSelectedIdx(i)}
               >
-                <td className="px-3 py-1.5 text-center text-sm font-bold text-slate-500">{i + 1}</td>
+                <td className="px-2 py-1 text-center text-sm font-bold text-slate-500">{i + 1}</td>
                 <td className="px-2 py-1">
-                  <input
+                  <select
                     className="w-full rounded border border-transparent bg-transparent px-1.5 py-1 text-sm focus:border-campo-400 focus:bg-white focus:outline-none"
-                    list="productos-ingreso"
                     value={row.product}
                     onChange={(e) => updateRow(row.id, 'product', e.target.value)}
                     onFocus={() => setSelectedIdx(i)}
-                    placeholder={clientId ? 'Escribir o seleccionar...' : 'Primero elige empresa'}
-                    autoComplete="off"
-                  />
+                  >
+                    <option value="">{clientId ? '— Seleccionar —' : '— Elige empresa primero —'}</option>
+                    {products.map((p) => <option key={p} value={p}>{p}</option>)}
+                  </select>
                 </td>
                 <td className="px-2 py-1">
                   <input
@@ -263,7 +259,6 @@ export default function OperatorEntry() {
                     value={row.lot_code}
                     onChange={(e) => updateRow(row.id, 'lot_code', e.target.value)}
                     onFocus={() => setSelectedIdx(i)}
-                    placeholder="Lote"
                   />
                 </td>
                 <td className="px-2 py-1">
@@ -275,18 +270,23 @@ export default function OperatorEntry() {
                     onFocus={() => setSelectedIdx(i)}
                   />
                 </td>
-                <td className="px-2 py-1">
-                  <input
-                    className="w-full rounded border border-transparent bg-transparent px-1.5 py-1 text-right text-sm font-bold focus:border-campo-400 focus:bg-white focus:outline-none"
-                    inputMode="decimal"
-                    value={row.quantity}
-                    onChange={(e) => {
-                      const v = e.target.value.replace(',', '.')
-                      if (/^\d*\.?\d*$/.test(v)) updateRow(row.id, 'quantity', v)
-                    }}
-                    onFocus={() => setSelectedIdx(i)}
-                    placeholder="0"
-                  />
+                {['cajas', 'uds', 'galones', 'bidones', 'tambores', 'pallets'].map((field) => (
+                  <td key={field} className="px-2 py-1">
+                    <input
+                      className="w-full rounded border border-transparent bg-transparent px-1.5 py-1 text-right text-sm focus:border-campo-400 focus:bg-white focus:outline-none"
+                      inputMode="decimal"
+                      value={row[field]}
+                      onChange={(e) => {
+                        const v = e.target.value.replace(',', '.')
+                        if (/^\d*\.?\d*$/.test(v)) updateRow(row.id, field, v)
+                      }}
+                      onFocus={() => setSelectedIdx(i)}
+                      placeholder="0"
+                    />
+                  </td>
+                ))}
+                <td className="px-2 py-1 text-right text-sm font-bold text-slate-700">
+                  {rowTotal(row) > 0 ? formatNumber(rowTotal(row)) : <span className="text-slate-300">0</span>}
                 </td>
                 <td className="px-1 py-1 text-center">
                   <button
@@ -294,7 +294,6 @@ export default function OperatorEntry() {
                     className="flex h-7 w-7 items-center justify-center rounded text-slate-300 hover:bg-red-50 hover:text-red-500 disabled:opacity-30"
                     onClick={(e) => { e.stopPropagation(); removeRow(row.id) }}
                     disabled={rows.length <= 1}
-                    title="Eliminar fila"
                   >
                     <Trash2 size={13} />
                   </button>
@@ -304,8 +303,8 @@ export default function OperatorEntry() {
           </tbody>
           <tfoot>
             <tr className="border-t-2 border-slate-200 bg-slate-50">
-              <td colSpan={5} className="px-3 py-2.5 text-sm font-black uppercase text-slate-600">Total cantidad:</td>
-              <td className="px-3 py-2.5 text-right text-sm font-black text-slate-950">{formatNumber(totalQuantity)}</td>
+              <td colSpan={10} className="px-3 py-2.5 text-sm font-black uppercase text-slate-600">Total cantidad:</td>
+              <td className="px-2 py-2.5 text-right text-sm font-black text-slate-950">{formatNumber(totalQuantity)}</td>
               <td />
             </tr>
           </tfoot>
