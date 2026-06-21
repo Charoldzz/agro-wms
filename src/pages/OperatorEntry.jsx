@@ -120,6 +120,9 @@ export default function OperatorEntry() {
   async function save() {
     setError('')
     if (!clientId) { setError('Selecciona la empresa.'); return }
+    if (!contacto.trim()) { setError('El contacto es obligatorio.'); return }
+    if (!transportista.trim()) { setError('El transportista es obligatorio.'); return }
+    if (!placa.trim()) { setError('La placa es obligatoria.'); return }
     const validRows = rows.filter((r) => r.product?.trim() && Number(r.quantity || 0) > 0)
     if (validRows.length === 0) { setError('Agrega al menos un item con producto y cantidad.'); return }
 
@@ -181,19 +184,19 @@ export default function OperatorEntry() {
         </div>
         <label className="block">
           <span className="label">Contacto</span>
-          <input className="input mt-1" placeholder="Nombre del contacto" value={contacto} onChange={(e) => setContacto(e.target.value)} />
+          <input className="input mt-1" value={contacto} onChange={(e) => setContacto(e.target.value)} />
         </label>
         <label className="block">
           <span className="label">Transportista</span>
-          <input className="input mt-1" placeholder="Nombre del transportista" value={transportista} onChange={(e) => setTransportista(e.target.value)} />
+          <input className="input mt-1" value={transportista} onChange={(e) => setTransportista(e.target.value)} />
         </label>
         <label className="block">
           <span className="label">Placa</span>
-          <input className="input mt-1 uppercase" placeholder="Ej: 1234ABC" value={placa} onChange={(e) => setPlaca(e.target.value.toUpperCase())} />
+          <input className="input mt-1 uppercase" value={placa} onChange={(e) => setPlaca(e.target.value.toUpperCase())} />
         </label>
         <label className="block">
           <span className="label">Observaciones</span>
-          <input className="input mt-1" placeholder="Opcional" value={observaciones} onChange={(e) => setObservaciones(e.target.value)} />
+          <input className="input mt-1" value={observaciones} onChange={(e) => setObservaciones(e.target.value)} />
         </label>
       </section>
 
