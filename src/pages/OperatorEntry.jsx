@@ -11,12 +11,7 @@ import { vibrateSuccess } from '../lib/haptics'
 const today = new Date().toISOString().slice(0, 10)
 
 function emptyRow() {
-  return { id: crypto.randomUUID(), product: '', lot_code: '', expiry_date: '', cajas: '', uds: '', galones: '', bidones: '', tambores: '', pallets: '' }
-}
-
-function rowTotal(row) {
-  return ['cajas', 'uds', 'galones', 'bidones', 'tambores', 'pallets']
-    .reduce((sum, f) => sum + Number(row[f] || 0), 0)
+  return { id: crypto.randomUUID(), product: '', lot_code: '', expiry_date: '', cantidad: '', cajas: '', uds: '', galones: '', bidones: '', tambores: '', pallets: '' }
 }
 
 function createLotCode(index = 0) {
@@ -157,7 +152,11 @@ export default function OperatorEntry() {
     setRows((r) => r.map((row) => (row.id === id ? { ...row, [field]: value } : row)))
   }
 
-  const totalQuantity = useMemo(() => rows.reduce((sum, r) => sum + rowTotal(r), 0), [rows])
+  const totalQuantity = useMemo(() => rows.reduce((sum, r) => sum + Number(r.cantidad || 0), 0), [rows])
+  const fieldTotals = useMemo(() => {
+    const fields = ['cajas', 'uds', 'galones', 'bidones', 'tambores', 'pallets']
+    return Object.fromEntries(fields.map((f) => [f, rows.reduce((sum, r) => sum + Number(r[f] || 0), 0)]))
+  }, [rows])
 
   async function save() {
     setError('')
@@ -165,7 +164,7 @@ export default function OperatorEntry() {
     if (!contacto.trim()) { setError('El contacto es obligatorio.'); return }
     if (!transportista.trim()) { setError('El transportista es obligatorio.'); return }
     if (!placa.trim()) { setError('La placa es obligatoria.'); return }
-    const validRows = rows.filter((r) => r.product?.trim() && rowTotal(r) > 0)
+    const validRows = rows.filter((r) => r.product?.trim() && Number(r.cantidad || 0) > 0)
     if (validRows.length === 0) { setError('Agrega al menos un item con producto y cantidad.'); return }
 
     setSaving(true)
@@ -175,7 +174,7 @@ export default function OperatorEntry() {
         product: r.product.trim(),
         box_count: Number(r.cajas || 0),
         units_per_box: 0,
-        loose_units: ['uds', 'galones', 'bidones', 'tambores', 'pallets'].reduce((s, f) => s + Number(r[f] || 0), 0),
+        loose_units: Number(r.cantidad || 0),
         package_size: null,
         package_unit: null,
         location: internalLocations[0] || 'ALMACEN',
@@ -265,13 +264,13 @@ export default function OperatorEntry() {
               <th className="border-b border-campo-600 px-2 py-2.5 text-left text-xs font-bold uppercase tracking-wide">PRODUCTO</th>
               <th className="border-b border-campo-600 px-2 py-2.5 text-center text-xs font-bold uppercase tracking-wide" style={{width:'100px'}}>LOTE</th>
               <th className="border-b border-campo-600 px-2 py-2.5 text-center text-xs font-bold uppercase tracking-wide" style={{width:'160px'}}>VENC</th>
+              <th className="border-b border-campo-600 px-2 py-2.5 text-right text-xs font-bold uppercase tracking-wide" style={{width:'80px'}}>CANTIDAD</th>
               <th className="border-b border-campo-600 px-2 py-2.5 text-right text-xs font-bold uppercase tracking-wide" style={{width:'64px'}}>CAJAS</th>
               <th className="border-b border-campo-600 px-2 py-2.5 text-right text-xs font-bold uppercase tracking-wide" style={{width:'64px'}}>UDS</th>
               <th className="border-b border-campo-600 px-2 py-2.5 text-right text-xs font-bold uppercase tracking-wide" style={{width:'72px'}}>GALONES</th>
               <th className="border-b border-campo-600 px-2 py-2.5 text-right text-xs font-bold uppercase tracking-wide" style={{width:'72px'}}>BIDONES</th>
               <th className="border-b border-campo-600 px-2 py-2.5 text-right text-xs font-bold uppercase tracking-wide" style={{width:'78px'}}>TAMBORES</th>
               <th className="border-b border-campo-600 px-2 py-2.5 text-right text-xs font-bold uppercase tracking-wide" style={{width:'68px'}}>PALLETS</th>
-              <th className="border-b border-campo-600 px-2 py-2.5 text-right text-xs font-bold uppercase tracking-wide" style={{width:'80px'}}>CANTIDAD</th>
               <th className="border-b border-campo-600 px-1 py-2.5" style={{width:'32px'}}></th>
             </tr>
           </thead>
@@ -310,6 +309,19 @@ export default function OperatorEntry() {
                     onFocus={() => setSelectedIdx(i)}
                   />
                 </td>
+                <td className="px-2 py-1">
+                  <input
+                    className="w-full rounded border border-transparent bg-transparent px-1.5 py-1 text-right text-sm font-bold focus:border-campo-400 focus:bg-white focus:outline-none"
+                    inputMode="decimal"
+                    value={row.cantidad}
+                    onChange={(e) => {
+                      const v = e.target.value.replace(',', '.')
+                      if (/^\d*\.?\d*$/.test(v)) updateRow(row.id, 'cantidad', v)
+                    }}
+                    onFocus={() => setSelectedIdx(i)}
+                    placeholder="0"
+                  />
+                </td>
                 {['cajas', 'uds', 'galones', 'bidones', 'tambores', 'pallets'].map((field) => (
                   <td key={field} className="px-2 py-1">
                     <input
@@ -325,9 +337,6 @@ export default function OperatorEntry() {
                     />
                   </td>
                 ))}
-                <td className="px-2 py-1 text-right text-sm font-bold text-slate-700">
-                  {rowTotal(row) > 0 ? formatNumber(rowTotal(row)) : <span className="text-slate-300">0</span>}
-                </td>
                 <td className="px-1 py-1 text-center">
                   <button
                     type="button"
@@ -343,8 +352,13 @@ export default function OperatorEntry() {
           </tbody>
           <tfoot>
             <tr className="border-t-2 border-slate-200 bg-slate-50">
-              <td colSpan={10} className="px-3 py-2.5 text-sm font-black uppercase text-slate-600">Total cantidad:</td>
-              <td className="px-2 py-2.5 text-right text-sm font-black text-slate-950">{formatNumber(totalQuantity)}</td>
+              <td colSpan={4} className="px-3 py-2.5 text-xs font-black uppercase text-slate-500">Totales</td>
+              <td className="px-2 py-2.5 text-right text-sm font-black text-campo-700">{formatNumber(totalQuantity)}</td>
+              {['cajas', 'uds', 'galones', 'bidones', 'tambores', 'pallets'].map((f) => (
+                <td key={f} className="px-2 py-2.5 text-right text-sm font-black text-slate-950">
+                  {fieldTotals[f] > 0 ? formatNumber(fieldTotals[f]) : <span className="text-slate-300">—</span>}
+                </td>
+              ))}
               <td />
             </tr>
           </tfoot>
@@ -394,6 +408,20 @@ export default function OperatorEntry() {
               </div>
             </div>
 
+            <label className="mb-3 block">
+              <span className="text-xs font-bold uppercase text-slate-500">CANTIDAD</span>
+              <input
+                className="input mt-1 w-full text-right font-bold text-sm"
+                inputMode="decimal"
+                value={row.cantidad}
+                onChange={(e) => {
+                  const v = e.target.value.replace(',', '.')
+                  if (/^\d*\.?\d*$/.test(v)) updateRow(row.id, 'cantidad', v)
+                }}
+                placeholder="0"
+              />
+            </label>
+
             <div className="grid grid-cols-3 gap-2">
               {['cajas', 'uds', 'galones', 'bidones', 'tambores', 'pallets'].map((field) => (
                 <label key={field} className="block">
@@ -411,16 +439,23 @@ export default function OperatorEntry() {
                 </label>
               ))}
             </div>
-
-            {rowTotal(row) > 0 && (
-              <p className="mt-2 text-right text-sm font-black text-slate-700">Total: {formatNumber(rowTotal(row))}</p>
-            )}
           </div>
         ))}
 
-        <div className="rounded-xl border-2 border-slate-200 bg-slate-50 px-4 py-3 flex justify-between items-center">
-          <span className="text-sm font-black uppercase text-slate-600">Total cantidad</span>
-          <span className="text-sm font-black text-slate-950">{formatNumber(totalQuantity)}</span>
+        <div className="rounded-xl border-2 border-slate-200 bg-slate-50 px-4 py-3">
+          <p className="mb-2 text-xs font-black uppercase text-slate-500">Totales</p>
+          <div className="grid grid-cols-3 gap-x-4 gap-y-1">
+            {['cajas', 'uds', 'galones', 'bidones', 'tambores', 'pallets'].map((f) => (
+              <div key={f} className="flex justify-between gap-1">
+                <span className="text-xs font-bold uppercase text-slate-400">{f}</span>
+                <span className="text-xs font-black text-slate-950">{fieldTotals[f] > 0 ? formatNumber(fieldTotals[f]) : '—'}</span>
+              </div>
+            ))}
+          </div>
+          <div className="mt-2 flex justify-between border-t border-slate-200 pt-2">
+            <span className="text-xs font-bold uppercase text-slate-500">Total</span>
+            <span className="text-sm font-black text-campo-700">{formatNumber(totalQuantity)}</span>
+          </div>
         </div>
       </div>
 
