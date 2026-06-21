@@ -148,13 +148,14 @@ Cliente crea → pendiente → en_preparacion → despachado
 
 ## Cambios recientes
 
-| Versión | Cambio |
-|---------|--------|
-| v2026.06.21.2 | Botón Eliminar empresa con confirmación de seguridad |
-| v2026.06.21.1 | Versión pasa a formato vAÑO.MES.DIA.N, auto-incrementa en cada deploy Vercel |
-| v2026.06.20.x | Filtro de empresa en CatálogoModal cambiado a ícono botón con popover |
-| v2026.06.20.x | Nombre de empresa editable en formulario Modificar, eliminado campo Observaciones |
-| v2026.06.20.x | Corrección de prefijos de empresa en tabla clients (ZEBI, DEBA, SEMO, AGRO, etc.) |
-| v2026.06.20.x | Corrección de códigos de producto en product_catalog (ZENT→ZEBI, DENB→DEBA, etc.) |
-| v2026.06.20.x | Importación de 420 productos del desktop al catálogo web |
-| v2026.06.20.x | Fix generador de código: TECNOMYL REPROCESO comparte secuencia TCML con TECNOMYL S.A |
+| Fecha | Versión | Cambio |
+|-------|---------|--------|
+| 2026-06-21 | v2026.06.21.4 | CLAUDE.md creado con contexto completo e instrucciones para IAs |
+| 2026-06-21 | v2026.06.21.2 | Botón Eliminar empresa con confirmación de seguridad en EmpresasModal |
+| 2026-06-21 | v2026.06.21.1 | Versión pasa a formato `vAÑO.MES.DIA.N`, auto-incrementa en cada deploy Vercel, se resetea a 1 cada día hora Bolivia |
+| 2026-06-20 | — | Fix generador de código NewProductModal: TECNOMYL REPROCESO comparte secuencia TCML con TECNOMYL S.A (query por prefijo, no por client_id) |
+| 2026-06-20 | — | Importación de 420 productos del desktop al catálogo web vía SQL (desktop tiene 421, diferencia de 1 es IVLA intencional) |
+| 2026-06-20 | — | Corrección de códigos de producto en product_catalog: ZENT→ZEBI, DENB→DEBA, TREP→TCML, TECN→TCML, etc. |
+| 2026-06-20 | — | Corrección de prefijos en tabla clients: AGCA→AGRO, SEMI→SEMO, TAGO→TCML, DWID→DAWD, etc. |
+| 2026-06-20 | — | EmpresasModal: nombre de empresa editable en Modificar, eliminado campo Observaciones |
+| 2026-06-20 | — | CatalogoModal: filtro de empresa cambiado de dropdown a botón ícono con popover para ahorrar espacio |
