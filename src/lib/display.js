@@ -100,7 +100,7 @@ export function productCodeLabel(lot) {
 export function isGeneratedLotCode(lotCode) {
   const code = String(lotCode || '').trim()
   return /^EXCEL-\d+-/i.test(code)
-    || /^SOL-\d+/i.test(code)
+    || /^SOL-/i.test(code)
     || /^AUTO-/i.test(code)
     || /^SIN-?LOTE/i.test(code)
     || /^Codigo\s+\d+/i.test(code)
@@ -117,6 +117,13 @@ export function stockLotCode(lotCode) {
     return value
   }
 
+  const stockIndependienteStyle = code.match(/^SOL-[A-Z0-9]+-\d+-\d+-(.+?)-(?:\d{4}-\d{2}-\d{2}|SINVEN)$/i)
+  if (stockIndependienteStyle?.[1]) {
+    const value = stockIndependienteStyle[1].trim()
+    if (/^SIN-?LOTE$/i.test(value) || /^SINLOTE$/i.test(value)) return ''
+    return value
+  }
+
   return ''
 }
 
@@ -125,7 +132,43 @@ export function isNoLotDisplay(value) {
   return !text || text === '-' || /^sin lote$/i.test(text) || /^sin dato$/i.test(text)
 }
 
+const LOT_CODE_FIELDS = [
+  'lot_code',
+  'lote',
+  'lot',
+  'codigo_lote',
+  'source_lot_code',
+  'stock_lot_code',
+  'LOTE',
+  'Lote',
+]
+
+function cleanRealLotCode(value) {
+  const text = String(value || '').trim()
+  if (isNoLotDisplay(text)) return ''
+  if (/^SIN-?LOTE/i.test(text) || /^SINLOTE/i.test(text)) return ''
+  if (isGeneratedLotCode(text)) return ''
+  return text
+}
+
+function realLotCodeFromLot(lot) {
+  if (!lot || typeof lot !== 'object') return ''
+
+  const direct = cleanRealLotCode(firstTextValue(lot, LOT_CODE_FIELDS))
+  if (direct) return direct
+
+  const payload = payloadFrom(lot)
+  if (payload && typeof payload === 'object') {
+    return cleanRealLotCode(firstTextValue(payload, LOT_CODE_FIELDS))
+  }
+
+  return ''
+}
+
 export function displayLotCode(lotCode, lot = null) {
+  const realLotCode = realLotCodeFromLot(lot)
+  if (realLotCode) return realLotCode
+
   if (!lotCode) return 'SIN LOTE'
   const cleanCode = String(lotCode)
     .replace(/^EXCEL-\d+-/i, '')
@@ -148,7 +191,7 @@ export function displayLotCode(lotCode, lot = null) {
 
 export function lotLabel(lotCode, lot = null) {
   const value = displayLotCode(lotCode, lot)
-  return isNoLotDisplay(value) ? 'SIN LOTE' : `L:${value}`
+  return isNoLotDisplay(value) ? 'SIN LOTE' : value
 }
 
 export function packageLabel(lot) {
