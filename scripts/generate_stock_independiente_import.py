@@ -266,8 +266,9 @@ def build_model(data, csv_data, include_all_warehouses=False):
     stock_rows = []
     for key, quantity in sorted(stock.items()):
         product_code, warehouse_code, lot_code, expiry_date = key
-        if quantity <= 0 or warehouse_code not in warehouses:
+        if warehouse_code not in warehouses:
             continue
+        display_quantity = quantity if quantity > 0 else Decimal("0")
         product = products.get(product_code, {})
         package_size, package_unit = extract_package(product.get("Name"))
         product_name_key = normalize_lookup_text(product.get("Name"))
@@ -287,7 +288,8 @@ def build_model(data, csv_data, include_all_warehouses=False):
             "lot_code": lot_code or f"SIN-LOTE-{product_code}",
             "app_lot_code": f"SOL-{product_code}-{warehouse_code}-{lot_code or 'SINLOTE'}-{expiry_date or 'SINVEN'}",
             "expiry_date": expiry_date,
-            "quantity": quantity,
+            "quantity": display_quantity,
+            "source_quantity": quantity,
             "incoming": incoming[key],
             "outgoing": outgoing[key],
             "entry_date": first_entry_date.get(key),
@@ -444,6 +446,7 @@ def build_import_sql(model):
 
     warehouses = []
     clients = []
+    current_client_source_keys = []
     for code, warehouse in sorted(model["warehouses"].items(), key=lambda item: int(item[0])):
         name = clean_text(warehouse.get("Name"))
         raw = {"source": SOURCE_NAME, **warehouse}
@@ -465,6 +468,7 @@ def build_import_sql(model):
             sql_text(SOURCE_NAME),
             sql_json(raw),
         ])
+        current_client_source_keys.append(f"stock_independiente:warehouse:{code}")
 
     product_rows = []
     for code, product in sorted(model["products"].items()):
@@ -498,6 +502,7 @@ def build_import_sql(model):
             "incoming_quantity": str(row["incoming"]),
             "outgoing_quantity": str(row["outgoing"]),
             "current_quantity": str(row["quantity"]),
+            "source_quantity": str(row.get("source_quantity", row["quantity"])),
             "pallet_units_per_pallet": str(row["pallet_units_per_pallet"] or ""),
         }
         stock_rows.append([
@@ -557,6 +562,23 @@ def build_import_sql(model):
         clients,
         "on conflict (source_key) do update set name = excluded.name, solucion_codigo = excluded.solucion_codigo, inventory_source = excluded.inventory_source, raw_data = excluded.raw_data",
     ))
+    if current_client_source_keys:
+        client_values = sql_values_text(current_client_source_keys)
+        statements.append(f"""with current_clients(source_key) as (
+values
+{client_values}
+)
+update public.clients as client
+set
+  inventory_source = '{SOURCE_NAME}_archived',
+  raw_data = coalesce(client.raw_data, '{{}}'::jsonb) || jsonb_build_object('archived_from', '{SOURCE_NAME}', 'archived_at', now())
+where client.inventory_source = '{SOURCE_NAME}'
+  and client.source_key like '{SOURCE_NAME}:warehouse:%'
+  and not exists (
+    select 1
+    from current_clients
+    where current_clients.source_key = client.source_key
+  );""")
     statements.extend(values_statement(
         "public.solucion_products",
         ["product_code", "barcode", "name", "unit_code", "min_stock", "inactive", "raw_data", "synced_at"],
@@ -610,6 +632,7 @@ update public.lots as lot
 set
   current_quantity = 0,
   status = 'activo'::public.lot_status,
+  inventory_source = '{SOURCE_NAME}_archived',
   solucion_synced_at = now(),
   updated_at = now()
 where lot.inventory_source = '{SOURCE_NAME}'
@@ -619,7 +642,7 @@ where lot.inventory_source = '{SOURCE_NAME}'
     from current_source
     where current_source.mirror_id = lot.solucion_mirror_id
   )
-  and (lot.current_quantity <> 0 or lot.status <> 'activo'::public.lot_status);""")
+  and (lot.current_quantity <> 0 or lot.status <> 'activo'::public.lot_status or lot.inventory_source <> '{SOURCE_NAME}_archived');""")
 
         statements.append(f"""with current_source(mirror_id) as (
 values
@@ -639,6 +662,8 @@ where not exists (
     statements.append("""select
   (select count(*) from public.clients where inventory_source = 'stock_independiente') as clientes_stock_independiente,
   (select count(*) from public.lots where inventory_source = 'stock_independiente') as lotes_stock_independiente,
+  (select count(*) from public.lots where inventory_source = 'stock_independiente' and current_quantity > 0) as lotes_con_stock,
+  (select count(*) from public.lots where inventory_source = 'stock_independiente' and current_quantity = 0) as lotes_stock_cero,
   (select coalesce(sum(current_quantity), 0) from public.lots where inventory_source = 'stock_independiente') as envases_stock_independiente,
   (select count(*) from public.solucion_products) as productos_espejo,
   (select count(*) from public.solucion_stock) as stock_espejo;""")
@@ -693,7 +718,9 @@ def main():
         "source_last_note_number": model["source_last_note_number"],
         "warehouses_as_clients": len(model["warehouses"]),
         "products": len(model["products"]),
-        "active_stock_lots": len(model["stock_rows"]),
+        "stock_lots_total": len(model["stock_rows"]),
+        "stock_lots_with_quantity": sum(1 for row in model["stock_rows"] if row["quantity"] > 0),
+        "stock_lots_zero_quantity": sum(1 for row in model["stock_rows"] if row["quantity"] == 0),
         "total_packages": str(sum(row["quantity"] for row in model["stock_rows"])),
         "total_billing_pallets": str(sum((row["quantity"] / row["pallet_units_per_pallet"]) for row in model["stock_rows"] if row["pallet_units_per_pallet"])),
         "stock_lots_without_pallet_rule": sum(1 for row in model["stock_rows"] if not row["pallet_units_per_pallet"]),
