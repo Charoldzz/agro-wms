@@ -10,10 +10,17 @@ import { vibrateSuccess } from '../lib/haptics'
 
 const today = new Date().toISOString().slice(0, 10)
 
-const UNITS = ['lts', 'kgs', 'uds']
+function detectUnit(productName) {
+  if (!productName) return ''
+  const n = productName.toUpperCase()
+  if (/\b(LTS?|LITROS?)\b/.test(n)) return 'lts'
+  if (/\b(KGS?|KILOS?|KILOGRAMOS?)\b/.test(n)) return 'kgs'
+  if (/\b(UDS?|UNIDADES?)\b/.test(n)) return 'uds'
+  return ''
+}
 
 function emptyRow() {
-  return { id: crypto.randomUUID(), product: '', lot_code: '', expiry_date: '', cantidad: '', unidad: '', cajas: '', uds: '', galones: '', bidones: '', tambores: '', pallets: '' }
+  return { id: crypto.randomUUID(), product: '', lot_code: '', expiry_date: '', cantidad: '', cajas: '', uds: '', galones: '', bidones: '', tambores: '', pallets: '' }
 }
 
 function createLotCode(index = 0) {
@@ -158,7 +165,8 @@ export default function OperatorEntry() {
     const totals = {}
     rows.forEach((r) => {
       const qty = Number(r.cantidad || 0)
-      if (r.unidad && qty > 0) totals[r.unidad] = (totals[r.unidad] || 0) + qty
+      const unit = detectUnit(r.product)
+      if (unit && qty > 0) totals[unit] = (totals[unit] || 0) + qty
     })
     return totals
   }, [rows])
@@ -185,7 +193,7 @@ export default function OperatorEntry() {
         units_per_box: 0,
         loose_units: Number(r.cantidad || 0),
         package_size: null,
-        package_unit: r.unidad || null,
+        package_unit: detectUnit(r.product) || null,
         location: internalLocations[0] || 'ALMACEN',
         expiry_date: r.expiry_date || null,
       }))
@@ -266,7 +274,7 @@ export default function OperatorEntry() {
 
       {/* ── Tabla desktop ── */}
       <div className="mb-4 hidden overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm sm:block" ref={tableRef}>
-        <table className="w-full border-collapse" style={{ minWidth: '1040px' }}>
+        <table className="w-full border-collapse" style={{ minWidth: '960px' }}>
           <thead>
             <tr className="bg-campo-700 text-white">
               <th className="border-b border-campo-600 px-2 py-2.5 text-center text-xs font-bold uppercase tracking-wide" style={{width:'36px'}}>N°</th>
@@ -274,7 +282,6 @@ export default function OperatorEntry() {
               <th className="border-b border-campo-600 px-2 py-2.5 text-center text-xs font-bold uppercase tracking-wide" style={{width:'100px'}}>LOTE</th>
               <th className="border-b border-campo-600 px-2 py-2.5 text-center text-xs font-bold uppercase tracking-wide" style={{width:'160px'}}>VENC</th>
               <th className="border-b border-campo-600 px-2 py-2.5 text-right text-xs font-bold uppercase tracking-wide" style={{width:'80px'}}>CANTIDAD</th>
-              <th className="border-b border-campo-600 px-2 py-2.5 text-center text-xs font-bold uppercase tracking-wide" style={{width:'70px'}}>UNIDAD</th>
               <th className="border-b border-campo-600 px-2 py-2.5 text-right text-xs font-bold uppercase tracking-wide" style={{width:'64px'}}>CAJAS</th>
               <th className="border-b border-campo-600 px-2 py-2.5 text-right text-xs font-bold uppercase tracking-wide" style={{width:'64px'}}>UDS</th>
               <th className="border-b border-campo-600 px-2 py-2.5 text-right text-xs font-bold uppercase tracking-wide" style={{width:'72px'}}>GALONES</th>
@@ -332,17 +339,6 @@ export default function OperatorEntry() {
                     placeholder="0"
                   />
                 </td>
-                <td className="px-2 py-1">
-                  <select
-                    className="w-full rounded border border-transparent bg-transparent px-1 py-1 text-center text-sm focus:border-campo-400 focus:bg-white focus:outline-none"
-                    value={row.unidad}
-                    onChange={(e) => updateRow(row.id, 'unidad', e.target.value)}
-                    onFocus={() => setSelectedIdx(i)}
-                  >
-                    <option value="">—</option>
-                    {UNITS.map((u) => <option key={u} value={u}>{u}</option>)}
-                  </select>
-                </td>
                 {['cajas', 'uds', 'galones', 'bidones', 'tambores', 'pallets'].map((field) => (
                   <td key={field} className="px-2 py-1">
                     <input
@@ -374,7 +370,7 @@ export default function OperatorEntry() {
           <tfoot>
             <tr className="border-t-2 border-slate-200 bg-slate-50">
               <td colSpan={4} className="px-3 py-2.5 text-xs font-black uppercase text-slate-500">Totales</td>
-              <td colSpan={2} className="px-3 py-2.5">
+              <td className="px-3 py-2.5">
                 {Object.keys(unitTotals).length > 0
                   ? <span className="flex flex-wrap gap-3">{Object.entries(unitTotals).map(([u, v]) => (
                       <span key={u} className="text-sm font-black text-campo-700">{formatNumber(v)} <span className="font-bold text-campo-500">{u}</span></span>
@@ -435,32 +431,21 @@ export default function OperatorEntry() {
               </div>
             </div>
 
-            <div className="mb-3 grid grid-cols-2 gap-2">
-              <label className="block">
-                <span className="text-xs font-bold uppercase text-slate-500">CANTIDAD</span>
-                <input
-                  className="input mt-1 w-full text-right font-bold text-sm"
-                  inputMode="decimal"
-                  value={row.cantidad}
-                  onChange={(e) => {
-                    const v = e.target.value.replace(',', '.')
-                    if (/^\d*\.?\d*$/.test(v)) updateRow(row.id, 'cantidad', v)
-                  }}
-                  placeholder="0"
-                />
-              </label>
-              <label className="block">
-                <span className="text-xs font-bold uppercase text-slate-500">UNIDAD</span>
-                <select
-                  className="input mt-1 w-full text-sm"
-                  value={row.unidad}
-                  onChange={(e) => updateRow(row.id, 'unidad', e.target.value)}
-                >
-                  <option value="">—</option>
-                  {UNITS.map((u) => <option key={u} value={u}>{u}</option>)}
-                </select>
-              </label>
-            </div>
+            <label className="mb-3 block">
+              <span className="text-xs font-bold uppercase text-slate-500">
+                CANTIDAD{detectUnit(row.product) ? ` (${detectUnit(row.product)})` : ''}
+              </span>
+              <input
+                className="input mt-1 w-full text-right font-bold text-sm"
+                inputMode="decimal"
+                value={row.cantidad}
+                onChange={(e) => {
+                  const v = e.target.value.replace(',', '.')
+                  if (/^\d*\.?\d*$/.test(v)) updateRow(row.id, 'cantidad', v)
+                }}
+                placeholder="0"
+              />
+            </label>
 
             <div className="grid grid-cols-3 gap-2">
               {['cajas', 'uds', 'galones', 'bidones', 'tambores', 'pallets'].map((field) => (
