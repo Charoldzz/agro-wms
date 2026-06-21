@@ -205,33 +205,29 @@ export default function CatalogoModal({ clients, onClose }) {
               ) : filtered.length === 0 ? (
                 <p className="py-8 text-center text-sm font-bold text-slate-400">Sin productos.</p>
               ) : (
-                <table className="w-full border-collapse">
-                  <thead className="sticky top-0">
-                    <tr className="bg-campo-700 text-white">
-                      <th className="w-28 px-4 py-2.5 text-left text-xs font-black uppercase tracking-wide">CÓDIGO</th>
-                      <th className="px-4 py-2.5 text-left text-xs font-black uppercase tracking-wide">PRODUCTO</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filtered.map((p, i) => (
-                      <tr
-                        key={p.id}
-                        className={`cursor-pointer border-b border-slate-100 transition-colors ${
-                          selectedId === p.id
-                            ? 'bg-campo-100'
-                            : i % 2 === 0 ? 'bg-white hover:bg-slate-50' : 'bg-slate-50 hover:bg-slate-100'
-                        }`}
-                        onClick={() => { setSelectedId((prev) => (prev === p.id ? null : p.id)); setError('') }}
-                      >
-                        <td className="px-4 py-2.5 font-mono text-sm font-bold text-campo-700 whitespace-nowrap">{p.code}</td>
-                        <td className="px-4 py-2.5">
-                          <p className="text-sm font-bold text-slate-900">{productDisplayName(p)}</p>
-                          <p className="text-xs font-semibold text-slate-400">{p.clients?.name || ''}</p>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                <div className="divide-y divide-slate-100">
+                  <div className="sticky top-0 flex items-center gap-3 bg-campo-700 px-4 py-2.5">
+                    <span className="w-24 shrink-0 text-xs font-black uppercase tracking-wide text-white">Código</span>
+                    <span className="min-w-0 flex-1 text-xs font-black uppercase tracking-wide text-white">Producto</span>
+                  </div>
+                  {filtered.map((p, i) => (
+                    <div
+                      key={p.id}
+                      className={`flex cursor-pointer items-center gap-3 px-4 py-2.5 transition-colors ${
+                        selectedId === p.id
+                          ? 'bg-campo-100'
+                          : i % 2 === 0 ? 'bg-white hover:bg-slate-50' : 'bg-slate-50 hover:bg-slate-100'
+                      }`}
+                      onClick={() => { setSelectedId((prev) => (prev === p.id ? null : p.id)); setError('') }}
+                    >
+                      <span className="w-24 shrink-0 font-mono text-xs font-bold text-campo-700">{p.code}</span>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-xs font-bold text-slate-900">{productDisplayName(p)}</p>
+                        <p className="truncate text-[10px] font-semibold text-slate-400">{p.clients?.name || ''}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
               )}
             </div>
 
