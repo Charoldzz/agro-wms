@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { ArrowLeft, Edit2, Save, Search, X } from 'lucide-react'
+import { ArrowLeft, Edit2, Save, Search, Trash2, X } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 
 const UNITS = ['lt', 'ml', 'kg', 'g', 'unid', 'caja', 'bolsa', 'saco']
@@ -19,6 +19,7 @@ export default function CatalogoModal({ clients, onClose }) {
   const [mode, setMode] = useState(null) // null | 'edit'
   const [editForm, setEditForm] = useState({ code: '', name: '', package_size: '', package_unit: 'lt' })
   const [saving, setSaving] = useState(false)
+  const [deleting, setDeleting] = useState(false)
   const [error, setError] = useState('')
 
   useEffect(() => { load() }, [])
@@ -56,6 +57,26 @@ export default function CatalogoModal({ clients, onClose }) {
     setEditForm({ code: p.code || '', name: p.name || '', package_size: p.package_size || '', package_unit: p.package_unit || 'lt' })
     setError('')
     setMode('edit')
+  }
+
+  async function handleEliminar() {
+    if (!selectedId) {
+      setError('Selecciona un producto de la lista para eliminar.')
+      return
+    }
+    const p = products.find((x) => x.id === selectedId)
+    if (!p) return
+    const label = `${p.code || ''} - ${productDisplayName(p) || p.name || ''}`.trim()
+    const ok = window.confirm(`Eliminar producto del catalogo?\n\n${label}\n\nEsta accion no elimina lotes ni movimientos existentes.`)
+    if (!ok) return
+
+    setDeleting(true)
+    setError('')
+    const { error: err } = await supabase.from('product_catalog').delete().eq('id', selectedId)
+    setDeleting(false)
+    if (err) return setError(err.message)
+    setSelectedId(null)
+    load()
   }
 
   async function saveEdit(e) {
@@ -107,9 +128,19 @@ export default function CatalogoModal({ clients, onClose }) {
                 className="btn-secondary !min-h-9 !px-3 !py-1.5 text-sm"
                 type="button"
                 onClick={handleModificar}
+                disabled={deleting}
               >
                 <Edit2 size={15} />
                 Modificar
+              </button>
+              <button
+                className="btn-secondary !min-h-9 !px-3 !py-1.5 text-sm text-red-700 hover:bg-red-50"
+                type="button"
+                onClick={handleEliminar}
+                disabled={deleting}
+              >
+                <Trash2 size={15} />
+                {deleting ? 'Eliminando...' : 'Eliminar'}
               </button>
               <div className="relative flex-1 min-w-0">
                 <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />

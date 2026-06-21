@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { ChevronLeft, ChevronRight, Edit2, Plus, Save, Search, X } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Edit2, Plus, Save, Search, Trash2, X } from 'lucide-react'
 
 const PAGE_SIZE = 30
 import PageHeader from '../components/PageHeader'
@@ -28,6 +28,7 @@ export default function ProductCatalog() {
   const [editingId, setEditingId] = useState(null)
   const [editForm, setEditForm] = useState({})
   const [saving, setSaving] = useState(false)
+  const [deletingId, setDeletingId] = useState(null)
   const [error, setError] = useState('')
 
   useEffect(() => { load() }, [])
@@ -82,6 +83,21 @@ export default function ProductCatalog() {
     setSaving(false)
     if (err) return setError(err.message)
     setEditingId(null)
+    load()
+  }
+
+  async function deleteProduct(product) {
+    if (!product?.id) return
+    const label = `${product.code || ''} - ${productDisplayName(product) || product.name || ''}`.trim()
+    const ok = window.confirm(`Eliminar producto del catalogo?\n\n${label}\n\nEsta accion no elimina lotes ni movimientos existentes.`)
+    if (!ok) return
+
+    setDeletingId(product.id)
+    setError('')
+    const { error: err } = await supabase.from('product_catalog').delete().eq('id', product.id)
+    setDeletingId(null)
+    if (err) return setError(err.message)
+    if (editingId === product.id) cancelEdit()
     load()
   }
 
@@ -178,9 +194,14 @@ export default function ProductCatalog() {
                       </button>
                     </>
                   ) : (
-                    <button className="btn-secondary !min-h-8 !px-2 !py-1 text-xs" type="button" onClick={() => startEdit(p)}>
-                      <Edit2 size={14} />
-                    </button>
+                    <>
+                      <button className="btn-secondary !min-h-8 !px-2 !py-1 text-xs" type="button" onClick={() => startEdit(p)} disabled={deletingId === p.id}>
+                        <Edit2 size={14} />
+                      </button>
+                      <button className="btn-secondary !min-h-8 !px-2 !py-1 text-xs text-red-700 hover:bg-red-50" type="button" onClick={() => deleteProduct(p)} disabled={deletingId === p.id}>
+                        <Trash2 size={14} />
+                      </button>
+                    </>
                   )}
                 </div>
               )}
