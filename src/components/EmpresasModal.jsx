@@ -3,7 +3,7 @@ import { ArrowLeft, Edit2, Plus, Save, Search, X } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 
 const initialNew = { name: '', product_code_prefix: '', contact: '' }
-const initialEdit = { product_code_prefix: '', contact: '', notes: '' }
+const initialEdit = { name: '', product_code_prefix: '', contact: '', notes: '' }
 
 function displayName(name) {
   return String(name || '').replaceAll('"', '').replace(/\s+/g, ' ').trim()
@@ -54,7 +54,7 @@ export default function EmpresasModal({ onClose, onSaved }) {
     const c = clients.find((x) => x.id === selectedId)
     if (!c) return
     const notesClean = /importado\s+desde\s+excel/i.test(c.notes || '') ? '' : (c.notes || '')
-    setEditForm({ product_code_prefix: c.product_code_prefix || '', contact: c.contact || '', notes: notesClean })
+    setEditForm({ name: c.name || '', product_code_prefix: c.product_code_prefix || '', contact: c.contact || '', notes: notesClean })
     setError('')
     setMode('edit')
   }
@@ -85,7 +85,9 @@ export default function EmpresasModal({ onClose, onSaved }) {
     if (!selectedId) return
     setSaving(true)
     const prefix = editForm.product_code_prefix.trim().toUpperCase().replace(/[^A-Z0-9]/g, '')
+    if (!editForm.name.trim()) return setError('El nombre es obligatorio.')
     const { error: err } = await supabase.from('clients').update({
+      name: editForm.name.trim(),
       product_code_prefix: prefix || null,
       contact: editForm.contact.trim() || null,
       notes: editForm.notes.trim() || null,
@@ -253,11 +255,15 @@ export default function EmpresasModal({ onClose, onSaved }) {
         {/* === FORMULARIO MODIFICAR === */}
         {mode === 'edit' && selectedId && (
           <form onSubmit={saveEdit} className="flex flex-1 flex-col gap-4 overflow-y-auto p-5">
-            <div className="rounded-lg bg-slate-50 p-3">
-              <p className="text-xs font-semibold uppercase text-slate-400">Empresa</p>
-              <p className="mt-0.5 text-base font-bold text-slate-900">{displayName(selectedClient?.name || '')}</p>
-              <p className="mt-0.5 text-xs text-slate-400">El nombre viene del sistema y no se modifica desde aquí.</p>
-            </div>
+            <label className="block">
+              <span className="text-sm font-bold text-slate-700">Nombre *</span>
+              <input
+                className="input mt-1 w-full"
+                value={editForm.name}
+                onChange={(e) => setEditForm((f) => ({ ...f, name: e.target.value }))}
+                required
+              />
+            </label>
             <label className="block">
               <span className="text-sm font-bold text-slate-700">Prefijo de código</span>
               <input
