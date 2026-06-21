@@ -3,44 +3,34 @@ import { X } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 
 const UNITS = ['lt', 'ml', 'kg', 'g', 'unid', 'caja', 'bolsa', 'saco']
-const PREFIX_STOP_WORDS = new Set(['S', 'SA', 'SAS', 'SRL', 'LTDA', 'BOLIVIA', 'TOTAL', 'AGRO'])
-
-function escapeRegExp(value) {
-  return String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-}
 
 function cleanPrefix(value) {
   return String(value || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 8)
 }
 
-function suggestPrefix(name) {
-  const words = String(name || '')
-    .toUpperCase()
-    .replace(/[^A-Z0-9\s]/g, ' ')
-    .split(/\s+/)
-    .filter((word) => word && !PREFIX_STOP_WORDS.has(word))
-
-  const firstLong = words.find((word) => word.length >= 4)
-  if (firstLong) return cleanPrefix(firstLong.slice(0, 4))
-
-  return cleanPrefix(words.map((word) => word[0]).join('').slice(0, 4))
+function parseCatalogCode(code) {
+  const match = String(code || '').trim().toUpperCase().match(/^([A-Z0-9]+)-(\d+)$/)
+  if (!match) return null
+  return { prefix: match[1], number: parseInt(match[2], 10), width: match[2].length }
 }
 
-function nextCodeForPrefix(existingCodes, prefix) {
-  const escaped = escapeRegExp(prefix)
-  const nums = existingCodes
-    .map((c) => {
-      const match = String(c).match(new RegExp(`^${escaped}-(\\d+)$`, 'i'))
-      return match ? parseInt(match[1], 10) : 0
-    })
-    .filter((n) => n > 0)
-  const last = nums.length ? Math.max(...nums) : 0
-  return `${prefix}-${String(last + 1).padStart(5, '0')}`
+function nextCodeForClient(existingCodes, fallbackPrefix = '') {
+  const parsed = existingCodes
+    .map(parseCatalogCode)
+    .filter(Boolean)
+    .sort((a, b) => b.number - a.number)
+
+  const base = parsed[0]
+  const prefix = base?.prefix || cleanPrefix(fallbackPrefix)
+  if (!prefix) return ''
+
+  const last = base?.number || 0
+  const width = Math.max(base?.width || 5, 5)
+  return `${prefix}-${String(last + 1).padStart(width, '0')}`
 }
 
 export default function NewProductModal({ clients, onClose, onSaved }) {
   const [clientId, setClientId] = useState('')
-  const [prefix, setPrefix] = useState('')
   const [nextCode, setNextCode] = useState('')
   const [name, setName] = useState('')
   const [packageSize, setPackageSize] = useState('')
@@ -59,61 +49,32 @@ export default function NewProductModal({ clients, onClose, onSaved }) {
   useEffect(() => {
     if (!clientId) {
       setNextCode('')
-      setPrefix('')
       return
     }
 
-    const p = cleanPrefix(selectedClient?.product_code_prefix || suggestPrefix(selectedClient?.name))
-    setPrefix(p)
-    if (!p) {
-      setNextCode('')
-      return
-    }
-    loadNextCode(p)
-  }, [clientId, selectedClient?.product_code_prefix, selectedClient?.name])
+    loadNextCode(clientId, selectedClient?.product_code_prefix)
+  }, [clientId, selectedClient?.product_code_prefix])
 
-  async function loadNextCode(p) {
+  async function loadNextCode(cid, fallbackPrefix) {
     setLoadingCode(true)
     const { data } = await supabase
       .from('product_catalog')
       .select('code')
-      .ilike('code', `${p}-%`)
+      .eq('client_id', cid)
     const codes = (data || []).map((r) => r.code)
-    setNextCode(nextCodeForPrefix(codes, p))
+    setNextCode(nextCodeForClient(codes, fallbackPrefix))
     setLoadingCode(false)
-  }
-
-  function handlePrefixChange(value) {
-    const p = cleanPrefix(value)
-    setPrefix(p)
-    setNextCode('')
-    if (p) loadNextCode(p)
   }
 
   async function handleSave(e) {
     e.preventDefault()
     setError('')
     if (!clientId) return setError('Selecciona una empresa.')
-    const finalPrefix = cleanPrefix(prefix)
-    if (!finalPrefix) return setError('Define un prefijo de codigo para esta empresa.')
     if (!name.trim()) return setError('Escribe el nombre del producto.')
     if (loadingCode) return setError('Espera a que se genere el codigo.')
     if (!nextCode) return setError('No se pudo generar el codigo.')
-    if (!nextCode.startsWith(`${finalPrefix}-`)) return setError('El codigo no coincide con el prefijo elegido.')
 
     setSaving(true)
-
-    if (cleanPrefix(selectedClient?.product_code_prefix) !== finalPrefix) {
-      const { error: prefixError } = await supabase
-        .from('clients')
-        .update({ product_code_prefix: finalPrefix })
-        .eq('id', clientId)
-
-      if (prefixError) {
-        setSaving(false)
-        return setError(prefixError.message)
-      }
-    }
 
     const { error: err } = await supabase.from('product_catalog').insert({
       client_id: clientId,
@@ -155,29 +116,13 @@ export default function NewProductModal({ clients, onClose, onSaved }) {
 
           <div>
             <label className="block text-sm font-bold text-slate-700">Codigo</label>
-            <div className="mt-1 grid grid-cols-[minmax(0,0.45fr)_minmax(0,0.55fr)] gap-2">
-              <input
-                className="input w-full font-mono uppercase"
-                type="text"
-                value={prefix}
-                onChange={(e) => handlePrefixChange(e.target.value)}
-                placeholder="Prefijo"
-                disabled={!clientId}
-                maxLength={8}
-              />
-              <input
-                className="input w-full bg-slate-50 font-mono text-slate-500"
-                type="text"
-                value={loadingCode ? 'Cargando...' : nextCode}
-                readOnly
-                placeholder="Codigo"
-              />
-            </div>
-            {clientId && !selectedClient?.product_code_prefix && prefix && (
-              <p className="mt-1 text-xs font-semibold text-amber-600">
-                Este prefijo se guardara en la empresa para los proximos productos.
-              </p>
-            )}
+            <input
+              className="input mt-1 w-full bg-slate-50 font-mono text-slate-500"
+              type="text"
+              value={loadingCode ? 'Cargando...' : nextCode}
+              readOnly
+              placeholder="Se genera automaticamente"
+            />
           </div>
 
           <div>
