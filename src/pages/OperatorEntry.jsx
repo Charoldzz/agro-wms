@@ -10,13 +10,15 @@ import { vibrateSuccess } from '../lib/haptics'
 
 const today = new Date().toISOString().slice(0, 10)
 
-function detectUnit(productName) {
-  if (!productName) return ''
-  const n = productName.toUpperCase()
-  if (/\b(LTS?|LITROS?)\b/.test(n)) return 'lts'
-  if (/\b(KGS?|KILOS?|KILOGRAMOS?)\b/.test(n)) return 'kgs'
-  if (/\b(UDS?|UNIDADES?)\b/.test(n)) return 'uds'
-  return ''
+function parseProductUnit(productName) {
+  if (!productName) return { size: 1, unit: '' }
+  // Match patterns like "X 10 Kgs", "x 5 Lts.", "X 20 L", "x 1 Lt."
+  const match = productName.match(/[xX×]\s*([\d.,]+)\s*(lts?\.?|kgs?\.?|l\.?)\b/i)
+  if (!match) return { size: 1, unit: '' }
+  const size = parseFloat(match[1].replace(',', '.'))
+  const raw = match[2].toLowerCase().replace('.', '')
+  const unit = /^l(ts?)?$/.test(raw) ? 'lts' : /^kgs?$/.test(raw) ? 'kgs' : ''
+  return { size: isNaN(size) ? 1 : size, unit }
 }
 
 function emptyRow() {
@@ -165,8 +167,8 @@ export default function OperatorEntry() {
     const totals = {}
     rows.forEach((r) => {
       const qty = Number(r.cantidad || 0)
-      const unit = detectUnit(r.product)
-      if (unit && qty > 0) totals[unit] = (totals[unit] || 0) + qty
+      const { size, unit } = parseProductUnit(r.product)
+      if (unit && qty > 0) totals[unit] = (totals[unit] || 0) + qty * size
     })
     return totals
   }, [rows])
@@ -191,9 +193,9 @@ export default function OperatorEntry() {
         product: r.product.trim(),
         box_count: Number(r.cajas || 0),
         units_per_box: 0,
-        loose_units: Number(r.cantidad || 0),
-        package_size: null,
-        package_unit: detectUnit(r.product) || null,
+        loose_units: Number(r.cantidad || 0) * (parseProductUnit(r.product).size || 1),
+        package_size: parseProductUnit(r.product).size || null,
+        package_unit: parseProductUnit(r.product).unit || null,
         location: internalLocations[0] || 'ALMACEN',
         expiry_date: r.expiry_date || null,
       }))
@@ -433,7 +435,7 @@ export default function OperatorEntry() {
 
             <label className="mb-3 block">
               <span className="text-xs font-bold uppercase text-slate-500">
-                CANTIDAD{detectUnit(row.product) ? ` (${detectUnit(row.product)})` : ''}
+                {(() => { const { size, unit } = parseProductUnit(row.product); return unit ? `CANTIDAD (× ${size} ${unit})` : 'CANTIDAD' })()}
               </span>
               <input
                 className="input mt-1 w-full text-right font-bold text-sm"
