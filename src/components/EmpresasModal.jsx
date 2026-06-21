@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { ArrowLeft, Edit2, Plus, Save, Search, X } from 'lucide-react'
+import { ArrowLeft, Edit2, Plus, Save, Search, Trash2, X } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 
 const initialNew = { name: '', product_code_prefix: '', contact: '' }
@@ -18,6 +18,7 @@ export default function EmpresasModal({ onClose, onSaved }) {
   const [newForm, setNewForm] = useState(initialNew)
   const [editForm, setEditForm] = useState(initialEdit)
   const [saving, setSaving] = useState(false)
+  const [deleting, setDeleting] = useState(false)
   const [error, setError] = useState('')
 
   useEffect(() => { load() }, [])
@@ -99,6 +100,25 @@ export default function EmpresasModal({ onClose, onSaved }) {
     onSaved?.()
   }
 
+  async function handleEliminar() {
+    if (!selectedId) {
+      setError('Selecciona una empresa de la lista para eliminar.')
+      return
+    }
+    const c = clients.find((x) => x.id === selectedId)
+    if (!c) return
+    const ok = window.confirm(`¿Seguro que quieres eliminar esta empresa?\n\n${displayName(c.name)}\n\nEsta acción no se puede deshacer.`)
+    if (!ok) return
+    setDeleting(true)
+    setError('')
+    const { error: err } = await supabase.from('clients').delete().eq('id', selectedId)
+    setDeleting(false)
+    if (err) return setError(err.message)
+    setSelectedId(null)
+    load()
+    onSaved?.()
+  }
+
   function cancel() {
     setMode(null)
     setNewForm(initialNew)
@@ -138,8 +158,18 @@ export default function EmpresasModal({ onClose, onSaved }) {
                 className="btn-secondary !min-h-9 !px-3 !py-1.5 text-sm"
                 type="button"
                 onClick={handleModificar}
+                disabled={deleting}
               >
                 <Edit2 size={15} /> Modificar
+              </button>
+              <button
+                className="btn-secondary !min-h-9 !px-3 !py-1.5 text-sm text-red-700 hover:bg-red-50"
+                type="button"
+                onClick={handleEliminar}
+                disabled={deleting}
+              >
+                <Trash2 size={15} />
+                {deleting ? 'Eliminando...' : 'Eliminar'}
               </button>
               <div className="relative flex-1">
                 <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
