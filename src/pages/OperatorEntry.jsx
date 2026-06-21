@@ -276,7 +276,7 @@ export default function OperatorEntry() {
 
       {/* ── Tabla desktop ── */}
       <div className="mb-4 hidden overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm sm:block" ref={tableRef}>
-        <table className="w-full border-collapse" style={{ minWidth: '960px' }}>
+        <table className="w-full border-collapse" style={{ minWidth: '1080px' }}>
           <thead>
             <tr className="bg-campo-700 text-white">
               <th className="border-b border-campo-600 px-2 py-2.5 text-center text-xs font-bold uppercase tracking-wide" style={{width:'36px'}}>N°</th>
@@ -303,12 +303,16 @@ export default function OperatorEntry() {
                 <td className="px-2 py-1 text-center text-sm font-bold text-slate-500">{i + 1}</td>
                 <td className="px-2 py-1">
                   <div className="relative">
+                    <div className={`w-full truncate rounded border border-transparent py-1 pl-1.5 pr-5 text-sm ${row.product ? 'text-slate-800' : 'text-slate-400'} ${!clientId ? 'opacity-40' : ''}`}>
+                      {row.product || '—'}
+                    </div>
                     <select
-                      className="w-full appearance-none rounded border border-transparent bg-transparent py-1 pl-1.5 pr-6 text-sm focus:border-campo-400 focus:bg-white focus:outline-none disabled:opacity-40"
+                      className="absolute inset-0 w-full cursor-pointer opacity-0 disabled:cursor-not-allowed"
                       value={row.product}
                       onChange={(e) => updateRow(row.id, 'product', e.target.value)}
                       onFocus={() => setSelectedIdx(i)}
                       disabled={!clientId}
+                      title={row.product}
                     >
                       <option value="">—</option>
                       {products.map((p) => <option key={p} value={p}>{p}</option>)}
