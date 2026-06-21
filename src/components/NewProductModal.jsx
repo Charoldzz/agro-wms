@@ -57,10 +57,11 @@ export default function NewProductModal({ clients, onClose, onSaved }) {
 
   async function loadNextCode(cid, fallbackPrefix) {
     setLoadingCode(true)
-    const { data } = await supabase
-      .from('product_catalog')
-      .select('code')
-      .eq('client_id', cid)
+    const prefix = cleanPrefix(fallbackPrefix)
+    const query = prefix
+      ? supabase.from('product_catalog').select('code').ilike('code', `${prefix}-%`)
+      : supabase.from('product_catalog').select('code').eq('client_id', cid)
+    const { data } = await query
     const codes = (data || []).map((r) => r.code)
     setNextCode(nextCodeForClient(codes, fallbackPrefix))
     setLoadingCode(false)
