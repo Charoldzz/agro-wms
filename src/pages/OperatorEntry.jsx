@@ -31,8 +31,10 @@ export default function OperatorEntry() {
 
   const [clients, setClients] = useState([])
   const [clientId, setClientId] = useState('')
-  const [concepto, setConcepto] = useState('Ingreso de producto')
-  const [location, setLocation] = useState(internalLocations[0] || 'ALMACEN')
+  const [contacto, setContacto] = useState('')
+  const [transportista, setTransportista] = useState('')
+  const [placa, setPlaca] = useState('')
+  const [observaciones, setObservaciones] = useState('')
   const [rows, setRows] = useState([emptyRow()])
   const [selectedIdx, setSelectedIdx] = useState(0)
   const [products, setProducts] = useState([])
@@ -131,18 +133,18 @@ export default function OperatorEntry() {
         loose_units: Number(r.quantity),
         package_size: null,
         package_unit: null,
-        location: location || 'ALMACEN',
+        location: internalLocations[0] || 'ALMACEN',
         expiry_date: r.expiry_date || null,
       }))
 
       const { error: rpcError } = await supabase.rpc('create_entry_operation', {
         p_client_id: clientId,
-        p_driver_name: concepto || 'Ingreso de producto',
-        p_driver_document: '',
-        p_vehicle_plate: '',
+        p_driver_name: transportista.trim() || null,
+        p_driver_document: contacto.trim() || null,
+        p_vehicle_plate: placa.trim() || null,
         p_entry_date: today,
         p_photo_url: null,
-        p_notes: concepto || null,
+        p_notes: observaciones.trim() || null,
         p_items: items,
         p_user_id: user.id,
       })
@@ -178,16 +180,20 @@ export default function OperatorEntry() {
           <div className="input mt-1 cursor-not-allowed select-none bg-slate-100 font-semibold text-slate-600">{today}</div>
         </div>
         <label className="block">
-          <span className="label">Concepto</span>
-          <input className="input mt-1" value={concepto} onChange={(e) => setConcepto(e.target.value)} />
+          <span className="label">Contacto</span>
+          <input className="input mt-1" placeholder="Nombre del contacto" value={contacto} onChange={(e) => setContacto(e.target.value)} />
         </label>
         <label className="block">
-          <span className="label">Almacén / Ubicación</span>
-          <select className="input mt-1" value={location} onChange={(e) => setLocation(e.target.value)}>
-            {internalLocations.map((loc) => (
-              <option key={loc} value={loc}>{loc}</option>
-            ))}
-          </select>
+          <span className="label">Transportista</span>
+          <input className="input mt-1" placeholder="Nombre del transportista" value={transportista} onChange={(e) => setTransportista(e.target.value)} />
+        </label>
+        <label className="block">
+          <span className="label">Placa</span>
+          <input className="input mt-1 uppercase" placeholder="Ej: 1234ABC" value={placa} onChange={(e) => setPlaca(e.target.value.toUpperCase())} />
+        </label>
+        <label className="block">
+          <span className="label">Observaciones</span>
+          <input className="input mt-1" placeholder="Opcional" value={observaciones} onChange={(e) => setObservaciones(e.target.value)} />
         </label>
       </section>
 
