@@ -5,7 +5,7 @@ import { useAuth } from '../hooks/useAuth.jsx'
 import { supabase } from '../lib/supabase'
 import { formatDate, formatNumber } from '../lib/format'
 import { cleanProductName, displayLotCode, lotLabel, productCodeLabel } from '../lib/display'
-import { companyBillingPallets, hasCompanyBillingPallets, sumBillingPallets } from '../lib/pallets'
+import { sumBillingPallets } from '../lib/pallets'
 import NewProductModal from '../components/NewProductModal'
 import EmpresasModal from '../components/EmpresasModal'
 import CatalogoModal from '../components/CatalogoModal'
@@ -125,19 +125,6 @@ export default function Lots() {
   const totalPallets = sumBillingPallets(filteredLots)
 
   const selectedClientName = selectedClient ? clients.find((c) => c.id === selectedClient)?.name : ''
-  const officialTotalPallets = (() => {
-    if (search.trim()) return null
-    if (selectedClientName) return companyBillingPallets(selectedClientName, null)
-    const visibleClientIds = new Set(filteredLots.map((lot) => lot.client_id).filter(Boolean))
-    if (!visibleClientIds.size) return null
-    let total = 0
-    for (const client of clients) {
-      if (!visibleClientIds.has(client.id)) continue
-      if (!hasCompanyBillingPallets(client.name)) return null
-      total += companyBillingPallets(client.name, 0)
-    }
-    return total
-  })()
   const visibleClients = clients.filter((c) =>
     !clientSearch || c.name.toLowerCase().includes(clientSearch.toLowerCase())
   )
@@ -468,7 +455,7 @@ export default function Lots() {
             <Total label="TOTAL MERCADERÍA" value={formatNumber(totalMercaderia)} />
             <Total
               label="TOTAL PALLETS"
-              value={(officialTotalPallets ?? totalPallets.value) > 0 ? formatNumber(officialTotalPallets ?? totalPallets.value) : '—'}
+              value={totalPallets.value > 0 ? formatNumber(totalPallets.value) : '—'}
             />
           </div>
 

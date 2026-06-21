@@ -648,16 +648,12 @@ where lot.inventory_source = '{SOURCE_NAME}'
 values
 {current_values}
 )
-update public.solucion_stock as stock
-set
-  current_quantity = 0,
-  synced_at = now()
+delete from public.solucion_stock as stock
 where not exists (
     select 1
     from current_source
     where current_source.mirror_id = stock.mirror_id
-  )
-  and coalesce(stock.current_quantity, 0) <> 0;""")
+  );""")
 
     statements.append("""select
   (select count(*) from public.clients where inventory_source = 'stock_independiente') as clientes_stock_independiente,
