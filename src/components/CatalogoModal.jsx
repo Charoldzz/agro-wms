@@ -222,8 +222,8 @@ export default function CatalogoModal({ clients, onClose }) {
                     >
                       <span className="w-24 shrink-0 font-mono text-xs font-bold text-campo-700">{p.code}</span>
                       <div className="min-w-0 flex-1">
-                        <p className="truncate text-xs font-bold text-slate-900">{productDisplayName(p)}</p>
-                        <p className="truncate text-[10px] font-semibold text-slate-400">{p.clients?.name || ''}</p>
+                        <p className="text-xs font-bold leading-snug text-slate-900 [overflow-wrap:anywhere]">{productDisplayName(p)}</p>
+                        <p className="text-[10px] font-semibold text-slate-400 [overflow-wrap:anywhere]">{p.clients?.name || ''}</p>
                       </div>
                     </div>
                   ))}
