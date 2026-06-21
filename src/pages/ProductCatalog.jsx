@@ -36,7 +36,7 @@ export default function ProductCatalog() {
   async function load() {
     setLoading(true)
     const [{ data: clientsData }, { data: productsData }] = await Promise.all([
-      supabase.from('clients').select('id, name, product_code_prefix').order('name'),
+      supabase.from('clients').select('id, name, product_code_prefix').eq('inventory_source', 'stock_independiente').order('name'),
       supabase.from('product_catalog').select('*, clients(name)').order('code'),
     ])
     setClients(clientsData || [])
@@ -175,8 +175,8 @@ export default function ProductCatalog() {
                 </div>
               ) : (
                 <div className="min-w-0">
-                  <p className="truncate text-sm font-bold text-slate-900">{productDisplayName(p)}</p>
-                  <p className="text-xs font-semibold text-slate-400">{p.clients?.name || '-'}</p>
+                  <p className="text-sm font-bold leading-snug text-slate-900 [overflow-wrap:anywhere]">{productDisplayName(p)}</p>
+                  <p className="text-xs font-semibold text-slate-400 [overflow-wrap:anywhere]">{p.clients?.name || '-'}</p>
                 </div>
               )}
 
