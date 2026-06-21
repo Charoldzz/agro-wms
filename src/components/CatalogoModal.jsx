@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { ArrowLeft, Edit2, Save, Search, Trash2, X } from 'lucide-react'
+import { ArrowLeft, Edit2, Filter, Save, Search, Trash2, X } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 
 const UNITS = ['lt', 'ml', 'kg', 'g', 'unid', 'caja', 'bolsa', 'saco']
@@ -15,6 +15,7 @@ export default function CatalogoModal({ clients, onClose }) {
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [filterClient, setFilterClient] = useState('')
+  const [showFilterMenu, setShowFilterMenu] = useState(false)
   const [selectedId, setSelectedId] = useState(null)
   const [mode, setMode] = useState(null) // null | 'edit'
   const [editForm, setEditForm] = useState({ code: '', name: '', package_size: '', package_unit: 'lt' })
@@ -151,16 +152,43 @@ export default function CatalogoModal({ clients, onClose }) {
                   onChange={(e) => setSearch(e.target.value)}
                 />
               </div>
-              <select
-                className="input text-sm sm:w-36"
-                value={filterClient}
-                onChange={(e) => setFilterClient(e.target.value)}
-              >
-                <option value="">Todas</option>
-                {(clients || []).map((c) => (
-                  <option key={c.id} value={c.id}>{c.name}</option>
-                ))}
-              </select>
+              <div className="relative">
+                <button
+                  className={`btn-secondary !min-h-9 !p-2 relative ${filterClient ? 'border-campo-400 bg-campo-50 text-campo-700' : ''}`}
+                  type="button"
+                  title={filterClient ? `Filtro: ${clients?.find((c) => c.id === filterClient)?.name || ''}` : 'Filtrar por empresa'}
+                  onClick={() => setShowFilterMenu((v) => !v)}
+                >
+                  <Filter size={15} />
+                  {filterClient && (
+                    <span className="absolute -right-1 -top-1 h-2 w-2 rounded-full bg-campo-600" />
+                  )}
+                </button>
+                {showFilterMenu && (
+                  <>
+                    <div className="fixed inset-0 z-10" onClick={() => setShowFilterMenu(false)} />
+                    <div className="absolute right-0 top-full z-20 mt-1 max-h-64 w-56 overflow-y-auto rounded-lg border border-slate-200 bg-white shadow-lg">
+                      <button
+                        className={`w-full px-3 py-2 text-left text-sm hover:bg-slate-50 ${!filterClient ? 'font-black text-campo-700' : 'font-semibold text-slate-700'}`}
+                        type="button"
+                        onClick={() => { setFilterClient(''); setShowFilterMenu(false) }}
+                      >
+                        Todas las empresas
+                      </button>
+                      {(clients || []).map((c) => (
+                        <button
+                          key={c.id}
+                          className={`w-full px-3 py-2 text-left text-sm hover:bg-slate-50 ${filterClient === c.id ? 'bg-campo-50 font-black text-campo-700' : 'font-semibold text-slate-700'}`}
+                          type="button"
+                          onClick={() => { setFilterClient(c.id); setShowFilterMenu(false) }}
+                        >
+                          {c.name}
+                        </button>
+                      ))}
+                    </div>
+                  </>
+                )}
+              </div>
             </div>
 
             {/* Error / hint */}
