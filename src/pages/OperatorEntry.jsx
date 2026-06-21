@@ -244,10 +244,10 @@ export default function OperatorEntry() {
 
       <div className="mb-3 flex flex-wrap items-center gap-2">
         <button className="btn-primary !min-h-10 !px-4 !py-2 text-sm" type="button" onClick={addRow}>
-          <Plus size={17} /> Agregar item (F12)
+          <Plus size={17} /> Agregar item <span className="hidden sm:inline">(F12)</span>
         </button>
         <button
-          className="btn-secondary !min-h-10 !px-4 !py-2 text-sm"
+          className="btn-secondary hidden !min-h-10 !px-4 !py-2 text-sm sm:flex"
           type="button"
           onClick={removeSelectedRow}
           disabled={rows.length <= 1}
@@ -256,7 +256,8 @@ export default function OperatorEntry() {
         </button>
       </div>
 
-      <div className="mb-4 overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm" ref={tableRef}>
+      {/* ── Tabla desktop ── */}
+      <div className="mb-4 hidden overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm sm:block" ref={tableRef}>
         <table className="w-full border-collapse" style={{ minWidth: '960px' }}>
           <thead>
             <tr className="bg-campo-700 text-white">
@@ -348,6 +349,79 @@ export default function OperatorEntry() {
             </tr>
           </tfoot>
         </table>
+      </div>
+
+      {/* ── Tarjetas mobile ── */}
+      <div className="mb-4 space-y-3 sm:hidden">
+        {rows.map((row, i) => (
+          <div key={row.id} className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
+            <div className="mb-2 flex items-center justify-between">
+              <span className="text-xs font-black text-slate-400">ITEM #{i + 1}</span>
+              <button
+                type="button"
+                className="flex h-7 w-7 items-center justify-center rounded text-slate-300 hover:bg-red-50 hover:text-red-500 disabled:opacity-30"
+                onClick={() => removeRow(row.id)}
+                disabled={rows.length <= 1}
+              >
+                <Trash2 size={14} />
+              </button>
+            </div>
+
+            <select
+              className="input mb-3 w-full text-sm disabled:opacity-40"
+              value={row.product}
+              onChange={(e) => updateRow(row.id, 'product', e.target.value)}
+              disabled={!clientId}
+            >
+              <option value="">—</option>
+              {products.map((p) => <option key={p} value={p}>{p}</option>)}
+            </select>
+
+            <div className="mb-3 grid grid-cols-2 gap-2">
+              <label className="block">
+                <span className="text-xs font-bold text-slate-500">LOTE</span>
+                <input
+                  className="input mt-1 w-full text-sm"
+                  value={row.lot_code}
+                  onChange={(e) => updateRow(row.id, 'lot_code', e.target.value)}
+                />
+              </label>
+              <div>
+                <span className="text-xs font-bold text-slate-500">VENCIMIENTO</span>
+                <div className="mt-1">
+                  <CellDate value={row.expiry_date} onChange={(v) => updateRow(row.id, 'expiry_date', v)} />
+                </div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-3 gap-2">
+              {['cajas', 'uds', 'galones', 'bidones', 'tambores', 'pallets'].map((field) => (
+                <label key={field} className="block">
+                  <span className="text-xs font-bold uppercase text-slate-400">{field}</span>
+                  <input
+                    className="input mt-1 w-full text-right text-sm"
+                    inputMode="decimal"
+                    value={row[field]}
+                    onChange={(e) => {
+                      const v = e.target.value.replace(',', '.')
+                      if (/^\d*\.?\d*$/.test(v)) updateRow(row.id, field, v)
+                    }}
+                    placeholder="0"
+                  />
+                </label>
+              ))}
+            </div>
+
+            {rowTotal(row) > 0 && (
+              <p className="mt-2 text-right text-sm font-black text-slate-700">Total: {formatNumber(rowTotal(row))}</p>
+            )}
+          </div>
+        ))}
+
+        <div className="rounded-xl border-2 border-slate-200 bg-slate-50 px-4 py-3 flex justify-between items-center">
+          <span className="text-sm font-black uppercase text-slate-600">Total cantidad</span>
+          <span className="text-sm font-black text-slate-950">{formatNumber(totalQuantity)}</span>
+        </div>
       </div>
 
       {error ? <div className="mb-4 rounded-lg bg-red-50 p-3 text-sm font-bold text-red-700">{error}</div> : null}
