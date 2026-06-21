@@ -128,8 +128,6 @@ export default function Lots() {
   const visibleClients = clients.filter((c) =>
     !clientSearch || c.name.toLowerCase().includes(clientSearch.toLowerCase())
   )
-  const clientsWithPrefix = clients.filter((c) => c.product_code_prefix)
-
   return (
     <div className="flex h-full min-h-0 flex-col gap-3">
 
@@ -464,7 +462,7 @@ export default function Lots() {
 
       {showProductModal && (
         <NewProductModal
-          clients={clientsWithPrefix}
+          clients={clients}
           onClose={() => setShowProductModal(false)}
           onSaved={loadData}
         />

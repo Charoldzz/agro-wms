@@ -101,8 +101,6 @@ export default function ProductCatalog() {
     load()
   }
 
-  const clientsWithPrefix = clients.filter((c) => c.product_code_prefix)
-
   return (
     <div className="space-y-4">
       <PageHeader title="Catalogo de productos">
@@ -257,15 +255,9 @@ export default function ProductCatalog() {
         </div>
       )}
 
-      {clientsWithPrefix.length === 0 && isAdmin && !loading && (
-        <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm font-semibold text-amber-800">
-          Configura el prefijo de codigo en <strong>Clientes</strong> para cada empresa antes de agregar productos. Ejemplo: ADSP, GATB.
-        </div>
-      )}
-
       {showModal && (
         <NewProductModal
-          clients={clientsWithPrefix}
+          clients={clients}
           onClose={() => setShowModal(false)}
           onSaved={load}
         />

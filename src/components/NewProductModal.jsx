@@ -1,14 +1,36 @@
 import { useEffect, useState } from 'react'
 import { X } from 'lucide-react'
 import { supabase } from '../lib/supabase'
-import { cleanProductName } from '../lib/display'
 
 const UNITS = ['lt', 'ml', 'kg', 'g', 'unid', 'caja', 'bolsa', 'saco']
+const PREFIX_STOP_WORDS = new Set(['S', 'SA', 'SAS', 'SRL', 'LTDA', 'BOLIVIA', 'TOTAL', 'AGRO'])
+
+function escapeRegExp(value) {
+  return String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+}
+
+function cleanPrefix(value) {
+  return String(value || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 8)
+}
+
+function suggestPrefix(name) {
+  const words = String(name || '')
+    .toUpperCase()
+    .replace(/[^A-Z0-9\s]/g, ' ')
+    .split(/\s+/)
+    .filter((word) => word && !PREFIX_STOP_WORDS.has(word))
+
+  const firstLong = words.find((word) => word.length >= 4)
+  if (firstLong) return cleanPrefix(firstLong.slice(0, 4))
+
+  return cleanPrefix(words.map((word) => word[0]).join('').slice(0, 4))
+}
 
 function nextCodeForPrefix(existingCodes, prefix) {
+  const escaped = escapeRegExp(prefix)
   const nums = existingCodes
     .map((c) => {
-      const match = String(c).match(new RegExp(`^${prefix}-(\\d+)$`, 'i'))
+      const match = String(c).match(new RegExp(`^${escaped}-(\\d+)$`, 'i'))
       return match ? parseInt(match[1], 10) : 0
     })
     .filter((n) => n > 0)
@@ -27,6 +49,7 @@ export default function NewProductModal({ clients, onClose, onSaved }) {
   const [error, setError] = useState('')
   const [loadingCode, setLoadingCode] = useState(false)
 
+  const selectedClient = clients.find((c) => c.id === clientId)
   const productLabel = name && packageSize
     ? `${name.toUpperCase()} X ${packageSize} ${packageUnit}`
     : name
@@ -34,34 +57,64 @@ export default function NewProductModal({ clients, onClose, onSaved }) {
       : ''
 
   useEffect(() => {
-    if (!clientId) { setNextCode(''); setPrefix(''); return }
-    const client = clients.find((c) => c.id === clientId)
-    const p = client?.product_code_prefix || ''
-    setPrefix(p)
-    if (!p) { setNextCode(''); return }
-    loadNextCode(clientId, p)
-  }, [clientId, clients])
+    if (!clientId) {
+      setNextCode('')
+      setPrefix('')
+      return
+    }
 
-  async function loadNextCode(cid, p) {
+    const p = cleanPrefix(selectedClient?.product_code_prefix || suggestPrefix(selectedClient?.name))
+    setPrefix(p)
+    if (!p) {
+      setNextCode('')
+      return
+    }
+    loadNextCode(p)
+  }, [clientId, selectedClient?.product_code_prefix, selectedClient?.name])
+
+  async function loadNextCode(p) {
     setLoadingCode(true)
     const { data } = await supabase
       .from('product_catalog')
       .select('code')
-      .eq('client_id', cid)
+      .ilike('code', `${p}-%`)
     const codes = (data || []).map((r) => r.code)
     setNextCode(nextCodeForPrefix(codes, p))
     setLoadingCode(false)
+  }
+
+  function handlePrefixChange(value) {
+    const p = cleanPrefix(value)
+    setPrefix(p)
+    setNextCode('')
+    if (p) loadNextCode(p)
   }
 
   async function handleSave(e) {
     e.preventDefault()
     setError('')
     if (!clientId) return setError('Selecciona una empresa.')
-    if (!prefix) return setError('La empresa no tiene prefijo de codigo configurado.')
+    const finalPrefix = cleanPrefix(prefix)
+    if (!finalPrefix) return setError('Define un prefijo de codigo para esta empresa.')
     if (!name.trim()) return setError('Escribe el nombre del producto.')
+    if (loadingCode) return setError('Espera a que se genere el codigo.')
     if (!nextCode) return setError('No se pudo generar el codigo.')
+    if (!nextCode.startsWith(`${finalPrefix}-`)) return setError('El codigo no coincide con el prefijo elegido.')
 
     setSaving(true)
+
+    if (cleanPrefix(selectedClient?.product_code_prefix) !== finalPrefix) {
+      const { error: prefixError } = await supabase
+        .from('clients')
+        .update({ product_code_prefix: finalPrefix })
+        .eq('id', clientId)
+
+      if (prefixError) {
+        setSaving(false)
+        return setError(prefixError.message)
+      }
+    }
+
     const { error: err } = await supabase.from('product_catalog').insert({
       client_id: clientId,
       code: nextCode,
@@ -102,16 +155,27 @@ export default function NewProductModal({ clients, onClose, onSaved }) {
 
           <div>
             <label className="block text-sm font-bold text-slate-700">Codigo</label>
-            <input
-              className="input mt-1 w-full bg-slate-50 font-mono text-slate-500"
-              type="text"
-              value={loadingCode ? 'Cargando...' : nextCode || (clientId && !prefix ? 'Sin prefijo configurado' : '')}
-              readOnly
-              placeholder="Se genera automaticamente"
-            />
-            {clientId && !prefix && (
+            <div className="mt-1 grid grid-cols-[minmax(0,0.45fr)_minmax(0,0.55fr)] gap-2">
+              <input
+                className="input w-full font-mono uppercase"
+                type="text"
+                value={prefix}
+                onChange={(e) => handlePrefixChange(e.target.value)}
+                placeholder="Prefijo"
+                disabled={!clientId}
+                maxLength={8}
+              />
+              <input
+                className="input w-full bg-slate-50 font-mono text-slate-500"
+                type="text"
+                value={loadingCode ? 'Cargando...' : nextCode}
+                readOnly
+                placeholder="Codigo"
+              />
+            </div>
+            {clientId && !selectedClient?.product_code_prefix && prefix && (
               <p className="mt-1 text-xs font-semibold text-amber-600">
-                Configura el prefijo en la sección Clientes para esta empresa.
+                Este prefijo se guardara en la empresa para los proximos productos.
               </p>
             )}
           </div>
@@ -158,7 +222,7 @@ export default function NewProductModal({ clients, onClose, onSaved }) {
           {error && <p className="text-sm font-bold text-red-600">{error}</p>}
 
           <div className="flex gap-3 pt-1">
-            <button className="btn-primary flex-1" type="submit" disabled={saving}>
+            <button className="btn-primary flex-1" type="submit" disabled={saving || loadingCode}>
               {saving ? 'Guardando...' : 'Guardar'}
             </button>
             <button className="btn-secondary flex-1" type="button" onClick={onClose}>
