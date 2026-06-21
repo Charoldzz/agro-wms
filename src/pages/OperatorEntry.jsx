@@ -34,45 +34,6 @@ function displayClientName(name) {
   return String(name || '').replaceAll('"', '').replace(/\s+/g, ' ').trim()
 }
 
-const MONTHS = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic']
-const DAYS = Array.from({ length: 31 }, (_, i) => String(i + 1).padStart(2, '0'))
-const YEARS = Array.from({ length: 12 }, (_, i) => String(new Date().getFullYear() + i))
-
-function CellDate({ value, onChange, onFocus }) {
-  const [y, m, d] = value ? value.split('-') : ['', '', '']
-  function update(ny, nm, nd) {
-    if (ny && nm && nd) onChange(`${ny}-${nm}-${nd}`)
-    else onChange('')
-  }
-  return (
-    <div className="flex gap-0.5" onFocus={onFocus}>
-      <select
-        className="w-10 rounded border border-transparent bg-transparent px-0.5 py-1 text-center text-xs focus:border-campo-400 focus:bg-white focus:outline-none"
-        value={d || ''}
-        onChange={(e) => update(y, m, e.target.value)}
-      >
-        <option value="">Día</option>
-        {DAYS.map((v) => <option key={v} value={v}>{Number(v)}</option>)}
-      </select>
-      <select
-        className="w-12 rounded border border-transparent bg-transparent px-0.5 py-1 text-center text-xs focus:border-campo-400 focus:bg-white focus:outline-none"
-        value={m || ''}
-        onChange={(e) => update(y, e.target.value, d)}
-      >
-        <option value="">Mes</option>
-        {MONTHS.map((name, idx) => <option key={idx} value={String(idx + 1).padStart(2, '0')}>{name}</option>)}
-      </select>
-      <select
-        className="w-14 rounded border border-transparent bg-transparent px-0.5 py-1 text-center text-xs focus:border-campo-400 focus:bg-white focus:outline-none"
-        value={y || ''}
-        onChange={(e) => update(e.target.value, m, d)}
-      >
-        <option value="">Año</option>
-        {YEARS.map((v) => <option key={v} value={v}>{v}</option>)}
-      </select>
-    </div>
-  )
-}
 
 export default function OperatorEntry() {
   const navigate = useNavigate()
@@ -282,7 +243,7 @@ export default function OperatorEntry() {
               <th className="border-b border-campo-600 px-2 py-2.5 text-center text-xs font-bold uppercase tracking-wide" style={{width:'36px'}}>N°</th>
               <th className="border-b border-campo-600 px-2 py-2.5 text-left text-xs font-bold uppercase tracking-wide">PRODUCTO</th>
               <th className="border-b border-campo-600 px-2 py-2.5 text-center text-xs font-bold uppercase tracking-wide" style={{width:'100px'}}>LOTE</th>
-              <th className="border-b border-campo-600 px-2 py-2.5 text-center text-xs font-bold uppercase tracking-wide" style={{width:'160px'}}>VENC</th>
+              <th className="border-b border-campo-600 px-2 py-2.5 text-center text-xs font-bold uppercase tracking-wide" style={{width:'120px'}}>VENC</th>
               <th className="border-b border-campo-600 px-2 py-2.5 text-right text-xs font-bold uppercase tracking-wide" style={{width:'80px'}}>CANTIDAD</th>
               <th className="border-b border-campo-600 px-2 py-2.5 text-right text-xs font-bold uppercase tracking-wide" style={{width:'64px'}}>CAJAS</th>
               <th className="border-b border-campo-600 px-2 py-2.5 text-right text-xs font-bold uppercase tracking-wide" style={{width:'64px'}}>UDS</th>
@@ -331,9 +292,11 @@ export default function OperatorEntry() {
                   />
                 </td>
                 <td className="px-2 py-1">
-                  <CellDate
-                    value={row.expiry_date}
-                    onChange={(v) => updateRow(row.id, 'expiry_date', v)}
+                  <input
+                    type="date"
+                    className="w-full rounded border border-transparent bg-transparent px-1 py-1 text-xs focus:border-campo-400 focus:bg-white focus:outline-none"
+                    value={row.expiry_date || ''}
+                    onChange={(e) => updateRow(row.id, 'expiry_date', e.target.value)}
                     onFocus={() => setSelectedIdx(i)}
                   />
                 </td>
@@ -434,12 +397,15 @@ export default function OperatorEntry() {
                   onChange={(e) => updateRow(row.id, 'lot_code', e.target.value)}
                 />
               </label>
-              <div>
+              <label className="block">
                 <span className="text-xs font-bold text-slate-500">VENCIMIENTO</span>
-                <div className="mt-1">
-                  <CellDate value={row.expiry_date} onChange={(v) => updateRow(row.id, 'expiry_date', v)} />
-                </div>
-              </div>
+                <input
+                  type="date"
+                  className="input mt-1 w-full text-sm"
+                  value={row.expiry_date || ''}
+                  onChange={(e) => updateRow(row.id, 'expiry_date', e.target.value)}
+                />
+              </label>
             </div>
 
             <label className="mb-3 block">
