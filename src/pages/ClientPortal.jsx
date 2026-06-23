@@ -375,14 +375,12 @@ export default function ClientPortal({ view = 'inventory' }) {
           l.expiry_date ? formatDate(l.expiry_date) : '',
           lotStatus(l).label || '',
         ])
-        const bg = i % 2 === 0 ? 'FFFAFAFA' : 'FFFFFFFF'
         row.eachCell((cell, colNum) => {
-          cell.fill      = { type: 'pattern', pattern: 'solid', fgColor: { argb: bg } }
           cell.alignment = colNum === 1
             ? { vertical: 'middle', horizontal: 'left', wrapText: true }
             : { vertical: 'middle', horizontal: 'right' }
-          cell.font      = { size: 10 }
-          cell.border    = { bottom: { style: 'hair', color: { argb: 'FFE2E8F0' } } }
+          cell.font   = { size: 10 }
+          cell.border = { top: { style: 'thin', color: { argb: 'FFCBD5E1' } } }
         })
       })
 
