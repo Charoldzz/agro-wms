@@ -44,8 +44,9 @@ function lotEquivalent(lot) {
 function itemEquivalent(item) {
   const s = Number(item?.package_size || 0)
   if (s > 0 && item?.package_unit) return { quantity: Number(item.quantity || 0) * s, unit: item.package_unit }
-  // matches "x 20 Lts", "X 10 Kgs" AND "20L_BO", "20 L", "20Lts" (no x required)
-  const match = String(item?.product || '').match(/(?:[xX×]\s*)?(\d+(?:[.,]\d+)?)\s*(lts?|kgs?|l)\b/i)
+  // matches "x 20 Lts", "X 10 Kgs", "20L_BO_TP", "20 L", "20Lts"
+  // (?![a-zA-Z]) instead of \b because _ is a word char so \b fails on "20L_BO"
+  const match = String(item?.product || '').match(/(?:[xX×]\s*)?(\d+(?:[.,]\d+)?)\s*(lts?|kgs?|l)(?![a-zA-Z])/i)
   if (!match) return null
   const size = parseFloat(match[1].replace(',', '.'))
   const raw = match[2].toLowerCase()
