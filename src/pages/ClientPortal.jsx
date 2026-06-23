@@ -342,16 +342,25 @@ export default function ClientPortal({ view = 'inventory' }) {
       {isInventory && (
         <>
           {/* Greeting */}
-          <div className="rounded-2xl bg-campo-700 px-5 py-5 text-white shadow-sm">
-            <div className="flex items-start justify-between gap-3">
+          <div className="overflow-hidden rounded-2xl bg-campo-700 text-white shadow-sm">
+            {/* Company brand strip */}
+            <div className="flex items-center gap-3 border-b border-white/15 bg-campo-800/40 px-5 py-3">
+              <img src="/images/todo-logo.png" alt="Todo Agrícola" className="h-7 w-auto object-contain brightness-0 invert" />
+              <div>
+                <p className="text-xs font-black tracking-widest text-white/90 uppercase">Todo Agrícola Boliviana</p>
+                <p className="text-[10px] font-semibold text-campo-300">Portal de cliente · Almacén G.A.T Bolivia</p>
+              </div>
+            </div>
+            {/* Greeting row */}
+            <div className="flex items-start justify-between gap-3 px-5 py-4">
               <div className="min-w-0">
-                <p className="text-xs font-bold uppercase tracking-wider text-campo-200">Bienvenido</p>
-                <h1 className="mt-1 text-xl font-black leading-snug [overflow-wrap:anywhere]">{clientName}</h1>
-                <p className="mt-0.5 text-sm font-semibold text-campo-200">
+                <p className="text-[11px] font-bold uppercase tracking-wider text-campo-300">Bienvenido</p>
+                <h1 className="mt-0.5 text-xl font-black leading-snug [overflow-wrap:anywhere]">{clientName}</h1>
+                <p className="mt-0.5 text-sm font-semibold text-campo-200 capitalize">
                   {new Intl.DateTimeFormat('es-BO',{weekday:'long',day:'numeric',month:'long'}).format(new Date())}
                 </p>
               </div>
-              <div className="flex shrink-0 gap-2 pt-1">
+              <div className="flex shrink-0 flex-col gap-2 pt-1">
                 <button className="inline-flex items-center gap-1.5 rounded-xl border border-white/30 bg-white/10 px-3 py-2 text-xs font-bold text-white transition hover:bg-white/20" onClick={exportExcel}>
                   <Download size={14} /> Excel
                 </button>
@@ -363,17 +372,27 @@ export default function ClientPortal({ view = 'inventory' }) {
           </div>
 
           {/* Metrics */}
-          <div className="grid grid-cols-3 gap-2">
-            <MetricCard icon={Boxes} label="Envases en almacén" value={formatNumber(totalStock)} color="campo" />
-            <MetricCard icon={Package} label="Productos" value={productCount} color="slate" onClick={() => setShowProductsModal(true)} />
-            <MetricCard
-              icon={expiring.length > 0 ? CalendarClock : PackageCheck}
-              label={expiring.length > 0 ? 'Por vencer' : 'Sin alertas'}
-              value={expiring.length > 0 ? expiring.length : '✓'}
-              color={expiring.length > 0 ? 'amber' : 'campo'}
-              onClick={expiring.length > 0 ? () => setShowExpiryModal(true) : undefined}
-            />
-          </div>
+          {(() => {
+            const eqTotals = {}
+            lots.forEach(l => {
+              const qty = Number(l.current_quantity || 0) * Number(l.package_size || 0)
+              if (qty > 0 && l.package_unit) eqTotals[l.package_unit] = (eqTotals[l.package_unit] || 0) + qty
+            })
+            const eqLabel = Object.entries(eqTotals).map(([u, v]) => `${formatNumber(v)} ${u}`).join(' · ')
+            return (
+              <div className="grid grid-cols-3 gap-2">
+                <MetricCard icon={Boxes} label="Envases en almacén" value={formatNumber(totalStock)} sub={eqLabel || null} color="campo" />
+                <MetricCard icon={Package} label="Productos distintos" value={productCount} color="slate" onClick={() => setShowProductsModal(true)} />
+                <MetricCard
+                  icon={expiring.length > 0 ? CalendarClock : PackageCheck}
+                  label={expiring.length > 0 ? 'Lotes por vencer' : 'Sin alertas'}
+                  value={expiring.length > 0 ? expiring.length : '✓'}
+                  color={expiring.length > 0 ? 'amber' : 'campo'}
+                  onClick={expiring.length > 0 ? () => setShowExpiryModal(true) : undefined}
+                />
+              </div>
+            )
+          })()}
 
           {/* Active requests banner */}
           {activeRequests.length > 0 && (
@@ -435,8 +454,14 @@ export default function ClientPortal({ view = 'inventory' }) {
                       </div>
                       <div className="flex shrink-0 items-center gap-2">
                         <div className="text-right">
-                          <p className="text-base font-black text-campo-700">{formatNumber(group.quantity)} <span className="text-xs font-bold text-campo-500">env.</span></p>
-                          <p className="text-[10px] font-semibold text-slate-400">{equivalentTotalsLabel(group.equivalents)}</p>
+                          {Object.keys(group.equivalents).length > 0 ? (
+                            <>
+                              <p className="text-base font-black text-campo-700">{equivalentTotalsLabel(group.equivalents)}</p>
+                              <p className="text-[10px] font-semibold text-slate-400">{formatNumber(group.quantity)} envases</p>
+                            </>
+                          ) : (
+                            <p className="text-base font-black text-campo-700">{formatNumber(group.quantity)} <span className="text-xs font-bold text-campo-500">env.</span></p>
+                          )}
                         </div>
                         <ChevronDown size={18} className={`text-slate-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
                       </div>
@@ -459,8 +484,14 @@ export default function ClientPortal({ view = 'inventory' }) {
                                 </p>
                               </div>
                               <div className="shrink-0 text-right">
-                                <p className="text-sm font-black text-campo-700">{formatNumber(lot.current_quantity)} env.</p>
-                                {eq && <p className="text-[10px] font-semibold text-slate-400">{formatNumber(eq.quantity)} {eq.unit}</p>}
+                                {eq ? (
+                                  <>
+                                    <p className="text-sm font-black text-campo-700">{formatNumber(eq.quantity)} {eq.unit}</p>
+                                    <p className="text-[10px] font-semibold text-slate-400">{formatNumber(lot.current_quantity)} envases</p>
+                                  </>
+                                ) : (
+                                  <p className="text-sm font-black text-campo-700">{formatNumber(lot.current_quantity)} env.</p>
+                                )}
                               </div>
                             </Link>
                           )
@@ -834,29 +865,38 @@ export default function ClientPortal({ view = 'inventory' }) {
 
 /* ─── sub-components ─────────────────────────────────────────────── */
 
-function MetricCard({ icon: Icon, label, value, color = 'campo', onClick }) {
+function MetricCard({ icon: Icon, label, value, sub, color = 'campo', onClick }) {
   const colors = {
     campo: 'bg-campo-50 text-campo-700',
     slate: 'bg-slate-50 text-slate-600',
     amber: 'bg-amber-50 text-amber-700',
   }
-  const base = `flex flex-col gap-1.5 rounded-xl px-3 py-3 ${colors[color]}`
+  const iconColors = {
+    campo: 'bg-campo-100 text-campo-600',
+    slate: 'bg-slate-200 text-slate-500',
+    amber: 'bg-amber-100 text-amber-600',
+  }
+  const base = `flex flex-col gap-2 rounded-xl px-3.5 py-3.5 ${colors[color]}`
+  const content = (
+    <>
+      <div className={`flex h-8 w-8 items-center justify-center rounded-lg ${iconColors[color]}`}>
+        <Icon size={16} />
+      </div>
+      <div>
+        <p className="text-2xl font-black leading-none tabular-nums">{value}</p>
+        {sub && <p className="mt-0.5 text-[11px] font-bold opacity-70">{sub}</p>}
+      </div>
+      <p className="text-xs font-bold leading-snug opacity-75">{label}</p>
+    </>
+  )
   if (onClick) {
     return (
       <button type="button" className={`${base} w-full text-left transition active:scale-[0.97] hover:brightness-95`} onClick={onClick}>
-        <Icon size={18} />
-        <p className="text-xl font-black leading-none tabular-nums">{value}</p>
-        <p className="text-[10px] font-bold leading-snug opacity-80">{label}</p>
+        {content}
       </button>
     )
   }
-  return (
-    <div className={base}>
-      <Icon size={18} />
-      <p className="text-xl font-black leading-none tabular-nums">{value}</p>
-      <p className="text-[10px] font-bold leading-snug opacity-80">{label}</p>
-    </div>
-  )
+  return <div className={base}>{content}</div>
 }
 
 function RequestProgress({ status }) {
