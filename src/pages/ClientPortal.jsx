@@ -133,6 +133,8 @@ export default function ClientPortal({ view = 'inventory' }) {
   const [search,     setSearch]     = useState('')
   const [expandedProduct, setExpandedProduct] = useState('')
   const [showAllProducts, setShowAllProducts] = useState(false)
+  const [inventoryFilter, setInventoryFilter] = useState('all')
+  const [inventorySort,   setInventorySort]   = useState('name')
   const [selectedMovement, setSelectedMovement] = useState(null)
 
   // request form
@@ -225,7 +227,16 @@ export default function ClientPortal({ view = 'inventory' }) {
     })).sort((a,b) => a.identity.localeCompare(b.identity,'es',{numeric:true}))
   }, [filteredLots])
 
-  const visibleProducts = (showAllProducts || search.trim()) ? inventoryProducts : inventoryProducts.slice(0,8)
+  const displayedProducts = useMemo(() => {
+    let items = inventoryProducts
+    if (inventoryFilter === 'expiring') items = items.filter(g => g.lots.some(l => lotStatus(l).label === 'Por vencer'))
+    if (inventoryFilter === 'expired')  items = items.filter(g => g.lots.some(l => lotStatus(l).label === 'Vencido'))
+    if (inventorySort === 'quantity') return [...items].sort((a,b) => b.quantity - a.quantity)
+    if (inventorySort === 'expiry')   return [...items].sort((a,b) => (a.lots[0]?.expiry_date||'9999-12-31').localeCompare(b.lots[0]?.expiry_date||'9999-12-31'))
+    return items
+  }, [inventoryProducts, inventoryFilter, inventorySort])
+
+  const visibleProducts = (showAllProducts || search.trim() || inventoryFilter !== 'all') ? displayedProducts : displayedProducts.slice(0,8)
 
   // request: unique product identities for step 1 select
   const reqProductOptions = useMemo(() => {
@@ -643,6 +654,43 @@ export default function ClientPortal({ view = 'inventory' }) {
               </button>
             )}
           </div>
+
+          {/* Filter chips + Sort */}
+          {(() => {
+            const expiringCount = inventoryProducts.filter(g => g.lots.some(l => lotStatus(l).label === 'Por vencer')).length
+            const expiredCount  = inventoryProducts.filter(g => g.lots.some(l => lotStatus(l).label === 'Vencido')).length
+            return (
+              <div className="flex flex-wrap items-center gap-2">
+                <div className="flex flex-1 flex-wrap gap-1.5">
+                  {[
+                    { key: 'all',      label: 'Todo',       count: inventoryProducts.length, active: 'bg-campo-700 text-white', badge: 'bg-white/20 text-white' },
+                    { key: 'expiring', label: 'Por vencer', count: expiringCount, active: 'bg-amber-500 text-white', badge: 'bg-white/20 text-white' },
+                    { key: 'expired',  label: 'Vencidos',   count: expiredCount,  active: 'bg-red-500 text-white',   badge: 'bg-white/20 text-white' },
+                  ].map(({ key, label, count, active, badge }) => (
+                    <button
+                      key={key}
+                      onClick={() => setInventoryFilter(key)}
+                      className={`flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-black transition ${inventoryFilter === key ? active : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
+                    >
+                      {label}
+                      {count > 0 && (
+                        <span className={`rounded-full px-1.5 text-[10px] font-black ${inventoryFilter === key ? badge : 'bg-white text-slate-500'}`}>{count}</span>
+                      )}
+                    </button>
+                  ))}
+                </div>
+                <select
+                  value={inventorySort}
+                  onChange={e => setInventorySort(e.target.value)}
+                  className="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-bold text-slate-600 outline-none"
+                >
+                  <option value="name">A → Z</option>
+                  <option value="quantity">Mayor cantidad</option>
+                  <option value="expiry">Próx. vencimiento</option>
+                </select>
+              </div>
+            )
+          })()}
 
           {/* Product list */}
           {loading ? (
