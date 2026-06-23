@@ -673,13 +673,13 @@ export default function ClientPortal({ view = 'inventory' }) {
             const expiringCount = inventoryProducts.filter(g => g.lots.some(l => lotStatus(l).label === 'Por vencer')).length
             const expiredCount  = inventoryProducts.filter(g => g.lots.some(l => lotStatus(l).label === 'Vencido')).length
             return (
-              <div className="flex flex-wrap items-center gap-2">
-                <div className="flex flex-1 flex-wrap gap-1.5">
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex flex-wrap gap-1.5">
                   {[
-                    { key: 'all',      label: 'Todo',       count: inventoryProducts.length, active: 'bg-campo-700 text-white', badge: 'bg-white/20 text-white' },
-                    { key: 'expiring', label: 'Por vencer', count: expiringCount, active: 'bg-amber-500 text-white', badge: 'bg-white/20 text-white' },
-                    { key: 'expired',  label: 'Vencidos',   count: expiredCount,  active: 'bg-red-500 text-white',   badge: 'bg-white/20 text-white' },
-                  ].map(({ key, label, count, active, badge }) => (
+                    { key: 'all',      label: 'Todo',       count: inventoryProducts.length, active: 'bg-campo-700 text-white' },
+                    { key: 'expiring', label: 'Por vencer', count: expiringCount,             active: 'bg-amber-500 text-white' },
+                    { key: 'expired',  label: 'Vencidos',   count: expiredCount,              active: 'bg-red-500 text-white'   },
+                  ].map(({ key, label, count, active }) => (
                     <button
                       key={key}
                       onClick={() => setInventoryFilter(key)}
@@ -687,7 +687,7 @@ export default function ClientPortal({ view = 'inventory' }) {
                     >
                       {label}
                       {count > 0 && (
-                        <span className={`rounded-full px-1.5 text-[10px] font-black ${inventoryFilter === key ? badge : 'bg-white text-slate-500'}`}>{count}</span>
+                        <span className={`rounded-full px-1.5 text-[10px] font-black ${inventoryFilter === key ? 'bg-white/25 text-white' : 'bg-white text-slate-500'}`}>{count}</span>
                       )}
                     </button>
                   ))}
@@ -695,11 +695,11 @@ export default function ClientPortal({ view = 'inventory' }) {
                 <select
                   value={inventorySort}
                   onChange={e => setInventorySort(e.target.value)}
-                  className="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-bold text-slate-600 outline-none"
+                  className="shrink-0 rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-xs font-bold text-slate-600 outline-none"
                 >
-                  <option value="name">A → Z</option>
-                  <option value="quantity-desc">Mayor cantidad</option>
-                  <option value="quantity-asc">Menor cantidad</option>
+                  <option value="name">A–Z</option>
+                  <option value="quantity-desc">↓ Cantidad</option>
+                  <option value="quantity-asc">↑ Cantidad</option>
                 </select>
               </div>
             )
@@ -1114,10 +1114,10 @@ export default function ClientPortal({ view = 'inventory' }) {
                             )
                           })()}
                           <RequestProgress status={req.status} />
-                          <div className="mt-2 flex items-center justify-between gap-2">
+                          <div className="mt-2 space-y-0.5">
                             <p className="text-[10px] font-semibold text-slate-400">{formatDate(req.created_at)}</p>
                             {req.admin_notes && (
-                              <p className="text-xs font-semibold text-slate-600 italic">{req.admin_notes}</p>
+                              <p className="text-xs font-semibold text-slate-600 italic [overflow-wrap:anywhere]">{req.admin_notes}</p>
                             )}
                           </div>
                         </div>
