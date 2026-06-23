@@ -312,40 +312,53 @@ export default function ClientPortal({ view = 'inventory' }) {
 
   /* ─── exports ─────────────────────────────────────────────────── */
   function exportExcel() {
-    const headers = ['Cliente', 'Producto', 'Lote', 'Envases', 'Presentación', 'Equivalente', 'Ubicación', 'Ingreso', 'Vencimiento', 'Estado']
-    const rows = lots.map(l => {
-      const eq = lotEquivalent(l)
-      return [
-        clientName,
-        cleanProductName(l.product),
-        displayLotCode(l.lot_code, l),
-        Number(l.current_quantity || 0),
-        l.package_size ? `${l.package_size} ${l.package_unit || ''}`.trim() : '',
-        eq ? `${formatNumber(eq.quantity)} ${eq.unit}` : '',
-        l.location || '',
-        l.entry_date ? formatDate(l.entry_date) : '',
-        l.expiry_date ? formatDate(l.expiry_date) : '',
-        lotStatus(l).label,
+    try {
+      const date = new Date().toISOString().slice(0, 10)
+      const colHeaders = ['Producto', 'Lote', 'Envases', 'Presentación', 'Equivalente', 'Ubicación', 'Ingreso', 'Vencimiento', 'Estado']
+      const dataRows = lots.map(l => {
+        let eqStr = ''
+        try { const eq = lotEquivalent(l); if (eq) eqStr = `${formatNumber(eq.quantity)} ${eq.unit}` } catch (_) {}
+        return [
+          String(cleanProductName(l.product) || ''),
+          String(displayLotCode(l.lot_code, l) || ''),
+          Number(l.current_quantity || 0),
+          l.package_size ? `${l.package_size} ${l.package_unit || ''}`.trim() : '',
+          eqStr,
+          String(l.location || ''),
+          l.entry_date ? String(formatDate(l.entry_date)) : '',
+          l.expiry_date ? String(formatDate(l.expiry_date)) : '',
+          String(lotStatus(l).label || ''),
+        ]
+      })
+
+      // Row 1: client name title, Row 2: date, Row 3: empty, Row 4: headers, Row 5+: data
+      const aoa = [
+        [clientName],
+        [`Inventario al ${date}`],
+        [],
+        colHeaders,
+        ...dataRows,
       ]
-    })
 
-    const ws = XLSX.utils.aoa_to_sheet([headers, ...rows])
-    ws['!cols'] = [
-      { wch: 22 }, // Cliente
-      { wch: 38 }, // Producto
-      { wch: 20 }, // Lote
-      { wch: 10 }, // Envases
-      { wch: 14 }, // Presentación
-      { wch: 16 }, // Equivalente
-      { wch: 18 }, // Ubicación
-      { wch: 12 }, // Ingreso
-      { wch: 12 }, // Vencimiento
-      { wch: 12 }, // Estado
-    ]
+      const ws = XLSX.utils.aoa_to_sheet(aoa)
+      ws['!cols'] = [
+        { wch: 38 }, // Producto
+        { wch: 20 }, // Lote
+        { wch: 10 }, // Envases
+        { wch: 14 }, // Presentación
+        { wch: 16 }, // Equivalente
+        { wch: 18 }, // Ubicación
+        { wch: 12 }, // Ingreso
+        { wch: 12 }, // Vencimiento
+        { wch: 12 }, // Estado
+      ]
 
-    const wb = XLSX.utils.book_new()
-    XLSX.utils.book_append_sheet(wb, ws, 'Inventario')
-    XLSX.writeFile(wb, `inventario-${clientName.replace(/[^a-z0-9]+/gi, '-').toLowerCase()}-${new Date().toISOString().slice(0, 10)}.xlsx`)
+      const wb = XLSX.utils.book_new()
+      XLSX.utils.book_append_sheet(wb, ws, 'Inventario')
+      XLSX.writeFile(wb, `inventario-${clientName.replace(/[^a-z0-9]+/gi, '-').toLowerCase()}-${date}.xlsx`)
+    } catch (err) {
+      alert(`Error al generar Excel: ${err.message}`)
+    }
   }
 
   function printPdf() {
