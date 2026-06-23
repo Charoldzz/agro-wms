@@ -54,7 +54,7 @@ export default function AppVersion() {
           </button>
         </div>
       ) : (
-        <div className="pointer-events-none rounded-full border border-white/60 bg-white/70 px-2 py-1 text-[10px] font-bold text-slate-500 shadow-sm">
+        <div className="pointer-events-none hidden rounded-full border border-white/60 bg-white/70 px-2 py-1 text-[10px] font-bold text-slate-500 shadow-sm sm:block">
           {APP_VERSION_LABEL}
         </div>
       )}

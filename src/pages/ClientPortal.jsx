@@ -1237,7 +1237,7 @@ function MetricCard({ icon: Icon, label, value, sub, color = 'campo', onClick })
         <Icon size={16} />
       </div>
       <div>
-        <p className="text-2xl font-black leading-none tabular-nums">{value}</p>
+        <p className="text-xl font-black leading-none tabular-nums sm:text-2xl">{value}</p>
         {sub && <p className="mt-0.5 text-[11px] font-bold opacity-70">{sub}</p>}
       </div>
       <p className="text-xs font-bold leading-snug opacity-75">{label}</p>
