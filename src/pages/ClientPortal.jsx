@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import * as XLSX from 'xlsx'
+import ExcelJS from 'exceljs'
 import { Link, useNavigate } from 'react-router-dom'
 import {
   Boxes, CalendarClock, CheckCircle2, ChevronDown,
@@ -311,51 +311,88 @@ export default function ClientPortal({ view = 'inventory' }) {
   }
 
   /* ─── exports ─────────────────────────────────────────────────── */
-  function exportExcel() {
+  async function exportExcel() {
     try {
       const date = new Date().toISOString().slice(0, 10)
-      const colHeaders = ['Producto', 'Lote', 'Envases', 'Presentación', 'Equivalente', 'Ubicación', 'Ingreso', 'Vencimiento', 'Estado']
-      const dataRows = lots.map(l => {
+      const wb = new ExcelJS.Workbook()
+      const ws = wb.addWorksheet('Inventario')
+
+      // Column widths
+      ws.columns = [
+        { key: 'producto',     width: 40 },
+        { key: 'lote',         width: 22 },
+        { key: 'envases',      width: 11 },
+        { key: 'presentacion', width: 15 },
+        { key: 'equivalente',  width: 17 },
+        { key: 'ubicacion',    width: 20 },
+        { key: 'ingreso',      width: 14 },
+        { key: 'vencimiento',  width: 14 },
+        { key: 'estado',       width: 14 },
+      ]
+
+      // Row 1: client name — green header
+      const titleRow = ws.addRow([clientName])
+      ws.mergeCells('A1:I1')
+      titleRow.height = 28
+      titleRow.getCell(1).font  = { bold: true, size: 14, color: { argb: 'FFFFFFFF' } }
+      titleRow.getCell(1).fill  = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1D593A' } }
+      titleRow.getCell(1).alignment = { vertical: 'middle', horizontal: 'left', indent: 1 }
+
+      // Row 2: subtitle
+      const subRow = ws.addRow([`Inventario al ${date}`])
+      ws.mergeCells('A2:I2')
+      subRow.getCell(1).font      = { italic: true, size: 10, color: { argb: 'FF475569' } }
+      subRow.getCell(1).alignment = { horizontal: 'left', indent: 1 }
+
+      // Row 3: blank spacer
+      ws.addRow([])
+
+      // Row 4: column headers
+      const headerLabels = ['Producto', 'Lote', 'Envases', 'Presentación', 'Equivalente', 'Ubicación', 'Ingreso', 'Vencimiento', 'Estado']
+      const hdrRow = ws.addRow(headerLabels)
+      hdrRow.height = 18
+      hdrRow.eachCell(cell => {
+        cell.font      = { bold: true, size: 10, color: { argb: 'FFFFFFFF' } }
+        cell.fill      = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1F6F45' } }
+        cell.alignment = { vertical: 'middle', horizontal: 'right' }
+        cell.border    = { bottom: { style: 'thin', color: { argb: 'FF1D593A' } } }
+      })
+      // Producto left-aligned in header
+      hdrRow.getCell(1).alignment = { vertical: 'middle', horizontal: 'left', indent: 1 }
+
+      // Data rows
+      lots.forEach((l, i) => {
         let eqStr = ''
         try { const eq = lotEquivalent(l); if (eq) eqStr = `${formatNumber(eq.quantity)} ${eq.unit}` } catch (_) {}
-        return [
-          String(cleanProductName(l.product) || ''),
-          String(displayLotCode(l.lot_code, l) || ''),
+        const row = ws.addRow([
+          cleanProductName(l.product) || '',
+          displayLotCode(l.lot_code, l) || '',
           Number(l.current_quantity || 0),
           l.package_size ? `${l.package_size} ${l.package_unit || ''}`.trim() : '',
           eqStr,
-          String(l.location || ''),
-          l.entry_date ? String(formatDate(l.entry_date)) : '',
-          l.expiry_date ? String(formatDate(l.expiry_date)) : '',
-          String(lotStatus(l).label || ''),
-        ]
+          l.location || '',
+          l.entry_date ? formatDate(l.entry_date) : '',
+          l.expiry_date ? formatDate(l.expiry_date) : '',
+          lotStatus(l).label || '',
+        ])
+        const bg = i % 2 === 0 ? 'FFFAFAFA' : 'FFFFFFFF'
+        row.eachCell((cell, colNum) => {
+          cell.fill      = { type: 'pattern', pattern: 'solid', fgColor: { argb: bg } }
+          cell.alignment = { vertical: 'middle', horizontal: colNum === 1 ? 'left' : 'right' }
+          cell.font      = { size: 10 }
+          cell.border    = { bottom: { style: 'hair', color: { argb: 'FFE2E8F0' } } }
+        })
       })
 
-      // Row 1: client name title, Row 2: date, Row 3: empty, Row 4: headers, Row 5+: data
-      const aoa = [
-        [clientName],
-        [`Inventario al ${date}`],
-        [],
-        colHeaders,
-        ...dataRows,
-      ]
-
-      const ws = XLSX.utils.aoa_to_sheet(aoa)
-      ws['!cols'] = [
-        { wch: 38 }, // Producto
-        { wch: 20 }, // Lote
-        { wch: 10 }, // Envases
-        { wch: 14 }, // Presentación
-        { wch: 16 }, // Equivalente
-        { wch: 18 }, // Ubicación
-        { wch: 12 }, // Ingreso
-        { wch: 12 }, // Vencimiento
-        { wch: 12 }, // Estado
-      ]
-
-      const wb = XLSX.utils.book_new()
-      XLSX.utils.book_append_sheet(wb, ws, 'Inventario')
-      XLSX.writeFile(wb, `inventario-${clientName.replace(/[^a-z0-9]+/gi, '-').toLowerCase()}-${date}.xlsx`)
+      // Download
+      const buf = await wb.xlsx.writeBuffer()
+      const blob = new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `inventario-${clientName.replace(/[^a-z0-9]+/gi, '-').toLowerCase()}-${date}.xlsx`
+      a.click()
+      URL.revokeObjectURL(url)
     } catch (err) {
       alert(`Error al generar Excel: ${err.message}`)
     }
