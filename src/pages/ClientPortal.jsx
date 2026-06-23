@@ -241,7 +241,7 @@ export default function ClientPortal({ view = 'inventory' }) {
     return items
   }, [inventoryProducts, inventoryFilter, inventorySort])
 
-  const visibleProducts = (showAllProducts || search.trim() || inventoryFilter !== 'all') ? displayedProducts : displayedProducts.slice(0,8)
+  const visibleProducts = (showAllProducts || search.trim() || inventoryFilter !== 'all') ? displayedProducts : displayedProducts.slice(0, 8)
 
   // request: unique product identities for step 1 select
   const reqProductOptions = useMemo(() => {
@@ -691,7 +691,6 @@ export default function ClientPortal({ view = 'inventory' }) {
                 >
                   <option value="name">A → Z</option>
                   <option value="quantity">Mayor cantidad</option>
-                  <option value="expiry">Próx. vencimiento</option>
                 </select>
               </div>
             )
@@ -774,12 +773,12 @@ export default function ClientPortal({ view = 'inventory' }) {
                 )
               })}
 
-              {!search.trim() && inventoryProducts.length > 8 && (
+              {!search.trim() && inventoryFilter === 'all' && !showAllProducts && displayedProducts.length > 8 && (
                 <button
                   className="w-full rounded-xl border border-slate-200 bg-white py-3 text-sm font-bold text-slate-600 transition hover:bg-slate-50"
-                  onClick={() => setShowAllProducts(v => !v)}
+                  onClick={() => setShowAllProducts(true)}
                 >
-                  {showAllProducts ? 'Ver menos' : `Ver todos los productos (${inventoryProducts.length})`}
+                  Ver todos los productos ({displayedProducts.length})
                 </button>
               )}
             </div>
