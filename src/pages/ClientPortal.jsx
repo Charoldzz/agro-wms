@@ -655,9 +655,20 @@ export default function ClientPortal({ view = 'inventory' }) {
                           )}
                         </div>
                         <div className="shrink-0 rounded-lg bg-white px-3 py-2 text-right shadow-sm">
-                          <p className="text-lg font-black text-campo-700">{formatNumber(selectedLot.current_quantity)}</p>
-                          <p className="text-[10px] font-bold text-slate-500">env. disp.</p>
-                          {(() => { const eq = lotEquivalent(selectedLot); return eq ? <p className="text-[10px] font-semibold text-campo-600">{formatNumber(eq.quantity)} {eq.unit}</p> : null })()}
+                          {(() => {
+                            const eq = lotEquivalent(selectedLot)
+                            return eq ? (
+                              <>
+                                <p className="text-lg font-black text-campo-700">{formatNumber(eq.quantity)} <span className="text-sm font-bold text-campo-500">{eq.unit}</span></p>
+                                <p className="text-[10px] font-semibold text-slate-400">{formatNumber(selectedLot.current_quantity)} env. disp.</p>
+                              </>
+                            ) : (
+                              <>
+                                <p className="text-lg font-black text-campo-700">{formatNumber(selectedLot.current_quantity)}</p>
+                                <p className="text-[10px] font-bold text-slate-500">env. disp.</p>
+                              </>
+                            )
+                          })()}
                         </div>
                       </div>
                       {packageLabel(selectedLot) && (
