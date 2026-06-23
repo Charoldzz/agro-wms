@@ -44,10 +44,11 @@ function lotEquivalent(lot) {
 function itemEquivalent(item) {
   const s = Number(item?.package_size || 0)
   if (s > 0 && item?.package_unit) return { quantity: Number(item.quantity || 0) * s, unit: item.package_unit }
-  const match = String(item?.product || '').match(/[xX×]\s*([\d.,]+)\s*(lts?\.?|kgs?\.?|l\.?)\b/i)
+  // matches "x 20 Lts", "X 10 Kgs" AND "20L_BO", "20 L", "20Lts" (no x required)
+  const match = String(item?.product || '').match(/(?:[xX×]\s*)?(\d+(?:[.,]\d+)?)\s*(lts?|kgs?|l)\b/i)
   if (!match) return null
   const size = parseFloat(match[1].replace(',', '.'))
-  const raw = match[2].toLowerCase().replace('.', '')
+  const raw = match[2].toLowerCase()
   const unit = /^l(ts?)?$/.test(raw) ? 'lts' : /^kgs?$/.test(raw) ? 'kgs' : ''
   if (!unit || isNaN(size) || size <= 0) return null
   return { quantity: Number(item.quantity || 0) * size, unit }
