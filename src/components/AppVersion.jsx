@@ -44,7 +44,7 @@ export default function AppVersion() {
             <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-campo-500 opacity-75" />
             <span className="relative inline-flex h-2 w-2 rounded-full bg-campo-600" />
           </span>
-          <span className="text-[10px] font-bold text-slate-500">{latestVersion}</span>
+          <span className="text-[10px] font-bold text-slate-500">Nueva versión disponible</span>
           <button
             type="button"
             className="rounded-full bg-campo-700 px-2.5 py-1 text-[10px] font-black text-white transition hover:bg-campo-800"
