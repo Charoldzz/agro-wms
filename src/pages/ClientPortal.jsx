@@ -1334,7 +1334,6 @@ function ProductsModal({ lots, onClose }) {
           <div className="flex items-center gap-2 rounded-lg bg-slate-50 px-3 py-2">
             <Search size={14} className="shrink-0 text-slate-400" />
             <input
-              autoFocus
               type="text"
               placeholder="Buscar producto..."
               value={q}
