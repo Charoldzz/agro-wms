@@ -199,7 +199,7 @@ export default function ClientPortal({ view = 'inventory' }) {
   }, [lots, search])
 
   const totalStock    = lots.reduce((s,l) => s + Number(l.current_quantity||0), 0)
-  const productCount  = new Set(lots.map(l => l.product).filter(Boolean)).size
+  const productCount  = lots.length
   const expiring      = lots.filter(l => { const d = daysUntil(l.expiry_date); return d !== null && d <= 90 })
   const alerts        = lots.filter(l => lotStatus(l).label !== 'Disponible' && lotStatus(l).label !== 'Por vencer')
   const activeRequests = requests.filter(r => !['despachado','rechazado'].includes(r.status))
@@ -624,7 +624,7 @@ export default function ClientPortal({ view = 'inventory' }) {
             return (
               <div className="grid grid-cols-3 gap-2">
                 <MetricCard icon={Boxes} label="Envases en almacén" value={formatNumber(totalStock)} sub={eqLabel || null} color="campo" />
-                <MetricCard icon={Package} label="Productos distintos" value={productCount} color="slate" onClick={() => setShowProductsModal(true)} />
+                <MetricCard icon={Package} label="Lotes en almacén" value={productCount} color="slate" onClick={() => setShowProductsModal(true)} />
                 <MetricCard
                   icon={expiring.length > 0 ? CalendarClock : PackageCheck}
                   label={expiring.length > 0 ? 'Lotes por vencer' : 'Sin alertas'}
