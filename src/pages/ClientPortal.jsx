@@ -586,10 +586,10 @@ export default function ClientPortal({ view = 'inventory' }) {
           {(() => {
             const eqTotals = {}
             lots.forEach(l => {
-              const qty = Number(l.current_quantity || 0) * Number(l.package_size || 0)
-              if (qty > 0 && l.package_unit) eqTotals[l.package_unit] = (eqTotals[l.package_unit] || 0) + qty
+              const eq = lotEquivalent(l)
+              if (eq && eq.quantity > 0) eqTotals[eq.unit] = (eqTotals[eq.unit] || 0) + eq.quantity
             })
-            const eqLabel = Object.entries(eqTotals).map(([u, v]) => `${formatNumber(v)} ${u}`).join(' · ')
+            const eqLabel = Object.entries(eqTotals).sort(([a],[b]) => a.localeCompare(b,'es')).map(([u, v]) => `${formatNumber(v)} ${u}`).join(' · ')
             return (
               <div className="grid grid-cols-3 gap-2">
                 <MetricCard icon={Boxes} label="Envases en almacén" value={formatNumber(totalStock)} sub={eqLabel || null} color="campo" />
