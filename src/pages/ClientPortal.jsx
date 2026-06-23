@@ -524,9 +524,9 @@ export default function ClientPortal({ view = 'inventory' }) {
   }
 
   const headerTabs = [
-    { to: '/',          label: 'Inventario',  Icon: Boxes,         active: isInventory },
-    { to: '/despachos', label: 'Solicitudes', Icon: Truck,         active: isRequests  },
-    { to: '/historial', label: 'Movimientos', Icon: History,       active: isMovements },
+    { to: '/',          label: 'Inventario',  Icon: Boxes,   active: isInventory, badge: 0 },
+    { to: '/despachos', label: 'Solicitudes', Icon: Truck,   active: isRequests,  badge: preparingDispatchRequests.length },
+    { to: '/historial', label: 'Movimientos', Icon: History, active: isMovements, badge: 0 },
   ]
 
   const actionBtns = (size = 15, cls = 'h-8 w-8') => (
@@ -565,9 +565,10 @@ export default function ClientPortal({ view = 'inventory' }) {
             {actionBtns(15, 'h-8 w-8')}
           </div>
           <div className="mx-auto flex max-w-5xl border-t border-white/10 px-3">
-            {headerTabs.map(({ to, label, Icon, active }) => (
+            {headerTabs.map(({ to, label, Icon, active, badge }) => (
               <Link key={to} to={to} className={`flex items-center gap-2 border-b-2 px-5 py-3 text-sm font-black transition ${active ? 'border-campo-300 text-white' : 'border-transparent text-white/55 hover:text-white/80'}`}>
                 <Icon size={16} aria-hidden="true" /> {label}
+                {badge > 0 && <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-black text-white">{badge}</span>}
               </Link>
             ))}
           </div>
@@ -587,9 +588,13 @@ export default function ClientPortal({ view = 'inventory' }) {
             <p className="text-base font-black leading-snug text-white [overflow-wrap:anywhere]">{clientName}</p>
           </div>
           <div className="flex border-t border-white/10">
-            {headerTabs.map(({ to, label, Icon, active }) => (
-              <Link key={to} to={to} className={`flex flex-1 flex-col items-center gap-1 border-b-2 py-2.5 text-[10px] font-black transition ${active ? 'border-campo-300 text-white' : 'border-transparent text-white/45 hover:text-white/70'}`}>
-                <Icon size={17} aria-hidden="true" /> {label}
+            {headerTabs.map(({ to, label, Icon, active, badge }) => (
+              <Link key={to} to={to} className={`relative flex flex-1 flex-col items-center gap-1 border-b-2 py-2.5 text-[10px] font-black transition ${active ? 'border-campo-300 text-white' : 'border-transparent text-white/45 hover:text-white/70'}`}>
+                <span className="relative">
+                  <Icon size={17} aria-hidden="true" />
+                  {badge > 0 && <span className="absolute -right-2 -top-1.5 flex h-3.5 min-w-3.5 items-center justify-center rounded-full bg-red-500 px-0.5 text-[8px] font-black text-white">{badge}</span>}
+                </span>
+                {label}
               </Link>
             ))}
           </div>
@@ -710,7 +715,11 @@ export default function ClientPortal({ view = 'inventory' }) {
               {visibleProducts.map(group => {
                 const isOpen = expandedProduct === group.key
                 return (
-                  <article key={group.key} className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+                  <article key={group.key} className={`flex overflow-hidden rounded-xl border bg-white shadow-sm ${group.expired > 0 ? 'border-red-200' : group.expiring > 0 ? 'border-amber-200' : 'border-slate-200'}`}>
+                    {(group.expired > 0 || group.expiring > 0) && (
+                      <div className={`w-1 shrink-0 ${group.expired > 0 ? 'bg-red-400' : 'bg-amber-400'}`} />
+                    )}
+                    <div className="min-w-0 flex-1">
                     <button
                       className="flex w-full items-center justify-between gap-3 px-4 py-3.5 text-left transition hover:bg-campo-50/60"
                       onClick={() => setExpandedProduct(isOpen ? '' : group.key)}
@@ -773,6 +782,7 @@ export default function ClientPortal({ view = 'inventory' }) {
                         })}
                       </div>
                     )}
+                    </div>{/* min-w-0 flex-1 */}
                   </article>
                 )
               })}
