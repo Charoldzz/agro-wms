@@ -407,8 +407,8 @@ export default function ClientPortal({ view = 'inventory' }) {
           </div>
           <div className="mx-auto flex max-w-5xl border-t border-white/10 px-3">
             {headerTabs.map(({ to, label, Icon, active }) => (
-              <Link key={to} to={to} className={`flex items-center gap-1.5 border-b-2 px-4 py-2.5 text-xs font-black transition ${active ? 'border-campo-300 text-white' : 'border-transparent text-white/45 hover:text-white/75'}`}>
-                <Icon size={14} aria-hidden="true" /> {label}
+              <Link key={to} to={to} className={`flex items-center gap-2 border-b-2 px-5 py-3 text-sm font-black transition ${active ? 'border-campo-300 text-white' : 'border-transparent text-white/55 hover:text-white/80'}`}>
+                <Icon size={16} aria-hidden="true" /> {label}
               </Link>
             ))}
           </div>
