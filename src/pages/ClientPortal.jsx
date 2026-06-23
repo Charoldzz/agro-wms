@@ -49,20 +49,26 @@ function parseUnitFromName(name) {
   return { size, unit }
 }
 
+function normalizeEquivalent({ quantity, unit }) {
+  const u = String(unit || '').toLowerCase().trim()
+  if (/^gr?s?$/.test(u)) return { quantity: quantity / 1000, unit: 'kgs' }
+  return { quantity, unit }
+}
+
 function lotEquivalent(lot) {
   const s = Number(lot?.package_size || 0)
-  if (s > 0 && lot?.package_unit) return { quantity: Number(lot.current_quantity || 0) * s, unit: lot.package_unit }
+  if (s > 0 && lot?.package_unit) return normalizeEquivalent({ quantity: Number(lot.current_quantity || 0) * s, unit: lot.package_unit })
   const parsed = parseUnitFromName(lot?.product)
   if (!parsed) return null
-  return { quantity: Number(lot.current_quantity || 0) * parsed.size, unit: parsed.unit }
+  return normalizeEquivalent({ quantity: Number(lot.current_quantity || 0) * parsed.size, unit: parsed.unit })
 }
 
 function itemEquivalent(item) {
   const s = Number(item?.package_size || 0)
-  if (s > 0 && item?.package_unit) return { quantity: Number(item.quantity || 0) * s, unit: item.package_unit }
+  if (s > 0 && item?.package_unit) return normalizeEquivalent({ quantity: Number(item.quantity || 0) * s, unit: item.package_unit })
   const parsed = parseUnitFromName(item?.product)
   if (!parsed) return null
-  return { quantity: Number(item.quantity || 0) * parsed.size, unit: parsed.unit }
+  return normalizeEquivalent({ quantity: Number(item.quantity || 0) * parsed.size, unit: parsed.unit })
 }
 
 function productIdentityKey(lot) {
