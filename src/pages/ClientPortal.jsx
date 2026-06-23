@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import * as XLSX from 'xlsx'
 import { Link, useNavigate } from 'react-router-dom'
 import {
   Boxes, CalendarClock, CheckCircle2, ChevronDown,
@@ -311,31 +312,40 @@ export default function ClientPortal({ view = 'inventory' }) {
 
   /* ─── exports ─────────────────────────────────────────────────── */
   function exportExcel() {
-    const headers = ['Cliente','Producto','Lote','Envases','Presentacion','Equivalente','Ubicacion','Ingreso','Vencimiento','Estado']
-    const rows = lots.map(l => [
-      clientName,
-      cleanProductName(l.product),
-      displayLotCode(l.lot_code, l),
-      l.current_quantity,
-      l.package_size ? `${l.package_size} ${l.package_unit || ''}`.trim() : '',
-      l.package_size ? `${Number(l.current_quantity || 0) * Number(l.package_size || 0)} ${l.package_unit || ''}`.trim() : '',
-      l.location || '',
-      l.entry_date ? formatDate(l.entry_date) : '',
-      l.expiry_date ? formatDate(l.expiry_date) : '',
-      lotStatus(l).label,
-    ])
-    const csvCell = v => {
-      const s = String(v ?? '')
-      return /[,"\n\r]/.test(s) ? `"${s.replaceAll('"', '""')}"` : s
-    }
-    const csv = '﻿' + [headers, ...rows].map(r => r.map(csvCell).join(',')).join('\r\n')
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `inventario-${clientName.replace(/[^a-z0-9]+/gi, '-').toLowerCase()}-${new Date().toISOString().slice(0, 10)}.csv`
-    a.click()
-    URL.revokeObjectURL(url)
+    const headers = ['Cliente', 'Producto', 'Lote', 'Envases', 'Presentación', 'Equivalente', 'Ubicación', 'Ingreso', 'Vencimiento', 'Estado']
+    const rows = lots.map(l => {
+      const eq = lotEquivalent(l)
+      return [
+        clientName,
+        cleanProductName(l.product),
+        displayLotCode(l.lot_code, l),
+        Number(l.current_quantity || 0),
+        l.package_size ? `${l.package_size} ${l.package_unit || ''}`.trim() : '',
+        eq ? `${formatNumber(eq.quantity)} ${eq.unit}` : '',
+        l.location || '',
+        l.entry_date ? formatDate(l.entry_date) : '',
+        l.expiry_date ? formatDate(l.expiry_date) : '',
+        lotStatus(l).label,
+      ]
+    })
+
+    const ws = XLSX.utils.aoa_to_sheet([headers, ...rows])
+    ws['!cols'] = [
+      { wch: 22 }, // Cliente
+      { wch: 38 }, // Producto
+      { wch: 20 }, // Lote
+      { wch: 10 }, // Envases
+      { wch: 14 }, // Presentación
+      { wch: 16 }, // Equivalente
+      { wch: 18 }, // Ubicación
+      { wch: 12 }, // Ingreso
+      { wch: 12 }, // Vencimiento
+      { wch: 12 }, // Estado
+    ]
+
+    const wb = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(wb, ws, 'Inventario')
+    XLSX.writeFile(wb, `inventario-${clientName.replace(/[^a-z0-9]+/gi, '-').toLowerCase()}-${new Date().toISOString().slice(0, 10)}.xlsx`)
   }
 
   function printPdf() {
