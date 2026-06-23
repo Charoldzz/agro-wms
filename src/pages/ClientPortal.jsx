@@ -312,11 +312,30 @@ export default function ClientPortal({ view = 'inventory' }) {
   /* ─── exports ─────────────────────────────────────────────────── */
   function exportExcel() {
     const headers = ['Cliente','Producto','Lote','Envases','Presentacion','Equivalente','Ubicacion','Ingreso','Vencimiento','Estado']
-    const rows = lots.map(l => [clientName, cleanProductName(l.product), displayLotCode(l.lot_code,l), formatNumber(l.current_quantity), l.package_size?`${formatNumber(l.package_size)} ${l.package_unit||''}`:'', l.package_size?`${formatNumber(Number(l.current_quantity||0)*Number(l.package_size||0))} ${l.package_unit||''}`:'', l.location||'', l.entry_date?formatDate(l.entry_date):'', l.expiry_date?formatDate(l.expiry_date):'', lotStatus(l).label])
-    const html = `<html><head><meta charset="utf-8"/></head><body><table>${[headers,...rows].map(r=>`<tr>${r.map(c=>`<td>${escapeHtml(c)}</td>`).join('')}</tr>`).join('')}</table></body></html>`
-    const blob = new Blob([html],{type:'application/vnd.ms-excel;charset=utf-8'})
-    const url = URL.createObjectURL(blob); const a = document.createElement('a')
-    a.href=url; a.download=`inventario-${clientName.replace(/[^a-z0-9]+/gi,'-').toLowerCase()}-${new Date().toISOString().slice(0,10)}.xls`; a.click(); URL.revokeObjectURL(url)
+    const rows = lots.map(l => [
+      clientName,
+      cleanProductName(l.product),
+      displayLotCode(l.lot_code, l),
+      l.current_quantity,
+      l.package_size ? `${l.package_size} ${l.package_unit || ''}`.trim() : '',
+      l.package_size ? `${Number(l.current_quantity || 0) * Number(l.package_size || 0)} ${l.package_unit || ''}`.trim() : '',
+      l.location || '',
+      l.entry_date ? formatDate(l.entry_date) : '',
+      l.expiry_date ? formatDate(l.expiry_date) : '',
+      lotStatus(l).label,
+    ])
+    const csvCell = v => {
+      const s = String(v ?? '')
+      return /[,"\n\r]/.test(s) ? `"${s.replaceAll('"', '""')}"` : s
+    }
+    const csv = '﻿' + [headers, ...rows].map(r => r.map(csvCell).join(',')).join('\r\n')
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `inventario-${clientName.replace(/[^a-z0-9]+/gi, '-').toLowerCase()}-${new Date().toISOString().slice(0, 10)}.csv`
+    a.click()
+    URL.revokeObjectURL(url)
   }
 
   function printPdf() {
