@@ -350,7 +350,7 @@ export default function ClientPortal({ view = 'inventory' }) {
               </div>
               <div>
                 <p className="text-xs font-black tracking-widest text-white/90 uppercase">Todo Agrícola Boliviana</p>
-                <p className="text-[10px] font-semibold text-campo-300">Portal de cliente · Almacén G.A.T Bolivia</p>
+                <p className="text-[10px] font-semibold text-campo-300">Inventario · Portal de cliente</p>
               </div>
             </div>
             {/* Greeting row */}
