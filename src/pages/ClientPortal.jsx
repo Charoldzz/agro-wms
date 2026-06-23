@@ -461,7 +461,18 @@ export default function ClientPortal({ view = 'inventory' }) {
   <tbody>${rows}</tbody>
 </table>
 <p class="terms">Informacion referencial sujeta a validacion operativa de Todo Agricola Boliviana Ltda.</p>
-<script>window.addEventListener('load',()=>window.print())</script>
+<div id="tip" style="position:fixed;inset:0;background:rgba(15,23,42,.55);display:flex;align-items:center;justify-content:center;z-index:999">
+  <div style="background:#fff;border-radius:12px;padding:28px 32px;max-width:360px;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.3)">
+    <div style="font-size:28px;margin-bottom:10px">🖨️</div>
+    <p style="font-weight:800;font-size:15px;color:#0f172a;margin-bottom:8px">Antes de imprimir</p>
+    <p style="font-size:13px;color:#475569;line-height:1.5">En el diálogo de impresión, desactivá <strong>"Encabezados y pies de página"</strong> para que el documento quede limpio.</p>
+    <p style="font-size:11px;color:#94a3b8;margin-top:10px">El diálogo se abrirá en unos segundos…</p>
+  </div>
+</div>
+<script>window.addEventListener('load',()=>{
+  const tip=document.getElementById('tip')
+  setTimeout(()=>{if(tip)tip.style.display='none';window.print()},2500)
+})</script>
 </body></html>`)
     w.document.close()
   }
