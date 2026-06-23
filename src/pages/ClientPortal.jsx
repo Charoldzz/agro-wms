@@ -1077,10 +1077,13 @@ export default function ClientPortal({ view = 'inventory' }) {
                               {items.slice(0,3).map(item => {
                                 const eq = itemEquivalent(item)
                                 return (
-                                  <div key={item.lot_id} className="flex items-baseline justify-between gap-2">
-                                    <p className="min-w-0 text-xs font-semibold text-slate-600 [overflow-wrap:anywhere]">
-                                      · {cleanProductName(item.product)}
-                                    </p>
+                                  <div key={item.lot_id} className="flex items-start justify-between gap-2">
+                                    <div className="min-w-0">
+                                      <p className="text-xs font-semibold text-slate-600 [overflow-wrap:anywhere]">· {cleanProductName(item.product)}</p>
+                                      {item.lot_code && (
+                                        <p className="text-[10px] font-semibold text-slate-400 [overflow-wrap:anywhere]">Lote: {displayLotCode(item.lot_code, item)}</p>
+                                      )}
+                                    </div>
                                     <div className="shrink-0 text-right">
                                       {eq
                                         ? <>
