@@ -41,6 +41,18 @@ function lotEquivalent(lot) {
   return { quantity: Number(lot.current_quantity || 0) * s, unit: lot.package_unit }
 }
 
+function itemEquivalent(item) {
+  const s = Number(item?.package_size || 0)
+  if (s > 0 && item?.package_unit) return { quantity: Number(item.quantity || 0) * s, unit: item.package_unit }
+  const match = String(item?.product || '').match(/[xX×]\s*([\d.,]+)\s*(lts?\.?|kgs?\.?|l\.?)\b/i)
+  if (!match) return null
+  const size = parseFloat(match[1].replace(',', '.'))
+  const raw = match[2].toLowerCase().replace('.', '')
+  const unit = /^l(ts?)?$/.test(raw) ? 'lts' : /^kgs?$/.test(raw) ? 'kgs' : ''
+  if (!unit || isNaN(size) || size <= 0) return null
+  return { quantity: Number(item.quantity || 0) * size, unit }
+}
+
 function productIdentityKey(lot) {
   return [
     cleanProductName(lot?.product),
@@ -756,20 +768,46 @@ export default function ClientPortal({ view = 'inventory' }) {
                             <span className={`shrink-0 rounded-full px-2.5 py-1 text-[10px] font-black ${st.cls}`}>{st.label}</span>
                           </div>
                           {items && (
-                            <div className="mt-1.5 space-y-0.5">
-                              {items.slice(0,3).map(item => (
-                                <p key={item.lot_id} className="text-xs font-semibold text-slate-500">
-                                  · {cleanProductName(item.product)} — {formatNumber(item.quantity)} env.
-                                </p>
-                              ))}
+                            <div className="mt-1.5 space-y-1">
+                              {items.slice(0,3).map(item => {
+                                const eq = itemEquivalent(item)
+                                return (
+                                  <div key={item.lot_id} className="flex items-baseline justify-between gap-2">
+                                    <p className="min-w-0 text-xs font-semibold text-slate-600 [overflow-wrap:anywhere]">
+                                      · {cleanProductName(item.product)}
+                                    </p>
+                                    <div className="shrink-0 text-right">
+                                      {eq
+                                        ? <>
+                                            <span className="text-xs font-black text-campo-700">{formatNumber(eq.quantity)} {eq.unit}</span>
+                                            <span className="ml-1 text-[10px] font-semibold text-slate-400">({formatNumber(item.quantity)} env.)</span>
+                                          </>
+                                        : <span className="text-xs font-black text-slate-700">{formatNumber(item.quantity)} env.</span>
+                                      }
+                                    </div>
+                                  </div>
+                                )
+                              })}
                               {items.length > 3 && <p className="text-xs font-semibold text-slate-400">+ {items.length - 3} más</p>}
                             </div>
                           )}
-                          {!items && (
-                            <p className="mt-0.5 text-xs font-semibold text-slate-500">
-                              {lotLabel(req.lots?.lot_code, req.lots)} · {formatNumber(req.quantity)} env.
-                            </p>
-                          )}
+                          {!items && (() => {
+                            const eq = itemEquivalent({ product: req.product || req.lots?.product, quantity: req.quantity, package_size: req.lots?.package_size, package_unit: req.lots?.package_unit })
+                            return (
+                              <div className="mt-0.5 flex items-baseline justify-between gap-2">
+                                <p className="text-xs font-semibold text-slate-500">{lotLabel(req.lots?.lot_code, req.lots)}</p>
+                                <div className="shrink-0 text-right">
+                                  {eq
+                                    ? <>
+                                        <span className="text-xs font-black text-campo-700">{formatNumber(eq.quantity)} {eq.unit}</span>
+                                        <span className="ml-1 text-[10px] font-semibold text-slate-400">({formatNumber(req.quantity)} env.)</span>
+                                      </>
+                                    : <span className="text-xs font-black text-slate-700">{formatNumber(req.quantity)} env.</span>
+                                  }
+                                </div>
+                              </div>
+                            )
+                          })()}
                           <RequestProgress status={req.status} />
                           <div className="mt-2 flex items-center justify-between gap-2">
                             <p className="text-[10px] font-semibold text-slate-400">{formatDate(req.created_at)}</p>
