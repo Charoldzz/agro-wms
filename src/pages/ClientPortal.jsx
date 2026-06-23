@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import {
   Boxes, CalendarClock, CheckCircle2, ChevronDown,
-  ClipboardList, Download, FileText, History, Minus, Package,
+  ClipboardList, Download, FileText, History, LogOut, Minus, Package,
   PackageCheck, Plus, Printer, Search, Send,
   Truck, X,
 } from 'lucide-react'
@@ -120,6 +120,7 @@ function clearDraft()  { localStorage.removeItem(DRAFT_KEY) }
 /* ═══════════════════════════════════════════════════════════════════ */
 export default function ClientPortal({ view = 'inventory' }) {
   const { user, profile } = useAuth()
+  const navigate = useNavigate()
   const initialDraft = useMemo(readDraft, [])
 
   const [lots,       setLots]       = useState([])
@@ -333,6 +334,11 @@ export default function ClientPortal({ view = 'inventory' }) {
     w.document.close()
   }
 
+  async function handleSignOut() {
+    await supabase.auth.signOut()
+    navigate('/login')
+  }
+
   /* ─── views ───────────────────────────────────────────────────── */
   const isInventory = view === 'inventory'
   const isRequests  = view === 'requests'
@@ -358,44 +364,84 @@ export default function ClientPortal({ view = 'inventory' }) {
     )
   }
 
+  const headerTabs = [
+    { to: '/',          label: 'Inventario',  Icon: Boxes,         active: isInventory },
+    { to: '/despachos', label: 'Solicitudes', Icon: Truck,         active: isRequests  },
+    { to: '/historial', label: 'Movimientos', Icon: History,       active: isMovements },
+  ]
+
+  const actionBtns = (size = 15, cls = 'h-8 w-8') => (
+    <div className="flex shrink-0 items-center gap-1.5">
+      <button onClick={exportExcel} title="Descargar Excel" className={`flex ${cls} items-center justify-center rounded-lg border border-white/20 bg-white/10 transition hover:bg-white/25`}>
+        <Download size={size} />
+      </button>
+      <button onClick={printPdf} title="Imprimir PDF" className={`flex ${cls} items-center justify-center rounded-lg border border-white/20 bg-white/10 transition hover:bg-white/25`}>
+        <FileText size={size} />
+      </button>
+      <button onClick={handleSignOut} title="Cerrar sesión" className={`flex ${cls} items-center justify-center rounded-lg border border-white/20 bg-white/10 transition hover:bg-white/25`}>
+        <LogOut size={size} />
+      </button>
+    </div>
+  )
+
   return (
-    <div className="space-y-4 pb-2">
+    <div className="min-h-screen">
+
+      {/* ══ UNIFIED STICKY HEADER ════════════════════════════════════ */}
+      <header className="sticky top-0 z-20 bg-campo-800 text-white shadow-md">
+
+        {/* ── Desktop (sm+): 2 rows ── */}
+        <div className="hidden sm:block">
+          <div className="mx-auto flex max-w-5xl items-center gap-3 px-5 py-3">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-white p-1">
+              <img src="/images/todo-logo.png" alt="Todo Agrícola" className="h-full w-full object-contain" />
+            </div>
+            <div className="shrink-0">
+              <p className="text-xs font-black uppercase tracking-widest text-white/90">Todo Agrícola Boliviana</p>
+              <p className="text-[10px] font-semibold text-campo-300">Portal de cliente</p>
+            </div>
+            <div className="min-w-0 flex-1 px-4">
+              <p className="truncate text-base font-black text-white">{clientName}</p>
+            </div>
+            {actionBtns(15, 'h-8 w-8')}
+          </div>
+          <div className="mx-auto flex max-w-5xl border-t border-white/10 px-3">
+            {headerTabs.map(({ to, label, Icon, active }) => (
+              <Link key={to} to={to} className={`flex items-center gap-1.5 border-b-2 px-4 py-2.5 text-xs font-black transition ${active ? 'border-campo-300 text-white' : 'border-transparent text-white/45 hover:text-white/75'}`}>
+                <Icon size={14} aria-hidden="true" /> {label}
+              </Link>
+            ))}
+          </div>
+        </div>
+
+        {/* ── Mobile: 3 rows ── */}
+        <div className="sm:hidden">
+          <div className="flex items-center gap-2 px-4 py-2.5">
+            <div className="flex h-7 w-7 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-white p-0.5">
+              <img src="/images/todo-logo.png" alt="Todo Agrícola" className="h-full w-full object-contain" />
+            </div>
+            <p className="text-[11px] font-black uppercase tracking-widest text-white/80">Todo Agrícola Boliviana</p>
+            <div className="flex-1" />
+            {actionBtns(13, 'h-7 w-7')}
+          </div>
+          <div className="border-t border-white/10 px-4 py-2">
+            <p className="text-base font-black leading-snug text-white [overflow-wrap:anywhere]">{clientName}</p>
+          </div>
+          <div className="flex border-t border-white/10">
+            {headerTabs.map(({ to, label, Icon, active }) => (
+              <Link key={to} to={to} className={`flex flex-1 flex-col items-center gap-1 border-b-2 py-2.5 text-[10px] font-black transition ${active ? 'border-campo-300 text-white' : 'border-transparent text-white/45 hover:text-white/70'}`}>
+                <Icon size={17} aria-hidden="true" /> {label}
+              </Link>
+            ))}
+          </div>
+        </div>
+      </header>
+
+      <div className="mx-auto max-w-5xl space-y-4 px-4 py-5 pb-8">
 
       {/* ── DASHBOARD (Inicio) ─────────────────────────────────── */}
       {isInventory && (
         <>
-          {/* Greeting */}
-          <div className="overflow-hidden rounded-2xl bg-campo-700 text-white shadow-sm">
-            {/* Company brand strip */}
-            <div className="flex items-center gap-3 border-b border-white/15 bg-campo-800/40 px-5 py-3">
-              <div className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-white p-1 shadow-sm">
-                <img src="/images/todo-logo.png" alt="Todo Agrícola" className="h-full w-full object-contain" />
-              </div>
-              <div>
-                <p className="text-xs font-black tracking-widest text-white/90 uppercase">Todo Agrícola Boliviana</p>
-                <p className="text-[10px] font-semibold text-campo-300">Inventario · Portal de cliente</p>
-              </div>
-            </div>
-            {/* Greeting row */}
-            <div className="flex items-start justify-between gap-3 px-5 py-4">
-              <div className="min-w-0">
-                <p className="text-[11px] font-bold uppercase tracking-wider text-campo-300">Bienvenido</p>
-                <h1 className="mt-0.5 text-xl font-black leading-snug [overflow-wrap:anywhere]">{clientName}</h1>
-                <p className="mt-0.5 text-sm font-semibold text-campo-200 capitalize">
-                  {new Intl.DateTimeFormat('es-BO',{weekday:'long',day:'numeric',month:'long'}).format(new Date())}
-                </p>
-              </div>
-              <div className="flex shrink-0 flex-col gap-2 pt-1">
-                <button className="inline-flex items-center gap-1.5 rounded-xl border border-white/30 bg-white/10 px-3 py-2 text-xs font-bold text-white transition hover:bg-white/20" onClick={exportExcel}>
-                  <Download size={14} /> Excel
-                </button>
-                <button className="inline-flex items-center gap-1.5 rounded-xl border border-white/30 bg-white/10 px-3 py-2 text-xs font-bold text-white transition hover:bg-white/20" onClick={printPdf}>
-                  <FileText size={14} /> PDF
-                </button>
-              </div>
-            </div>
-          </div>
-
           {/* Metrics */}
           {(() => {
             const eqTotals = {}
@@ -573,11 +619,6 @@ export default function ClientPortal({ view = 'inventory' }) {
       {/* ── SOLICITUDES ───────────────────────────────────────────── */}
       {isRequests && (
         <div className="space-y-4">
-          <div className="rounded-2xl bg-campo-700 px-5 py-5 text-white">
-            <p className="text-xs font-bold uppercase tracking-wider text-campo-200">Portal de cliente</p>
-            <h1 className="mt-1 text-xl font-black">Solicitar despacho</h1>
-            <p className="mt-0.5 text-sm font-semibold text-campo-200">Armá tu lista y enviala directamente a almacén.</p>
-          </div>
 
           <div className="grid grid-cols-3 gap-2">
             <MetricCard icon={ClipboardList} label="Pendientes" value={pendingDispatchRequests.length} color="amber" />
@@ -879,11 +920,6 @@ export default function ClientPortal({ view = 'inventory' }) {
       {/* ── MOVIMIENTOS ───────────────────────────────────────────── */}
       {isMovements && (
         <div className="space-y-4">
-          <div className="rounded-2xl bg-campo-700 px-5 py-5 text-white">
-            <p className="text-xs font-bold uppercase tracking-wider text-campo-200">Portal de cliente</p>
-            <h1 className="mt-1 text-xl font-black">Historial de movimientos</h1>
-            <p className="mt-0.5 text-sm font-semibold text-campo-200">{movements.length} movimientos visibles de tus productos.</p>
-          </div>
 
           {loading ? (
             <p className="py-10 text-center text-sm font-bold text-slate-400">Cargando movimientos...</p>
@@ -952,6 +988,8 @@ export default function ClientPortal({ view = 'inventory' }) {
           onPrint={() => { printReceipt(selectedMovement); setSelectedMovement(null) }}
         />
       )}
+
+      </div>
     </div>
   )
 }

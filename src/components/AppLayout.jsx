@@ -127,6 +127,14 @@ export default function AppLayout() {
     }
   }, [isOperatorRoot])
 
+  if (profile?.role === 'cliente') {
+    return (
+      <div className="app-bg min-h-screen">
+        <Outlet />
+      </div>
+    )
+  }
+
   return (
     <div className="app-bg min-h-screen pb-[calc(7.5rem+env(safe-area-inset-bottom))]">
       <header className="sticky top-0 z-20 border-b border-slate-200 bg-white/95">
