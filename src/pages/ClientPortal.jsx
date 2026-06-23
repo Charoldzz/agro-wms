@@ -345,7 +345,9 @@ export default function ClientPortal({ view = 'inventory' }) {
           <div className="overflow-hidden rounded-2xl bg-campo-700 text-white shadow-sm">
             {/* Company brand strip */}
             <div className="flex items-center gap-3 border-b border-white/15 bg-campo-800/40 px-5 py-3">
-              <img src="/images/todo-logo.png" alt="Todo Agrícola" className="h-7 w-auto object-contain brightness-0 invert" />
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-white p-1 shadow-sm">
+                <img src="/images/todo-logo.png" alt="Todo Agrícola" className="h-full w-full object-contain" />
+              </div>
               <div>
                 <p className="text-xs font-black tracking-widest text-white/90 uppercase">Todo Agrícola Boliviana</p>
                 <p className="text-[10px] font-semibold text-campo-300">Portal de cliente · Almacén G.A.T Bolivia</p>
