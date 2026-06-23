@@ -231,7 +231,11 @@ export default function ClientPortal({ view = 'inventory' }) {
     let items = inventoryProducts
     if (inventoryFilter === 'expiring') items = items.filter(g => g.lots.some(l => lotStatus(l).label === 'Por vencer'))
     if (inventoryFilter === 'expired')  items = items.filter(g => g.lots.some(l => lotStatus(l).label === 'Vencido'))
-    if (inventorySort === 'quantity') return [...items].sort((a,b) => b.quantity - a.quantity)
+    if (inventorySort === 'quantity') return [...items].sort((a,b) => {
+      const aEq = Object.values(a.equivalents).reduce((s,v) => s + v, 0) || a.quantity
+      const bEq = Object.values(b.equivalents).reduce((s,v) => s + v, 0) || b.quantity
+      return bEq - aEq
+    })
     if (inventorySort === 'expiry')   return [...items].sort((a,b) => (a.lots[0]?.expiry_date||'9999-12-31').localeCompare(b.lots[0]?.expiry_date||'9999-12-31'))
     return items
   }, [inventoryProducts, inventoryFilter, inventorySort])
