@@ -595,27 +595,46 @@ export default function ClientPortal({ view = 'inventory' }) {
               </div>
 
               {reqSuccess ? (
-                <div className="p-4">
-                  <div className="rounded-xl bg-campo-700 p-5 text-white">
-                    <div className="flex items-start gap-3">
-                      <CheckCircle2 size={32} className="shrink-0" />
-                      <div>
-                        <p className="text-lg font-black">¡Solicitud enviada!</p>
-                        <p className="mt-0.5 text-sm font-semibold text-campo-200">{reqSuccess.items.length} producto{reqSuccess.items.length > 1 ? 's' : ''} quedaron como despacho pendiente.</p>
-                      </div>
-                    </div>
-                    <div className="mt-4 space-y-2">
-                      {reqSuccess.items.map(item => (
-                        <div key={item.lot_id} className="rounded-lg bg-white/10 px-3 py-2">
-                          <p className="text-sm font-black [overflow-wrap:anywhere]">{cleanProductName(item.product)}</p>
-                          <p className="text-xs font-semibold text-campo-200">{formatNumber(item.quantity)} env. · {lotLabel(item.lot_code, item)}</p>
-                        </div>
-                      ))}
-                    </div>
-                    <button className="mt-4 w-full rounded-lg bg-white py-2.5 font-black text-campo-800" onClick={() => setReqSuccess(null)}>
-                      Nueva solicitud
-                    </button>
+                <div className="flex flex-col items-center p-6 text-center">
+                  <div className="flex h-16 w-16 items-center justify-center rounded-full bg-campo-50 ring-8 ring-campo-100">
+                    <CheckCircle2 size={34} className="text-campo-600" />
                   </div>
+                  <h2 className="mt-4 text-xl font-black text-slate-950">¡Solicitud enviada!</h2>
+                  <p className="mt-1 text-sm font-semibold text-slate-500">
+                    {reqSuccess.items.length === 1 ? '1 producto quedó' : `${reqSuccess.items.length} productos quedaron`} como despacho pendiente.
+                  </p>
+                  <div className="mt-5 w-full space-y-2 text-left">
+                    {reqSuccess.items.map(item => {
+                      const eq = itemEquivalent(item)
+                      return (
+                        <div key={item.lot_id} className="flex items-center gap-3 rounded-xl border border-slate-100 bg-slate-50 px-4 py-3">
+                          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-campo-100">
+                            <PackageCheck size={15} className="text-campo-700" />
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <p className="text-sm font-black text-slate-900 [overflow-wrap:anywhere]">{cleanProductName(item.product)}</p>
+                            <div className="mt-0.5 flex flex-wrap items-baseline gap-x-1.5 gap-y-0">
+                              {eq
+                                ? <>
+                                    <span className="text-sm font-black text-campo-700">{formatNumber(eq.quantity)} {eq.unit}</span>
+                                    <span className="text-[10px] font-semibold text-slate-400">({formatNumber(item.quantity)} env.)</span>
+                                  </>
+                                : <span className="text-xs font-semibold text-slate-600">{formatNumber(item.quantity)} env.</span>
+                              }
+                              <span className="text-[10px] font-semibold text-slate-400">· {lotLabel(item.lot_code, item)}</span>
+                            </div>
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                  <div className="mt-4 flex w-full items-start gap-2 rounded-xl bg-amber-50 px-3 py-2.5 text-left">
+                    <CalendarClock size={14} className="mt-0.5 shrink-0 text-amber-600" />
+                    <p className="text-xs font-semibold text-amber-800">Almacén procesará tu solicitud y te avisará cuando esté lista para retirar.</p>
+                  </div>
+                  <button className="btn-primary mt-5 w-full" onClick={() => setReqSuccess(null)}>
+                    <Plus size={16} /> Nueva solicitud
+                  </button>
                 </div>
               ) : (
                 <form className="space-y-4 p-4" onSubmit={submitRequest} noValidate>
