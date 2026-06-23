@@ -212,14 +212,15 @@ export default function ClientPortal({ view = 'inventory' }) {
     const map = {}
     filteredLots.forEach(lot => {
       const key = productIdentityKey(lot)
-      if (!map[key]) map[key] = { key, product: cleanProductName(lot.product), identity: productIdentityLabel(lot), quantity:0, equivalents:{}, lots:[], expiring:0, retained:0 }
+      if (!map[key]) map[key] = { key, product: cleanProductName(lot.product), identity: productIdentityLabel(lot), quantity:0, equivalents:{}, lots:[], expiring:0, expired:0, retained:0 }
       map[key].quantity += Number(lot.current_quantity||0)
       map[key].lots.push(lot)
       const eq = lotEquivalent(lot)
       if (eq) map[key].equivalents[eq.unit] = Number(map[key].equivalents[eq.unit]||0) + eq.quantity
       const st = lotStatus(lot).label
-      if (st === 'Por vencer' || st === 'Vencido') map[key].expiring++
-      if (st === 'Retenido') map[key].retained++
+      if (st === 'Por vencer') map[key].expiring++
+      if (st === 'Vencido')    map[key].expired++
+      if (st === 'Retenido')   map[key].retained++
     })
     return Object.values(map).map(g => ({
       ...g,
@@ -719,6 +720,7 @@ export default function ClientPortal({ view = 'inventory' }) {
                         <div className="mt-1 flex flex-wrap items-center gap-2 text-xs font-semibold text-slate-500">
                           <span>{group.lots.length} lote{group.lots.length > 1 ? 's' : ''}</span>
                           {group.expiring > 0 && <span className="rounded-full bg-amber-50 px-2 py-0.5 text-amber-700">{group.expiring} por vencer</span>}
+                          {group.expired  > 0 && <span className="rounded-full bg-red-50 px-2 py-0.5 text-red-600">{group.expired} vencido{group.expired > 1 ? 's' : ''}</span>}
                           {group.retained > 0 && <span className="rounded-full bg-orange-50 px-2 py-0.5 text-orange-700">{group.retained} retenido</span>}
                         </div>
                       </div>
