@@ -61,23 +61,23 @@ function equivalentTotalsLabel(equivalents = {}) {
   const totals = Object.entries(equivalents)
     .filter(([, q]) => Number(q || 0) > 0)
     .sort(([a],[b]) => a.localeCompare(b,'es'))
-  if (totals.length === 0) return 'Sin equivalente'
+  if (totals.length === 0) return null
   return totals.map(([unit, qty]) => `${formatNumber(qty)} ${unit}`).join(' / ')
 }
 
 const STATUS_MAP = {
-  pendiente:  { label: 'Despacho pendiente',  cls: 'bg-amber-50 text-amber-800' },
-  aprobado:   { label: 'Despacho pendiente',  cls: 'bg-amber-50 text-amber-800' },
-  en_preparacion: { label: 'En preparación', cls: 'bg-campo-100 text-campo-800' },
-  despachado: { label: 'Despachado',  cls: 'bg-slate-100 text-slate-700' },
-  rechazado:  { label: 'Rechazado',   cls: 'bg-red-50 text-red-700' },
+  pendiente:       { label: 'Despacho pendiente', cls: 'bg-amber-50 text-amber-800',   accent: 'bg-amber-400' },
+  aprobado:        { label: 'Despacho pendiente', cls: 'bg-amber-50 text-amber-800',   accent: 'bg-amber-400' },
+  en_preparacion:  { label: 'En preparación',     cls: 'bg-campo-100 text-campo-800',  accent: 'bg-campo-500' },
+  despachado:      { label: 'Despachado',          cls: 'bg-slate-100 text-slate-600',  accent: 'bg-slate-400' },
+  rechazado:       { label: 'Rechazado',           cls: 'bg-red-50 text-red-700',       accent: 'bg-red-400' },
 }
-function requestStatus(s) { return STATUS_MAP[s] || { label: 'Recibido', cls: 'bg-amber-50 text-amber-800' } }
+function requestStatus(s) { return STATUS_MAP[s] || { label: 'Recibido', cls: 'bg-amber-50 text-amber-800', accent: 'bg-amber-400' } }
 
 const REQUEST_STEPS = [
-  { key: 'pendiente', label: 'Pendiente' },
-  { key: 'en_preparacion', label: 'En preparación' },
-  { key: 'despachado', label: 'Despachado' },
+  { key: 'pendiente',      label: 'Pendiente',       Icon: ClipboardList },
+  { key: 'en_preparacion', label: 'En preparación',  Icon: Package },
+  { key: 'despachado',     label: 'Despachado',       Icon: Truck },
 ]
 
 function requestStepIndex(status) {
@@ -738,7 +738,7 @@ export default function ClientPortal({ view = 'inventory' }) {
                 <p className="font-black text-slate-950">Mis solicitudes</p>
                 <p className="text-xs font-semibold text-slate-500">{requests.length} solicitud{requests.length !== 1 ? 'es' : ''} en total</p>
               </div>
-              <div className="divide-y divide-slate-100 overflow-y-auto" style={{maxHeight:'520px'}}>
+              <div className="space-y-2 overflow-y-auto p-3" style={{maxHeight:'520px'}}>
                 {requests.length === 0 ? (
                   <p className="px-4 py-8 text-center text-sm font-bold text-slate-400">Todavía no hay solicitudes.</p>
                 ) : (
@@ -746,34 +746,37 @@ export default function ClientPortal({ view = 'inventory' }) {
                     const st = requestStatus(req.status)
                     const items = Array.isArray(req.items) && req.items.length > 0 ? req.items : null
                     return (
-                      <div key={req.id} className="px-4 py-3.5">
-                        <div className="flex items-start justify-between gap-2">
-                          <p className="min-w-0 text-sm font-black text-slate-900 [overflow-wrap:anywhere]">
-                            {items ? `${items.length} producto${items.length > 1 ? 's' : ''}` : cleanProductName(req.product || req.lots?.product)}
-                          </p>
-                          <span className={`shrink-0 rounded-full px-2.5 py-1 text-[10px] font-black ${st.cls}`}>{st.label}</span>
-                        </div>
-                        {items && (
-                          <div className="mt-1.5 space-y-0.5">
-                            {items.slice(0,3).map(item => (
-                              <p key={item.lot_id} className="text-xs font-semibold text-slate-500">
-                                · {cleanProductName(item.product)} — {formatNumber(item.quantity)} env.
-                              </p>
-                            ))}
-                            {items.length > 3 && <p className="text-xs font-semibold text-slate-400">+ {items.length - 3} más</p>}
+                      <div key={req.id} className="flex overflow-hidden rounded-xl border border-slate-100 bg-white shadow-sm">
+                        <div className={`w-1.5 shrink-0 ${st.accent}`} />
+                        <div className="min-w-0 flex-1 px-3 py-3">
+                          <div className="flex items-start justify-between gap-2">
+                            <p className="min-w-0 text-sm font-black text-slate-900 [overflow-wrap:anywhere]">
+                              {items ? `${items.length} producto${items.length > 1 ? 's' : ''}` : cleanProductName(req.product || req.lots?.product)}
+                            </p>
+                            <span className={`shrink-0 rounded-full px-2.5 py-1 text-[10px] font-black ${st.cls}`}>{st.label}</span>
                           </div>
-                        )}
-                        {!items && (
-                          <p className="mt-0.5 text-xs font-semibold text-slate-500">
-                            {lotLabel(req.lots?.lot_code, req.lots)} · {formatNumber(req.quantity)} env.
-                          </p>
-                        )}
-                        <RequestProgress status={req.status} />
-                        <div className="mt-2 flex items-center justify-between gap-2">
-                          <p className="text-[10px] font-semibold text-slate-400">{formatDate(req.created_at)}</p>
-                          {req.admin_notes && (
-                            <p className="text-xs font-semibold text-slate-600 italic">{req.admin_notes}</p>
+                          {items && (
+                            <div className="mt-1.5 space-y-0.5">
+                              {items.slice(0,3).map(item => (
+                                <p key={item.lot_id} className="text-xs font-semibold text-slate-500">
+                                  · {cleanProductName(item.product)} — {formatNumber(item.quantity)} env.
+                                </p>
+                              ))}
+                              {items.length > 3 && <p className="text-xs font-semibold text-slate-400">+ {items.length - 3} más</p>}
+                            </div>
                           )}
+                          {!items && (
+                            <p className="mt-0.5 text-xs font-semibold text-slate-500">
+                              {lotLabel(req.lots?.lot_code, req.lots)} · {formatNumber(req.quantity)} env.
+                            </p>
+                          )}
+                          <RequestProgress status={req.status} />
+                          <div className="mt-2 flex items-center justify-between gap-2">
+                            <p className="text-[10px] font-semibold text-slate-400">{formatDate(req.created_at)}</p>
+                            {req.admin_notes && (
+                              <p className="text-xs font-semibold text-slate-600 italic">{req.admin_notes}</p>
+                            )}
+                          </div>
                         </div>
                       </div>
                     )
@@ -904,8 +907,9 @@ function MetricCard({ icon: Icon, label, value, sub, color = 'campo', onClick })
 function RequestProgress({ status }) {
   if (status === 'rechazado') {
     return (
-      <div className="mt-3 rounded-lg bg-red-50 px-3 py-2 text-xs font-black text-red-700">
-        Solicitud rechazada
+      <div className="mt-3 flex items-center gap-2 rounded-lg bg-red-50 px-3 py-2">
+        <X size={13} className="shrink-0 text-red-600" />
+        <span className="text-xs font-black text-red-700">Solicitud rechazada</span>
       </div>
     )
   }
@@ -913,15 +917,31 @@ function RequestProgress({ status }) {
   const currentStep = requestStepIndex(status)
 
   return (
-    <div className="mt-3">
-      <div className="grid grid-cols-3 gap-1.5">
-        {REQUEST_STEPS.map((step, index) => {
-          const done = index <= currentStep
+    <div className="mt-3 px-1">
+      <div className="flex items-start">
+        {REQUEST_STEPS.map(({ key, label, Icon }, index) => {
+          const done = index < currentStep
+          const active = index === currentStep
+          const isLast = index === REQUEST_STEPS.length - 1
           return (
-            <div key={step.key} className="min-w-0">
-              <div className={`h-1.5 rounded-full ${done ? 'bg-campo-600' : 'bg-slate-200'}`} />
-              <p className={`mt-1 truncate text-[10px] font-black ${done ? 'text-campo-700' : 'text-slate-400'}`}>
-                {step.label}
+            <div key={key} className="flex flex-1 flex-col items-center">
+              <div className="flex w-full items-center">
+                <div className={`h-0.5 flex-1 transition-colors ${index === 0 ? 'opacity-0' : done || active ? 'bg-campo-500' : 'bg-slate-200'}`} />
+                <div
+                  className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full transition-all
+                    ${done
+                      ? 'bg-campo-600 text-white'
+                      : active
+                        ? 'bg-campo-600 text-white ring-2 ring-campo-300 ring-offset-1'
+                        : 'bg-slate-100 text-slate-400'}`}
+                >
+                  {done ? <CheckCircle2 size={13} /> : <Icon size={13} />}
+                </div>
+                <div className={`h-0.5 flex-1 transition-colors ${isLast ? 'opacity-0' : done ? 'bg-campo-500' : 'bg-slate-200'}`} />
+              </div>
+              <p className={`mt-1.5 text-center text-[9px] font-black leading-tight
+                ${done || active ? 'text-campo-700' : 'text-slate-400'}`}>
+                {label}
               </p>
             </div>
           )
