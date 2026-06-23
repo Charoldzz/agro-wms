@@ -35,24 +35,33 @@ function lotStatus(lot) {
   return { label: 'Disponible', cls: 'bg-campo-50 text-campo-700' }
 }
 
-function lotEquivalent(lot) {
-  const s = Number(lot?.package_size || 0)
-  if (s <= 0 || !lot?.package_unit) return null
-  return { quantity: Number(lot.current_quantity || 0) * s, unit: lot.package_unit }
-}
-
-function itemEquivalent(item) {
-  const s = Number(item?.package_size || 0)
-  if (s > 0 && item?.package_unit) return { quantity: Number(item.quantity || 0) * s, unit: item.package_unit }
-  // matches "x 20 Lts", "X 10 Kgs", "20L_BO_TP", "20 L", "20Lts"
-  // (?![a-zA-Z]) instead of \b because _ is a word char so \b fails on "20L_BO"
-  const match = String(item?.product || '').match(/(?:[xX×]\s*)?(\d+(?:[.,]\d+)?)\s*(lts?|kgs?|l)(?![a-zA-Z])/i)
+// Extracts {size, unit} from product name. Matches "x 20 Lts", "X 10 Kgs",
+// "20L_BO_TP", "10X1 KG_BO", "20 L", etc. Uses (?![a-zA-Z]) not \b because
+// _ is a word char so \b fails on "20L_BO".
+function parseUnitFromName(name) {
+  const match = String(name || '').match(/(?:[xX×]\s*)?(\d+(?:[.,]\d+)?)\s*(lts?|kgs?|l)(?![a-zA-Z])/i)
   if (!match) return null
   const size = parseFloat(match[1].replace(',', '.'))
   const raw = match[2].toLowerCase()
   const unit = /^l(ts?)?$/.test(raw) ? 'lts' : /^kgs?$/.test(raw) ? 'kgs' : ''
   if (!unit || isNaN(size) || size <= 0) return null
-  return { quantity: Number(item.quantity || 0) * size, unit }
+  return { size, unit }
+}
+
+function lotEquivalent(lot) {
+  const s = Number(lot?.package_size || 0)
+  if (s > 0 && lot?.package_unit) return { quantity: Number(lot.current_quantity || 0) * s, unit: lot.package_unit }
+  const parsed = parseUnitFromName(lot?.product)
+  if (!parsed) return null
+  return { quantity: Number(lot.current_quantity || 0) * parsed.size, unit: parsed.unit }
+}
+
+function itemEquivalent(item) {
+  const s = Number(item?.package_size || 0)
+  if (s > 0 && item?.package_unit) return { quantity: Number(item.quantity || 0) * s, unit: item.package_unit }
+  const parsed = parseUnitFromName(item?.product)
+  if (!parsed) return null
+  return { quantity: Number(item.quantity || 0) * parsed.size, unit: parsed.unit }
 }
 
 function productIdentityKey(lot) {
