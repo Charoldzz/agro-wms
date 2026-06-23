@@ -399,9 +399,70 @@ export default function ClientPortal({ view = 'inventory' }) {
   }
 
   function printPdf() {
-    const rows = lots.map(l=>`<tr><td>${escapeHtml(cleanProductName(l.product))}</td><td>${escapeHtml(displayLotCode(l.lot_code,l))}</td><td>${escapeHtml(formatNumber(l.current_quantity))}</td><td>${escapeHtml(Number(l.package_size)>0?`${formatNumber(Number(l.current_quantity||0)*Number(l.package_size||0))} ${l.package_unit||''}`:'-')}</td><td>${escapeHtml(l.location||'-')}</td><td>${escapeHtml(l.expiry_date?formatDate(l.expiry_date):'-')}</td><td>${escapeHtml(lotStatus(l).label)}</td></tr>`).join('')
-    const w = window.open('','_blank'); if(!w) return
-    w.document.write(`<!doctype html><html><head><title>Inventario ${escapeHtml(clientName)}</title><meta name="viewport" content="width=device-width,initial-scale=1"/><style>body{color:#0f172a;font-family:Arial,sans-serif;margin:24px}h1{margin:0 0 4px}table{border-collapse:collapse;margin-top:18px;width:100%}th,td{border-bottom:1px solid #cbd5e1;font-size:12px;padding:8px;text-align:left}th{background:#f1f5f9}.terms{color:#475569;font-size:11px;margin-top:18px}@media print{body{margin:12mm}}</style></head><body><h1>Todo Agricola Boliviana Ltda</h1><strong>Inventario actual - ${escapeHtml(clientName)}</strong><p>Emitido: ${escapeHtml(formatDate(new Date().toISOString()))}</p><table><thead><tr><th>Producto</th><th>Lote</th><th>Envases</th><th>Equivalente</th><th>Ubicacion</th><th>Vence</th><th>Estado</th></tr></thead><tbody>${rows}</tbody></table><p class="terms">Informacion referencial sujeta a validacion operativa de Todo Agricola.</p><script>window.addEventListener('load',()=>window.print())</script></body></html>`)
+    const date = formatDate(new Date().toISOString())
+    const rows = lots.map(l => {
+      let eqStr = '-'
+      try { const eq = lotEquivalent(l); if (eq) eqStr = `${formatNumber(eq.quantity)} ${eq.unit}` } catch (_) {}
+      const st = lotStatus(l)
+      const stColor = st.label === 'Disponible' ? '#166534' : st.label === 'Por vencer' ? '#92400e' : st.label === 'Vencido' ? '#991b1b' : '#374151'
+      return `<tr>
+        <td>${escapeHtml(cleanProductName(l.product))}</td>
+        <td>${escapeHtml(displayLotCode(l.lot_code, l))}</td>
+        <td style="text-align:right">${escapeHtml(formatNumber(l.current_quantity))}</td>
+        <td style="text-align:right">${escapeHtml(eqStr)}</td>
+        <td>${escapeHtml(l.location || '-')}</td>
+        <td style="text-align:right">${escapeHtml(l.expiry_date ? formatDate(l.expiry_date) : '-')}</td>
+        <td style="color:${stColor};font-weight:600">${escapeHtml(st.label)}</td>
+      </tr>`
+    }).join('')
+
+    const w = window.open('', '_blank'); if (!w) return
+    w.document.write(`<!doctype html><html><head>
+<title>Inventario ${escapeHtml(clientName)}</title>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0 }
+  body { color: #0f172a; font-family: Arial, sans-serif }
+  .header { background: #1d593a; color: #fff; padding: 18px 24px 14px }
+  .header h1 { font-size: 20px; font-weight: 800; letter-spacing: .01em }
+  .header p  { font-size: 11px; margin-top: 2px; opacity: .75 }
+  .meta { padding: 10px 24px 0; display: flex; justify-content: space-between; align-items: baseline }
+  .meta .client { font-size: 15px; font-weight: 700; color: #1d593a }
+  .meta .date   { font-size: 10px; color: #64748b }
+  .divider { border: none; border-top: 2px solid #1d593a; margin: 8px 24px 0 }
+  table  { border-collapse: collapse; width: calc(100% - 48px); margin: 12px 24px 0; font-size: 11px }
+  thead tr { background: #1f6f45; color: #fff }
+  th { padding: 7px 8px; text-align: left; font-weight: 700; font-size: 10px; letter-spacing: .04em; text-transform: uppercase }
+  th.r { text-align: right }
+  td { padding: 6px 8px; border-top: 1px solid #e2e8f0; vertical-align: top }
+  .terms { font-size: 9px; color: #94a3b8; margin: 14px 24px 0 }
+  @media print {
+    body { -webkit-print-color-adjust: exact; print-color-adjust: exact }
+    @page { margin: 12mm }
+    .header, thead tr { background: #1d593a !important; color: #fff !important }
+  }
+</style>
+</head><body>
+<div class="header">
+  <h1>Todo Agricola Boliviana Ltda</h1>
+  <p>Portal de almacén</p>
+</div>
+<div class="meta">
+  <span class="client">${escapeHtml(clientName)}</span>
+  <span class="date">Emitido: ${escapeHtml(date)}</span>
+</div>
+<hr class="divider"/>
+<table>
+  <thead><tr>
+    <th>Producto</th><th>Lote</th>
+    <th class="r">Envases</th><th class="r">Equivalente</th>
+    <th>Ubicacion</th><th class="r">Vence</th><th>Estado</th>
+  </tr></thead>
+  <tbody>${rows}</tbody>
+</table>
+<p class="terms">Informacion referencial sujeta a validacion operativa de Todo Agricola Boliviana Ltda.</p>
+<script>window.addEventListener('load',()=>window.print())</script>
+</body></html>`)
     w.document.close()
   }
 
