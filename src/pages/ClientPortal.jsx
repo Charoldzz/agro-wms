@@ -232,11 +232,14 @@ export default function ClientPortal({ view = 'inventory' }) {
     let items = inventoryProducts
     if (inventoryFilter === 'expiring') items = items.filter(g => g.lots.some(l => lotStatus(l).label === 'Por vencer'))
     if (inventoryFilter === 'expired')  items = items.filter(g => g.lots.some(l => lotStatus(l).label === 'Vencido'))
-    if (inventorySort === 'quantity') return [...items].sort((a,b) => {
-      const aEq = Object.values(a.equivalents).reduce((s,v) => s + v, 0) || a.quantity
-      const bEq = Object.values(b.equivalents).reduce((s,v) => s + v, 0) || b.quantity
-      return bEq - aEq
-    })
+    if (inventorySort === 'quantity-desc' || inventorySort === 'quantity-asc') {
+      const dir = inventorySort === 'quantity-desc' ? -1 : 1
+      return [...items].sort((a,b) => {
+        const aEq = Object.values(a.equivalents).reduce((s,v) => s + v, 0) || a.quantity
+        const bEq = Object.values(b.equivalents).reduce((s,v) => s + v, 0) || b.quantity
+        return dir * (aEq - bEq)
+      })
+    }
     if (inventorySort === 'expiry')   return [...items].sort((a,b) => (a.lots[0]?.expiry_date||'9999-12-31').localeCompare(b.lots[0]?.expiry_date||'9999-12-31'))
     return items
   }, [inventoryProducts, inventoryFilter, inventorySort])
@@ -690,7 +693,8 @@ export default function ClientPortal({ view = 'inventory' }) {
                   className="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-bold text-slate-600 outline-none"
                 >
                   <option value="name">A → Z</option>
-                  <option value="quantity">Mayor cantidad</option>
+                  <option value="quantity-desc">Mayor cantidad</option>
+                  <option value="quantity-asc">Menor cantidad</option>
                 </select>
               </div>
             )
