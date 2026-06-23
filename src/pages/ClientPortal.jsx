@@ -40,7 +40,7 @@ function lotStatus(lot) {
 // "20L_BO_TP", "10X1 KG_BO", "20 L", etc. Uses (?![a-zA-Z]) not \b because
 // _ is a word char so \b fails on "20L_BO".
 function parseUnitFromName(name) {
-  const match = String(name || '').match(/(?:[xX×]\s*)?(\d+(?:[.,]\d+)?)\s*(ltrs?|lts?|kgs?|l)(?![a-zA-Z])/i)
+  const match = String(name || '').match(/(?:[xX×]\s*)?(\d+(?:[.,]\d+)?)\)?\s*(ltrs?|lts?|kgs?|l)(?![a-zA-Z])/i)
   if (!match) return null
   const size = parseFloat(match[1].replace(',', '.'))
   const raw = match[2].toLowerCase()
