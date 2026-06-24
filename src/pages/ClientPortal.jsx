@@ -135,7 +135,6 @@ export default function ClientPortal({ view = 'inventory' }) {
   const [requests,   setRequests]   = useState([])
   const [loading,    setLoading]    = useState(true)
   const [showExpiryModal, setShowExpiryModal] = useState(false)
-  const [showProductsModal, setShowProductsModal] = useState(false)
   const [search,     setSearch]     = useState('')
   const searchBarRef = useRef(null)
   const [expandedProduct, setExpandedProduct] = useState('')
@@ -641,7 +640,7 @@ export default function ClientPortal({ view = 'inventory' }) {
             return (
               <div className="grid grid-cols-3 gap-2">
                 <MetricCard icon={Boxes} label="Envases en almacén" value={formatNumber(totalStock)} sub={eqLabel || null} color="campo" />
-                <MetricCard icon={Package} label="Lotes en almacén" value={productCount} color="slate" onClick={() => setShowProductsModal(true)} />
+                <MetricCard icon={Package} label="Lotes en almacén" value={productCount} color="slate" />
                 <MetricCard
                   icon={expiring.length > 0 ? CalendarClock : PackageCheck}
                   label={expiring.length > 0 ? 'Lotes por vencer' : 'Sin alertas'}
@@ -834,6 +833,19 @@ export default function ClientPortal({ view = 'inventory' }) {
                             </Link>
                           )
                         })}
+                      </div>
+                      <div className="border-t border-slate-100 px-4 py-3">
+                        <button
+                          type="button"
+                          className="flex w-full items-center justify-center gap-2 rounded-lg bg-campo-700 px-4 py-2.5 text-sm font-black text-white transition hover:bg-campo-800 active:scale-[0.98]"
+                          onClick={e => {
+                            e.stopPropagation()
+                            setReqProductName(group.key)
+                            navigate('/despachos')
+                          }}
+                        >
+                          <Truck size={15} /> Solicitar despacho
+                        </button>
                       </div>
                     </div>
                     </div>{/* min-w-0 flex-1 */}
@@ -1236,14 +1248,6 @@ export default function ClientPortal({ view = 'inventory' }) {
         </div>
       )}
 
-      {/* Products modal */}
-      {showProductsModal && (
-        <ProductsModal
-          lots={lots}
-          onClose={() => setShowProductsModal(false)}
-        />
-      )}
-
       {/* Expiry modal */}
       {showExpiryModal && (
         <ExpiryModal
@@ -1346,73 +1350,6 @@ function RequestProgress({ status }) {
           )
         })}
       </div>
-    </div>
-  )
-}
-
-function ProductsModal({ lots, onClose }) {
-  const [q, setQ] = useState('')
-  const products = useMemo(() => {
-    const map = new Map()
-    lots.forEach(l => {
-      const key = productIdentityKey(l)
-      const name = cleanProductName(l.product)
-      if (!name) return
-      const entry = map.get(key) || { key, name, identity: productIdentityLabel(l), totalQty: 0, lotCount: 0 }
-      entry.totalQty += Number(l.current_quantity || 0)
-      entry.lotCount += 1
-      map.set(key, entry)
-    })
-    return [...map.values()].sort((a, b) => a.identity.localeCompare(b.identity, 'es'))
-  }, [lots])
-
-  const filtered = q.trim()
-    ? products.filter(p => [p.name, p.identity].some(value => value.toLowerCase().includes(q.trim().toLowerCase())))
-    : products
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-end bg-black/40 p-4 sm:items-center sm:justify-center" onClick={onClose}>
-      <section className="flex h-[80dvh] w-full max-w-md flex-col overflow-hidden rounded-2xl bg-white shadow-xl" onClick={e => e.stopPropagation()}>
-        <div className="flex shrink-0 items-center justify-between border-b border-slate-100 px-5 py-4">
-          <div>
-            <h3 className="font-black text-slate-950">Productos en almacén</h3>
-            <p className="text-xs font-semibold text-slate-500">{products.length} producto{products.length !== 1 ? 's' : ''}</p>
-          </div>
-          <button className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100" onClick={onClose}><X size={18} /></button>
-        </div>
-        <div className="shrink-0 border-b border-slate-100 px-4 py-2.5">
-          <div className="flex items-center gap-2 rounded-lg bg-slate-50 px-3 py-2">
-            <Search size={14} className="shrink-0 text-slate-400" />
-            <input
-              type="text"
-              placeholder="Buscar producto..."
-              value={q}
-              onChange={e => setQ(e.target.value)}
-              className="w-full bg-transparent text-sm font-semibold text-slate-900 placeholder-slate-400 outline-none"
-            />
-            {q && <button onClick={() => setQ('')} className="text-slate-400"><X size={14} /></button>}
-          </div>
-        </div>
-        <ul className="divide-y divide-slate-100 overflow-y-auto" style={{ maxHeight: 'calc(80dvh - 130px)' }}>
-          {filtered.length === 0 && (
-            <li className="px-5 py-8 text-center text-sm font-semibold text-slate-400">Sin resultados</li>
-          )}
-          {filtered.map(p => (
-            <li key={p.key} className="flex items-center justify-between gap-3 px-5 py-3.5">
-              <div className="min-w-0">
-                <p className="text-sm font-bold text-slate-900 [overflow-wrap:anywhere]">{p.name}</p>
-                {p.identity !== p.name ? (
-                  <p className="mt-0.5 text-xs font-semibold text-slate-400 [overflow-wrap:anywhere]">{p.identity}</p>
-                ) : null}
-              </div>
-              <div className="shrink-0 text-right">
-                <p className="text-sm font-black text-campo-700">{formatNumber(p.totalQty)} env.</p>
-                <p className="text-[10px] font-semibold text-slate-400">{p.lotCount} lote{p.lotCount !== 1 ? 's' : ''}</p>
-              </div>
-            </li>
-          ))}
-        </ul>
-      </section>
     </div>
   )
 }
