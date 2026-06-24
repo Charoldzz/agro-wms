@@ -10,5 +10,18 @@
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
+    <script>
+      // Reset iOS Safari zoom automatically when keyboard dismisses
+      document.addEventListener('focusout', function () {
+        if ((window.visualViewport ? window.visualViewport.scale : 1) > 1.01) {
+          var meta = document.querySelector('meta[name=viewport]')
+          if (meta) {
+            var original = meta.content
+            meta.content = 'width=device-width, initial-scale=1, maximum-scale=1'
+            requestAnimationFrame(function () { meta.content = original })
+          }
+        }
+      })
+    </script>
   </body>
 </html>
