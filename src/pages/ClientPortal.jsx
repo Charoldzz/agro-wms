@@ -1177,13 +1177,16 @@ export default function ClientPortal({ view = 'inventory' }) {
                       </div>
                       {reqItems.map(item => {
                         const eq = itemEquivalent(item)
-                        const isExpired = daysUntil(item.expiry_date) !== null && daysUntil(item.expiry_date) < 0
+                        const itemDays = daysUntil(item.expiry_date)
+                        const isExpired  = itemDays !== null && itemDays < 0
+                        const isExpiring = itemDays !== null && itemDays >= 0 && itemDays <= 90
                         return (
-                        <div key={item.lot_id} className={`flex items-center gap-2 rounded-lg px-3 py-2.5 shadow-sm ${isExpired ? 'bg-red-50 ring-1 ring-red-200' : 'bg-white'}`}>
+                        <div key={item.lot_id} className={`flex items-center gap-2 rounded-lg px-3 py-2.5 shadow-sm ${isExpired ? 'bg-red-50 ring-1 ring-red-200' : isExpiring ? 'bg-amber-50 ring-1 ring-amber-200' : 'bg-white'}`}>
                           <div className="min-w-0 flex-1">
                             <div className="flex flex-wrap items-center gap-1.5">
                               <p className="text-sm font-black text-slate-900 [overflow-wrap:anywhere]">{cleanProductName(item.product)}</p>
-                              {isExpired && <span className="rounded-full bg-red-100 px-2 py-0.5 text-[10px] font-black text-red-700">VENCIDO</span>}
+                              {isExpired  && <span className="rounded-full bg-red-100 px-2 py-0.5 text-[10px] font-black text-red-700">VENCIDO</span>}
+                              {isExpiring && <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-black text-amber-700">POR VENCER</span>}
                             </div>
                             <p className="text-xs font-semibold text-slate-500">{lotLabel(item.lot_code, item)}</p>
                             <div className="mt-0.5 flex items-baseline gap-1.5">
