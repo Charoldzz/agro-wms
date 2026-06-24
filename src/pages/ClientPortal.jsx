@@ -614,7 +614,17 @@ export default function ClientPortal({ view = 'inventory' }) {
       {isInventory && (
         <>
           {/* Metrics */}
-          {(() => {
+          {loading ? (
+            <div className="grid grid-cols-3 gap-2">
+              {[0,1,2].map(i => (
+                <div key={i} className="animate-pulse rounded-xl bg-slate-100 p-3.5">
+                  <div className="mb-2 h-2.5 w-3/4 rounded bg-slate-200" />
+                  <div className="mb-1.5 h-6 w-1/2 rounded bg-slate-200" />
+                  <div className="h-2 w-2/3 rounded bg-slate-200" />
+                </div>
+              ))}
+            </div>
+          ) : (() => {
             const eqTotals = { lts: 0, kgs: 0 }
             lots.forEach(l => {
               const eq = lotEquivalent(l)
@@ -724,7 +734,23 @@ export default function ClientPortal({ view = 'inventory' }) {
 
           {/* Product list */}
           {loading ? (
-            <p className="py-10 text-center text-sm font-bold text-slate-400">Cargando inventario...</p>
+            <div className="space-y-2">
+              {[1, 0.75, 0.5, 0.3].map((opacity, i) => (
+                <div key={i} className="animate-pulse rounded-xl border border-slate-100 bg-white p-4 shadow-sm" style={{ opacity }}>
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex-1">
+                      <div className="mb-2 h-3.5 w-3/5 rounded bg-slate-200" />
+                      <div className="mb-1.5 h-2.5 w-4/5 rounded bg-slate-200" />
+                      <div className="h-2.5 w-1/4 rounded bg-slate-200" />
+                    </div>
+                    <div className="text-right">
+                      <div className="mb-1.5 h-4 w-20 rounded bg-slate-200" />
+                      <div className="h-2.5 w-14 rounded bg-slate-200" />
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
           ) : filteredLots.length === 0 ? (
             <EmptyState title="Sin productos" text="No hay inventario disponible en este momento." />
           ) : (
@@ -772,7 +798,7 @@ export default function ClientPortal({ view = 'inventory' }) {
                       </div>
                     </button>
 
-                    {isOpen && (
+                    <div className={`overflow-hidden transition-all duration-200 ease-in-out ${isOpen ? 'max-h-[2000px]' : 'max-h-0'}`}>
                       <div className="divide-y divide-slate-100 border-t border-slate-100">
                         {group.lots.map(lot => {
                           const st  = lotStatus(lot)
@@ -785,7 +811,14 @@ export default function ClientPortal({ view = 'inventory' }) {
                                   <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${st.cls}`}>{st.label}</span>
                                 </div>
                                 <p className="mt-0.5 text-xs font-semibold text-slate-500">
-                                  {lot.location || 'Sin ubicación'} · Vence: {lot.expiry_date ? formatDate(lot.expiry_date) : 'Sin dato'}
+                                  {lot.location || 'Sin ubicación'} · {(() => {
+                                    const d = daysUntil(lot.expiry_date)
+                                    if (d === null) return 'Sin vencimiento'
+                                    if (d < 0) return <span className="font-bold text-red-600">Venció hace {Math.abs(d)} días</span>
+                                    if (d === 0) return <span className="font-bold text-red-600">Vence hoy</span>
+                                    if (d <= 30) return <span className="font-bold text-amber-600">Vence en {d} días</span>
+                                    return `Vence: ${formatDate(lot.expiry_date)}`
+                                  })()}
                                 </p>
                               </div>
                               <div className="shrink-0 text-right">
@@ -802,7 +835,7 @@ export default function ClientPortal({ view = 'inventory' }) {
                           )
                         })}
                       </div>
-                    )}
+                    </div>
                     </div>{/* min-w-0 flex-1 */}
                   </article>
                 )
