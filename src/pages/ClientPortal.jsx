@@ -666,6 +666,7 @@ export default function ClientPortal({ view = 'inventory' }) {
               placeholder="Buscar producto, lote, ubicación..."
               value={search}
               onChange={e => setSearch(e.target.value)}
+              onFocus={e => setTimeout(() => e.target.scrollIntoView({ behavior: 'smooth', block: 'start' }), 300)}
             />
             {search && (
               <button className="text-slate-400 hover:text-slate-700" onClick={() => setSearch('')}>
@@ -1338,6 +1339,7 @@ function ProductsModal({ lots, onClose }) {
               placeholder="Buscar producto..."
               value={q}
               onChange={e => setQ(e.target.value)}
+              onFocus={e => setTimeout(() => e.target.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 300)}
               className="w-full bg-transparent text-sm font-semibold text-slate-900 placeholder-slate-400 outline-none"
             />
             {q && <button onClick={() => setQ('')} className="text-slate-400"><X size={14} /></button>}
