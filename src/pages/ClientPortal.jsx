@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import ExcelJS from 'exceljs'
 import { Link, useNavigate } from 'react-router-dom'
 import {
-  Boxes, CalendarClock, CheckCircle2, ChevronDown,
+  Boxes, CheckCircle2, ChevronDown,
   ClipboardList, Download, FileText, History, LogOut, Minus, Package,
   PackageCheck, Plus, Printer, Search, Send,
   Truck, X,
@@ -134,7 +134,6 @@ export default function ClientPortal({ view = 'inventory' }) {
   const [movements,  setMovements]  = useState([])
   const [requests,   setRequests]   = useState([])
   const [loading,    setLoading]    = useState(true)
-  const [showExpiryModal, setShowExpiryModal] = useState(false)
   const [search,     setSearch]     = useState('')
   const searchBarRef = useRef(null)
   const [expandedProduct, setExpandedProduct] = useState('')
@@ -629,60 +628,36 @@ export default function ClientPortal({ view = 'inventory' }) {
       {/* ── DASHBOARD (Inicio) ─────────────────────────────────── */}
       {isInventory && (
         <>
-          {/* Hero card */}
+          {/* Summary card */}
           {loading ? (
-            <div className="animate-pulse overflow-hidden rounded-2xl bg-slate-200 p-5">
-              <div className="mb-1 h-2.5 w-1/4 rounded bg-slate-300" />
-              <div className="mb-5 h-5 w-1/2 rounded bg-slate-300" />
-              <div className="mb-1 h-2.5 w-1/3 rounded bg-slate-300" />
-              <div className="mb-5 h-9 w-2/3 rounded bg-slate-300" />
-              <div className="grid grid-cols-3 gap-3 border-t border-slate-300 pt-4">
-                {[1,2,3].map(i => (
-                  <div key={i} className="space-y-1">
-                    <div className="h-6 rounded bg-slate-300" />
-                    <div className="h-2.5 w-2/3 rounded bg-slate-300" />
+            <div className="animate-pulse rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+              <div className="mb-1 h-2.5 w-1/4 rounded bg-slate-200" />
+              <div className="mb-5 h-8 w-2/3 rounded bg-slate-200" />
+              <div className="grid grid-cols-2 gap-4 border-t border-slate-100 pt-4">
+                {[1,2].map(i => (
+                  <div key={i} className="space-y-1.5">
+                    <div className="h-6 w-1/2 rounded bg-slate-200" />
+                    <div className="h-2.5 w-3/4 rounded bg-slate-200" />
                   </div>
                 ))}
               </div>
             </div>
           ) : (
-            <div className="overflow-hidden rounded-2xl bg-campo-800 p-5 text-white">
-              <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-campo-300">Portal de inventario</p>
-                  <h2 className="mt-0.5 text-lg font-black leading-tight text-white [overflow-wrap:anywhere]">{clientName}</h2>
-                </div>
-                <p className="shrink-0 text-[10px] font-semibold text-campo-300">{formatDate(new Date().toISOString())}</p>
-              </div>
-
+            <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
               {eqTotalsLabel && (
-                <div className="mt-4">
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-campo-300">Equivalente total</p>
-                  <p className="mt-1 text-3xl font-black tabular-nums text-white sm:text-4xl">{eqTotalsLabel}</p>
-                </div>
+                <>
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Equivalente total en almacén</p>
+                  <p className="mt-1 text-2xl font-black tabular-nums text-campo-700 sm:text-3xl [overflow-wrap:anywhere]">{eqTotalsLabel}</p>
+                </>
               )}
-
-              <div className="mt-4 grid grid-cols-3 gap-4 border-t border-white/10 pt-4">
+              <div className={`grid grid-cols-2 gap-6 ${eqTotalsLabel ? 'mt-4 border-t border-slate-100 pt-4' : ''}`}>
                 <div>
-                  <p className="text-xl font-black tabular-nums text-white sm:text-2xl">{formatNumber(totalStock)}</p>
-                  <p className="text-[10px] font-semibold text-campo-300">envases</p>
+                  <p className="text-2xl font-black tabular-nums text-slate-900">{formatNumber(totalStock)}</p>
+                  <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">envases en almacén</p>
                 </div>
                 <div>
-                  <p className="text-xl font-black tabular-nums text-white sm:text-2xl">{productCount}</p>
-                  <p className="text-[10px] font-semibold text-campo-300">lotes</p>
-                </div>
-                <div>
-                  {expiring.length > 0 ? (
-                    <button type="button" className="text-left" onClick={() => setShowExpiryModal(true)}>
-                      <p className="text-xl font-black tabular-nums text-amber-300 sm:text-2xl">{expiring.length}</p>
-                      <p className="text-[10px] font-semibold text-amber-300/80">por vencer ↗</p>
-                    </button>
-                  ) : (
-                    <>
-                      <p className="text-xl font-black text-campo-300 sm:text-2xl">✓</p>
-                      <p className="text-[10px] font-semibold text-campo-300">sin alertas</p>
-                    </>
-                  )}
+                  <p className="text-2xl font-black tabular-nums text-slate-900">{productCount}</p>
+                  <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">lotes activos</p>
                 </div>
               </div>
             </div>
@@ -1299,14 +1274,6 @@ export default function ClientPortal({ view = 'inventory' }) {
         </div>
       )}
 
-      {/* Expiry modal */}
-      {showExpiryModal && (
-        <ExpiryModal
-          lots={lots}
-          onClose={() => setShowExpiryModal(false)}
-        />
-      )}
-
       {/* Movement detail modal */}
       {selectedMovement && (
         <MovementModal
@@ -1401,51 +1368,6 @@ function RequestProgress({ status }) {
           )
         })}
       </div>
-    </div>
-  )
-}
-
-function ExpiryModal({ lots, onClose }) {
-  const alertLots = lots
-    .map(l => ({ ...l, days: daysUntil(l.expiry_date) }))
-    .filter(l => l.days !== null && l.days <= 90)
-    .sort((a, b) => a.days - b.days)
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-end bg-black/40 p-4 sm:items-center sm:justify-center" onClick={onClose}>
-      <section className="flex h-[80dvh] w-full max-w-md flex-col overflow-hidden rounded-2xl bg-white shadow-xl" onClick={e => e.stopPropagation()}>
-        <div className="flex shrink-0 items-center justify-between border-b border-slate-100 px-5 py-4">
-          <div>
-            <h3 className="font-black text-slate-950">Lotes próximos a vencer</h3>
-            <p className="text-xs font-semibold text-slate-500">{alertLots.length} lote{alertLots.length !== 1 ? 's' : ''} en los próximos 90 días</p>
-          </div>
-          <button className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100" onClick={onClose}><X size={18} /></button>
-        </div>
-        <div className="min-h-0 flex-1 divide-y divide-slate-100 overflow-y-auto">
-          {alertLots.map(lot => {
-            const expired = lot.days < 0
-            return (
-              <div key={lot.id} className="flex items-center gap-3 px-5 py-3.5">
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm font-black text-slate-900 [overflow-wrap:anywhere]">{cleanProductName(lot.product)}</p>
-                  <p className="mt-0.5 text-xs font-semibold text-slate-500">
-                    {lotLabel(lot.lot_code, lot)} · {lot.location || 'Sin ubicación'}
-                  </p>
-                </div>
-                <div className="shrink-0 text-right">
-                  <p className="text-sm font-black text-campo-700">{formatNumber(lot.current_quantity)} env.</p>
-                  <span className={`rounded-full px-2 py-0.5 text-[10px] font-black ${expired ? 'bg-red-50 text-red-700' : 'bg-amber-50 text-amber-700'}`}>
-                    {expired ? `Vencido hace ${Math.abs(lot.days)}d` : `Vence en ${lot.days}d`}
-                  </span>
-                </div>
-              </div>
-            )
-          })}
-        </div>
-        <div className="border-t border-slate-100 px-5 py-3">
-          <p className="text-[10px] font-semibold text-slate-400">Contacta a Todo Agrícola para coordinar el manejo de estos lotes.</p>
-        </div>
-      </section>
     </div>
   )
 }
