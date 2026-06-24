@@ -9,6 +9,14 @@ import { normalizeDispatchRequests } from '../lib/dispatchRequests'
 import { formatDate, formatNumber } from '../lib/format'
 import { supabase } from '../lib/supabase'
 
+function attachmentViewerUrl(url) {
+  if (!url) return url
+  const ext = url.split('?')[0].split('.').pop().toLowerCase()
+  if (['xlsx', 'xls', 'docx', 'doc'].includes(ext))
+    return `https://view.officeapps.live.com/op/view.aspx?src=${encodeURIComponent(url)}`
+  return url
+}
+
 export default function ClientRequestsAdmin() {
   const { user } = useAuth()
   const location = useLocation()
@@ -147,12 +155,11 @@ export default function ClientRequestsAdmin() {
                   </div>
                   {request.attachment_url && (
                     <div className="mt-2 flex flex-wrap items-center gap-2">
-                      <a href={request.attachment_url} target="_blank" rel="noreferrer"
+                      <a href={attachmentViewerUrl(request.attachment_url)} target="_blank" rel="noreferrer"
                         className="flex items-center gap-1.5 text-xs font-bold text-campo-700 hover:underline">
                         <Paperclip size={13} /> Ver nota adjunta
                       </a>
-                      <a href={request.attachment_url} target="_blank" rel="noreferrer"
-                        onClick={e => { e.preventDefault(); window.open(request.attachment_url, '_blank') }}
+                      <a href={attachmentViewerUrl(request.attachment_url)} target="_blank" rel="noreferrer"
                         className="flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-xs font-bold text-slate-700 hover:bg-slate-50">
                         <Printer size={13} /> Imprimir nota adjunta
                       </a>

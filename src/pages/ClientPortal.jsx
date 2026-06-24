@@ -17,6 +17,14 @@ import { supabase } from '../lib/supabase'
 
 /* ─── helpers ─────────────────────────────────────────────────────── */
 
+function attachmentViewerUrl(url) {
+  if (!url) return url
+  const ext = url.split('?')[0].split('.').pop().toLowerCase()
+  if (['xlsx', 'xls', 'docx', 'doc'].includes(ext))
+    return `https://view.officeapps.live.com/op/view.aspx?src=${encodeURIComponent(url)}`
+  return url
+}
+
 function escapeHtml(v) {
   return String(v || '').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;')
 }
@@ -1316,7 +1324,7 @@ export default function ClientPortal({ view = 'inventory' }) {
                             </div>
                           )}
                           {req.attachment_url && (
-                            <a href={req.attachment_url} target="_blank" rel="noreferrer" className="mt-1.5 flex items-center gap-1.5 text-xs font-bold text-campo-700 hover:underline">
+                            <a href={attachmentViewerUrl(req.attachment_url)} target="_blank" rel="noreferrer" className="mt-1.5 flex items-center gap-1.5 text-xs font-bold text-campo-700 hover:underline">
                               <Paperclip size={11} /> Ver nota adjunta
                             </a>
                           )}
