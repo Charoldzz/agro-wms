@@ -922,20 +922,24 @@ export default function LotDetail() {
           </div>
 
           {/* Recent movements */}
-          {movements.length > 0 && (
-            <div className="border-t border-slate-100 px-5 pb-5 pt-4">
-              <div className="mb-3 flex items-center justify-between gap-2">
-                <p className="text-xs font-bold uppercase tracking-wide text-slate-400">Movimientos recientes</p>
-                {movements.length > 3 && (
-                  <button
-                    type="button"
-                    className="text-xs font-bold text-campo-700 hover:text-campo-900"
-                    onClick={() => setShowFullHistory(v => !v)}
-                  >
-                    {showFullHistory ? 'Ver menos' : `Ver todos (${movements.length})`}
-                  </button>
-                )}
+          <div className="border-t border-slate-100 px-5 pb-5 pt-4">
+            <div className="mb-3 flex items-center justify-between gap-2">
+              <p className="text-xs font-bold uppercase tracking-wide text-slate-400">Últimos movimientos</p>
+              {movements.length > 3 && (
+                <button
+                  type="button"
+                  className="text-xs font-bold text-campo-700 hover:text-campo-900"
+                  onClick={() => setShowFullHistory(v => !v)}
+                >
+                  {showFullHistory ? 'Ver menos' : `Ver todos (${movements.length})`}
+                </button>
+              )}
+            </div>
+            {movements.length === 0 ? (
+              <div className="rounded-lg border border-dashed border-slate-200 px-4 py-6 text-center">
+                <p className="text-sm font-semibold text-slate-400">Sin movimientos registrados</p>
               </div>
+            ) : (
               <div className="space-y-2">
                 {(showFullHistory ? movements : movements.slice(0, 3)).map(item => (
                   <div key={item.id} className="flex items-center justify-between gap-3 rounded-lg bg-slate-50 px-3 py-2.5">
@@ -949,8 +953,8 @@ export default function LotDetail() {
                   </div>
                 ))}
               </div>
-            </div>
-          )}
+            )}
+          </div>
         </div>
       </div>
     )
