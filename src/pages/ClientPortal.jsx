@@ -594,6 +594,38 @@ export default function ClientPortal({ view = 'inventory' }) {
               </Link>
             ))}
           </div>
+          {isInventory && (
+            <div className="border-t border-white/10">
+              <div className="mx-auto flex max-w-5xl divide-x divide-white/10 px-5">
+                {loading ? (
+                  [...Array(4)].map((_, i) => <div key={i} className="animate-pulse py-3 pr-6"><div className="h-5 w-20 rounded bg-white/10" /><div className="mt-1.5 h-2 w-14 rounded bg-white/10" /></div>)
+                ) : (
+                  <>
+                    {eqTotals.lts > 0 && (
+                      <div className="py-3 pr-6">
+                        <p className="text-sm font-black tabular-nums leading-tight text-white">{formatNumber(eqTotals.lts)} <span className="font-bold text-campo-300">lts</span></p>
+                        <p className="mt-0.5 text-[9px] font-semibold uppercase tracking-widest text-white/40">Equiv. líquidos</p>
+                      </div>
+                    )}
+                    {eqTotals.kgs > 0 && (
+                      <div className={`py-3 ${eqTotals.lts > 0 ? 'px-6' : 'pr-6'}`}>
+                        <p className="text-sm font-black tabular-nums leading-tight text-white">{formatNumber(eqTotals.kgs)} <span className="font-bold text-campo-300">kgs</span></p>
+                        <p className="mt-0.5 text-[9px] font-semibold uppercase tracking-widest text-white/40">Equiv. sólidos</p>
+                      </div>
+                    )}
+                    <div className={`py-3 ${(eqTotals.lts > 0 || eqTotals.kgs > 0) ? 'px-6' : 'pr-6'}`}>
+                      <p className="text-sm font-black tabular-nums leading-tight text-white">{formatNumber(totalStock)}</p>
+                      <p className="mt-0.5 text-[9px] font-semibold uppercase tracking-widest text-white/40">Envases</p>
+                    </div>
+                    <div className="py-3 pl-6">
+                      <p className="text-sm font-black tabular-nums leading-tight text-white">{productCount}</p>
+                      <p className="mt-0.5 text-[9px] font-semibold uppercase tracking-widest text-white/40">Lotes activos</p>
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* ── Mobile: 3 rows ── */}
@@ -620,6 +652,24 @@ export default function ClientPortal({ view = 'inventory' }) {
               </Link>
             ))}
           </div>
+          {isInventory && (
+            <div className="flex gap-5 overflow-x-auto border-t border-white/10 px-4 py-2.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+              {loading ? (
+                [...Array(3)].map((_, i) => <div key={i} className="h-5 w-16 shrink-0 animate-pulse rounded bg-white/10" />)
+              ) : (
+                <>
+                  {eqTotals.lts > 0 && (
+                    <div className="shrink-0"><span className="text-sm font-black tabular-nums text-white">{formatNumber(eqTotals.lts)}</span><span className="ml-1 text-xs font-bold text-campo-300">lts</span></div>
+                  )}
+                  {eqTotals.kgs > 0 && (
+                    <div className="shrink-0"><span className="text-sm font-black tabular-nums text-white">{formatNumber(eqTotals.kgs)}</span><span className="ml-1 text-xs font-bold text-campo-300">kgs</span></div>
+                  )}
+                  <div className="shrink-0"><span className="text-sm font-black tabular-nums text-white">{formatNumber(totalStock)}</span><span className="ml-1 text-xs font-bold text-campo-300">env.</span></div>
+                  <div className="shrink-0"><span className="text-sm font-black tabular-nums text-white">{productCount}</span><span className="ml-1 text-xs font-bold text-campo-300">lotes</span></div>
+                </>
+              )}
+            </div>
+          )}
         </div>
       </header>
 
@@ -628,41 +678,6 @@ export default function ClientPortal({ view = 'inventory' }) {
       {/* ── DASHBOARD (Inicio) ─────────────────────────────────── */}
       {isInventory && (
         <>
-          {/* Summary card */}
-          {loading ? (
-            <div className="animate-pulse rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-              <div className="mb-1 h-2.5 w-1/4 rounded bg-slate-200" />
-              <div className="mb-5 h-8 w-2/3 rounded bg-slate-200" />
-              <div className="grid grid-cols-2 gap-4 border-t border-slate-100 pt-4">
-                {[1,2].map(i => (
-                  <div key={i} className="space-y-1.5">
-                    <div className="h-6 w-1/2 rounded bg-slate-200" />
-                    <div className="h-2.5 w-3/4 rounded bg-slate-200" />
-                  </div>
-                ))}
-              </div>
-            </div>
-          ) : (
-            <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-              {eqTotalsLabel && (
-                <>
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Equivalente total en almacén</p>
-                  <p className="mt-1 text-2xl font-black tabular-nums text-campo-700 sm:text-3xl [overflow-wrap:anywhere]">{eqTotalsLabel}</p>
-                </>
-              )}
-              <div className={`grid grid-cols-2 gap-6 ${eqTotalsLabel ? 'mt-4 border-t border-slate-100 pt-4' : ''}`}>
-                <div>
-                  <p className="text-2xl font-black tabular-nums text-slate-900">{formatNumber(totalStock)}</p>
-                  <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">envases en almacén</p>
-                </div>
-                <div>
-                  <p className="text-2xl font-black tabular-nums text-slate-900">{productCount}</p>
-                  <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">lotes activos</p>
-                </div>
-              </div>
-            </div>
-          )}
-
           {/* Active requests banner */}
           {activeRequests.length > 0 && (
             <Link
