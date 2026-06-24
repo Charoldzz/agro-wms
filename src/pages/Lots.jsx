@@ -233,7 +233,8 @@ export default function Lots() {
                 className="input min-w-0 flex-1 text-sm"
                 placeholder="Buscar producto, item, vencimiento..."
                 value={search}
-                onChange={(e) => handleSearch(e.target.value)}
+                onFocus={e => requestAnimationFrame(() => e.target.scrollIntoView({ behavior: 'smooth', block: 'start' }))}
+                onChange={e => { handleSearch(e.target.value); requestAnimationFrame(() => e.target.scrollIntoView({ behavior: 'instant', block: 'start' })) }}
               />
             </div>
             {/* Fila 2: opciones + acciones */}
