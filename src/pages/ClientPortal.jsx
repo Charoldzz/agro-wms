@@ -728,9 +728,10 @@ export default function ClientPortal({ view = 'inventory' }) {
           ) : filteredLots.length === 0 ? (
             <EmptyState title="Sin productos" text="No hay inventario disponible en este momento." />
           ) : (
+            <div className="relative">
             <div
-              className="space-y-2 overflow-y-auto sm:overflow-visible"
-              style={window.innerWidth < 640 ? { maxHeight: 'calc(var(--vvh, 100dvh) - 14rem)' } : undefined}
+              className="space-y-2 overflow-y-auto pb-6 sm:overflow-visible"
+              style={window.innerWidth < 640 ? { maxHeight: 'calc(var(--vvh, 100dvh) - 7rem)' } : undefined}
             >
               {visibleProducts.map(group => {
                 const isOpen = expandedProduct === group.key
@@ -815,6 +816,8 @@ export default function ClientPortal({ view = 'inventory' }) {
                   Ver todos los productos ({displayedProducts.length})
                 </button>
               )}
+            </div>
+            <div className="pointer-events-none absolute bottom-0 left-0 right-0 h-8 bg-gradient-to-t from-slate-50 to-transparent sm:hidden" />
             </div>
           )}
 
