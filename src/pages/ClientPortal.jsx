@@ -1322,15 +1322,15 @@ function ProductsModal({ lots, onClose }) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-end bg-black/40 p-4 sm:items-center sm:justify-center" onClick={onClose}>
-      <section className="w-full max-w-md overflow-hidden rounded-2xl bg-white shadow-xl" onClick={e => e.stopPropagation()}>
-        <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
+      <section className="flex max-h-[80dvh] w-full max-w-md flex-col overflow-hidden rounded-2xl bg-white shadow-xl" onClick={e => e.stopPropagation()}>
+        <div className="flex shrink-0 items-center justify-between border-b border-slate-100 px-5 py-4">
           <div>
             <h3 className="font-black text-slate-950">Productos en almacén</h3>
             <p className="text-xs font-semibold text-slate-500">{products.length} producto{products.length !== 1 ? 's' : ''}</p>
           </div>
           <button className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100" onClick={onClose}><X size={18} /></button>
         </div>
-        <div className="border-b border-slate-100 px-4 py-2.5">
+        <div className="shrink-0 border-b border-slate-100 px-4 py-2.5">
           <div className="flex items-center gap-2 rounded-lg bg-slate-50 px-3 py-2">
             <Search size={14} className="shrink-0 text-slate-400" />
             <input
@@ -1343,7 +1343,7 @@ function ProductsModal({ lots, onClose }) {
             {q && <button onClick={() => setQ('')} className="text-slate-400"><X size={14} /></button>}
           </div>
         </div>
-        <ul className="max-h-[55dvh] divide-y divide-slate-100 overflow-y-auto">
+        <ul className="min-h-0 flex-1 divide-y divide-slate-100 overflow-y-auto">
           {filtered.length === 0 && (
             <li className="px-5 py-8 text-center text-sm font-semibold text-slate-400">Sin resultados</li>
           )}
@@ -1375,15 +1375,15 @@ function ExpiryModal({ lots, onClose }) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-end bg-black/40 p-4 sm:items-center sm:justify-center" onClick={onClose}>
-      <section className="w-full max-w-md overflow-hidden rounded-2xl bg-white shadow-xl" onClick={e => e.stopPropagation()}>
-        <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
+      <section className="flex max-h-[80dvh] w-full max-w-md flex-col overflow-hidden rounded-2xl bg-white shadow-xl" onClick={e => e.stopPropagation()}>
+        <div className="flex shrink-0 items-center justify-between border-b border-slate-100 px-5 py-4">
           <div>
             <h3 className="font-black text-slate-950">Lotes próximos a vencer</h3>
             <p className="text-xs font-semibold text-slate-500">{alertLots.length} lote{alertLots.length !== 1 ? 's' : ''} en los próximos 90 días</p>
           </div>
           <button className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100" onClick={onClose}><X size={18} /></button>
         </div>
-        <div className="max-h-[60dvh] divide-y divide-slate-100 overflow-y-auto">
+        <div className="min-h-0 flex-1 divide-y divide-slate-100 overflow-y-auto">
           {alertLots.map(lot => {
             const expired = lot.days < 0
             return (
