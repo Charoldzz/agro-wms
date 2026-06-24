@@ -876,6 +876,13 @@ export default function LotDetail() {
   if (clientLotConsultation) {
     return (
       <div>
+        <button
+          type="button"
+          onClick={() => navigate(-1)}
+          className="mb-4 flex items-center gap-1.5 text-sm font-bold text-slate-500 transition hover:text-slate-800"
+        >
+          <span className="text-base leading-none">←</span> Volver
+        </button>
         <PageHeader title={cleanProductName(lot.product)} subtitle={visibleLotCode} />
 
         <div className="mx-auto max-w-md space-y-3">
