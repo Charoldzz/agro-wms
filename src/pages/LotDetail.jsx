@@ -745,95 +745,33 @@ export default function LotDetail() {
   if (operatorQrConsultation) {
     return (
       <div>
-        <PageHeader
-          title="Ficha del lote"
-          subtitle="Consulta resumida"
-        />
-
         <LotStateNotice state={lotState} saleBlocked={blocksSale || isExpired} />
 
-        <section className="panel overflow-hidden border-campo-100 bg-white/95">
-          <div className="flex flex-col gap-3 border-b border-slate-100 pb-4 sm:flex-row sm:items-start sm:justify-between">
-            <div className="min-w-0">
-              <p className="text-xs font-bold uppercase text-campo-700">Producto</p>
-              <h2 className="mt-1 text-2xl font-black leading-tight text-slate-950 [overflow-wrap:anywhere]">
-                {cleanProductName(lot.product)}
-              </h2>
-              <div className="mt-2 flex flex-wrap gap-2 text-xs font-black">
-                <span className="rounded-lg bg-campo-50 px-2.5 py-1 text-campo-800">
-                  Presentacion: {lot.package_size ? `${formatNumber(lot.package_size)} ${lot.package_unit || ''}` : 'Sin dato'}
-                </span>
-                <span className="rounded-lg bg-slate-100 px-2.5 py-1 text-slate-700">
-                  {visibleLotCode}
-                </span>
-              </div>
-            </div>
-            <LotStateBadge state={lotState} />
-          </div>
-
-          <div className="mt-4 grid gap-3 sm:grid-cols-2">
-            <div className="rounded-lg bg-campo-50 p-4">
-              <p className="text-xs font-bold uppercase text-campo-700">Envases disponibles</p>
-              <p className="mt-1 text-4xl font-black text-campo-800">{formatNumber(lot.current_quantity)}</p>
-            </div>
-            <div className="rounded-lg bg-slate-50 p-4">
-              <p className="text-xs font-bold uppercase text-slate-500">Equivalente actual</p>
-              <p className="mt-1 text-3xl font-black text-slate-950">
-                {Number(lot.package_size) > 0 ? `${formatNumber(currentEquivalent)} ${lot.package_unit || ''}` : 'Sin dato'}
-              </p>
-            </div>
-          </div>
-
-          <div className="mt-3 grid gap-2 text-sm sm:grid-cols-2">
-            <ConsultInfo label="Cliente" value={lot.clients?.name || '-'} strong />
-            <ConsultInfo label="Ubicacion" value={lot.location || '-'} />
-            <ConsultInfo label="Vencimiento" value={lot.expiry_date ? formatDate(lot.expiry_date) : 'Sin dato'} />
-            <ConsultInfo label="Fecha ingreso" value={lot.entry_date ? formatDate(lot.entry_date) : 'Sin dato'} />
-          </div>
-          <button className="btn-secondary mt-4 w-full" type="button" onClick={() => setShowIssueReport(true)}>
-            Reportar problema
-          </button>
-        </section>
-        {showIssueReport ? <OperationalIssueModal lot={lot} userId={user.id} onClose={() => setShowIssueReport(false)} /> : null}
-      </div>
-    )
-  }
-
-  if (adminLotConsultation) {
-    return (
-      <div>
-        <PageHeader title="Ficha del lote" subtitle="Inventario y QR" />
-
-        <LotStateNotice state={lotState} saleBlocked={blocksSale || isExpired} />
-
-        <section className="grid gap-4 lg:grid-cols-[1.15fr_.85fr]">
-          <div className="panel overflow-hidden border-campo-100 bg-white/95">
-            <div className="flex flex-col gap-3 border-b border-slate-100 pb-4 sm:flex-row sm:items-start sm:justify-between">
+        <section className="overflow-hidden rounded-lg border border-slate-200 bg-white/95 shadow-soft">
+          <div className="bg-campo-800 px-4 py-5">
+            <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
-                <p className="text-xs font-bold uppercase text-campo-700">Producto</p>
-                <h2 className="mt-1 text-2xl font-black leading-tight text-slate-950 [overflow-wrap:anywhere]">
+                <p className="text-[10px] font-bold uppercase tracking-wide text-campo-300">
+                  {lot.package_size ? `Presentación · ${formatNumber(lot.package_size)} ${lot.package_unit || ''}` : 'Sin presentación'}
+                </p>
+                <h2 className="mt-1 text-xl font-black leading-tight text-white [overflow-wrap:anywhere]">
                   {cleanProductName(lot.product)}
                 </h2>
-                <div className="mt-2 flex flex-wrap gap-2 text-xs font-black">
-                  <span className="rounded-lg bg-campo-50 px-2.5 py-1 text-campo-800">
-                    Presentacion: {lot.package_size ? `${formatNumber(lot.package_size)} ${lot.package_unit || ''}` : 'Sin dato'}
-                  </span>
-                  <span className="rounded-lg bg-slate-100 px-2.5 py-1 text-slate-700">
-                    {visibleLotCode}
-                  </span>
-                </div>
+                <p className="mt-1 font-mono text-xs font-bold text-campo-300">{visibleLotCode}</p>
               </div>
-              <LotStateBadge state={lotState} />
+              <div className="shrink-0"><LotStateBadge state={lotState} /></div>
             </div>
+          </div>
 
-            <div className="mt-4 grid gap-3 sm:grid-cols-2">
-              <div className="rounded-lg bg-campo-50 p-4">
-                <p className="text-xs font-bold uppercase text-campo-700">Envases disponibles</p>
-                <p className="mt-1 text-4xl font-black text-campo-800">{formatNumber(lot.current_quantity)}</p>
-              </div>
+          <div className="p-4">
+            <div className="grid gap-3 sm:grid-cols-2">
               <div className="rounded-lg bg-slate-50 p-4">
-                <p className="text-xs font-bold uppercase text-slate-500">Equivalente actual</p>
-                <p className="mt-1 text-3xl font-black text-slate-950">
+                <p className="text-xs font-bold uppercase text-slate-500">Envases disponibles</p>
+                <p className="mt-1 text-4xl font-black text-slate-950">{formatNumber(lot.current_quantity)}</p>
+              </div>
+              <div className="rounded-lg bg-campo-50 p-4">
+                <p className="text-xs font-bold uppercase text-campo-700">Equivalente actual</p>
+                <p className="mt-1 text-3xl font-black text-campo-800">
                   {Number(lot.package_size) > 0 ? `${formatNumber(currentEquivalent)} ${lot.package_unit || ''}` : 'Sin dato'}
                 </p>
               </div>
@@ -844,6 +782,59 @@ export default function LotDetail() {
               <ConsultInfo label="Ubicacion" value={lot.location || '-'} />
               <ConsultInfo label="Vencimiento" value={lot.expiry_date ? formatDate(lot.expiry_date) : 'Sin dato'} />
               <ConsultInfo label="Fecha ingreso" value={lot.entry_date ? formatDate(lot.entry_date) : 'Sin dato'} />
+            </div>
+            <button className="btn-secondary mt-4 w-full" type="button" onClick={() => setShowIssueReport(true)}>
+              Reportar problema
+            </button>
+          </div>
+        </section>
+        {showIssueReport ? <OperationalIssueModal lot={lot} userId={user.id} onClose={() => setShowIssueReport(false)} /> : null}
+      </div>
+    )
+  }
+
+  if (adminLotConsultation) {
+    return (
+      <div>
+        <LotStateNotice state={lotState} saleBlocked={blocksSale || isExpired} />
+
+        <section className="grid gap-4 lg:grid-cols-[1.15fr_.85fr]">
+          <div className="overflow-hidden rounded-lg border border-slate-200 bg-white/95 shadow-soft">
+            <div className="bg-campo-800 px-4 py-5">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="text-[10px] font-bold uppercase tracking-wide text-campo-300">
+                    {lot.package_size ? `Presentación · ${formatNumber(lot.package_size)} ${lot.package_unit || ''}` : 'Sin presentación'}
+                  </p>
+                  <h2 className="mt-1 text-xl font-black leading-tight text-white [overflow-wrap:anywhere]">
+                    {cleanProductName(lot.product)}
+                  </h2>
+                  <p className="mt-1 font-mono text-xs font-bold text-campo-300">{visibleLotCode}</p>
+                </div>
+                <div className="shrink-0"><LotStateBadge state={lotState} /></div>
+              </div>
+            </div>
+
+            <div className="p-4">
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div className="rounded-lg bg-slate-50 p-4">
+                  <p className="text-xs font-bold uppercase text-slate-500">Envases disponibles</p>
+                  <p className="mt-1 text-4xl font-black text-slate-950">{formatNumber(lot.current_quantity)}</p>
+                </div>
+                <div className="rounded-lg bg-campo-50 p-4">
+                  <p className="text-xs font-bold uppercase text-campo-700">Equivalente actual</p>
+                  <p className="mt-1 text-3xl font-black text-campo-800">
+                    {Number(lot.package_size) > 0 ? `${formatNumber(currentEquivalent)} ${lot.package_unit || ''}` : 'Sin dato'}
+                  </p>
+                </div>
+              </div>
+
+              <div className="mt-3 grid gap-2 text-sm sm:grid-cols-2">
+                <ConsultInfo label="Cliente" value={lot.clients?.name || '-'} strong />
+                <ConsultInfo label="Ubicacion" value={lot.location || '-'} />
+                <ConsultInfo label="Vencimiento" value={lot.expiry_date ? formatDate(lot.expiry_date) : 'Sin dato'} />
+                <ConsultInfo label="Fecha ingreso" value={lot.entry_date ? formatDate(lot.entry_date) : 'Sin dato'} />
+              </div>
             </div>
           </div>
 
@@ -875,65 +866,59 @@ export default function LotDetail() {
 
   if (clientLotConsultation) {
     return (
-      <div className="min-h-screen">
-        {/* Full-width header */}
-        <div className="bg-campo-800 px-4 pb-8 pt-4 sm:px-8 sm:pt-6">
-          <div className="mx-auto max-w-3xl">
-            <button
-              type="button"
-              onClick={() => navigate(-1)}
-              className="mb-5 inline-flex items-center gap-1.5 text-sm font-bold text-campo-200 transition hover:text-white"
-            >
-              <ArrowLeft size={16} /> Volver
-            </button>
-            <div className="flex items-start justify-between gap-4">
+      <div className="px-4 py-4 sm:px-6">
+        <button
+          type="button"
+          onClick={() => navigate(-1)}
+          className="btn-secondary mb-4 !min-h-10 !px-3 !py-2 text-sm"
+        >
+          <ArrowLeft size={18} /> Volver
+        </button>
+
+        <LotStateNotice state={lotState} saleBlocked={blocksSale || isExpired} />
+
+        <div className="mx-auto max-w-lg overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+          {/* Campo header inside card */}
+          <div className="bg-campo-800 px-5 py-5">
+            <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
-                <p className="text-[11px] font-bold uppercase tracking-wide text-campo-300">
+                <p className="text-[10px] font-bold uppercase tracking-wide text-campo-300">
                   {lot.package_size ? `Presentación · ${formatNumber(lot.package_size)} ${lot.package_unit || ''}` : 'Sin presentación'}
                 </p>
-                <h1 className="mt-1 text-2xl font-black leading-tight text-white sm:text-3xl [overflow-wrap:anywhere]">
+                <h2 className="mt-1 text-xl font-black leading-tight text-white [overflow-wrap:anywhere]">
                   {cleanProductName(lot.product)}
-                </h1>
-                <p className="mt-1.5 font-mono text-sm font-bold text-campo-300">{visibleLotCode}</p>
+                </h2>
+                <p className="mt-1 font-mono text-xs font-bold text-campo-300">{visibleLotCode}</p>
               </div>
-              <div className="shrink-0">
-                <LotStateBadge state={lotState} />
-              </div>
+              <div className="shrink-0"><LotStateBadge state={lotState} /></div>
             </div>
           </div>
-        </div>
-
-        {/* Content */}
-        <div className="mx-auto max-w-3xl px-4 py-6 sm:px-8">
-          <LotStateNotice state={lotState} saleBlocked={blocksSale || isExpired} />
 
           {/* Metrics */}
-          <div className="mb-5 grid grid-cols-2 gap-4">
-            <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+          <div className="grid grid-cols-2 divide-x divide-slate-100 border-b border-slate-100">
+            <div className="px-5 py-4">
               <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">Envases</p>
-              <p className="mt-2 text-4xl font-black text-campo-700">{formatNumber(lot.current_quantity)}</p>
+              <p className="mt-1 text-3xl font-black text-slate-900">{formatNumber(lot.current_quantity)}</p>
             </div>
-            <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+            <div className="px-5 py-4">
               <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">Equivalente</p>
-              <p className="mt-2 text-3xl font-black text-slate-900">
+              <p className="mt-1 text-3xl font-black text-campo-700">
                 {Number(lot.package_size) > 0 ? `${formatNumber(currentEquivalent)} ${lot.package_unit || ''}` : '—'}
               </p>
             </div>
           </div>
 
           {/* Detail rows */}
-          <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-            <div className="divide-y divide-slate-100 px-5">
-              <LotRow label="Ubicación" value={lot.location || '—'} />
-              <LotRow label="Vencimiento" value={(() => {
-                if (!lot.expiry_date) return '—'
-                if (expiryDaysLeft < 0) return <span className="font-bold text-red-600">Venció hace {Math.abs(expiryDaysLeft)} días</span>
-                if (expiryDaysLeft === 0) return <span className="font-bold text-red-600">Vence hoy</span>
-                if (expiryDaysLeft <= 30) return <span className="font-bold text-amber-600">Vence en {expiryDaysLeft} días</span>
-                return `${formatDate(lot.expiry_date)} · en ${expiryDaysLeft} días`
-              })()} />
-              <LotRow label="Ingreso" value={lot.entry_date ? formatDate(lot.entry_date) : '—'} />
-            </div>
+          <div className="divide-y divide-slate-100 px-5">
+            <LotRow label="Ubicación" value={lot.location || '—'} />
+            <LotRow label="Vencimiento" value={(() => {
+              if (!lot.expiry_date) return '—'
+              if (expiryDaysLeft < 0) return <span className="font-bold text-red-600">Venció hace {Math.abs(expiryDaysLeft)} días</span>
+              if (expiryDaysLeft === 0) return <span className="font-bold text-red-600">Vence hoy</span>
+              if (expiryDaysLeft <= 30) return <span className="font-bold text-amber-600">Vence en {expiryDaysLeft} días</span>
+              return `${formatDate(lot.expiry_date)} · en ${expiryDaysLeft} días`
+            })()} />
+            <LotRow label="Ingreso" value={lot.entry_date ? formatDate(lot.entry_date) : '—'} />
           </div>
         </div>
       </div>
@@ -1000,14 +985,14 @@ export default function LotDetail() {
             <h2 className="mt-1 text-2xl font-black leading-tight text-slate-950">{cleanProductName(lot.product)}</h2>
             <p className="mt-1 text-sm font-bold text-slate-500">{visibleLotCode}</p>
           </div>
-          <div className="rounded-lg bg-campo-50 p-3">
-            <p className="text-xs font-semibold uppercase text-campo-700">Disponible</p>
-            <p className="mt-1 text-3xl font-black text-campo-800">{formatNumber(lot.current_quantity)}</p>
-            <p className="text-sm font-bold text-campo-700">envases</p>
-          </div>
           <div className="rounded-lg bg-slate-50 p-3">
-            <p className="text-xs font-semibold uppercase text-slate-500">Equivalente actual</p>
-            <p className="mt-1 text-2xl font-black text-slate-950">
+            <p className="text-xs font-semibold uppercase text-slate-500">Disponible</p>
+            <p className="mt-1 text-3xl font-black text-slate-950">{formatNumber(lot.current_quantity)}</p>
+            <p className="text-sm font-bold text-slate-500">envases</p>
+          </div>
+          <div className="rounded-lg bg-campo-50 p-3">
+            <p className="text-xs font-semibold uppercase text-campo-700">Equivalente actual</p>
+            <p className="mt-1 text-2xl font-black text-campo-800">
               {Number(lot.package_size) > 0 ? `${formatNumber(currentEquivalent)} ${lot.package_unit || ''}` : 'Sin dato'}
             </p>
           </div>
