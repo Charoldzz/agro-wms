@@ -37,7 +37,7 @@ export default function AppVersion() {
   }, [])
 
   return (
-    <div className="fixed bottom-[calc(5.75rem+env(safe-area-inset-bottom))] right-2 z-40 sm:bottom-3">
+    <div className="fixed bottom-[calc(0.75rem+env(safe-area-inset-bottom))] right-2 z-40 sm:bottom-3">
       {hasUpdate ? (
         <div className="flex items-center gap-2 rounded-full border border-campo-300 bg-white px-3 py-1.5 shadow-md">
           <span className="relative flex h-2 w-2 shrink-0">
