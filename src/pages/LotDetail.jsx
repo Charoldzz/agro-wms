@@ -879,13 +879,13 @@ export default function LotDetail() {
 
         <div className="mx-auto max-w-lg overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
           {/* Campo header inside card */}
-          <div className="bg-campo-800 px-5 py-5">
-            <div className="flex items-start justify-between gap-3">
+          <div className="bg-campo-800 px-4 py-4 sm:px-5 sm:py-5">
+            <div className="flex items-start justify-between gap-2 sm:gap-3">
               <div className="min-w-0">
                 <p className="text-[10px] font-bold uppercase tracking-wide text-campo-300">
                   {lot.package_size ? `Presentación · ${formatNumber(lot.package_size)} ${lot.package_unit || ''}` : 'Sin presentación'}
                 </p>
-                <h2 className="mt-1 text-xl font-black leading-tight text-white [overflow-wrap:anywhere]">
+                <h2 className="mt-1 text-lg font-black leading-tight text-white sm:text-xl [overflow-wrap:anywhere]">
                   {cleanProductName(lot.product)}
                 </h2>
                 <p className="mt-1 font-mono text-xs font-bold text-campo-300">{visibleLotCode}</p>
@@ -896,20 +896,20 @@ export default function LotDetail() {
 
           {/* Metrics */}
           <div className="grid grid-cols-2 divide-x divide-slate-100 border-b border-slate-100">
-            <div className="px-5 py-4">
+            <div className="px-4 py-4 sm:px-5">
               <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">Envases</p>
-              <p className="mt-1 text-3xl font-black text-slate-900">{formatNumber(lot.current_quantity)}</p>
+              <p className="mt-1 text-2xl font-black text-slate-900 sm:text-3xl [overflow-wrap:anywhere]">{formatNumber(lot.current_quantity)}</p>
             </div>
-            <div className="px-5 py-4">
+            <div className="px-4 py-4 sm:px-5">
               <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">Equivalente</p>
-              <p className="mt-1 text-3xl font-black text-campo-700">
+              <p className="mt-1 text-2xl font-black text-campo-700 sm:text-3xl [overflow-wrap:anywhere]">
                 {Number(lot.package_size) > 0 ? `${formatNumber(currentEquivalent)} ${lot.package_unit || ''}` : '—'}
               </p>
             </div>
           </div>
 
           {/* Detail rows */}
-          <div className="divide-y divide-slate-100 px-5">
+          <div className="divide-y divide-slate-100 px-4 sm:px-5">
             <LotRow label="Ubicación" value={lot.location || '—'} />
             <LotRow label="Vencimiento" value={(() => {
               if (!lot.expiry_date) return '—'
@@ -922,7 +922,7 @@ export default function LotDetail() {
           </div>
 
           {/* Recent movements */}
-          <div className="border-t border-slate-100 px-5 pb-5 pt-4">
+          <div className="border-t border-slate-100 px-4 pb-4 pt-4 sm:px-5 sm:pb-5">
             <div className="mb-3 flex items-center justify-between gap-2">
               <p className="text-xs font-bold uppercase tracking-wide text-slate-400">Últimos movimientos</p>
               {movements.length > 3 && (
