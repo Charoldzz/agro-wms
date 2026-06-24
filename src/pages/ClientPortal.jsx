@@ -1345,13 +1345,12 @@ function ProductsModal({ lots, onClose }) {
               placeholder="Buscar producto..."
               value={q}
               onChange={e => setQ(e.target.value)}
-              onFocus={e => setTimeout(() => e.target.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 300)}
               className="w-full bg-transparent text-sm font-semibold text-slate-900 placeholder-slate-400 outline-none"
             />
             {q && <button onClick={() => setQ('')} className="text-slate-400"><X size={14} /></button>}
           </div>
         </div>
-        <ul className="min-h-0 flex-1 divide-y divide-slate-100 overflow-y-auto">
+        <ul className="divide-y divide-slate-100 overflow-y-auto" style={{ maxHeight: 'calc(80dvh - 130px)' }}>
           {filtered.length === 0 && (
             <li className="px-5 py-8 text-center text-sm font-semibold text-slate-400">Sin resultados</li>
           )}
