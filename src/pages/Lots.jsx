@@ -105,9 +105,25 @@ export default function Lots() {
     const map = {}
     filteredLots.forEach((lot) => {
       const key = cleanProductName(lot.product)
-      if (!map[key]) map[key] = { product: key, quantity: 0, lots: 0 }
-      map[key].quantity += Number(lot.current_quantity || 0)
+      if (!map[key]) map[key] = { product: key, quantity: 0, lots: 0, eqLts: 0, eqKgs: 0 }
+      const qty = Number(lot.current_quantity || 0)
+      map[key].quantity += qty
       map[key].lots += 1
+      const size = Number(lot.package_size || 0)
+      const unit = String(lot.package_unit || '').toLowerCase().trim()
+      if (size > 0 && qty > 0) {
+        const total = qty * size
+        if (unit === 'ml') map[key].eqLts += total / 1000
+        else if (/^l/.test(unit)) map[key].eqLts += total
+        else if (/^k/.test(unit)) map[key].eqKgs += total
+      } else if (qty > 0) {
+        const m = String(lot.product || '').match(/(?:[xX×]\s*)?(\d+(?:[.,]\d+)?)\)?\s*(ltrs?|lts?|kgs?|l)(?![a-zA-Z])/i)
+        if (m) {
+          const ps = parseFloat(m[1].replace(',', '.')), pu = m[2].toLowerCase()
+          if (/^l/.test(pu)) map[key].eqLts += qty * ps
+          else if (/^k/.test(pu)) map[key].eqKgs += qty * ps
+        }
+      }
     })
     return Object.values(map).sort((a, b) => a.product.localeCompare(b.product, 'es'))
   }, [filteredLots, groupByProduct])
@@ -360,8 +376,22 @@ export default function Lots() {
                           {item.lots}
                         </td>
                         <td className="w-32 px-4 py-2.5 text-right">
-                          <span className="text-sm font-black text-campo-700">{formatNumber(item.quantity)}</span>
-                          <span className="ml-1 text-xs font-semibold text-campo-500">env</span>
+                          {item.eqLts > 0 ? (
+                            <>
+                              <span className="text-sm font-black text-campo-700">{formatNumber(item.eqLts)}</span>
+                              <span className="ml-1 text-xs font-semibold text-campo-500">lts</span>
+                            </>
+                          ) : item.eqKgs > 0 ? (
+                            <>
+                              <span className="text-sm font-black text-campo-700">{formatNumber(item.eqKgs)}</span>
+                              <span className="ml-1 text-xs font-semibold text-campo-500">kgs</span>
+                            </>
+                          ) : (
+                            <>
+                              <span className="text-sm font-black text-campo-700">{formatNumber(item.quantity)}</span>
+                              <span className="ml-1 text-xs font-semibold text-campo-500">env</span>
+                            </>
+                          )}
                         </td>
                       </tr>
                     ))}
