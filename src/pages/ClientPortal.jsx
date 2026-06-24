@@ -821,57 +821,59 @@ export default function ClientPortal({ view = 'inventory' }) {
                     <div className={`overflow-hidden transition-all duration-200 ease-in-out ${isOpen ? 'max-h-[2000px]' : 'max-h-0'}`}>
                       <div className="divide-y divide-slate-100 border-t border-slate-100">
                         {group.lots.map(lot => {
-                          const st  = lotStatus(lot)
-                          const eq  = lotEquivalent(lot)
+                          const st = lotStatus(lot)
+                          const eq = lotEquivalent(lot)
                           return (
-                            <Link key={lot.id} to={`/lotes/${lot.id}`} className="flex items-center justify-between gap-3 px-4 py-3 transition hover:bg-campo-50/40">
-                              <div className="min-w-0">
-                                <div className="flex flex-wrap items-center gap-2">
-                                  <p className="text-sm font-black text-slate-900">{lotLabel(lot.lot_code, lot)}</p>
-                                  <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${st.cls}`}>{st.label}</span>
+                            <div key={lot.id} className="flex items-center gap-2 px-4 py-3 transition hover:bg-campo-50/40">
+                              <Link to={`/lotes/${lot.id}`} className="flex min-w-0 flex-1 items-center justify-between gap-2">
+                                <div className="min-w-0">
+                                  <div className="flex flex-wrap items-center gap-2">
+                                    <p className="text-sm font-black text-slate-900">{lotLabel(lot.lot_code, lot)}</p>
+                                    <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${st.cls}`}>{st.label}</span>
+                                  </div>
+                                  <p className="mt-0.5 text-xs font-semibold text-slate-500">
+                                    {lot.location || 'Sin ubicación'} · {(() => {
+                                      const d = daysUntil(lot.expiry_date)
+                                      if (d === null) return 'Sin vencimiento'
+                                      if (d < 0) return <span className="font-bold text-red-600">Venció hace {Math.abs(d)} días</span>
+                                      if (d === 0) return <span className="font-bold text-red-600">Vence hoy</span>
+                                      if (d <= 30) return <span className="font-bold text-amber-600">Vence en {d} días</span>
+                                      return `Vence: ${formatDate(lot.expiry_date)}`
+                                    })()}
+                                  </p>
                                 </div>
-                                <p className="mt-0.5 text-xs font-semibold text-slate-500">
-                                  {lot.location || 'Sin ubicación'} · {(() => {
-                                    const d = daysUntil(lot.expiry_date)
-                                    if (d === null) return 'Sin vencimiento'
-                                    if (d < 0) return <span className="font-bold text-red-600">Venció hace {Math.abs(d)} días</span>
-                                    if (d === 0) return <span className="font-bold text-red-600">Vence hoy</span>
-                                    if (d <= 30) return <span className="font-bold text-amber-600">Vence en {d} días</span>
-                                    return `Vence: ${formatDate(lot.expiry_date)}`
-                                  })()}
-                                </p>
+                                <div className="shrink-0 text-right">
+                                  {eq ? (
+                                    <>
+                                      <p className="text-sm font-black text-campo-700">{formatNumber(eq.quantity)} {eq.unit}</p>
+                                      <p className="text-[10px] font-semibold text-slate-400">{formatNumber(lot.current_quantity)} envases</p>
+                                    </>
+                                  ) : (
+                                    <p className="text-sm font-black text-campo-700">{formatNumber(lot.current_quantity)} env.</p>
+                                  )}
+                                </div>
+                              </Link>
+                              <div className="flex shrink-0 flex-col gap-1">
+                                <button
+                                  type="button"
+                                  className="flex h-7 w-7 items-center justify-center rounded-lg bg-campo-700 text-white transition hover:bg-campo-800 active:scale-95"
+                                  onClick={e => { e.stopPropagation(); setReqProductName(productIdentityKey(lot)); setReqLotId(lot.id); navigate('/despachos') }}
+                                  title="Solicitar despacho"
+                                >
+                                  <Truck size={12} />
+                                </button>
+                                <button
+                                  type="button"
+                                  className="flex h-7 w-7 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 transition hover:bg-slate-50 active:scale-95"
+                                  onClick={e => { e.stopPropagation(); navigate('/historial') }}
+                                  title="Ver historial"
+                                >
+                                  <History size={12} />
+                                </button>
                               </div>
-                              <div className="shrink-0 text-right">
-                                {eq ? (
-                                  <>
-                                    <p className="text-sm font-black text-campo-700">{formatNumber(eq.quantity)} {eq.unit}</p>
-                                    <p className="text-[10px] font-semibold text-slate-400">{formatNumber(lot.current_quantity)} envases</p>
-                                  </>
-                                ) : (
-                                  <p className="text-sm font-black text-campo-700">{formatNumber(lot.current_quantity)} env.</p>
-                                )}
-                              </div>
-                            </Link>
+                            </div>
                           )
                         })}
-                      </div>
-                      <div className="flex items-center gap-2 border-t border-slate-100 px-4 py-3">
-                        <button
-                          type="button"
-                          className="flex items-center gap-1.5 rounded-lg bg-campo-700 px-3 py-2 text-xs font-black text-white transition hover:bg-campo-800 active:scale-[0.97]"
-                          onClick={e => { e.stopPropagation(); setReqProductName(group.key); navigate('/despachos') }}
-                          title="Solicitar despacho"
-                        >
-                          <Truck size={13} /> Solicitar
-                        </button>
-                        <button
-                          type="button"
-                          className="flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-black text-slate-600 transition hover:bg-slate-50 active:scale-[0.97]"
-                          onClick={e => { e.stopPropagation(); navigate('/historial') }}
-                          title="Ver movimientos de este producto"
-                        >
-                          <History size={13} /> Historial
-                        </button>
                       </div>
                     </div>
                     </div>{/* min-w-0 flex-1 */}
