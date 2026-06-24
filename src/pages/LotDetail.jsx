@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
-import { Camera, CheckCircle2, Download, Printer, QrCode, Save } from 'lucide-react'
+import { ArrowLeft, Camera, CheckCircle2, Download, Printer, QrCode, Save } from 'lucide-react'
 import PageHeader from '../components/PageHeader'
 import ListProductCard from '../components/ListProductCard'
 import { useAuth } from '../hooks/useAuth.jsx'
@@ -879,13 +879,12 @@ export default function LotDetail() {
         <button
           type="button"
           onClick={() => navigate(-1)}
-          className="mb-4 flex items-center gap-1.5 text-sm font-bold text-slate-500 transition hover:text-slate-800"
+          className="btn-secondary mb-4 !min-h-10 !px-3 !py-2 text-sm"
         >
-          <span className="text-base leading-none">←</span> Volver
+          <ArrowLeft size={18} /> Volver
         </button>
-        <PageHeader title={cleanProductName(lot.product)} subtitle={visibleLotCode} />
 
-        <div className="mx-auto max-w-md space-y-3">
+        <div className="mx-auto max-w-xl space-y-3">
           <LotStateNotice state={lotState} saleBlocked={blocksSale || isExpired} />
 
           <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
