@@ -665,10 +665,10 @@ export default function ClientPortal({ view = 'inventory' }) {
               className="min-h-11 flex-1 bg-transparent text-sm outline-none placeholder:text-slate-400"
               placeholder="Buscar producto, lote, ubicación..."
               value={search}
-              onFocus={e => requestAnimationFrame(() => e.target.scrollIntoView({ behavior: 'smooth', block: 'start' }))}
+              onFocus={e => { if (window.innerWidth < 640) requestAnimationFrame(() => e.target.scrollIntoView({ behavior: 'smooth', block: 'start' })) }}
               onChange={e => {
                 setSearch(e.target.value)
-                requestAnimationFrame(() => e.target.scrollIntoView({ behavior: 'instant', block: 'start' }))
+                if (window.innerWidth < 640) requestAnimationFrame(() => e.target.scrollIntoView({ behavior: 'instant', block: 'start' }))
               }}
             />
             {search && (
