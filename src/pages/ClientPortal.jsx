@@ -658,23 +658,6 @@ export default function ClientPortal({ view = 'inventory' }) {
             </Link>
           )}
 
-          {/* Search */}
-          <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3">
-            <Search size={17} className="shrink-0 text-slate-400" />
-            <input
-              className="min-h-11 flex-1 bg-transparent text-sm outline-none placeholder:text-slate-400"
-              placeholder="Buscar producto, lote, ubicación..."
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              onFocus={e => setTimeout(() => e.target.scrollIntoView({ behavior: 'smooth', block: 'start' }), 300)}
-            />
-            {search && (
-              <button className="text-slate-400 hover:text-slate-700" onClick={() => setSearch('')}>
-                <X size={15} />
-              </button>
-            )}
-          </div>
-
           {/* Filter chips + Sort */}
           {(() => {
             const expiringCount = inventoryProducts.filter(g => g.lots.some(l => lotStatus(l).label === 'Por vencer')).length
@@ -804,6 +787,22 @@ export default function ClientPortal({ view = 'inventory' }) {
               )}
             </div>
           )}
+
+          {/* Search */}
+          <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3">
+            <Search size={17} className="shrink-0 text-slate-400" />
+            <input
+              className="min-h-11 flex-1 bg-transparent text-sm outline-none placeholder:text-slate-400"
+              placeholder="Buscar producto, lote, ubicación..."
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+            />
+            {search && (
+              <button className="text-slate-400 hover:text-slate-700" onClick={() => setSearch('')}>
+                <X size={15} />
+              </button>
+            )}
+          </div>
 
           {/* Recent movements */}
           {movements.length > 0 && (
