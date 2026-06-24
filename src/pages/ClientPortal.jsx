@@ -659,21 +659,22 @@ export default function ClientPortal({ view = 'inventory' }) {
           )}
 
           {/* Search */}
-          <div className="sticky top-[9rem] z-10 -mx-4 bg-slate-50 px-4 pb-2 pt-1 sm:static sm:mx-0 sm:bg-transparent sm:p-0">
-            <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 shadow-sm">
-              <Search size={17} className="shrink-0 text-slate-400" />
-              <input
-                className="min-h-11 flex-1 bg-transparent text-sm outline-none placeholder:text-slate-400"
-                placeholder="Buscar producto, lote, ubicación..."
-                value={search}
-                onChange={e => setSearch(e.target.value)}
-              />
-              {search && (
-                <button className="text-slate-400 hover:text-slate-700" onClick={() => setSearch('')}>
-                  <X size={15} />
-                </button>
-              )}
-            </div>
+          <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3">
+            <Search size={17} className="shrink-0 text-slate-400" />
+            <input
+              className="min-h-11 flex-1 bg-transparent text-sm outline-none placeholder:text-slate-400"
+              placeholder="Buscar producto, lote, ubicación..."
+              value={search}
+              onChange={e => {
+                setSearch(e.target.value)
+                requestAnimationFrame(() => e.target.scrollIntoView({ behavior: 'instant', block: 'start' }))
+              }}
+            />
+            {search && (
+              <button className="text-slate-400 hover:text-slate-700" onClick={() => setSearch('')}>
+                <X size={15} />
+              </button>
+            )}
           </div>
 
           {/* Filter chips + Sort */}
