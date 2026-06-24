@@ -876,49 +876,54 @@ export default function LotDetail() {
   if (clientLotConsultation) {
     return (
       <div>
-        <PageHeader title="Ficha del lote" subtitle="Detalle visible para cliente" />
+        <PageHeader title={cleanProductName(lot.product)} subtitle={visibleLotCode} />
 
-        <LotStateNotice state={lotState} saleBlocked={blocksSale || isExpired} />
+        <div className="mx-auto max-w-md space-y-3">
+          <LotStateNotice state={lotState} saleBlocked={blocksSale || isExpired} />
 
-        <section className="panel overflow-hidden border-campo-100 bg-white/95">
-          <div className="flex flex-col gap-3 border-b border-slate-100 pb-4 sm:flex-row sm:items-start sm:justify-between">
-            <div className="min-w-0">
-              <p className="text-xs font-bold uppercase text-campo-700">Producto</p>
-              <h2 className="mt-1 text-2xl font-black leading-tight text-slate-950 [overflow-wrap:anywhere]">
-                {cleanProductName(lot.product)}
-              </h2>
-              <div className="mt-2 flex flex-wrap gap-2 text-xs font-black">
-                <span className="rounded-lg bg-campo-50 px-2.5 py-1 text-campo-800">
-                  Presentacion: {lot.package_size ? `${formatNumber(lot.package_size)} ${lot.package_unit || ''}` : 'Sin dato'}
-                </span>
-                <span className="rounded-lg bg-slate-100 px-2.5 py-1 text-slate-700">
-                  {visibleLotCode}
-                </span>
+          <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+            {/* Header */}
+            <div className="flex items-start justify-between gap-3 border-b border-slate-100 px-4 py-4">
+              <div className="min-w-0">
+                <p className="text-[11px] font-bold uppercase tracking-wide text-slate-400">
+                  {lot.package_size ? `Presentación: ${formatNumber(lot.package_size)} ${lot.package_unit || ''}` : 'Sin presentación'}
+                </p>
+                <h2 className="mt-1 text-base font-black leading-tight text-slate-950 [overflow-wrap:anywhere]">
+                  {cleanProductName(lot.product)}
+                </h2>
+                <p className="mt-1 font-mono text-xs font-bold text-slate-400">{visibleLotCode}</p>
+              </div>
+              <LotStateBadge state={lotState} />
+            </div>
+
+            {/* Key metrics */}
+            <div className="grid grid-cols-2 divide-x divide-slate-100 border-b border-slate-100">
+              <div className="px-4 py-3.5">
+                <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">Envases</p>
+                <p className="mt-1 text-2xl font-black text-campo-700">{formatNumber(lot.current_quantity)}</p>
+              </div>
+              <div className="px-4 py-3.5">
+                <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">Equivalente</p>
+                <p className="mt-1 text-2xl font-black text-slate-900">
+                  {Number(lot.package_size) > 0 ? `${formatNumber(currentEquivalent)} ${lot.package_unit || ''}` : '—'}
+                </p>
               </div>
             </div>
-            <LotStateBadge state={lotState} />
-          </div>
 
-          <div className="mt-4 grid gap-3 sm:grid-cols-2">
-            <div className="rounded-lg bg-campo-50 p-4">
-              <p className="text-xs font-bold uppercase text-campo-700">Envases disponibles</p>
-              <p className="mt-1 text-4xl font-black text-campo-800">{formatNumber(lot.current_quantity)}</p>
+            {/* Detail rows */}
+            <div className="divide-y divide-slate-50 px-4">
+              <LotRow label="Ubicación" value={lot.location || '—'} />
+              <LotRow label="Vencimiento" value={(() => {
+                if (!lot.expiry_date) return '—'
+                if (expiryDaysLeft < 0) return <span className="font-bold text-red-600">Venció hace {Math.abs(expiryDaysLeft)} días</span>
+                if (expiryDaysLeft === 0) return <span className="font-bold text-red-600">Vence hoy</span>
+                if (expiryDaysLeft <= 30) return <span className="font-bold text-amber-600">Vence en {expiryDaysLeft} días</span>
+                return `${formatDate(lot.expiry_date)} · en ${expiryDaysLeft} días`
+              })()} />
+              <LotRow label="Ingreso" value={lot.entry_date ? formatDate(lot.entry_date) : '—'} />
             </div>
-            <div className="rounded-lg bg-slate-50 p-4">
-              <p className="text-xs font-bold uppercase text-slate-500">Equivalente actual</p>
-              <p className="mt-1 text-3xl font-black text-slate-950">
-                {Number(lot.package_size) > 0 ? `${formatNumber(currentEquivalent)} ${lot.package_unit || ''}` : 'Sin dato'}
-              </p>
-            </div>
-          </div>
-
-          <div className="mt-3 grid gap-2 text-sm sm:grid-cols-2">
-            <ConsultInfo label="Ubicacion" value={lot.location || '-'} />
-            <ConsultInfo label="Vencimiento" value={lot.expiry_date ? formatDate(lot.expiry_date) : 'Sin dato'} />
-            <ConsultInfo label="Fecha ingreso" value={lot.entry_date ? formatDate(lot.entry_date) : 'Sin dato'} />
-            <ConsultInfo label="Estado" value={lotState.label} />
-          </div>
-        </section>
+          </section>
+        </div>
       </div>
     )
   }
@@ -1445,6 +1450,15 @@ function ConsultInfo({ label, value, strong }) {
     <div className="rounded-lg bg-slate-50 p-3">
       <p className="text-[11px] font-bold uppercase text-slate-400">{label}</p>
       <p className={`${strong ? 'font-black text-slate-950' : 'font-bold text-slate-700'} mt-1 [overflow-wrap:anywhere]`}>{value}</p>
+    </div>
+  )
+}
+
+function LotRow({ label, value }) {
+  return (
+    <div className="flex items-center justify-between gap-4 py-3">
+      <span className="shrink-0 text-xs font-semibold text-slate-400">{label}</span>
+      <span className="text-right text-sm font-bold text-slate-700 [overflow-wrap:anywhere]">{value}</span>
     </div>
   )
 }
