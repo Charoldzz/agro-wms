@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import ExcelJS from 'exceljs'
 import { Link, useNavigate } from 'react-router-dom'
 import {
@@ -137,6 +137,7 @@ export default function ClientPortal({ view = 'inventory' }) {
   const [showExpiryModal, setShowExpiryModal] = useState(false)
   const [showProductsModal, setShowProductsModal] = useState(false)
   const [search,     setSearch]     = useState('')
+  const searchBarRef = useRef(null)
   const [expandedProduct, setExpandedProduct] = useState('')
   const [showAllProducts, setShowAllProducts] = useState(false)
   const [inventoryFilter, setInventoryFilter] = useState('all')
@@ -659,12 +660,18 @@ export default function ClientPortal({ view = 'inventory' }) {
           )}
 
           {/* Search */}
-          <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3">
+          <div ref={searchBarRef} className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3">
             <Search size={17} className="shrink-0 text-slate-400" />
             <input
               className="min-h-11 flex-1 bg-transparent text-sm outline-none placeholder:text-slate-400"
               placeholder="Buscar producto, lote, ubicación..."
               value={search}
+              onFocus={() => {
+                if (window.innerWidth < 640 && searchBarRef.current) {
+                  const top = searchBarRef.current.getBoundingClientRect().top + window.scrollY - 8
+                  window.scrollTo({ top, behavior: 'smooth' })
+                }
+              }}
               onChange={e => setSearch(e.target.value)}
             />
             {search && (
