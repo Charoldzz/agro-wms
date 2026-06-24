@@ -594,37 +594,29 @@ export default function ClientPortal({ view = 'inventory' }) {
               </Link>
             ))}
           </div>
-          {isInventory && (
-            <div className="mx-auto flex max-w-5xl border-t border-white/10">
+          {isInventory && (eqTotals.lts > 0 || eqTotals.kgs > 0) && (
+            <div className="mx-auto flex max-w-5xl border-t border-amber-400/40" style={{background:'#f59e0b'}}>
               {loading ? (
-                [...Array(4)].map((_, i) => (
+                [...Array(2)].map((_, i) => (
                   <div key={i} className="flex-1 animate-pulse px-6 py-4">
-                    <div className="mb-2 h-2 w-14 rounded bg-white/10" />
-                    <div className="h-6 w-20 rounded bg-white/10" />
+                    <div className="mb-2 h-2 w-14 rounded bg-black/10" />
+                    <div className="h-6 w-20 rounded bg-black/10" />
                   </div>
                 ))
               ) : (
                 <>
                   {eqTotals.lts > 0 && (
-                    <div className="flex-1 px-6 py-4" style={{background:'rgba(6,182,212,0.17)'}}>
-                      <p className="mb-1 text-[9px] font-bold uppercase tracking-widest" style={{color:'#67e8f9'}}>Equiv. líquidos</p>
-                      <p className="text-xl font-black tabular-nums leading-tight text-white">{formatNumber(eqTotals.lts)} <span className="text-sm font-bold" style={{color:'#67e8f9'}}>lts</span></p>
+                    <div className={`flex-1 px-6 py-4 ${eqTotals.kgs > 0 ? 'border-r border-amber-600/20' : ''}`}>
+                      <p className="mb-1 text-[9px] font-bold uppercase tracking-widest" style={{color:'rgba(0,0,0,0.5)'}}>Equiv. líquidos</p>
+                      <p className="text-xl font-black tabular-nums leading-tight text-black">{formatNumber(eqTotals.lts)} <span className="text-sm font-bold" style={{color:'rgba(0,0,0,0.5)'}}>lts</span></p>
                     </div>
                   )}
                   {eqTotals.kgs > 0 && (
-                    <div className="flex-1 px-6 py-4" style={{background:'rgba(245,158,11,0.17)'}}>
-                      <p className="mb-1 text-[9px] font-bold uppercase tracking-widest" style={{color:'#fcd34d'}}>Equiv. sólidos</p>
-                      <p className="text-xl font-black tabular-nums leading-tight text-white">{formatNumber(eqTotals.kgs)} <span className="text-sm font-bold" style={{color:'#fcd34d'}}>kgs</span></p>
+                    <div className="flex-1 px-6 py-4">
+                      <p className="mb-1 text-[9px] font-bold uppercase tracking-widest" style={{color:'rgba(0,0,0,0.5)'}}>Equiv. sólidos</p>
+                      <p className="text-xl font-black tabular-nums leading-tight text-black">{formatNumber(eqTotals.kgs)} <span className="text-sm font-bold" style={{color:'rgba(0,0,0,0.5)'}}>kgs</span></p>
                     </div>
                   )}
-                  <div className="flex-1 px-6 py-4" style={{background:'rgba(59,130,246,0.15)'}}>
-                    <p className="mb-1 text-[9px] font-bold uppercase tracking-widest" style={{color:'#93c5fd'}}>Envases</p>
-                    <p className="text-xl font-black tabular-nums leading-tight text-white">{formatNumber(totalStock)}</p>
-                  </div>
-                  <div className="flex-1 px-6 py-4" style={{background:'rgba(139,92,246,0.15)'}}>
-                    <p className="mb-1 text-[9px] font-bold uppercase tracking-widest" style={{color:'#c4b5fd'}}>Lotes activos</p>
-                    <p className="text-xl font-black tabular-nums leading-tight text-white">{productCount}</p>
-                  </div>
                 </>
               )}
             </div>
@@ -655,37 +647,29 @@ export default function ClientPortal({ view = 'inventory' }) {
               </Link>
             ))}
           </div>
-          {isInventory && (
-            <div className="grid grid-cols-2 border-t border-white/10">
+          {isInventory && (eqTotals.lts > 0 || eqTotals.kgs > 0) && (
+            <div className="grid border-t border-amber-400/40" style={{background:'#f59e0b', gridTemplateColumns: `repeat(${[eqTotals.lts > 0, eqTotals.kgs > 0].filter(Boolean).length}, 1fr)`}}>
               {loading ? (
-                [...Array(4)].map((_, i) => (
+                [...Array(2)].map((_, i) => (
                   <div key={i} className="animate-pulse px-4 py-3">
-                    <div className="mb-1.5 h-2 w-10 rounded bg-white/10" />
-                    <div className="h-5 w-16 rounded bg-white/10" />
+                    <div className="mb-1.5 h-2 w-10 rounded bg-black/10" />
+                    <div className="h-5 w-16 rounded bg-black/10" />
                   </div>
                 ))
               ) : (
                 <>
                   {eqTotals.lts > 0 && (
-                    <div className="px-4 py-3" style={{background:'rgba(6,182,212,0.17)'}}>
-                      <p className="mb-0.5 text-[9px] font-bold uppercase tracking-widest" style={{color:'#67e8f9'}}>Equiv. lts</p>
-                      <p className="text-sm font-black tabular-nums leading-tight text-white">{formatNumber(eqTotals.lts)} <span className="text-xs font-bold" style={{color:'#67e8f9'}}>lts</span></p>
+                    <div className={`px-4 py-3 ${eqTotals.kgs > 0 ? 'border-r border-amber-600/20' : ''}`}>
+                      <p className="mb-0.5 text-[9px] font-bold uppercase tracking-widest" style={{color:'rgba(0,0,0,0.5)'}}>Equiv. lts</p>
+                      <p className="text-sm font-black tabular-nums leading-tight text-black">{formatNumber(eqTotals.lts)} <span className="text-xs font-bold" style={{color:'rgba(0,0,0,0.5)'}}>lts</span></p>
                     </div>
                   )}
                   {eqTotals.kgs > 0 && (
-                    <div className="px-4 py-3" style={{background:'rgba(245,158,11,0.17)'}}>
-                      <p className="mb-0.5 text-[9px] font-bold uppercase tracking-widest" style={{color:'#fcd34d'}}>Equiv. kgs</p>
-                      <p className="text-sm font-black tabular-nums leading-tight text-white">{formatNumber(eqTotals.kgs)} <span className="text-xs font-bold" style={{color:'#fcd34d'}}>kgs</span></p>
+                    <div className="px-4 py-3">
+                      <p className="mb-0.5 text-[9px] font-bold uppercase tracking-widest" style={{color:'rgba(0,0,0,0.5)'}}>Equiv. kgs</p>
+                      <p className="text-sm font-black tabular-nums leading-tight text-black">{formatNumber(eqTotals.kgs)} <span className="text-xs font-bold" style={{color:'rgba(0,0,0,0.5)'}}>kgs</span></p>
                     </div>
                   )}
-                  <div className="px-4 py-3" style={{background:'rgba(59,130,246,0.15)'}}>
-                    <p className="mb-0.5 text-[9px] font-bold uppercase tracking-widest" style={{color:'#93c5fd'}}>Envases</p>
-                    <p className="text-sm font-black tabular-nums leading-tight text-white">{formatNumber(totalStock)}</p>
-                  </div>
-                  <div className="px-4 py-3" style={{background:'rgba(139,92,246,0.15)'}}>
-                    <p className="mb-0.5 text-[9px] font-bold uppercase tracking-widest" style={{color:'#c4b5fd'}}>Lotes activos</p>
-                    <p className="text-sm font-black tabular-nums leading-tight text-white">{productCount}</p>
-                  </div>
                 </>
               )}
             </div>
@@ -906,16 +890,40 @@ export default function ClientPortal({ view = 'inventory' }) {
                 )
               })}
 
-              {!search.trim() && inventoryFilter === 'all' && !showAllProducts && displayedProducts.length > 8 && (
-                <button
-                  className="w-full rounded-xl border border-slate-200 bg-white py-3 text-sm font-bold text-slate-600 transition hover:bg-slate-50"
-                  onClick={() => setShowAllProducts(true)}
-                >
-                  Ver todos los productos ({displayedProducts.length})
-                </button>
+              {!search.trim() && inventoryFilter === 'all' && displayedProducts.length > 8 && (
+                showAllProducts ? (
+                  <button
+                    className="w-full rounded-xl border border-slate-200 bg-white py-3 text-sm font-bold text-slate-600 transition hover:bg-slate-50"
+                    onClick={() => setShowAllProducts(false)}
+                  >
+                    Ver menos
+                  </button>
+                ) : (
+                  <button
+                    className="w-full rounded-xl border border-slate-200 bg-white py-3 text-sm font-bold text-slate-600 transition hover:bg-slate-50"
+                    onClick={() => setShowAllProducts(true)}
+                  >
+                    Ver todos los productos ({displayedProducts.length})
+                  </button>
+                )
               )}
             </div>
             <div className="pointer-events-none absolute bottom-0 left-0 right-0 h-8 bg-gradient-to-t from-slate-50 to-transparent sm:hidden" />
+            </div>
+          )}
+
+          {/* Bottom totals */}
+          {!loading && (
+            <div className="flex items-center justify-center gap-6 rounded-xl border border-slate-200 bg-white px-5 py-3.5 shadow-sm">
+              <div className="text-center">
+                <p className="text-lg font-black tabular-nums text-slate-900">{formatNumber(totalStock)}</p>
+                <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">envases en almacén</p>
+              </div>
+              <div className="h-8 w-px bg-slate-100" />
+              <div className="text-center">
+                <p className="text-lg font-black tabular-nums text-slate-900">{productCount}</p>
+                <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">lotes activos</p>
+              </div>
             </div>
           )}
 
