@@ -351,10 +351,10 @@ export default function ClientPortal({ view = 'inventory' }) {
       setReqUploading(true)
       const ext = reqAttachFile.name.split('.').pop().toLowerCase().replace(/[^a-z0-9]/g, '') || 'bin'
       const path = `${clientId}/${Date.now()}.${ext}`
-      const { error: upErr } = await supabase.storage.from('dispatch-attachments').upload(path, reqAttachFile)
+      const { error: upErr } = await supabase.storage.from('Dispatch_Attachments').upload(path, reqAttachFile)
       setReqUploading(false)
       if (upErr) { setReqMessage('No se pudo subir el archivo adjunto. Verifica tu conexión e intenta de nuevo.'); return }
-      const { data: urlData } = supabase.storage.from('dispatch-attachments').getPublicUrl(path)
+      const { data: urlData } = supabase.storage.from('Dispatch_Attachments').getPublicUrl(path)
       attachmentUrl = urlData.publicUrl
     }
     const { error } = await supabase.from('client_dispatch_requests').insert({
