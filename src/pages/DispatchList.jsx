@@ -387,6 +387,14 @@ export default function DispatchList() {
       setApprovedRequest(requestWithClient)
       setOperationClient(resolvedClient)
       setApprovedRequestLoaded(true)
+
+      // Pre-fill receiver data from client request if draft is empty
+      const savedDraft = readDraft(draftKey, emptyDraft())
+      if (!savedDraft.receiverName && requestWithClient?.transporter_name) {
+        setReceiverName(requestWithClient.transporter_name)
+        setReceiverDocument(requestWithClient.transporter_ci || '')
+        setVehiclePlate(requestWithClient.transporter_plate || '')
+      }
     }
 
     loadApprovedRequest()
@@ -898,24 +906,49 @@ export default function DispatchList() {
           <span className="mt-1 block text-xs font-semibold text-slate-500">Se asigna automaticamente al guardar la operacion.</span>
         </label>
         {isApprovedDispatch ? (
-          <label className="sm:col-span-2">
-            <span className="label">Cliente</span>
-            <input className="input mt-1 bg-slate-100 font-black text-slate-700" value={operationClient?.name || deriveDispatchClientName(approvedRequest, items)} readOnly />
-            <span className="mt-1 block text-xs font-semibold text-slate-500">Cliente tomado automaticamente de la solicitud.</span>
-          </label>
-        ) : null}
-        <label>
-          <span className="label">Nombre del que recibe</span>
-          <input className="input mt-1" autoComplete="off" value={receiverName} onChange={(event) => setReceiverName(event.target.value)} />
-        </label>
-        <label>
-          <span className="label">Numero de documento</span>
-          <input className="input mt-1" autoComplete="off" value={receiverDocument} onChange={(event) => setReceiverDocument(event.target.value)} />
-        </label>
-        <label className="sm:col-span-2">
-          <span className="label">Placa del vehiculo</span>
-          <input className="input mt-1 uppercase" autoComplete="off" required value={vehiclePlate} onChange={(event) => setVehiclePlate(event.target.value.toUpperCase())} placeholder="Ej. 1234ABC" />
-        </label>
+          <div className="sm:col-span-2 rounded-xl border border-campo-100 bg-campo-50 p-3 space-y-2">
+            <p className="text-[10px] font-black uppercase tracking-wide text-campo-600">Datos de la solicitud del cliente</p>
+            <div className="grid grid-cols-2 gap-x-4 gap-y-1 sm:grid-cols-3">
+              <div>
+                <p className="text-[10px] font-bold uppercase text-slate-400">Cliente</p>
+                <p className="text-sm font-black text-slate-900">{operationClient?.name || deriveDispatchClientName(approvedRequest, items)}</p>
+              </div>
+              {receiverName && (
+                <div>
+                  <p className="text-[10px] font-bold uppercase text-slate-400">Transportista</p>
+                  <p className="text-sm font-semibold text-slate-800">{receiverName}</p>
+                </div>
+              )}
+              {receiverDocument && (
+                <div>
+                  <p className="text-[10px] font-bold uppercase text-slate-400">CI</p>
+                  <p className="text-sm font-semibold text-slate-800">{receiverDocument}</p>
+                </div>
+              )}
+              {vehiclePlate && (
+                <div>
+                  <p className="text-[10px] font-bold uppercase text-slate-400">Placa</p>
+                  <p className="text-sm font-black text-slate-800">{vehiclePlate}</p>
+                </div>
+              )}
+            </div>
+          </div>
+        ) : (
+          <>
+            <label>
+              <span className="label">Nombre del que recibe</span>
+              <input className="input mt-1" autoComplete="off" value={receiverName} onChange={(event) => setReceiverName(event.target.value)} />
+            </label>
+            <label>
+              <span className="label">Numero de documento</span>
+              <input className="input mt-1" autoComplete="off" value={receiverDocument} onChange={(event) => setReceiverDocument(event.target.value)} />
+            </label>
+            <label className="sm:col-span-2">
+              <span className="label">Placa del vehiculo</span>
+              <input className="input mt-1 uppercase" autoComplete="off" required value={vehiclePlate} onChange={(event) => setVehiclePlate(event.target.value.toUpperCase())} placeholder="Ej. 1234ABC" />
+            </label>
+          </>
+        )}
         <label className="sm:col-span-2">
           <span className="label">Observaciones</span>
           <textarea className="input mt-1" rows="2" value={dispatchNotes} onChange={(event) => setDispatchNotes(event.target.value)} placeholder="Opcional" />
