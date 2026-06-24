@@ -658,6 +658,24 @@ export default function ClientPortal({ view = 'inventory' }) {
             </Link>
           )}
 
+          {/* Search */}
+          <div className="sticky top-[9rem] z-10 -mx-4 bg-slate-50 px-4 pb-2 pt-1 sm:static sm:mx-0 sm:bg-transparent sm:p-0">
+            <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 shadow-sm">
+              <Search size={17} className="shrink-0 text-slate-400" />
+              <input
+                className="min-h-11 flex-1 bg-transparent text-sm outline-none placeholder:text-slate-400"
+                placeholder="Buscar producto, lote, ubicación..."
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+              />
+              {search && (
+                <button className="text-slate-400 hover:text-slate-700" onClick={() => setSearch('')}>
+                  <X size={15} />
+                </button>
+              )}
+            </div>
+          </div>
+
           {/* Filter chips + Sort */}
           {(() => {
             const expiringCount = inventoryProducts.filter(g => g.lots.some(l => lotStatus(l).label === 'Por vencer')).length
@@ -701,7 +719,10 @@ export default function ClientPortal({ view = 'inventory' }) {
           ) : filteredLots.length === 0 ? (
             <EmptyState title="Sin productos" text="No hay inventario disponible en este momento." />
           ) : (
-            <div className="space-y-2">
+            <div
+              className="space-y-2 overflow-y-auto sm:overflow-visible"
+              style={search.trim() ? { maxHeight: 'calc(var(--vvh, 100dvh) - 13rem)' } : undefined}
+            >
               {visibleProducts.map(group => {
                 const isOpen = expandedProduct === group.key
                 return (
@@ -787,22 +808,6 @@ export default function ClientPortal({ view = 'inventory' }) {
               )}
             </div>
           )}
-
-          {/* Search */}
-          <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3">
-            <Search size={17} className="shrink-0 text-slate-400" />
-            <input
-              className="min-h-11 flex-1 bg-transparent text-sm outline-none placeholder:text-slate-400"
-              placeholder="Buscar producto, lote, ubicación..."
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-            />
-            {search && (
-              <button className="text-slate-400 hover:text-slate-700" onClick={() => setSearch('')}>
-                <X size={15} />
-              </button>
-            )}
-          </div>
 
           {/* Recent movements */}
           {movements.length > 0 && (

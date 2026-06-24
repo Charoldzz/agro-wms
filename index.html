@@ -20,6 +20,15 @@
           requestAnimationFrame(function () { meta.content = original })
         }
       })
+      // Track visual viewport height (shrinks when keyboard opens)
+      function updateVVH() {
+        var h = window.visualViewport ? window.visualViewport.height : window.innerHeight
+        document.documentElement.style.setProperty('--vvh', h + 'px')
+      }
+      if (window.visualViewport) {
+        window.visualViewport.addEventListener('resize', updateVVH)
+      }
+      updateVVH()
     </script>
   </body>
 </html>
