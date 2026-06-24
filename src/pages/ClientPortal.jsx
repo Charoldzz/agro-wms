@@ -1071,26 +1071,39 @@ export default function ClientPortal({ view = 'inventory' }) {
                       <span className="text-xs font-black uppercase tracking-wide text-slate-500">2 · Lote</span>
                       <select className="input mt-1.5" value={reqLotId} onChange={e => setReqLotId(e.target.value)}>
                         <option value="">Seleccionar lote...</option>
-                        {reqProductLots.map(l => (
-                          <option key={l.id} value={l.id}>
-                            {lotLabel(l.lot_code, l)} · {formatNumber(l.current_quantity)} env. {l.expiry_date ? `· Vence ${formatDate(l.expiry_date)}` : ''}
-                          </option>
-                        ))}
+                        {reqProductLots.map(l => {
+                          const st = lotStatus(l)
+                          const statusText = st.label === 'Vencido' ? ' ⚠ VENCIDO' : st.label === 'Por vencer' ? ' · Por vencer' : st.label === 'Retenido' ? ' · Retenido' : ''
+                          return (
+                            <option key={l.id} value={l.id}>
+                              {lotLabel(l.lot_code, l)} · {formatNumber(l.current_quantity)} env. {l.expiry_date ? `· Vence ${formatDate(l.expiry_date)}` : ''}{statusText}
+                            </option>
+                          )
+                        })}
                       </select>
                     </label>
                   )}
 
                   {/* Selected lot info */}
-                  {selectedLot && (
-                    <div className="rounded-xl border border-campo-100 bg-campo-50 px-3 py-3">
+                  {selectedLot && (() => {
+                    const selSt = lotStatus(selectedLot)
+                    const cardCls = selSt.label === 'Vencido' ? 'border-red-200 bg-red-50' : selSt.label === 'Por vencer' ? 'border-amber-200 bg-amber-50' : 'border-campo-100 bg-campo-50'
+                    const dateCls = selSt.label === 'Vencido' ? 'text-red-600 font-bold' : selSt.label === 'Por vencer' ? 'text-amber-700 font-bold' : 'text-slate-500'
+                    return (
+                    <div className={`rounded-xl border px-3 py-3 ${cardCls}`}>
                       <div className="flex items-start justify-between gap-2">
                         <div className="min-w-0">
-                          <p className="text-sm font-black text-slate-900 [overflow-wrap:anywhere]">{cleanProductName(selectedLot.product)}</p>
+                          <div className="flex flex-wrap items-center gap-2">
+                            <p className="text-sm font-black text-slate-900 [overflow-wrap:anywhere]">{cleanProductName(selectedLot.product)}</p>
+                            {selSt.label !== 'Disponible' && (
+                              <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${selSt.cls}`}>{selSt.label}</span>
+                            )}
+                          </div>
                           <p className="mt-0.5 text-xs font-semibold text-slate-500">
                             {lotLabel(selectedLot.lot_code, selectedLot)} · {selectedLot.location || 'Sin ubicación'}
                           </p>
                           {selectedLot.expiry_date && (
-                            <p className="text-xs font-semibold text-slate-500">Vence: {formatDate(selectedLot.expiry_date)}</p>
+                            <p className={`text-xs font-semibold ${dateCls}`}>Vence: {formatDate(selectedLot.expiry_date)}</p>
                           )}
                         </div>
                         <div className="shrink-0 rounded-lg bg-white px-3 py-2 text-right shadow-sm">
@@ -1114,7 +1127,8 @@ export default function ClientPortal({ view = 'inventory' }) {
                         <p className="mt-2 text-xs font-semibold text-campo-700">Presentación: {packageLabel(selectedLot)}</p>
                       )}
                     </div>
-                  )}
+                    )
+                  })()}
 
                   {/* Step 3: cantidad */}
                   {reqLotId && (
