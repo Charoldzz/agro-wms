@@ -665,11 +665,7 @@ export default function ClientPortal({ view = 'inventory' }) {
               className="min-h-11 flex-1 bg-transparent text-sm outline-none placeholder:text-slate-400"
               placeholder="Buscar producto, lote, ubicación..."
               value={search}
-              onFocus={e => { if (window.innerWidth < 640) requestAnimationFrame(() => e.target.scrollIntoView({ behavior: 'smooth', block: 'start' })) }}
-              onChange={e => {
-                setSearch(e.target.value)
-                if (window.innerWidth < 640) requestAnimationFrame(() => e.target.scrollIntoView({ behavior: 'instant', block: 'start' }))
-              }}
+              onChange={e => setSearch(e.target.value)}
             />
             {search && (
               <button className="text-slate-400 hover:text-slate-700" onClick={() => setSearch('')}>
@@ -723,7 +719,7 @@ export default function ClientPortal({ view = 'inventory' }) {
           ) : (
             <div
               className="space-y-2 overflow-y-auto sm:overflow-visible"
-              style={search.trim() ? { maxHeight: 'calc(var(--vvh, 100dvh) - 13rem)' } : undefined}
+              style={search.trim() ? { maxHeight: 'calc(var(--vvh, 100dvh) - 14rem)' } : undefined}
             >
               {visibleProducts.map(group => {
                 const isOpen = expandedProduct === group.key

@@ -120,8 +120,7 @@ export default function ProductCatalog() {
             type="text"
             placeholder="Buscar codigo o producto..."
             value={search}
-            onFocus={e => { if (window.innerWidth < 640) requestAnimationFrame(() => e.target.scrollIntoView({ behavior: 'smooth', block: 'start' })) }}
-            onChange={e => { handleSearch(e.target.value); if (window.innerWidth < 640) requestAnimationFrame(() => e.target.scrollIntoView({ behavior: 'instant', block: 'start' })) }}
+            onChange={e => handleSearch(e.target.value)}
           />
         </div>
         <select className="input sm:w-56" value={filterClient} onChange={(e) => handleFilterClient(e.target.value)}>

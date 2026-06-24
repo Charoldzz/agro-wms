@@ -121,8 +121,7 @@ export default function Movements() {
             className="min-h-12 flex-1 bg-transparent px-2 outline-none"
             placeholder="Buscar lote, producto, cliente, usuario..."
             value={search}
-            onFocus={e => { if (window.innerWidth < 640) requestAnimationFrame(() => e.target.scrollIntoView({ behavior: 'smooth', block: 'start' })) }}
-            onChange={e => { setSearch(e.target.value); if (window.innerWidth < 640) requestAnimationFrame(() => e.target.scrollIntoView({ behavior: 'instant', block: 'start' })) }}
+            onChange={e => setSearch(e.target.value)}
           />
         </div>
         <select className="input" value={typeFilter} onChange={(event) => setTypeFilter(event.target.value)}>

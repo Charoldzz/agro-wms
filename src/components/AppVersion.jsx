@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react'
-import { APP_VERSION, APP_VERSION_LABEL } from '../lib/version'
+import { APP_VERSION } from '../lib/version'
 
 export default function AppVersion() {
+  const [liveVersion, setLiveVersion] = useState(APP_VERSION)
   const [latestVersion, setLatestVersion] = useState('')
-  const hasUpdate = latestVersion && latestVersion !== APP_VERSION
+  const hasUpdate = latestVersion && latestVersion !== liveVersion
 
   useEffect(() => {
     let cancelled = false
@@ -13,8 +14,9 @@ export default function AppVersion() {
         const response = await fetch(`/app-version.json?t=${Date.now()}`, { cache: 'no-store' })
         if (!response.ok) return
         const data = await response.json()
-        if (!cancelled && data.version && data.version !== APP_VERSION) {
-          setLatestVersion(data.version)
+        if (!cancelled && data.version) {
+          setLiveVersion(data.version)
+          if (data.version !== APP_VERSION) setLatestVersion(data.version)
         }
       } catch {
         // Si falla la red, se revisa de nuevo en el siguiente intento.
@@ -55,7 +57,7 @@ export default function AppVersion() {
         </div>
       ) : (
         <div className="pointer-events-none hidden rounded-full border border-white/60 bg-white/70 px-2 py-1 text-[10px] font-bold text-slate-500 shadow-sm sm:block">
-          {APP_VERSION_LABEL}
+          {liveVersion}
         </div>
       )}
     </div>
