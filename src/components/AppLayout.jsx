@@ -1,6 +1,6 @@
 import { Outlet, NavLink, useLocation, useNavigate } from 'react-router-dom'
 import { ArrowLeft, BarChart2, Boxes, ClipboardCheck, ClipboardList, LogOut, PackagePlus, RefreshCcw, ShieldAlert, Truck, Wifi, WifiOff } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../hooks/useAuth.jsx'
 import { getQueuedMovementCount, syncQueuedMovements } from '../lib/offlineQueue'
@@ -19,11 +19,10 @@ const clienteNavItems = [
 ]
 
 const operadorNavItems = [
-  { to: '/lotes', label: 'Almacenes', icon: Boxes },
-  { to: '/operacion/nuevo-ingreso', label: 'Ingreso', icon: PackagePlus },
-  { to: '/nueva-salida', label: 'Salida', icon: LogOut },
+  { to: '/lotes',       label: 'Almacenes',  icon: Boxes },
+  { to: '/solicitudes', label: 'Solicitudes', icon: Truck },
   { to: '/movimientos', label: 'Movimientos', icon: ClipboardList },
-  { to: '/kardex', label: 'Kardex', icon: BarChart2 },
+  { to: '/kardex',      label: 'Kardex',      icon: BarChart2 },
 ]
 
 export default function AppLayout() {
@@ -34,13 +33,14 @@ export default function AppLayout() {
   const [online, setOnline] = useState(navigator.onLine)
   const [syncing, setSyncing] = useState(false)
   const [lastSync, setLastSync] = useState('')
+  const [pendingDispatch, setPendingDispatch] = useState(0)
   const visibleNavItems =
     profile?.role === 'operador'
       ? operadorNavItems
       : profile?.role === 'cliente'
         ? clienteNavItems
         : adminNavItems
-  const mainTabPaths = new Set(['/', '/operacion', '/lotes', '/movimientos', '/offline', '/despachos', '/historial'])
+  const mainTabPaths = new Set(['/', '/operacion', '/lotes', '/movimientos', '/offline', '/despachos', '/historial', '/solicitudes'])
   const showBackButton = !mainTabPaths.has(location.pathname)
 
   async function signOut() {
@@ -127,6 +127,26 @@ export default function AppLayout() {
     }
   }, [isOperatorRoot])
 
+  useEffect(() => {
+    if (!user || !['operador', 'administrador'].includes(profile?.role)) return undefined
+
+    async function loadCount() {
+      const { count } = await supabase
+        .from('client_dispatch_requests')
+        .select('id', { count: 'exact', head: true })
+        .in('status', ['pendiente', 'aprobado', 'en_preparacion'])
+      setPendingDispatch(count || 0)
+    }
+
+    loadCount()
+    const channel = supabase
+      .channel('pending-dispatch-badge')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'client_dispatch_requests' }, loadCount)
+      .subscribe()
+
+    return () => supabase.removeChannel(channel)
+  }, [user, profile?.role])
+
   if (profile?.role === 'cliente') {
     return (
       <div className="app-bg min-h-screen">
@@ -211,19 +231,29 @@ export default function AppLayout() {
         <div className="mx-auto flex max-w-5xl gap-1.5 px-3 py-2.5">
           {visibleNavItems.map((item) => {
             const Icon = item.icon
+            const badge = item.to === '/solicitudes' && pendingDispatch > 0 ? pendingDispatch : 0
             return (
               <NavLink
                 key={item.to}
                 to={item.to}
                 className={({ isActive }) =>
-                  `flex flex-1 flex-col items-center justify-center gap-1 rounded-xl py-3 text-xs font-bold transition-colors ${
+                  `relative flex flex-1 flex-col items-center justify-center gap-1 rounded-xl py-3 text-xs font-bold transition-colors ${
                     isActive
                       ? 'bg-campo-700 text-white shadow-sm'
-                      : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
+                      : badge > 0
+                        ? 'bg-amber-50 text-amber-700 ring-2 ring-amber-400'
+                        : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
                   }`
                 }
               >
-                <Icon size={26} strokeWidth={2} />
+                <span className="relative">
+                  <Icon size={26} strokeWidth={2} />
+                  {badge > 0 && (
+                    <span className="absolute -right-2 -top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-black text-white">
+                      {badge > 99 ? '99+' : badge}
+                    </span>
+                  )}
+                </span>
                 <span className="leading-none">{item.label}</span>
               </NavLink>
             )
