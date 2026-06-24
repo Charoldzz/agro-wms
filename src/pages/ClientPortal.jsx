@@ -853,24 +853,14 @@ export default function ClientPortal({ view = 'inventory' }) {
                                   )}
                                 </div>
                               </Link>
-                              <div className="flex shrink-0 flex-col gap-1">
-                                <button
-                                  type="button"
-                                  className="flex h-7 w-7 items-center justify-center rounded-lg bg-campo-700 text-white transition hover:bg-campo-800 active:scale-95"
-                                  onClick={e => { e.stopPropagation(); setReqProductName(productIdentityKey(lot)); setReqLotId(lot.id); navigate('/despachos') }}
-                                  title="Solicitar despacho"
-                                >
-                                  <Truck size={12} />
-                                </button>
-                                <button
-                                  type="button"
-                                  className="flex h-7 w-7 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 transition hover:bg-slate-50 active:scale-95"
-                                  onClick={e => { e.stopPropagation(); navigate('/historial') }}
-                                  title="Ver historial"
-                                >
-                                  <History size={12} />
-                                </button>
-                              </div>
+                              <button
+                                type="button"
+                                className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 transition hover:bg-slate-50 active:scale-95"
+                                onClick={e => { e.stopPropagation(); navigate('/historial') }}
+                                title="Ver historial"
+                              >
+                                <History size={12} />
+                              </button>
                             </div>
                           )
                         })}
