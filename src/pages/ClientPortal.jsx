@@ -595,35 +595,38 @@ export default function ClientPortal({ view = 'inventory' }) {
             ))}
           </div>
           {isInventory && (
-            <div className="border-t border-white/10">
-              <div className="mx-auto flex max-w-5xl divide-x divide-white/10 px-5">
-                {loading ? (
-                  [...Array(4)].map((_, i) => <div key={i} className="animate-pulse py-3 pr-6"><div className="h-5 w-20 rounded bg-white/10" /><div className="mt-1.5 h-2 w-14 rounded bg-white/10" /></div>)
-                ) : (
-                  <>
-                    {eqTotals.lts > 0 && (
-                      <div className="py-3 pr-6">
-                        <p className="text-sm font-black tabular-nums leading-tight text-white">{formatNumber(eqTotals.lts)} <span className="font-bold text-campo-300">lts</span></p>
-                        <p className="mt-0.5 text-[9px] font-semibold uppercase tracking-widest text-white/40">Equiv. líquidos</p>
-                      </div>
-                    )}
-                    {eqTotals.kgs > 0 && (
-                      <div className={`py-3 ${eqTotals.lts > 0 ? 'px-6' : 'pr-6'}`}>
-                        <p className="text-sm font-black tabular-nums leading-tight text-white">{formatNumber(eqTotals.kgs)} <span className="font-bold text-campo-300">kgs</span></p>
-                        <p className="mt-0.5 text-[9px] font-semibold uppercase tracking-widest text-white/40">Equiv. sólidos</p>
-                      </div>
-                    )}
-                    <div className={`py-3 ${(eqTotals.lts > 0 || eqTotals.kgs > 0) ? 'px-6' : 'pr-6'}`}>
-                      <p className="text-sm font-black tabular-nums leading-tight text-white">{formatNumber(totalStock)}</p>
-                      <p className="mt-0.5 text-[9px] font-semibold uppercase tracking-widest text-white/40">Envases</p>
+            <div className="mx-auto flex max-w-5xl border-t border-white/10">
+              {loading ? (
+                [...Array(4)].map((_, i) => (
+                  <div key={i} className="flex-1 animate-pulse px-6 py-4">
+                    <div className="mb-2 h-2 w-14 rounded bg-white/10" />
+                    <div className="h-6 w-20 rounded bg-white/10" />
+                  </div>
+                ))
+              ) : (
+                <>
+                  {eqTotals.lts > 0 && (
+                    <div className="flex-1 px-6 py-4" style={{background:'rgba(6,182,212,0.17)'}}>
+                      <p className="mb-1 text-[9px] font-bold uppercase tracking-widest" style={{color:'#67e8f9'}}>Equiv. líquidos</p>
+                      <p className="text-xl font-black tabular-nums leading-tight text-white">{formatNumber(eqTotals.lts)} <span className="text-sm font-bold" style={{color:'#67e8f9'}}>lts</span></p>
                     </div>
-                    <div className="py-3 pl-6">
-                      <p className="text-sm font-black tabular-nums leading-tight text-white">{productCount}</p>
-                      <p className="mt-0.5 text-[9px] font-semibold uppercase tracking-widest text-white/40">Lotes activos</p>
+                  )}
+                  {eqTotals.kgs > 0 && (
+                    <div className="flex-1 px-6 py-4" style={{background:'rgba(245,158,11,0.17)'}}>
+                      <p className="mb-1 text-[9px] font-bold uppercase tracking-widest" style={{color:'#fcd34d'}}>Equiv. sólidos</p>
+                      <p className="text-xl font-black tabular-nums leading-tight text-white">{formatNumber(eqTotals.kgs)} <span className="text-sm font-bold" style={{color:'#fcd34d'}}>kgs</span></p>
                     </div>
-                  </>
-                )}
-              </div>
+                  )}
+                  <div className="flex-1 px-6 py-4" style={{background:'rgba(59,130,246,0.15)'}}>
+                    <p className="mb-1 text-[9px] font-bold uppercase tracking-widest" style={{color:'#93c5fd'}}>Envases</p>
+                    <p className="text-xl font-black tabular-nums leading-tight text-white">{formatNumber(totalStock)}</p>
+                  </div>
+                  <div className="flex-1 px-6 py-4" style={{background:'rgba(139,92,246,0.15)'}}>
+                    <p className="mb-1 text-[9px] font-bold uppercase tracking-widest" style={{color:'#c4b5fd'}}>Lotes activos</p>
+                    <p className="text-xl font-black tabular-nums leading-tight text-white">{productCount}</p>
+                  </div>
+                </>
+              )}
             </div>
           )}
         </div>
@@ -653,19 +656,36 @@ export default function ClientPortal({ view = 'inventory' }) {
             ))}
           </div>
           {isInventory && (
-            <div className="flex gap-5 overflow-x-auto border-t border-white/10 px-4 py-2.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            <div className="grid grid-cols-2 border-t border-white/10">
               {loading ? (
-                [...Array(3)].map((_, i) => <div key={i} className="h-5 w-16 shrink-0 animate-pulse rounded bg-white/10" />)
+                [...Array(4)].map((_, i) => (
+                  <div key={i} className="animate-pulse px-4 py-3">
+                    <div className="mb-1.5 h-2 w-10 rounded bg-white/10" />
+                    <div className="h-5 w-16 rounded bg-white/10" />
+                  </div>
+                ))
               ) : (
                 <>
                   {eqTotals.lts > 0 && (
-                    <div className="shrink-0"><span className="text-sm font-black tabular-nums text-white">{formatNumber(eqTotals.lts)}</span><span className="ml-1 text-xs font-bold text-campo-300">lts</span></div>
+                    <div className="px-4 py-3" style={{background:'rgba(6,182,212,0.17)'}}>
+                      <p className="mb-0.5 text-[9px] font-bold uppercase tracking-widest" style={{color:'#67e8f9'}}>Equiv. lts</p>
+                      <p className="text-sm font-black tabular-nums leading-tight text-white">{formatNumber(eqTotals.lts)} <span className="text-xs font-bold" style={{color:'#67e8f9'}}>lts</span></p>
+                    </div>
                   )}
                   {eqTotals.kgs > 0 && (
-                    <div className="shrink-0"><span className="text-sm font-black tabular-nums text-white">{formatNumber(eqTotals.kgs)}</span><span className="ml-1 text-xs font-bold text-campo-300">kgs</span></div>
+                    <div className="px-4 py-3" style={{background:'rgba(245,158,11,0.17)'}}>
+                      <p className="mb-0.5 text-[9px] font-bold uppercase tracking-widest" style={{color:'#fcd34d'}}>Equiv. kgs</p>
+                      <p className="text-sm font-black tabular-nums leading-tight text-white">{formatNumber(eqTotals.kgs)} <span className="text-xs font-bold" style={{color:'#fcd34d'}}>kgs</span></p>
+                    </div>
                   )}
-                  <div className="shrink-0"><span className="text-sm font-black tabular-nums text-white">{formatNumber(totalStock)}</span><span className="ml-1 text-xs font-bold text-campo-300">env.</span></div>
-                  <div className="shrink-0"><span className="text-sm font-black tabular-nums text-white">{productCount}</span><span className="ml-1 text-xs font-bold text-campo-300">lotes</span></div>
+                  <div className="px-4 py-3" style={{background:'rgba(59,130,246,0.15)'}}>
+                    <p className="mb-0.5 text-[9px] font-bold uppercase tracking-widest" style={{color:'#93c5fd'}}>Envases</p>
+                    <p className="text-sm font-black tabular-nums leading-tight text-white">{formatNumber(totalStock)}</p>
+                  </div>
+                  <div className="px-4 py-3" style={{background:'rgba(139,92,246,0.15)'}}>
+                    <p className="mb-0.5 text-[9px] font-bold uppercase tracking-widest" style={{color:'#c4b5fd'}}>Lotes activos</p>
+                    <p className="text-sm font-black tabular-nums leading-tight text-white">{productCount}</p>
+                  </div>
                 </>
               )}
             </div>
