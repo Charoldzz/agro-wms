@@ -932,6 +932,12 @@ export default function DispatchList() {
                 </div>
               )}
             </div>
+            {approvedRequest?.notes && (
+              <div className="border-t border-campo-100 pt-2">
+                <p className="text-[10px] font-bold uppercase text-slate-400">Observaciones del cliente</p>
+                <p className="text-sm font-semibold text-slate-700">{approvedRequest.notes}</p>
+              </div>
+            )}
           </div>
         ) : (
           <>
@@ -947,12 +953,12 @@ export default function DispatchList() {
               <span className="label">Placa del vehiculo</span>
               <input className="input mt-1 uppercase" autoComplete="off" required value={vehiclePlate} onChange={(event) => setVehiclePlate(event.target.value.toUpperCase())} placeholder="Ej. 1234ABC" />
             </label>
+            <label className="sm:col-span-2">
+              <span className="label">Observaciones</span>
+              <textarea className="input mt-1" rows="2" value={dispatchNotes} onChange={(event) => setDispatchNotes(event.target.value)} placeholder="Opcional" />
+            </label>
           </>
         )}
-        <label className="sm:col-span-2">
-          <span className="label">Observaciones</span>
-          <textarea className="input mt-1" rows="2" value={dispatchNotes} onChange={(event) => setDispatchNotes(event.target.value)} placeholder="Opcional" />
-        </label>
       </section>
 
       <section className="mb-4 grid gap-3">
