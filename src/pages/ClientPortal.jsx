@@ -880,17 +880,22 @@ export default function ClientPortal({ view = 'inventory' }) {
                           )
                         })}
                       </div>
-                      <div className="border-t border-slate-100 px-4 py-3">
+                      <div className="flex items-center gap-2 border-t border-slate-100 px-4 py-3">
                         <button
                           type="button"
-                          className="flex w-full items-center justify-center gap-2 rounded-lg bg-campo-700 px-4 py-2.5 text-sm font-black text-white transition hover:bg-campo-800 active:scale-[0.98]"
-                          onClick={e => {
-                            e.stopPropagation()
-                            setReqProductName(group.key)
-                            navigate('/despachos')
-                          }}
+                          className="flex items-center gap-1.5 rounded-lg bg-campo-700 px-3 py-2 text-xs font-black text-white transition hover:bg-campo-800 active:scale-[0.97]"
+                          onClick={e => { e.stopPropagation(); setReqProductName(group.key); navigate('/despachos') }}
+                          title="Solicitar despacho"
                         >
-                          <Truck size={15} /> Solicitar despacho
+                          <Truck size={13} /> Solicitar
+                        </button>
+                        <button
+                          type="button"
+                          className="flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-black text-slate-600 transition hover:bg-slate-50 active:scale-[0.97]"
+                          onClick={e => { e.stopPropagation(); navigate('/historial') }}
+                          title="Ver movimientos de este producto"
+                        >
+                          <History size={13} /> Historial
                         </button>
                       </div>
                     </div>
