@@ -668,8 +668,12 @@ export default function ClientPortal({ view = 'inventory' }) {
               value={search}
               onFocus={() => {
                 if (window.innerWidth < 640 && searchBarRef.current) {
-                  const top = searchBarRef.current.getBoundingClientRect().top + window.scrollY - 8
-                  window.scrollTo({ top, behavior: 'smooth' })
+                  setTimeout(() => {
+                    if (searchBarRef.current) {
+                      const top = searchBarRef.current.getBoundingClientRect().top + window.scrollY - 8
+                      window.scrollTo({ top, behavior: 'instant' })
+                    }
+                  }, 320)
                 }
               }}
               onChange={e => setSearch(e.target.value)}
@@ -726,7 +730,7 @@ export default function ClientPortal({ view = 'inventory' }) {
           ) : (
             <div
               className="space-y-2 overflow-y-auto sm:overflow-visible"
-              style={search.trim() ? { maxHeight: 'calc(var(--vvh, 100dvh) - 14rem)' } : undefined}
+              style={window.innerWidth < 640 ? { maxHeight: 'calc(var(--vvh, 100dvh) - 14rem)' } : undefined}
             >
               {visibleProducts.map(group => {
                 const isOpen = expandedProduct === group.key
