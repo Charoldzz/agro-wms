@@ -214,6 +214,23 @@ export default function ClientPortal({ view = 'inventory' }) {
   const dispatchedRequests = requests.filter(r => r.status === 'despachado')
   const clientName    = lots[0]?.clients?.name || profile?.full_name || 'Cliente'
 
+  const eqTotals = useMemo(() => {
+    const t = { lts: 0, kgs: 0 }
+    lots.forEach(l => {
+      const eq = lotEquivalent(l)
+      if (!eq || eq.quantity <= 0) return
+      const u = eq.unit.toLowerCase().trim()
+      if (/^l/.test(u)) t.lts += eq.quantity
+      else if (/^kg/.test(u)) t.kgs += eq.quantity
+      else if (/^gr?$/.test(u)) t.kgs += eq.quantity / 1000
+    })
+    return t
+  }, [lots])
+  const eqTotalsLabel = [
+    eqTotals.lts > 0 ? `${formatNumber(eqTotals.lts)} lts` : null,
+    eqTotals.kgs > 0 ? `${formatNumber(eqTotals.kgs)} kgs` : null,
+  ].filter(Boolean).join(' · ')
+
   const inventoryProducts = useMemo(() => {
     const map = {}
     filteredLots.forEach(lot => {
@@ -612,45 +629,64 @@ export default function ClientPortal({ view = 'inventory' }) {
       {/* ── DASHBOARD (Inicio) ─────────────────────────────────── */}
       {isInventory && (
         <>
-          {/* Metrics */}
+          {/* Hero card */}
           {loading ? (
-            <div className="grid grid-cols-3 gap-2">
-              {[0,1,2].map(i => (
-                <div key={i} className="animate-pulse rounded-xl bg-slate-100 p-3.5">
-                  <div className="mb-2 h-2.5 w-3/4 rounded bg-slate-200" />
-                  <div className="mb-1.5 h-6 w-1/2 rounded bg-slate-200" />
-                  <div className="h-2 w-2/3 rounded bg-slate-200" />
-                </div>
-              ))}
-            </div>
-          ) : (() => {
-            const eqTotals = { lts: 0, kgs: 0 }
-            lots.forEach(l => {
-              const eq = lotEquivalent(l)
-              if (!eq || eq.quantity <= 0) return
-              const u = eq.unit.toLowerCase().trim()
-              if (/^l/.test(u)) eqTotals.lts += eq.quantity
-              else if (/^kg/.test(u)) eqTotals.kgs += eq.quantity
-              else if (/^gr?$/.test(u)) eqTotals.kgs += eq.quantity / 1000
-            })
-            const eqLabel = [
-              eqTotals.lts > 0 ? `${formatNumber(eqTotals.lts)} lts` : null,
-              eqTotals.kgs > 0 ? `${formatNumber(eqTotals.kgs)} kgs` : null,
-            ].filter(Boolean).join(' · ')
-            return (
-              <div className="grid grid-cols-3 gap-2">
-                <MetricCard icon={Boxes} label="Envases en almacén" value={formatNumber(totalStock)} sub={eqLabel || null} color="campo" />
-                <MetricCard icon={Package} label="Lotes en almacén" value={productCount} color="slate" />
-                <MetricCard
-                  icon={expiring.length > 0 ? CalendarClock : PackageCheck}
-                  label={expiring.length > 0 ? 'Lotes por vencer' : 'Sin alertas'}
-                  value={expiring.length > 0 ? expiring.length : '✓'}
-                  color={expiring.length > 0 ? 'amber' : 'campo'}
-                  onClick={expiring.length > 0 ? () => setShowExpiryModal(true) : undefined}
-                />
+            <div className="animate-pulse overflow-hidden rounded-2xl bg-slate-200 p-5">
+              <div className="mb-1 h-2.5 w-1/4 rounded bg-slate-300" />
+              <div className="mb-5 h-5 w-1/2 rounded bg-slate-300" />
+              <div className="mb-1 h-2.5 w-1/3 rounded bg-slate-300" />
+              <div className="mb-5 h-9 w-2/3 rounded bg-slate-300" />
+              <div className="grid grid-cols-3 gap-3 border-t border-slate-300 pt-4">
+                {[1,2,3].map(i => (
+                  <div key={i} className="space-y-1">
+                    <div className="h-6 rounded bg-slate-300" />
+                    <div className="h-2.5 w-2/3 rounded bg-slate-300" />
+                  </div>
+                ))}
               </div>
-            )
-          })()}
+            </div>
+          ) : (
+            <div className="overflow-hidden rounded-2xl bg-campo-800 p-5 text-white">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-campo-300">Portal de inventario</p>
+                  <h2 className="mt-0.5 text-lg font-black leading-tight text-white [overflow-wrap:anywhere]">{clientName}</h2>
+                </div>
+                <p className="shrink-0 text-[10px] font-semibold text-campo-300">{formatDate(new Date().toISOString())}</p>
+              </div>
+
+              {eqTotalsLabel && (
+                <div className="mt-4">
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-campo-300">Equivalente total</p>
+                  <p className="mt-1 text-3xl font-black tabular-nums text-white sm:text-4xl">{eqTotalsLabel}</p>
+                </div>
+              )}
+
+              <div className="mt-4 grid grid-cols-3 gap-4 border-t border-white/10 pt-4">
+                <div>
+                  <p className="text-xl font-black tabular-nums text-white sm:text-2xl">{formatNumber(totalStock)}</p>
+                  <p className="text-[10px] font-semibold text-campo-300">envases</p>
+                </div>
+                <div>
+                  <p className="text-xl font-black tabular-nums text-white sm:text-2xl">{productCount}</p>
+                  <p className="text-[10px] font-semibold text-campo-300">lotes</p>
+                </div>
+                <div>
+                  {expiring.length > 0 ? (
+                    <button type="button" className="text-left" onClick={() => setShowExpiryModal(true)}>
+                      <p className="text-xl font-black tabular-nums text-amber-300 sm:text-2xl">{expiring.length}</p>
+                      <p className="text-[10px] font-semibold text-amber-300/80">por vencer ↗</p>
+                    </button>
+                  ) : (
+                    <>
+                      <p className="text-xl font-black text-campo-300 sm:text-2xl">✓</p>
+                      <p className="text-[10px] font-semibold text-campo-300">sin alertas</p>
+                    </>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Active requests banner */}
           {activeRequests.length > 0 && (
@@ -694,12 +730,31 @@ export default function ClientPortal({ view = 'inventory' }) {
             )}
           </div>
 
-          {/* Filter chips + Sort */}
+          {/* Section header + filters */}
           {(() => {
             const expiringCount = inventoryProducts.filter(g => g.lots.some(l => lotStatus(l).label === 'Por vencer')).length
             const expiredCount  = inventoryProducts.filter(g => g.lots.some(l => lotStatus(l).label === 'Vencido')).length
             return (
-              <div className="flex items-center justify-between gap-2">
+              <div className="space-y-2">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-baseline gap-2">
+                    <h3 className="text-sm font-black text-slate-900">Tu inventario</h3>
+                    {!loading && (
+                      <span className="text-xs font-semibold text-slate-400">
+                        {inventoryProducts.length} producto{inventoryProducts.length !== 1 ? 's' : ''}
+                      </span>
+                    )}
+                  </div>
+                  <select
+                    value={inventorySort}
+                    onChange={e => setInventorySort(e.target.value)}
+                    className="shrink-0 rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-xs font-bold text-slate-600 outline-none"
+                  >
+                    <option value="name">A–Z</option>
+                    <option value="quantity-desc">↓ Cantidad</option>
+                    <option value="quantity-asc">↑ Cantidad</option>
+                  </select>
+                </div>
                 <div className="flex flex-wrap gap-1.5">
                   {[
                     { key: 'all',      label: 'Todo',       count: inventoryProducts.length, active: 'bg-campo-700 text-white' },
@@ -718,15 +773,6 @@ export default function ClientPortal({ view = 'inventory' }) {
                     </button>
                   ))}
                 </div>
-                <select
-                  value={inventorySort}
-                  onChange={e => setInventorySort(e.target.value)}
-                  className="shrink-0 rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-xs font-bold text-slate-600 outline-none"
-                >
-                  <option value="name">A–Z</option>
-                  <option value="quantity-desc">↓ Cantidad</option>
-                  <option value="quantity-asc">↑ Cantidad</option>
-                </select>
               </div>
             )
           })()}
