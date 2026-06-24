@@ -307,7 +307,7 @@ export default function ClientPortal({ view = 'inventory' }) {
     if (!selectedLot) { setReqMessage('Selecciona un lote.'); return }
     if (qty <= 0) { setReqMessage('Ingresa una cantidad mayor a 0.'); return }
     if (qty > Number(selectedLot.current_quantity||0)) { setReqMessage('La cantidad supera los envases disponibles.'); return }
-    if (!['Disponible','Por vencer'].includes(lotStatus(selectedLot).label)) { setReqMessage('Este lote no está disponible.'); return }
+    if (['Retenido','Cerrado'].includes(lotStatus(selectedLot).label)) { setReqMessage('Este lote no está disponible para despacho.'); return }
     setReqItems(cur => {
       const existing = cur.find(i => i.lot_id === selectedLot.id)
       if (existing) {
@@ -315,7 +315,7 @@ export default function ClientPortal({ view = 'inventory' }) {
         if (next > Number(selectedLot.current_quantity||0)) { setReqMessage('Cantidad supera stock disponible.'); return cur }
         return cur.map(i => i.lot_id === selectedLot.id ? { ...i, quantity: next, available: selectedLot.current_quantity } : i)
       }
-      return [...cur, { lot_id: selectedLot.id, client_id: selectedLot.client_id, client_name: selectedLot.clients?.name||clientName, lot_code: selectedLot.lot_code, product: selectedLot.product, solucion_product_code: selectedLot.solucion_product_code, quantity: qty, package_size: selectedLot.package_size, package_unit: selectedLot.package_unit, location: selectedLot.location, available: selectedLot.current_quantity }]
+      return [...cur, { lot_id: selectedLot.id, client_id: selectedLot.client_id, client_name: selectedLot.clients?.name||clientName, lot_code: selectedLot.lot_code, product: selectedLot.product, solucion_product_code: selectedLot.solucion_product_code, quantity: qty, package_size: selectedLot.package_size, package_unit: selectedLot.package_unit, location: selectedLot.location, available: selectedLot.current_quantity, expiry_date: selectedLot.expiry_date }]
     })
     setReqLotId(''); setReqQuantity(''); setEditingLotId(''); setReqProductName('')
   }
@@ -1177,10 +1177,14 @@ export default function ClientPortal({ view = 'inventory' }) {
                       </div>
                       {reqItems.map(item => {
                         const eq = itemEquivalent(item)
+                        const isExpired = daysUntil(item.expiry_date) !== null && daysUntil(item.expiry_date) < 0
                         return (
-                        <div key={item.lot_id} className="flex items-center gap-2 rounded-lg bg-white px-3 py-2.5 shadow-sm">
+                        <div key={item.lot_id} className={`flex items-center gap-2 rounded-lg px-3 py-2.5 shadow-sm ${isExpired ? 'bg-red-50 ring-1 ring-red-200' : 'bg-white'}`}>
                           <div className="min-w-0 flex-1">
-                            <p className="text-sm font-black text-slate-900 [overflow-wrap:anywhere]">{cleanProductName(item.product)}</p>
+                            <div className="flex flex-wrap items-center gap-1.5">
+                              <p className="text-sm font-black text-slate-900 [overflow-wrap:anywhere]">{cleanProductName(item.product)}</p>
+                              {isExpired && <span className="rounded-full bg-red-100 px-2 py-0.5 text-[10px] font-black text-red-700">VENCIDO</span>}
+                            </div>
                             <p className="text-xs font-semibold text-slate-500">{lotLabel(item.lot_code, item)}</p>
                             <div className="mt-0.5 flex items-baseline gap-1.5">
                               {eq

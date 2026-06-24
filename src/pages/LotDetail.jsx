@@ -85,7 +85,7 @@ function getLotOperationalState(lot, daysLeft) {
   if (daysLeft !== null && daysLeft < 0) {
     return {
       label: 'Vencido',
-      note: 'Salida bloqueada por vencimiento.',
+      note: 'Lote vencido. Verificar con el cliente antes de despachar.',
       badge: 'bg-red-600 text-white ring-1 ring-red-700',
       panel: 'bg-red-50 text-red-700',
     }
