@@ -2,9 +2,9 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import ExcelJS from 'exceljs'
 import { Link, useNavigate } from 'react-router-dom'
 import {
-  Boxes, CheckCircle2, ChevronDown,
+  Boxes, CalendarClock, CheckCircle2, ChevronDown,
   ClipboardList, Download, FileText, History, LogOut, Minus, Package,
-  PackageCheck, Plus, Printer, Search, Send,
+  PackageCheck, Paperclip, Plus, Printer, Search, Send,
   Truck, X,
 } from 'lucide-react'
 import EmptyState from '../components/EmptyState'
@@ -151,6 +151,9 @@ export default function ClientPortal({ view = 'inventory' }) {
   const [editingLotId,   setEditingLotId]    = useState('')
   const [reqMessage,     setReqMessage]      = useState('')
   const [reqSuccess,     setReqSuccess]      = useState(null)
+  const [reqTransporter, setReqTransporter]  = useState({ name: '', ci: '', plate: '' })
+  const [reqAttachFile,  setReqAttachFile]   = useState(null)
+  const [reqUploading,   setReqUploading]    = useState(false)
 
   useEffect(() => { if (user?.id && profile) loadData() }, [user?.id, profile?.client_id])
   useEffect(() => { writeDraft({ lotId: reqLotId, quantity: reqQuantity, notes: reqNotes, items: reqItems }) }, [reqLotId, reqQuantity, reqNotes, reqItems])
@@ -187,7 +190,7 @@ export default function ClientPortal({ view = 'inventory' }) {
 
     const { data: reqData } = await supabase
       .from('client_dispatch_requests')
-      .select('id,client_id,lot_id,product,quantity,items,notes,status,admin_notes,created_at,reviewed_at,clients(name),lots(id,lot_code,product,solucion_product_code,current_quantity,package_size,package_unit,location,expiry_date,status)')
+      .select('id,client_id,lot_id,product,quantity,items,notes,status,admin_notes,created_at,reviewed_at,transporter_name,transporter_ci,transporter_plate,attachment_url,clients(name),lots(id,lot_code,product,solucion_product_code,current_quantity,package_size,package_unit,location,expiry_date,status)')
       .eq('client_id', clientId)
       .order('created_at',{ ascending:false })
     setRequests(await normalizeDispatchRequests(reqData||[], lotsData||[]))
@@ -287,6 +290,7 @@ export default function ClientPortal({ view = 'inventory' }) {
   }, [lots, reqProductName])
 
   const selectedLot = lots.find(l => l.id === reqLotId)
+  const transporterComplete = Boolean(reqTransporter.name.trim() && reqTransporter.ci.trim() && reqTransporter.plate.trim())
 
   /* ─── request actions ─────────────────────────────────────────── */
   function addReqItem() {
@@ -321,11 +325,16 @@ export default function ClientPortal({ view = 'inventory' }) {
 
   function clearCart() {
     setReqLotId(''); setReqQuantity(''); setReqItems([]); setReqNotes('')
-    setEditingLotId(''); setReqMessage(''); setReqSuccess(null); setReqProductName(''); clearDraft()
+    setEditingLotId(''); setReqMessage(''); setReqSuccess(null); setReqProductName('')
+    setReqTransporter({ name: '', ci: '', plate: '' }); setReqAttachFile(null)
+    clearDraft()
   }
 
   async function submitRequest(e) {
     e.preventDefault(); setReqMessage('')
+    if (!reqTransporter.name.trim() || !reqTransporter.ci.trim() || !reqTransporter.plate.trim()) {
+      setReqMessage('Completa los datos del transportista antes de enviar.'); return
+    }
     if (reqItems.length === 0) { setReqMessage('Agrega al menos un producto.'); return }
     const profileClientId = profile?.client_id
     if (!profileClientId) { setReqMessage('Tu usuario no está vinculado a un cliente. Contacta a almacén.'); return }
@@ -337,15 +346,31 @@ export default function ClientPortal({ view = 'inventory' }) {
     if (!fresh[0] || !clientId) { setReqMessage('No se pudo validar el cliente. Recarga e intenta de nuevo.'); return }
     if (clientIds.some(id => id !== clientId)) { setReqMessage('La solicitud contiene productos de otro cliente. Recarga e intenta de nuevo.'); return }
     if (over) { setReqMessage(`${cleanProductName(over.product)} solo tiene ${formatNumber(over.current_quantity ?? over.available ?? 0)} env. disponibles.`); return }
+    let attachmentUrl = null
+    if (reqAttachFile) {
+      setReqUploading(true)
+      const ext = reqAttachFile.name.split('.').pop().toLowerCase().replace(/[^a-z0-9]/g, '') || 'bin'
+      const path = `${clientId}/${Date.now()}.${ext}`
+      const { error: upErr } = await supabase.storage.from('dispatch-attachments').upload(path, reqAttachFile)
+      setReqUploading(false)
+      if (upErr) { setReqMessage('No se pudo subir el archivo adjunto. Verifica tu conexión e intenta de nuevo.'); return }
+      const { data: urlData } = supabase.storage.from('dispatch-attachments').getPublicUrl(path)
+      attachmentUrl = urlData.publicUrl
+    }
     const { error } = await supabase.from('client_dispatch_requests').insert({
       client_id: clientId, lot_id: fresh[0].lot_id,
       product: fresh.length === 1 ? fresh[0].product : `Lista de despacho (${fresh.length} productos)`,
       quantity: fresh.reduce((s,i) => s + Number(i.quantity||0), 0),
       items: fresh.map(i => ({ ...i, client_id: i.client_id||clientId, client_name: i.client_name||clientName })),
       notes: reqNotes.trim()||null, status:'pendiente', requested_by: user.id,
+      transporter_name: reqTransporter.name.trim(),
+      transporter_ci: reqTransporter.ci.trim(),
+      transporter_plate: reqTransporter.plate.trim().toUpperCase(),
+      attachment_url: attachmentUrl,
     })
     if (error) { setReqMessage('No se pudo enviar la solicitud. Contacta a almacén.'); return }
     setReqLotId(''); setReqQuantity(''); setReqItems([]); setReqNotes(''); setEditingLotId(''); setReqProductName(''); clearDraft()
+    setReqTransporter({ name: '', ci: '', plate: '' }); setReqAttachFile(null)
     setReqSuccess({ clientName, items: fresh, createdAt: new Date().toISOString() })
     if (navigator.vibrate) navigator.vibrate(80)
     loadData()
@@ -980,6 +1005,51 @@ export default function ClientPortal({ view = 'inventory' }) {
               ) : (
                 <form className="space-y-4 p-4" onSubmit={submitRequest} noValidate>
 
+                  {/* Transportista */}
+                  <div className="space-y-3 rounded-xl border border-slate-200 bg-slate-50 p-4">
+                    <p className="text-xs font-black uppercase tracking-wide text-slate-500">Datos del transportista</p>
+                    <label className="block">
+                      <span className="text-[10px] font-bold uppercase tracking-wide text-slate-400">Nombre completo</span>
+                      <input
+                        className="input mt-1"
+                        type="text"
+                        placeholder="Ej: Roger Senas Guzmán"
+                        value={reqTransporter.name}
+                        onChange={e => setReqTransporter(v => ({ ...v, name: e.target.value }))}
+                      />
+                    </label>
+                    <div className="grid grid-cols-2 gap-3">
+                      <label className="block">
+                        <span className="text-[10px] font-bold uppercase tracking-wide text-slate-400">CI</span>
+                        <input
+                          className="input mt-1"
+                          type="text"
+                          placeholder="Ej: 3842873 SC"
+                          value={reqTransporter.ci}
+                          onChange={e => setReqTransporter(v => ({ ...v, ci: e.target.value }))}
+                        />
+                      </label>
+                      <label className="block">
+                        <span className="text-[10px] font-bold uppercase tracking-wide text-slate-400">Placa</span>
+                        <input
+                          className="input mt-1"
+                          type="text"
+                          placeholder="Ej: 6274-FEG"
+                          value={reqTransporter.plate}
+                          onChange={e => setReqTransporter(v => ({ ...v, plate: e.target.value.toUpperCase() }))}
+                        />
+                      </label>
+                    </div>
+                  </div>
+
+                  {!transporterComplete && (
+                    <p className="rounded-lg bg-slate-100 px-3 py-2.5 text-xs font-semibold text-slate-500">
+                      Completa los datos del transportista para continuar con el pedido.
+                    </p>
+                  )}
+
+                  {transporterComplete && (<>
+
                   {/* Step 1: producto */}
                   <label className="block">
                     <span className="text-xs font-black uppercase tracking-wide text-slate-500">1 · Producto</span>
@@ -1114,6 +1184,26 @@ export default function ClientPortal({ view = 'inventory' }) {
                     </div>
                   )}
 
+                  {/* Nota adjunta */}
+                  {reqItems.length > 0 && (
+                    <div className="space-y-1.5">
+                      <span className="text-xs font-black uppercase tracking-wide text-slate-500">Nota adjunta (opcional)</span>
+                      <p className="text-[10px] font-semibold text-slate-400">PDF, imagen o Excel — se imprime y entrega con el producto</p>
+                      <label className="flex cursor-pointer items-center gap-3 rounded-xl border border-dashed border-slate-300 bg-slate-50 px-4 py-3 transition hover:border-campo-400 hover:bg-campo-50">
+                        <Paperclip size={15} className="shrink-0 text-slate-400" />
+                        <span className="min-w-0 truncate text-sm font-semibold text-slate-500">
+                          {reqAttachFile ? reqAttachFile.name : 'Seleccionar archivo...'}
+                        </span>
+                        <input type="file" className="hidden" accept=".pdf,.xlsx,.xls,.jpg,.jpeg,.png" onChange={e => setReqAttachFile(e.target.files?.[0] || null)} />
+                      </label>
+                      {reqAttachFile && (
+                        <button type="button" className="text-xs font-bold text-red-500 hover:underline" onClick={() => setReqAttachFile(null)}>
+                          Quitar adjunto
+                        </button>
+                      )}
+                    </div>
+                  )}
+
                   {/* Notes */}
                   {reqItems.length > 0 && (
                     <label className="block">
@@ -1127,10 +1217,12 @@ export default function ClientPortal({ view = 'inventory' }) {
                   )}
 
                   {reqItems.length > 0 && (
-                    <button className="btn-primary w-full" type="submit">
-                      <Send size={18} /> Enviar solicitud a almacén
+                    <button className="btn-primary w-full" type="submit" disabled={reqUploading}>
+                      {reqUploading ? 'Subiendo archivo...' : <><Send size={18} /> Enviar solicitud a almacén</>}
                     </button>
                   )}
+
+                  </>)}
                 </form>
               )}
             </div>
@@ -1203,6 +1295,17 @@ export default function ClientPortal({ view = 'inventory' }) {
                             )
                           })()}
                           <RequestProgress status={req.status} />
+                          {(req.transporter_name || req.transporter_ci || req.transporter_plate) && (
+                            <div className="mt-2 rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-600">
+                              <span className="font-bold">Transportista: </span>
+                              {[req.transporter_name, req.transporter_ci, req.transporter_plate].filter(Boolean).join(' · ')}
+                            </div>
+                          )}
+                          {req.attachment_url && (
+                            <a href={req.attachment_url} target="_blank" rel="noreferrer" className="mt-1.5 flex items-center gap-1.5 text-xs font-bold text-campo-700 hover:underline">
+                              <Paperclip size={11} /> Ver nota adjunta
+                            </a>
+                          )}
                           <div className="mt-2 space-y-0.5">
                             <p className="text-[10px] font-semibold text-slate-400">{formatDate(req.created_at)}</p>
                             {req.admin_notes && (

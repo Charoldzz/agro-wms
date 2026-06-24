@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
-import { Clock3, Truck, X } from 'lucide-react'
+import { Clock3, Paperclip, Printer, Truck, X } from 'lucide-react'
 import PageHeader from '../components/PageHeader'
 import EmptyState from '../components/EmptyState'
 import { useAuth } from '../hooks/useAuth.jsx'
@@ -122,6 +122,44 @@ export default function ClientRequestsAdmin() {
                 </div>
               ) : null}
 
+              {(request.transporter_name || request.transporter_ci || request.transporter_plate) && (
+                <div className="mt-3 rounded-lg bg-slate-50 p-3 text-sm">
+                  <p className="mb-1 text-[10px] font-black uppercase tracking-wide text-slate-400">Transportista</p>
+                  <div className="grid gap-1 sm:grid-cols-3">
+                    {request.transporter_name && (
+                      <div>
+                        <p className="text-[10px] font-bold uppercase text-slate-400">Nombre</p>
+                        <p className="font-semibold text-slate-800">{request.transporter_name}</p>
+                      </div>
+                    )}
+                    {request.transporter_ci && (
+                      <div>
+                        <p className="text-[10px] font-bold uppercase text-slate-400">CI</p>
+                        <p className="font-semibold text-slate-800">{request.transporter_ci}</p>
+                      </div>
+                    )}
+                    {request.transporter_plate && (
+                      <div>
+                        <p className="text-[10px] font-bold uppercase text-slate-400">Placa</p>
+                        <p className="font-semibold text-slate-800">{request.transporter_plate}</p>
+                      </div>
+                    )}
+                  </div>
+                  {request.attachment_url && (
+                    <div className="mt-2 flex flex-wrap items-center gap-2">
+                      <a href={request.attachment_url} target="_blank" rel="noreferrer"
+                        className="flex items-center gap-1.5 text-xs font-bold text-campo-700 hover:underline">
+                        <Paperclip size={13} /> Ver nota adjunta
+                      </a>
+                      <a href={request.attachment_url} target="_blank" rel="noreferrer"
+                        onClick={e => { e.preventDefault(); window.open(request.attachment_url, '_blank') }}
+                        className="flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-xs font-bold text-slate-700 hover:bg-slate-50">
+                        <Printer size={13} /> Imprimir nota adjunta
+                      </a>
+                    </div>
+                  )}
+                </div>
+              )}
               {request.notes ? <p className="mt-3 rounded-lg bg-slate-50 p-3 text-sm font-semibold text-slate-600">{request.notes}</p> : null}
               {request.admin_notes ? <p className="mt-3 rounded-lg bg-campo-50 p-3 text-sm font-semibold text-campo-700">Respuesta: {request.admin_notes}</p> : null}
 
