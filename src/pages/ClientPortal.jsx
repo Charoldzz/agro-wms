@@ -1329,7 +1329,7 @@ function ProductsModal({ lots, onClose }) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-end bg-black/40 p-4 sm:items-center sm:justify-center" onClick={onClose}>
-      <section className="flex max-h-[80dvh] w-full max-w-md flex-col overflow-hidden rounded-2xl bg-white shadow-xl" onClick={e => e.stopPropagation()}>
+      <section className="flex h-[80dvh] w-full max-w-md flex-col overflow-hidden rounded-2xl bg-white shadow-xl" onClick={e => e.stopPropagation()}>
         <div className="flex shrink-0 items-center justify-between border-b border-slate-100 px-5 py-4">
           <div>
             <h3 className="font-black text-slate-950">Productos en almacén</h3>
@@ -1382,7 +1382,7 @@ function ExpiryModal({ lots, onClose }) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-end bg-black/40 p-4 sm:items-center sm:justify-center" onClick={onClose}>
-      <section className="flex max-h-[80dvh] w-full max-w-md flex-col overflow-hidden rounded-2xl bg-white shadow-xl" onClick={e => e.stopPropagation()}>
+      <section className="flex h-[80dvh] w-full max-w-md flex-col overflow-hidden rounded-2xl bg-white shadow-xl" onClick={e => e.stopPropagation()}>
         <div className="flex shrink-0 items-center justify-between border-b border-slate-100 px-5 py-4">
           <div>
             <h3 className="font-black text-slate-950">Lotes próximos a vencer</h3>
