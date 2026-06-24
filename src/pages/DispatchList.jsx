@@ -256,7 +256,7 @@ export default function DispatchList() {
   }, [])
 
   async function loadGuidePreview() {
-    const { data } = await supabase.rpc('preview_next_warehouse_guide')
+    const { data } = await supabase.rpc('preview_next_warehouse_guide', { p_type: 'sal' })
     if (data) setGuidePreview(data)
   }
 
