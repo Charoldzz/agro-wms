@@ -865,39 +865,6 @@ export default function DispatchList() {
     <div>
       <PageHeader title="Despacho" subtitle="Datos del despacho, carga por QR y comprobante" />
 
-      {approvedRequest ? (
-        <section className="mb-4 rounded-lg border border-amber-200 bg-amber-50/85 p-3">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <div className="min-w-0">
-              <p className="text-xs font-black uppercase text-amber-700">Despacho en preparación</p>
-              <p className="truncate text-sm font-black text-slate-950">{operationClient?.name || deriveDispatchClientName(approvedRequest, items)}</p>
-            </div>
-            <span className="rounded-lg bg-white px-2.5 py-1 text-xs font-black text-amber-800">
-              {Array.isArray(approvedRequest.items) && approvedRequest.items.length > 0 ? approvedRequest.items.length : 1} producto{Array.isArray(approvedRequest.items) && approvedRequest.items.length === 1 ? '' : 's'}
-            </span>
-          </div>
-          <div className="mt-2 flex gap-1.5 overflow-x-auto pb-1">
-            {(Array.isArray(approvedRequest.items) && approvedRequest.items.length > 0
-              ? approvedRequest.items
-              : [{
-                  lot_id: approvedRequest.lot_id,
-                  lot_code: approvedRequest.lots?.lot_code,
-                  product: approvedRequest.product || approvedRequest.lots?.product,
-                  quantity: approvedRequest.quantity,
-                }])
-              .slice(0, 4)
-              .map((item) => (
-                <span key={item.lot_id || item.product} className="shrink-0 rounded-lg bg-white px-2 py-1 text-xs font-bold text-slate-700">
-                  {cleanProductName(item.product)} · {formatNumber(item.quantity)} env.
-                </span>
-              ))}
-            {Array.isArray(approvedRequest.items) && approvedRequest.items.length > 4 ? (
-              <span className="shrink-0 rounded-lg bg-white px-2 py-1 text-xs font-bold text-slate-500">+{approvedRequest.items.length - 4}</span>
-            ) : null}
-          </div>
-        </section>
-      ) : null}
-
       <section className="panel mb-4 grid gap-3 sm:grid-cols-2">
         <h3 className="text-lg font-bold text-slate-950 sm:col-span-2">Datos del despacho</h3>
         <label className="sm:col-span-2">
@@ -960,6 +927,38 @@ export default function DispatchList() {
           </>
         )}
       </section>
+
+      {approvedRequest ? (
+        <section className="mb-4 rounded-lg border border-amber-200 bg-amber-50/85 p-3">
+          <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+            <div className="min-w-0">
+              <p className="text-xs font-black uppercase text-amber-700">Despacho en preparación</p>
+              <p className="truncate text-sm font-black text-slate-950">{operationClient?.name || deriveDispatchClientName(approvedRequest, items)}</p>
+            </div>
+            <span className="rounded-lg bg-white px-2.5 py-1 text-xs font-black text-amber-800">
+              {Array.isArray(approvedRequest.items) && approvedRequest.items.length > 0 ? approvedRequest.items.length : 1} producto{Array.isArray(approvedRequest.items) && approvedRequest.items.length === 1 ? '' : 's'}
+            </span>
+          </div>
+          <div className="space-y-1">
+            {(Array.isArray(approvedRequest.items) && approvedRequest.items.length > 0
+              ? approvedRequest.items
+              : [{
+                  lot_id: approvedRequest.lot_id,
+                  lot_code: approvedRequest.lots?.lot_code,
+                  product: approvedRequest.product || approvedRequest.lots?.product,
+                  quantity: approvedRequest.quantity,
+                }])
+              .map((item) => (
+                <div key={item.lot_id || item.product} className="rounded-lg bg-white px-2.5 py-2">
+                  <p className="text-xs font-black text-slate-800">{cleanProductName(item.product)}</p>
+                  <p className="text-[11px] font-semibold text-slate-400">
+                    {item.lot_code ? displayLotCode(item.lot_code) : 'Sin lote'} · {formatNumber(item.quantity)} env.
+                  </p>
+                </div>
+              ))}
+          </div>
+        </section>
+      ) : null}
 
       <section className="mb-4 grid gap-3">
         <h3 className="text-lg font-bold text-slate-950">Carga del despacho</h3>
