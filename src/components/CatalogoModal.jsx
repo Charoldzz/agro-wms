@@ -4,9 +4,12 @@ import { supabase } from '../lib/supabase'
 
 const UNITS = ['lt', 'ml', 'kg', 'g', 'unid', 'caja', 'bolsa', 'saco']
 
+const SIZE_IN_NAME_RE = /[^a-zA-Z](\d+(?:[.,]\d+)?)\s*(ltrs?|lts?|kgs?|gr|gm|ml|cc|l(?:[^a-zA-Z]|$))/i
+
 function productDisplayName(p) {
   if (!p.name) return ''
-  if (p.package_size && p.package_unit) return `${p.name} X ${p.package_size} ${p.package_unit}`
+  if (p.package_size && p.package_unit && !SIZE_IN_NAME_RE.test(p.name))
+    return `${p.name} X ${p.package_size} ${p.package_unit}`
   return p.name
 }
 
