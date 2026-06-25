@@ -112,6 +112,7 @@ export default function OperatorEntry() {
 
   const [clients, setClients] = useState([])
   const [clientId, setClientId] = useState('')
+  const [guia, setGuia] = useState('')
   const [contacto, setContacto] = useState('')
   const [transportista, setTransportista] = useState('')
   const [placa, setPlaca] = useState('')
@@ -135,6 +136,7 @@ export default function OperatorEntry() {
         if (saved) {
           const d = JSON.parse(saved)
           if (d.clientId) setClientId(d.clientId)
+          if (d.guia) setGuia(d.guia)
           if (d.contacto) setContacto(d.contacto)
           if (d.transportista) setTransportista(d.transportista)
           if (d.placa) setPlaca(d.placa)
@@ -147,8 +149,8 @@ export default function OperatorEntry() {
 
   // Guardar borrador en cada cambio
   useEffect(() => {
-    localStorage.setItem(DRAFT_KEY, JSON.stringify({ clientId, contacto, transportista, placa, observaciones, rows }))
-  }, [clientId, contacto, transportista, placa, observaciones, rows])
+    localStorage.setItem(DRAFT_KEY, JSON.stringify({ clientId, guia, contacto, transportista, placa, observaciones, rows }))
+  }, [clientId, guia, contacto, transportista, placa, observaciones, rows])
 
   useEffect(() => { loadClients() }, [])
 
@@ -306,6 +308,7 @@ export default function OperatorEntry() {
         }
       })
 
+      const notasFinal = [guia.trim() ? `Guía: ${guia.trim()}` : '', observaciones.trim()].filter(Boolean).join(' | ')
       const { error: rpcError } = await supabase.rpc('create_entry_operation', {
         p_client_id: clientId,
         p_driver_name: transportista.trim() || null,
@@ -313,7 +316,7 @@ export default function OperatorEntry() {
         p_vehicle_plate: placa.trim() || null,
         p_entry_date: today,
         p_photo_url: null,
-        p_notes: observaciones.trim() || null,
+        p_notes: notasFinal || null,
         p_items: items,
         p_user_id: user.id,
       })
@@ -350,6 +353,10 @@ export default function OperatorEntry() {
           <div className="input mt-1 cursor-not-allowed select-none bg-slate-100 font-semibold text-slate-600">{today}</div>
         </div>
         <label className="block">
+          <span className="label">N° Guía</span>
+          <input className="input mt-1" value={guia} onChange={(e) => setGuia(e.target.value)} placeholder="Número de guía" />
+        </label>
+        <label className="block">
           <span className="label">Contacto</span>
           <input className="input mt-1" value={contacto} onChange={(e) => setContacto(e.target.value)} />
         </label>
@@ -361,7 +368,7 @@ export default function OperatorEntry() {
           <span className="label">Placa</span>
           <input className="input mt-1 uppercase" value={placa} onChange={(e) => setPlaca(e.target.value.toUpperCase())} />
         </label>
-        <label className="block">
+        <label className="block sm:col-span-2">
           <span className="label">Observaciones</span>
           <input className="input mt-1" value={observaciones} onChange={(e) => setObservaciones(e.target.value)} />
         </label>
