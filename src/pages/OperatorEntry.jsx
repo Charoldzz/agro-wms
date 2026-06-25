@@ -28,13 +28,14 @@ function productDisplayName(p) {
 
 function parseProductUnit(productName) {
   if (!productName) return { size: 1, unit: '' }
-  // Primero: patrón "X N unidad" (ej: "X 5 LTS.", "X 20 Kgs")
-  let m = productName.match(/[xX×]\s*([\d.,]+)\s*(lts?\.?|kgs?\.?|l\.?)(?!\w)/i)
-  // Fallback: patrón "N unidad" sin X (ej: "GLORY 15 KGS.", "BONDER 20 LTS.")
-  if (!m) m = productName.match(/(?<!\w)([\d.,]+)\s*(lts?\.?|kgs?\.?|l\.?)(?!\w)/i)
+  const s = String(productName)
+  // Patrón "X N unidad" (ej: "X 5 LTS.", "X 20 Kgs", "PRUEBA FC X 5 lt")
+  let m = s.match(/[xX×]\s*([\d.,]+)\s*(lts?|kgs?|l)(?:[\s.,]|$)/i)
+  // Fallback: "N unidad" sin X (ej: "GLORY 15 KGS.", "BONDER 20 LTS.")
+  if (!m) m = s.match(/\b([\d.,]+)\s*(lts?|kgs?|l)(?:[\s.,]|$)/i)
   if (!m) return { size: 1, unit: '' }
   const size = parseFloat(m[1].replace(',', '.'))
-  const raw = m[2].toLowerCase().replace(/\./g, '')
+  const raw = m[2].toLowerCase()
   const unit = /^l(ts?)?$/.test(raw) ? 'lts' : /^kgs?$/.test(raw) ? 'kgs' : ''
   return { size: isNaN(size) ? 1 : size, unit }
 }
