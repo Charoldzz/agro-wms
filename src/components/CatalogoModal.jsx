@@ -105,7 +105,13 @@ export default function CatalogoModal({ clients, onClose }) {
   function cancel() { setMode(null); setError('') }
 
   const selectedProduct = products.find((p) => p.id === selectedId)
-  const editLabel = editForm.name ? editForm.name.toUpperCase() : ''
+  const editLabel = editForm.name
+    ? SIZE_IN_NAME_RE.test(editForm.name)
+      ? editForm.name.toUpperCase()
+      : editForm.package_size
+        ? `${editForm.name.toUpperCase()} X ${editForm.package_size} ${editForm.package_unit}`
+        : editForm.name.toUpperCase()
+    : ''
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
