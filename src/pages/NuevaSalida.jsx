@@ -45,7 +45,7 @@ export default function NuevaSalida() {
 
   const [clients, setClients] = useState([])
   const [clientId, setClientId] = useState('')
-  const [guia, setGuia] = useState('')
+  const [guiaPreview, setGuiaPreview] = useState('')
   const [concepto, setConcepto] = useState('Salida de producto')
   const [lotesAutomaticos, setLotesAutomaticos] = useState(false)
   const [lots, setLots] = useState([])
@@ -54,6 +54,12 @@ export default function NuevaSalida() {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState(false)
+
+  // Cargar preview del número de guía automático
+  useEffect(() => {
+    supabase.rpc('preview_next_warehouse_guide', { p_type: 'sal' })
+      .then(({ data }) => { if (data) setGuiaPreview(data) })
+  }, [])
 
   // Restaurar borrador en F5; limpiar si el usuario navegó al formulario de nuevo
   useEffect(() => {
@@ -65,7 +71,6 @@ export default function NuevaSalida() {
         const saved = localStorage.getItem(DRAFT_KEY)
         if (saved) {
           const d = JSON.parse(saved)
-          if (d.guia) setGuia(d.guia)
           if (d.concepto) setConcepto(d.concepto)
           if (d.rows?.length) setRows(d.rows)
           if (d.clientId) {
@@ -79,8 +84,8 @@ export default function NuevaSalida() {
 
   // Guardar borrador en cada cambio
   useEffect(() => {
-    localStorage.setItem(DRAFT_KEY, JSON.stringify({ clientId, guia, concepto, rows }))
-  }, [clientId, guia, concepto, rows])
+    localStorage.setItem(DRAFT_KEY, JSON.stringify({ clientId, concepto, rows }))
+  }, [clientId, concepto, rows])
 
   useEffect(() => { loadClients() }, [])
 
@@ -206,13 +211,12 @@ export default function NuevaSalida() {
         quantity: Number(r.quantity),
       }))
 
-      const notasFinal = [guia.trim() ? `Guía: ${guia.trim()}` : '', concepto.trim()].filter(Boolean).join(' | ')
       const { error: rpcError } = await supabase.rpc('create_dispatch_operation', {
         p_client_id: clientId,
         p_receiver_name: concepto || 'Salida de producto',
-        p_receiver_document: guia.trim() || '',
+        p_receiver_document: '',
         p_vehicle_plate: null,
-        p_notes: notasFinal || null,
+        p_notes: concepto.trim() || null,
         p_items: operationItems,
         p_request_id: null,
         p_user_id: user.id,
@@ -253,10 +257,10 @@ export default function NuevaSalida() {
           <span className="label">Fecha</span>
           <div className="input mt-1 cursor-not-allowed select-none bg-slate-100 font-semibold text-slate-600">{today}</div>
         </div>
-        <label className="block">
+        <div>
           <span className="label">N° Guía</span>
-          <input className="input mt-1" value={guia} onChange={(e) => setGuia(e.target.value)} placeholder="Número de guía" />
-        </label>
+          <div className="input mt-1 cursor-not-allowed select-none bg-slate-100 font-mono font-bold text-campo-700">{guiaPreview || '...'}</div>
+        </div>
         <label className="block">
           <span className="label">Concepto</span>
           <input className="input mt-1" value={concepto} onChange={(e) => setConcepto(e.target.value)} />
