@@ -387,34 +387,32 @@ export default function ClientPortal({ view = 'inventory' }) {
   /* ─── exports ─────────────────────────────────────────────────── */
   async function exportExcel() {
     try {
-      const date = new Date().toISOString().slice(0, 10)
+      const now = new Date()
+      const date = now.toISOString().slice(0, 10)
+      const timestamp = formatDate(now.toISOString())
       const wb = new ExcelJS.Workbook()
       const ws = wb.addWorksheet('Inventario')
 
-      // Column widths
+      // Column widths — 5 columns
       ws.columns = [
-        { key: 'producto',     width: 40 },
-        { key: 'lote',         width: 22 },
-        { key: 'envases',      width: 11 },
-        { key: 'presentacion', width: 15 },
-        { key: 'equivalente',  width: 17 },
-        { key: 'ubicacion',    width: 20 },
-        { key: 'ingreso',      width: 14 },
-        { key: 'vencimiento',  width: 14 },
-        { key: 'estado',       width: 14 },
+        { key: 'producto',    width: 40 },
+        { key: 'lote',        width: 22 },
+        { key: 'vencimiento', width: 16 },
+        { key: 'equivalente', width: 18 },
+        { key: 'envases',     width: 14 },
       ]
 
       // Row 1: client name — green header
       const titleRow = ws.addRow([clientName])
-      ws.mergeCells('A1:I1')
+      ws.mergeCells('A1:E1')
       titleRow.height = 28
       titleRow.getCell(1).font  = { bold: true, size: 14, color: { argb: 'FFFFFFFF' } }
       titleRow.getCell(1).fill  = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1D593A' } }
       titleRow.getCell(1).alignment = { vertical: 'middle', horizontal: 'left', indent: 1 }
 
-      // Row 2: subtitle
-      const subRow = ws.addRow([`Inventario al ${date}`])
-      ws.mergeCells('A2:I2')
+      // Row 2: timestamp
+      const subRow = ws.addRow([`Inventario al ${timestamp}`])
+      ws.mergeCells('A2:E2')
       subRow.getCell(1).font      = { italic: true, size: 10, color: { argb: 'FF475569' } }
       subRow.getCell(1).alignment = { horizontal: 'left', indent: 1 }
 
@@ -422,7 +420,7 @@ export default function ClientPortal({ view = 'inventory' }) {
       ws.addRow([])
 
       // Row 4: column headers
-      const headerLabels = ['Producto', 'Lote', 'Envases', 'Presentación', 'Equivalente', 'Ubicación', 'Ingreso', 'Vencimiento', 'Estado']
+      const headerLabels = ['Producto', 'Lote', 'Vencimiento', 'Cantidad Lts/Kgs', 'Cantidad Envases']
       const hdrRow = ws.addRow(headerLabels)
       hdrRow.height = 18
       hdrRow.eachCell(cell => {
@@ -431,23 +429,18 @@ export default function ClientPortal({ view = 'inventory' }) {
         cell.alignment = { vertical: 'middle', horizontal: 'right' }
         cell.border    = { bottom: { style: 'thin', color: { argb: 'FF1D593A' } } }
       })
-      // Producto left-aligned in header
       hdrRow.getCell(1).alignment = { vertical: 'middle', horizontal: 'left', indent: 1 }
 
       // Data rows
-      lots.forEach((l, i) => {
+      lots.forEach((l) => {
         let eqStr = ''
         try { const eq = lotEquivalent(l); if (eq) eqStr = `${formatNumber(eq.quantity)} ${eq.unit}` } catch (_) {}
         const row = ws.addRow([
           cleanProductName(l.product) || '',
           displayLotCode(l.lot_code, l) || '',
+          l.expiry_date ? formatDate(l.expiry_date) : '-',
+          eqStr || '-',
           Number(l.current_quantity || 0),
-          l.package_size ? `${l.package_size} ${l.package_unit || ''}`.trim() : '',
-          eqStr,
-          l.location || '',
-          l.entry_date ? formatDate(l.entry_date) : '',
-          l.expiry_date ? formatDate(l.expiry_date) : '',
-          lotStatus(l).label || '',
         ])
         row.eachCell((cell, colNum) => {
           cell.alignment = colNum === 1
@@ -473,20 +466,16 @@ export default function ClientPortal({ view = 'inventory' }) {
   }
 
   function printPdf() {
-    const date = formatDate(new Date().toISOString())
+    const timestamp = formatDate(new Date().toISOString())
     const rows = lots.map(l => {
       let eqStr = '-'
       try { const eq = lotEquivalent(l); if (eq) eqStr = `${formatNumber(eq.quantity)} ${eq.unit}` } catch (_) {}
-      const st = lotStatus(l)
-      const stColor = st.label === 'Disponible' ? '#166534' : st.label === 'Por vencer' ? '#92400e' : st.label === 'Vencido' ? '#991b1b' : '#374151'
       return `<tr>
         <td>${escapeHtml(cleanProductName(l.product))}</td>
         <td>${escapeHtml(displayLotCode(l.lot_code, l))}</td>
-        <td style="text-align:right">${escapeHtml(formatNumber(l.current_quantity))}</td>
-        <td style="text-align:right">${escapeHtml(eqStr)}</td>
-        <td>${escapeHtml(l.location || '-')}</td>
         <td style="text-align:right">${escapeHtml(l.expiry_date ? formatDate(l.expiry_date) : '-')}</td>
-        <td style="color:${stColor};font-weight:600">${escapeHtml(st.label)}</td>
+        <td style="text-align:right">${escapeHtml(eqStr)}</td>
+        <td style="text-align:right">${escapeHtml(formatNumber(l.current_quantity))}</td>
       </tr>`
     }).join('')
 
@@ -523,14 +512,13 @@ export default function ClientPortal({ view = 'inventory' }) {
 </div>
 <div class="meta">
   <span class="client">${escapeHtml(clientName)}</span>
-  <span class="date">Emitido: ${escapeHtml(date)}</span>
+  <span class="date">Inventario al ${escapeHtml(timestamp)}</span>
 </div>
 <hr class="divider"/>
 <table>
   <thead><tr>
     <th>Producto</th><th>Lote</th>
-    <th class="r">Envases</th><th class="r">Equivalente</th>
-    <th>Ubicacion</th><th class="r">Vence</th><th>Estado</th>
+    <th class="r">Vencimiento</th><th class="r">Cantidad Lts/Kgs</th><th class="r">Cantidad Envases</th>
   </tr></thead>
   <tbody>${rows}</tbody>
 </table>
