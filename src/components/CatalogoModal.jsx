@@ -105,9 +105,7 @@ export default function CatalogoModal({ clients, onClose }) {
   function cancel() { setMode(null); setError('') }
 
   const selectedProduct = products.find((p) => p.id === selectedId)
-  const editLabel = editForm.name && editForm.package_size
-    ? `${editForm.name.toUpperCase()} X ${editForm.package_size} ${editForm.package_unit}`
-    : editForm.name ? editForm.name.toUpperCase() : ''
+  const editLabel = editForm.name ? editForm.name.toUpperCase() : ''
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
@@ -269,9 +267,8 @@ export default function CatalogoModal({ clients, onClose }) {
               <div className="mt-1 flex gap-2">
                 <input
                   className="input w-28"
-                  type="number"
-                  min="0"
-                  step="any"
+                  type="text"
+                  inputMode="decimal"
                   value={editForm.package_size}
                   onChange={(e) => setEditForm((f) => ({ ...f, package_size: e.target.value }))}
                   placeholder="Ej: 20"

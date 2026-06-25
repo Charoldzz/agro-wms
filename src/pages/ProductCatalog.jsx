@@ -163,9 +163,8 @@ export default function ProductCatalog() {
                   <div className="flex gap-2">
                     <input
                       className="input w-24 text-sm"
-                      type="number"
-                      min="0"
-                      step="any"
+                      type="text"
+                      inputMode="decimal"
                       value={editForm.package_size}
                       onChange={(e) => setEditForm((f) => ({ ...f, package_size: e.target.value }))}
                       placeholder="Medida"
