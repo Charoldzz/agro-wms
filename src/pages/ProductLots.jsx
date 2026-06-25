@@ -4,7 +4,7 @@ import PageHeader from '../components/PageHeader'
 import EmptyState from '../components/EmptyState'
 import { supabase } from '../lib/supabase'
 import { formatDate, formatNumber } from '../lib/format'
-import { cleanProductName, displayLotCode, packageLabel } from '../lib/display'
+import { cleanProductName, displayLotCode, lotSizeAndUnit, packageLabel } from '../lib/display'
 
 function safeProductParam(value) {
   try {
@@ -46,23 +46,45 @@ export default function ProductLots() {
     [lots, productName],
   )
 
-  const total = useMemo(
-    () => productLots.reduce((sum, lot) => sum + Number(lot.current_quantity || 0), 0),
-    [productLots],
-  )
+  const { total, eqTotal, eqUnit } = useMemo(() => {
+    let envases = 0, lts = 0, kgs = 0
+    productLots.forEach(lot => {
+      const qty = Number(lot.current_quantity || 0)
+      envases += qty
+      const { size, unit } = lotSizeAndUnit(lot)
+      if (size > 0 && qty > 0) {
+        const t = qty * size
+        if (unit === 'ml') lts += t / 1000
+        else if (unit === 'gr') kgs += t / 1000
+        else if (/^l/.test(unit)) lts += t
+        else if (/^k/.test(unit)) kgs += t
+      }
+    })
+    return lts > 0
+      ? { total: envases, eqTotal: lts, eqUnit: 'lts' }
+      : kgs > 0
+        ? { total: envases, eqTotal: kgs, eqUnit: 'kgs' }
+        : { total: envases, eqTotal: 0, eqUnit: '' }
+  }, [productLots])
 
   return (
     <div>
       <PageHeader
         title={productName || 'Producto'}
-        subtitle={`${productLots.length} lotes - Total ${formatNumber(total)} envases`}
+        subtitle={`${productLots.length} lotes · ${formatNumber(total)} env.${eqTotal > 0 ? ` · ${formatNumber(eqTotal)} ${eqUnit}` : ''}`}
       />
 
       <div className="grid gap-2">
         {productLots.length === 0 ? (
           <EmptyState title="Sin lotes" text="No hay lotes disponibles para este producto." />
         ) : (
-          productLots.map((lot) => (
+          productLots.map((lot) => {
+            const { size, unit } = lotSizeAndUnit(lot)
+            const qty = Number(lot.current_quantity || 0)
+            const rawEq = size > 0 ? qty * size : 0
+            const lotEq = unit === 'ml' ? rawEq / 1000 : unit === 'gr' ? rawEq / 1000 : rawEq
+            const lotEqUnit = unit === 'ml' ? 'lts' : unit === 'gr' ? 'kgs' : unit ? unit + (unit.endsWith('s') ? '' : 's') : ''
+            return (
             <Link key={lot.id} to={`/lotes/${lot.id}`} state={{ backTo: `/productos/${encodeURIComponent(productName)}` }} className="block w-full overflow-hidden rounded-lg bg-slate-50 p-3 text-left shadow-soft transition hover:bg-campo-50">
               <div className="grid gap-2 sm:grid-cols-[1fr_auto] sm:items-start">
                 <div className="min-w-0">
@@ -81,17 +103,28 @@ export default function ProductLots() {
                   </p>
                 </div>
                 <div className="w-fit rounded-lg bg-campo-50 px-2.5 py-1 text-campo-800 sm:justify-self-end sm:text-right">
-                  <div className="inline-flex items-baseline gap-1">
-                    <span className="text-base font-black sm:text-xl">{formatNumber(lot.current_quantity)}</span>
-                    <span className="text-xs font-bold text-campo-700">env.</span>
-                  </div>
+                  {lotEq > 0 ? (
+                    <>
+                      <div className="inline-flex items-baseline gap-1">
+                        <span className="text-base font-black sm:text-xl">{formatNumber(lotEq)}</span>
+                        <span className="text-xs font-bold text-campo-700">{lotEqUnit}</span>
+                      </div>
+                      <p className="text-[10px] font-semibold text-slate-400">{formatNumber(qty)} env.</p>
+                    </>
+                  ) : (
+                    <div className="inline-flex items-baseline gap-1">
+                      <span className="text-base font-black sm:text-xl">{formatNumber(qty)}</span>
+                      <span className="text-xs font-bold text-campo-700">env.</span>
+                    </div>
+                  )}
                   <p className="text-[10px] font-bold uppercase text-slate-500">
                     {lot.status === 'activo' ? 'Disponible' : lot.status}
                   </p>
                 </div>
               </div>
             </Link>
-          ))
+            )
+          })
         )}
       </div>
     </div>

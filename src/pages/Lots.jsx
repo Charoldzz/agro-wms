@@ -411,6 +411,10 @@ export default function Lots() {
                   <tbody>
                     {pageRows.map((lot, i) => {
                       const isZero = Number(lot.current_quantity || 0) < 1
+                      const { size, unit } = lotSizeAndUnit(lot)
+                      const eqTotal = size > 0 ? Number(lot.current_quantity || 0) * size : 0
+                      const eqUnit = unit === 'ml' ? 'lts' : unit === 'gr' ? 'kgs' : unit ? `${unit}s`.replace('lts','lts').replace('kgs','kgs') : ''
+                      const eqNorm = unit === 'ml' ? eqTotal / 1000 : unit === 'gr' ? eqTotal / 1000 : eqTotal
                       return (
                         <tr
                           key={lot.id}
@@ -434,9 +438,18 @@ export default function Lots() {
                             {lot.expiry_date ? formatDate(lot.expiry_date) : '-'}
                           </td>
                           <td className="px-4 py-2.5 text-right">
-                            <p className="text-sm font-black text-campo-700 whitespace-nowrap">
-                              {formatNumber(lot.current_quantity)}
-                            </p>
+                            {eqTotal > 0 ? (
+                              <>
+                                <p className="text-sm font-black text-campo-700 whitespace-nowrap">
+                                  {formatNumber(eqNorm)} <span className="text-xs font-semibold text-campo-500">{eqUnit}</span>
+                                </p>
+                                <p className="text-[10px] font-semibold text-slate-400">{formatNumber(lot.current_quantity)} env.</p>
+                              </>
+                            ) : (
+                              <p className="text-sm font-black text-campo-700 whitespace-nowrap">
+                                {formatNumber(lot.current_quantity)} <span className="text-xs font-semibold text-campo-500">env.</span>
+                              </p>
+                            )}
                           </td>
                         </tr>
                       )
