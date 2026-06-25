@@ -5,7 +5,7 @@ import PageHeader from '../components/PageHeader'
 import EmptyState from '../components/EmptyState'
 import ListProductCard from '../components/ListProductCard'
 import { useAuth } from '../hooks/useAuth.jsx'
-import { cleanProductName, displayLotCode, lotLabel, packageLabel } from '../lib/display'
+import { cleanProductName, displayLotCode, lotLabel, lotSizeAndUnit, packageLabel } from '../lib/display'
 import { normalizeDispatchRequests } from '../lib/dispatchRequests'
 import { formatDate, formatNumber } from '../lib/format'
 import { supabase } from '../lib/supabase'
@@ -949,8 +949,7 @@ export default function DispatchList() {
                   quantity: approvedRequest.quantity,
                 }])
               .map((item) => {
-                const size = Number(item.package_size || 0)
-                const unit = String(item.package_unit || '').toLowerCase().trim()
+                const { size, unit } = lotSizeAndUnit(item)
                 const qty = Number(item.quantity || 0)
                 const total = size * qty
                 const eqText = total > 0

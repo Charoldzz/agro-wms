@@ -4,7 +4,7 @@ import { Building2, CalendarClock, ChevronLeft, ChevronRight, ClipboardList, His
 import { useAuth } from '../hooks/useAuth.jsx'
 import { supabase } from '../lib/supabase'
 import { formatDate, formatNumber } from '../lib/format'
-import { cleanProductName, displayLotCode, lotLabel, productCodeLabel } from '../lib/display'
+import { cleanProductName, displayLotCode, lotLabel, lotSizeAndUnit, productCodeLabel } from '../lib/display'
 import { sumBillingPallets } from '../lib/pallets'
 import NewProductModal from '../components/NewProductModal'
 import EmpresasModal from '../components/EmpresasModal'
@@ -109,19 +109,14 @@ export default function Lots() {
       const qty = Number(lot.current_quantity || 0)
       map[key].quantity += qty
       map[key].lots += 1
-      const size = Number(lot.package_size || 0)
-      const unit = String(lot.package_unit || '').toLowerCase().trim()
-      if (size > 0 && qty > 0) {
-        const total = qty * size
-        if (unit === 'ml') map[key].eqLts += total / 1000
-        else if (/^l/.test(unit)) map[key].eqLts += total
-        else if (/^k/.test(unit)) map[key].eqKgs += total
-      } else if (qty > 0) {
-        const m = String(lot.product || '').match(/(?:[xX×]\s*)?(\d+(?:[.,]\d+)?)\)?\s*(ltrs?|lts?|kgs?|l)(?![a-zA-Z])/i)
-        if (m) {
-          const ps = parseFloat(m[1].replace(',', '.')), pu = m[2].toLowerCase()
-          if (/^l/.test(pu)) map[key].eqLts += qty * ps
-          else if (/^k/.test(pu)) map[key].eqKgs += qty * ps
+      if (qty > 0) {
+        const { size, unit } = lotSizeAndUnit(lot)
+        if (size > 0) {
+          const total = qty * size
+          if (unit === 'ml') map[key].eqLts += total / 1000
+          else if (unit === 'gr') map[key].eqKgs += total / 1000
+          else if (/^l/.test(unit)) map[key].eqLts += total
+          else if (/^k/.test(unit)) map[key].eqKgs += total
         }
       }
     })

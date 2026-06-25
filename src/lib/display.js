@@ -202,3 +202,36 @@ export function packageLabel(lot) {
 export function productTotalKey(lot) {
   return cleanProductName(lot?.product)
 }
+
+// Devuelve { size, unit } para calcular equivalentes.
+// Primero usa package_size/package_unit del registro.
+// Si no tiene (lotes viejos), extrae del nombre del producto con regex.
+export function lotSizeAndUnit(lotOrItem) {
+  const size = Number(lotOrItem?.package_size || 0)
+  const unit = String(lotOrItem?.package_unit || '').toLowerCase().trim()
+  if (size > 0 && unit) return { size, unit: normalizeUnit(unit) }
+
+  // Fallback: extraer del nombre
+  const name = String(lotOrItem?.product || '')
+  const m =
+    // NxM UNIT (ej: 4x5Lt, 10X1 KG, 2x5LTR)
+    name.match(/\d+\s*[xX×]\s*(\d+(?:[.,]\d+)?)\s*(ltrs?|lts?|kgs?|gr|gm|ml|cc)/i) ||
+    // standalone N UNIT con char no-letra antes (ej: _5L_, 20L, 500 GM)
+    name.match(/[^a-zA-Z](\d+(?:[.,]\d+)?)\s*(ltrs?|lts?|kgs?|gr|gm|ml|cc)/i) ||
+    // bare L (ej: _5L_, 20L, 10 L_)
+    name.match(/[^a-zA-Z](\d+(?:[.,]\d+)?)\s*L(?:[^a-zA-Z]|$)/i)
+  if (!m) return { size: 0, unit: '' }
+
+  const rawSize = parseFloat(String(m[1]).replace(',', '.'))
+  const rawUnit = m[2] ? normalizeUnit(m[2].toLowerCase()) : 'lt'
+  return { size: rawSize || 0, unit: rawUnit }
+}
+
+function normalizeUnit(u) {
+  const s = String(u || '').toLowerCase().trim()
+  if (['lts', 'ltr', 'ltrs', 'l'].includes(s)) return 'lt'
+  if (['kgs', 'gm'].includes(s)) return 'kg'
+  if (s === 'cc') return 'ml'
+  if (s === 'gr') return 'gr'
+  return s
+}
