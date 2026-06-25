@@ -193,12 +193,15 @@ export default function OperatorEntry() {
     const qty = Number(v || 0)
     setRows((r) => r.map((row) => {
       if (row.id !== id) return row
+      const { size } = parseProductUnit(row.product)
+      // CANTIDAD es el total en lts/kgs; UDS = envases = CANTIDAD / medida
+      const uds = size > 0 && qty > 0 ? Math.round(qty / size) : (qty > 0 ? qty : 0)
       const upb = catalogMap.get(row.product) || 0
       return {
         ...row,
         cantidad: v,
-        uds: qty > 0 ? String(qty) : '',
-        cajas: upb > 0 && qty > 0 ? String(Math.floor(qty / upb)) : row.cajas,
+        uds: uds > 0 ? String(uds) : '',
+        cajas: upb > 0 && uds > 0 ? String(Math.floor(uds / upb)) : row.cajas,
       }
     }))
   }
@@ -207,12 +210,14 @@ export default function OperatorEntry() {
     setRows((r) => r.map((row) => {
       if (row.id !== id) return row
       const qty = Number(row.cantidad || 0)
+      const { size } = parseProductUnit(value)
+      const uds = size > 0 && qty > 0 ? Math.round(qty / size) : (qty > 0 ? qty : 0)
       const upb = catalogMap.get(value) || 0
       return {
         ...row,
         product: value,
-        uds: qty > 0 ? String(qty) : row.uds,
-        cajas: upb > 0 && qty > 0 ? String(Math.floor(qty / upb)) : row.cajas,
+        uds: uds > 0 ? String(uds) : row.uds,
+        cajas: upb > 0 && uds > 0 ? String(Math.floor(uds / upb)) : row.cajas,
       }
     }))
   }
@@ -221,8 +226,9 @@ export default function OperatorEntry() {
     const totals = {}
     rows.forEach((r) => {
       const qty = Number(r.cantidad || 0)
-      const { size, unit } = parseProductUnit(r.product)
-      if (unit && qty > 0) totals[unit] = (totals[unit] || 0) + qty * size
+      const { unit } = parseProductUnit(r.product)
+      // CANTIDAD ya es el equivalente total (lts/kgs), no multiplicar
+      if (unit && qty > 0) totals[unit] = (totals[unit] || 0) + qty
     })
     return totals
   }, [rows])
@@ -242,17 +248,23 @@ export default function OperatorEntry() {
 
     setSaving(true)
     try {
-      const items = validRows.map((r, i) => ({
-        lot_code: r.lot_code?.trim() || createLotCode(i),
-        product: r.product.trim(),
-        box_count: Number(r.cajas || 0),
-        units_per_box: 0,
-        loose_units: Number(r.cantidad || 0) * (parseProductUnit(r.product).size || 1),
-        package_size: parseProductUnit(r.product).size || null,
-        package_unit: parseProductUnit(r.product).unit || null,
-        location: internalLocations[0] || 'ALMACEN',
-        expiry_date: r.expiry_date || null,
-      }))
+      const items = validRows.map((r, i) => {
+        const { size, unit } = parseProductUnit(r.product)
+        const totalEq = Number(r.cantidad || 0)
+        // CANTIDAD es el total en lts/kgs; loose_units = envases = total / medida
+        const envases = size > 0 ? totalEq / size : totalEq
+        return {
+          lot_code: r.lot_code?.trim() || createLotCode(i),
+          product: r.product.trim(),
+          box_count: Number(r.cajas || 0),
+          units_per_box: 0,
+          loose_units: envases,
+          package_size: size || null,
+          package_unit: unit || null,
+          location: internalLocations[0] || 'ALMACEN',
+          expiry_date: r.expiry_date || null,
+        }
+      })
 
       const { error: rpcError } = await supabase.rpc('create_entry_operation', {
         p_client_id: clientId,
