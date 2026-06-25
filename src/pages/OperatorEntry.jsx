@@ -10,6 +10,15 @@ import { vibrateSuccess } from '../lib/haptics'
 
 const today = new Date().toISOString().slice(0, 10)
 
+const SIZE_IN_NAME_RE = /[^a-zA-Z](\d+(?:[.,]\d+)?)\s*(ltrs?|lts?|kgs?|gr|gm|ml|cc|l(?:[^a-zA-Z]|$))|\s[xX×]\s*\d+/i
+
+function productDisplayName(p) {
+  if (!p.name) return ''
+  if (p.package_size && p.package_unit && !SIZE_IN_NAME_RE.test(p.name))
+    return `${p.name} X ${p.package_size} ${p.package_unit}`
+  return p.name
+}
+
 function parseProductUnit(productName) {
   if (!productName) return { size: 1, unit: '' }
   // Match patterns like "X 10 Kgs", "x 5 Lts.", "X 20 L", "x 1 Lt."
@@ -90,9 +99,7 @@ export default function OperatorEntry() {
       .select('name, package_size, package_unit')
       .eq('client_id', cid)
       .order('name')
-    const items = (data || []).map((p) =>
-      p.package_size && p.package_unit ? `${p.name} X ${p.package_size} ${p.package_unit}` : p.name
-    )
+    const items = (data || []).map((p) => productDisplayName(p))
     setProducts([...new Set(items)].sort())
   }
 
