@@ -5,7 +5,7 @@ import { supabase } from '../lib/supabase'
 
 const UNITS = ['lt', 'ml', 'kg', 'g', 'unid', 'caja', 'bolsa', 'saco']
 
-const SIZE_IN_NAME_RE = /[^a-zA-Z](\d+(?:[.,]\d+)?)\s*(ltrs?|lts?|kgs?|gr|gm|ml|cc|l(?:[^a-zA-Z]|$))/i
+const SIZE_IN_NAME_RE = /[^a-zA-Z](\d+(?:[.,]\d+)?)\s*(ltrs?|lts?|kgs?|gr|gm|ml|cc|l(?:[^a-zA-Z]|$))|\s[xX×]\s*\d+/i
 
 function cleanPrefix(value) {
   return String(value || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 8)
