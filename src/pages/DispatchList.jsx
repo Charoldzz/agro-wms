@@ -956,11 +956,13 @@ export default function DispatchList() {
                 const eqText = total > 0
                   ? (unit === 'ml'
                       ? ` = ${formatNumber(total / 1000)} lts`
-                      : /^l/.test(unit)
-                        ? ` = ${formatNumber(total)} lts`
-                        : /^k/.test(unit)
-                          ? ` = ${formatNumber(total)} kgs`
-                          : '')
+                      : unit === 'gr'
+                        ? ` = ${formatNumber(total / 1000)} kgs`
+                        : /^l/.test(unit)
+                          ? ` = ${formatNumber(total)} lts`
+                          : /^k/.test(unit)
+                            ? ` = ${formatNumber(total)} kgs`
+                            : '')
                   : ''
                 return (
                   <div key={item.lot_id || item.product} className="rounded-lg bg-white px-2.5 py-2">
