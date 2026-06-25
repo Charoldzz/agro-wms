@@ -948,14 +948,29 @@ export default function DispatchList() {
                   product: approvedRequest.product || approvedRequest.lots?.product,
                   quantity: approvedRequest.quantity,
                 }])
-              .map((item) => (
-                <div key={item.lot_id || item.product} className="rounded-lg bg-white px-2.5 py-2">
-                  <p className="text-xs font-black text-slate-800">{cleanProductName(item.product)}</p>
-                  <p className="text-[11px] font-semibold text-slate-400">
-                    {item.lot_code ? displayLotCode(item.lot_code) : 'Sin lote'} · {formatNumber(item.quantity)} env.
-                  </p>
-                </div>
-              ))}
+              .map((item) => {
+                const size = Number(item.package_size || 0)
+                const unit = String(item.package_unit || '').toLowerCase().trim()
+                const qty = Number(item.quantity || 0)
+                const total = size * qty
+                const eqText = total > 0
+                  ? (unit === 'ml'
+                      ? ` = ${formatNumber(total / 1000)} lts`
+                      : /^l/.test(unit)
+                        ? ` = ${formatNumber(total)} lts`
+                        : /^k/.test(unit)
+                          ? ` = ${formatNumber(total)} kgs`
+                          : '')
+                  : ''
+                return (
+                  <div key={item.lot_id || item.product} className="rounded-lg bg-white px-2.5 py-2">
+                    <p className="text-xs font-black text-slate-800">{cleanProductName(item.product)}</p>
+                    <p className="text-[11px] font-semibold text-slate-400">
+                      {item.lot_code ? displayLotCode(item.lot_code) : 'Sin lote'} · {formatNumber(qty)} env.{eqText}
+                    </p>
+                  </div>
+                )
+              })}
           </div>
         </section>
       ) : null}
