@@ -40,11 +40,7 @@ export default function NewProductModal({ clients, onClose, onSaved }) {
   const [loadingCode, setLoadingCode] = useState(false)
 
   const selectedClient = clients.find((c) => c.id === clientId)
-  const productLabel = name && packageSize
-    ? `${name.toUpperCase()} X ${packageSize} ${packageUnit}`
-    : name
-      ? name.toUpperCase()
-      : ''
+  const productLabel = name ? name.toUpperCase() : ''
 
   useEffect(() => {
     if (!clientId) {
@@ -142,9 +138,8 @@ export default function NewProductModal({ clients, onClose, onSaved }) {
             <div className="mt-1 flex gap-2">
               <input
                 className="input w-32"
-                type="number"
-                min="0"
-                step="any"
+                type="text"
+                inputMode="decimal"
                 value={packageSize}
                 onChange={(e) => setPackageSize(e.target.value)}
                 placeholder="Ej: 20"
