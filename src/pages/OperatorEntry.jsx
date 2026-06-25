@@ -43,6 +43,49 @@ function displayClientName(name) {
   return String(name || '').replaceAll('"', '').replace(/\s+/g, ' ').trim()
 }
 
+// Convierte YYYY-MM-DD → DD/MM/YYYY para mostrar
+function isoToDisplay(iso) {
+  if (!iso || !/^\d{4}-\d{2}-\d{2}$/.test(iso)) return ''
+  const [y, m, d] = iso.split('-')
+  return `${d}/${m}/${y}`
+}
+
+// Input de fecha enmascarado DD/MM/AAAA — almacena YYYY-MM-DD
+function DateInput({ value, onChange, onFocus, className }) {
+  const [display, setDisplay] = useState(() => isoToDisplay(value))
+
+  // Sincronizar si el valor externo se limpia
+  useEffect(() => {
+    if (!value) setDisplay('')
+  }, [value])
+
+  function handleChange(e) {
+    const digits = e.target.value.replace(/\D/g, '').slice(0, 8)
+    let fmt = digits
+    if (digits.length > 4) fmt = `${digits.slice(0,2)}/${digits.slice(2,4)}/${digits.slice(4)}`
+    else if (digits.length > 2) fmt = `${digits.slice(0,2)}/${digits.slice(2)}`
+    setDisplay(fmt)
+    if (digits.length === 8) {
+      const d = digits.slice(0,2), m = digits.slice(2,4), y = digits.slice(4,8)
+      onChange(`${y}-${m}-${d}`)
+    } else {
+      onChange('')
+    }
+  }
+
+  return (
+    <input
+      className={className}
+      value={display}
+      placeholder="DD/MM/AAAA"
+      onChange={handleChange}
+      onFocus={onFocus}
+      maxLength={10}
+      inputMode="numeric"
+    />
+  )
+}
+
 
 export default function OperatorEntry() {
   const navigate = useNavigate()
@@ -299,11 +342,10 @@ export default function OperatorEntry() {
                   />
                 </td>
                 <td className="px-2 py-1">
-                  <input
-                    type="date"
-                    className="w-full rounded border border-transparent bg-transparent px-1 py-1 text-xs focus:border-campo-400 focus:bg-white focus:outline-none"
+                  <DateInput
+                    className="w-full rounded border border-transparent bg-transparent px-1.5 py-1 text-xs focus:border-campo-400 focus:bg-white focus:outline-none"
                     value={row.expiry_date || ''}
-                    onChange={(e) => updateRow(row.id, 'expiry_date', e.target.value)}
+                    onChange={(v) => updateRow(row.id, 'expiry_date', v)}
                     onFocus={() => setSelectedIdx(i)}
                   />
                 </td>
@@ -406,11 +448,10 @@ export default function OperatorEntry() {
               </label>
               <label className="block">
                 <span className="text-xs font-bold text-slate-500">VENCIMIENTO</span>
-                <input
-                  type="date"
+                <DateInput
                   className="input mt-1 w-full text-sm"
                   value={row.expiry_date || ''}
-                  onChange={(e) => updateRow(row.id, 'expiry_date', e.target.value)}
+                  onChange={(v) => updateRow(row.id, 'expiry_date', v)}
                 />
               </label>
             </div>
