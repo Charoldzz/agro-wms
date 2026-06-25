@@ -10,7 +10,7 @@ import {
 import EmptyState from '../components/EmptyState'
 import ListProductCard from '../components/ListProductCard'
 import { useAuth } from '../hooks/useAuth.jsx'
-import { cleanProductName, displayLotCode, lotLabel, packageLabel, productCode, productCodeLabel } from '../lib/display'
+import { cleanProductName, displayLotCode, lotLabel, packageLabel, productCode, productCodeLabel, unitsPerBoxFromName } from '../lib/display'
 import { normalizeDispatchRequests } from '../lib/dispatchRequests'
 import { formatDate, formatNumber, movementLabel } from '../lib/format'
 import { supabase } from '../lib/supabase'
@@ -244,7 +244,7 @@ export default function ClientPortal({ view = 'inventory' }) {
 
   function lotUnitsPerBox(lot) {
     const name = cleanProductName(lot.product).toUpperCase()
-    return catalogBoxMap.get(name) || 0
+    return catalogBoxMap.get(name) || unitsPerBoxFromName(lot.product)
   }
 
   function lotCajas(lot) {

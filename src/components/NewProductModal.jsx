@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { X } from 'lucide-react'
+import { unitsPerBoxFromName } from '../lib/display'
 import { supabase } from '../lib/supabase'
 
 const UNITS = ['lt', 'ml', 'kg', 'g', 'unid', 'caja', 'bolsa', 'saco']
@@ -52,13 +53,15 @@ export default function NewProductModal({ clients, onClose, onSaved }) {
     : ''
 
   useEffect(() => {
-    if (!clientId) {
-      setNextCode('')
-      return
-    }
-
+    if (!clientId) { setNextCode(''); return }
     loadNextCode(clientId, selectedClient?.product_code_prefix)
   }, [clientId, selectedClient?.product_code_prefix])
+
+  // Auto-detectar envases por caja desde el nombre si el campo está vacío
+  useEffect(() => {
+    const detected = unitsPerBoxFromName(name)
+    if (detected > 0 && !unitsPerBox) setUnitsPerBox(String(detected))
+  }, [name])
 
   async function loadNextCode(cid, fallbackPrefix) {
     setLoadingCode(true)
