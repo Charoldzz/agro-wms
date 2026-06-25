@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { CheckCircle2, LogOut, Plus, Trash2, X } from 'lucide-react'
 import PageHeader from '../components/PageHeader'
@@ -9,6 +9,7 @@ import { cleanProductName, displayLotCode } from '../lib/display'
 import { vibrateSuccess } from '../lib/haptics'
 
 const today = new Date().toISOString().slice(0, 10)
+const DRAFT_KEY = 'draft_salida'
 
 function emptyRow() {
   return {
@@ -40,6 +41,7 @@ function lotOptionLabel(lot) {
 export default function NuevaSalida() {
   const navigate = useNavigate()
   const { user } = useAuth()
+  const restoringRef = useRef(false)
 
   const [clients, setClients] = useState([])
   const [clientId, setClientId] = useState('')
@@ -51,6 +53,32 @@ export default function NuevaSalida() {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState(false)
+
+  // Restaurar borrador en F5; limpiar si el usuario navegó al formulario de nuevo
+  useEffect(() => {
+    const navType = performance.getEntriesByType?.('navigation')?.[0]?.type
+    if (navType === 'navigate') {
+      localStorage.removeItem(DRAFT_KEY)
+    } else {
+      try {
+        const saved = localStorage.getItem(DRAFT_KEY)
+        if (saved) {
+          const d = JSON.parse(saved)
+          if (d.concepto) setConcepto(d.concepto)
+          if (d.rows?.length) setRows(d.rows)
+          if (d.clientId) {
+            restoringRef.current = true // evita que loadClientLots borre las rows restauradas
+            setClientId(d.clientId)
+          }
+        }
+      } catch {}
+    }
+  }, [])
+
+  // Guardar borrador en cada cambio
+  useEffect(() => {
+    localStorage.setItem(DRAFT_KEY, JSON.stringify({ clientId, concepto, rows }))
+  }, [clientId, concepto, rows])
 
   useEffect(() => { loadClients() }, [])
 
@@ -83,6 +111,8 @@ export default function NuevaSalida() {
     }))
   }
 
+  function clearDraft() { localStorage.removeItem(DRAFT_KEY) }
+
   async function loadClientLots(cid) {
     const { data } = await supabase
       .from('lots')
@@ -93,7 +123,8 @@ export default function NuevaSalida() {
       .order('product')
       .order('expiry_date', { ascending: true, nullsFirst: false })
     setLots(data || [])
-    setRows([emptyRow()])
+    if (!restoringRef.current) setRows([emptyRow()])
+    restoringRef.current = false
   }
 
   function addRow() {
@@ -190,6 +221,7 @@ export default function NuevaSalida() {
         throw rpcError
       }
 
+      clearDraft()
       vibrateSuccess()
       setSuccess(true)
       setTimeout(() => navigate(-1), 2200)
@@ -378,7 +410,7 @@ export default function NuevaSalida() {
           <button className="btn-primary flex-1" type="button" onClick={save} disabled={saving || !clientId}>
             <LogOut size={20} /> {saving ? 'Guardando...' : 'Guardar'}
           </button>
-          <button className="btn-secondary flex-1" type="button" onClick={() => navigate(-1)} disabled={saving}>
+          <button className="btn-secondary flex-1" type="button" onClick={() => { clearDraft(); navigate(-1) }} disabled={saving}>
             Cancelar
           </button>
         </div>

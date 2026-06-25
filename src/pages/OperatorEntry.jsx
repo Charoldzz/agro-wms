@@ -9,6 +9,7 @@ import { internalLocations } from '../lib/locations'
 import { vibrateSuccess } from '../lib/haptics'
 
 const today = new Date().toISOString().slice(0, 10)
+const DRAFT_KEY = 'draft_ingreso'
 
 // Detecta si el nombre ya tiene unidad explícita (ej: "X 5 LTS.")
 const SIZE_WITH_UNIT_RE = /[^a-zA-Z](\d+(?:[.,]\d+)?)\s*(ltrs?|lts?|kgs?|gr|gm|ml|cc|l(?:[^a-zA-Z]|$))/i
@@ -112,6 +113,32 @@ export default function OperatorEntry() {
   const [error, setError] = useState('')
   const [success, setSuccess] = useState(false)
 
+  // Restaurar borrador en F5; limpiar si el usuario navegó al formulario de nuevo
+  useEffect(() => {
+    const navType = performance.getEntriesByType?.('navigation')?.[0]?.type
+    if (navType === 'navigate') {
+      localStorage.removeItem(DRAFT_KEY)
+    } else {
+      try {
+        const saved = localStorage.getItem(DRAFT_KEY)
+        if (saved) {
+          const d = JSON.parse(saved)
+          if (d.clientId) setClientId(d.clientId)
+          if (d.contacto) setContacto(d.contacto)
+          if (d.transportista) setTransportista(d.transportista)
+          if (d.placa) setPlaca(d.placa)
+          if (d.observaciones) setObservaciones(d.observaciones)
+          if (d.rows?.length) setRows(d.rows)
+        }
+      } catch {}
+    }
+  }, [])
+
+  // Guardar borrador en cada cambio
+  useEffect(() => {
+    localStorage.setItem(DRAFT_KEY, JSON.stringify({ clientId, contacto, transportista, placa, observaciones, rows }))
+  }, [clientId, contacto, transportista, placa, observaciones, rows])
+
   useEffect(() => { loadClients() }, [])
 
   useEffect(() => {
@@ -182,6 +209,8 @@ export default function OperatorEntry() {
     setRows((r) => r.filter((row) => row.id !== id))
     setSelectedIdx((prev) => Math.max(0, index <= prev ? prev - 1 : prev))
   }
+
+  function clearDraft() { localStorage.removeItem(DRAFT_KEY) }
 
   function updateRow(id, field, value) {
     setRows((r) => r.map((row) => (row.id === id ? { ...row, [field]: value } : row)))
@@ -280,6 +309,7 @@ export default function OperatorEntry() {
 
       if (rpcError) throw rpcError
 
+      clearDraft()
       vibrateSuccess()
       setSuccess(true)
       setTimeout(() => navigate(-1), 2200)
@@ -579,7 +609,7 @@ export default function OperatorEntry() {
           <button className="btn-primary flex-1" type="button" onClick={save} disabled={saving}>
             <PackagePlus size={20} /> {saving ? 'Guardando...' : 'Guardar'}
           </button>
-          <button className="btn-secondary flex-1" type="button" onClick={() => navigate(-1)} disabled={saving}>
+          <button className="btn-secondary flex-1" type="button" onClick={() => { clearDraft(); navigate(-1) }} disabled={saving}>
             Cancelar
           </button>
         </div>
