@@ -60,15 +60,19 @@ function isoToDisplay(iso) {
 }
 
 // Input de fecha enmascarado DD/MM/AAAA — almacena YYYY-MM-DD
+// Acepta 6 dígitos (DD/MM/AA → año 20AA) o 8 dígitos (DD/MM/AAAA)
 function DateInput({ value, onChange, onFocus, className }) {
   const [display, setDisplay] = useState(() => isoToDisplay(value))
+  const isTypingRef = useRef(false)
 
-  // Sincronizar si el valor externo se limpia
+  // Sincroniza el display cuando el valor cambia externamente (restaurar borrador, limpiar fila)
   useEffect(() => {
-    if (!value) setDisplay('')
+    if (isTypingRef.current) { isTypingRef.current = false; return }
+    setDisplay(value ? isoToDisplay(value) : '')
   }, [value])
 
   function handleChange(e) {
+    isTypingRef.current = true
     const digits = e.target.value.replace(/\D/g, '').slice(0, 8)
     let fmt = digits
     if (digits.length > 4) fmt = `${digits.slice(0,2)}/${digits.slice(2,4)}/${digits.slice(4)}`
@@ -77,6 +81,10 @@ function DateInput({ value, onChange, onFocus, className }) {
     if (digits.length === 8) {
       const d = digits.slice(0,2), m = digits.slice(2,4), y = digits.slice(4,8)
       onChange(`${y}-${m}-${d}`)
+    } else if (digits.length === 6) {
+      // Año abreviado: DD/MM/AA → 20AA (ej: "28" → "2028")
+      const d = digits.slice(0,2), m = digits.slice(2,4), yy = digits.slice(4,6)
+      onChange(`20${yy}-${m}-${d}`)
     } else {
       onChange('')
     }
