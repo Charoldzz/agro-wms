@@ -21,7 +21,7 @@ export default function CatalogoModal({ clients, onClose }) {
   const [showFilterMenu, setShowFilterMenu] = useState(false)
   const [selectedId, setSelectedId] = useState(null)
   const [mode, setMode] = useState(null) // null | 'edit'
-  const [editForm, setEditForm] = useState({ code: '', name: '', package_size: '', package_unit: 'lt' })
+  const [editForm, setEditForm] = useState({ code: '', name: '', package_size: '', package_unit: 'lt', units_per_box: '' })
   const [saving, setSaving] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [error, setError] = useState('')
@@ -58,7 +58,7 @@ export default function CatalogoModal({ clients, onClose }) {
     }
     const p = products.find((x) => x.id === selectedId)
     if (!p) return
-    setEditForm({ code: p.code || '', name: p.name || '', package_size: p.package_size || '', package_unit: p.package_unit || 'lt' })
+    setEditForm({ code: p.code || '', name: p.name || '', package_size: p.package_size || '', package_unit: p.package_unit || 'lt', units_per_box: p.units_per_box || '' })
     setError('')
     setMode('edit')
   }
@@ -94,6 +94,7 @@ export default function CatalogoModal({ clients, onClose }) {
       name: editForm.name.trim().toUpperCase(),
       package_size: editForm.package_size ? Number(editForm.package_size) : null,
       package_unit: editForm.package_size ? editForm.package_unit : null,
+      units_per_box: editForm.units_per_box ? Number(editForm.units_per_box) : null,
     }).eq('id', selectedId)
     setSaving(false)
     if (err) return setError(err.message)
@@ -269,7 +270,7 @@ export default function CatalogoModal({ clients, onClose }) {
               />
             </label>
             <div>
-              <span className="text-sm font-bold text-slate-700">Medida</span>
+              <span className="text-sm font-bold text-slate-700">Medida por envase</span>
               <div className="mt-1 flex gap-2">
                 <input
                   className="input w-28"
@@ -287,6 +288,17 @@ export default function CatalogoModal({ clients, onClose }) {
                   {UNITS.map((u) => <option key={u} value={u}>{u}</option>)}
                 </select>
               </div>
+            </div>
+            <div>
+              <span className="text-sm font-bold text-slate-700">Envases por caja</span>
+              <input
+                className="input mt-1 w-28"
+                type="text"
+                inputMode="numeric"
+                value={editForm.units_per_box}
+                onChange={(e) => setEditForm((f) => ({ ...f, units_per_box: e.target.value }))}
+                placeholder="Ej: 5"
+              />
             </div>
             {editLabel && (
               <p className="rounded-lg bg-slate-50 px-3 py-2 text-sm font-semibold text-slate-600">

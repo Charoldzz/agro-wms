@@ -69,7 +69,7 @@ export default function ProductCatalog() {
 
   function startEdit(p) {
     setEditingId(p.id)
-    setEditForm({ name: p.name, package_size: p.package_size || '', package_unit: p.package_unit || 'lt' })
+    setEditForm({ name: p.name, package_size: p.package_size || '', package_unit: p.package_unit || 'lt', units_per_box: p.units_per_box || '' })
     setError('')
   }
 
@@ -82,6 +82,7 @@ export default function ProductCatalog() {
       name: editForm.name.trim().toUpperCase(),
       package_size: editForm.package_size ? Number(editForm.package_size) : null,
       package_unit: editForm.package_size ? editForm.package_unit : null,
+      units_per_box: editForm.units_per_box ? Number(editForm.units_per_box) : null,
     }).eq('id', id)
     setSaving(false)
     if (err) return setError(err.message)
@@ -172,6 +173,15 @@ export default function ProductCatalog() {
                     <select className="input flex-1 text-sm" value={editForm.package_unit} onChange={(e) => setEditForm((f) => ({ ...f, package_unit: e.target.value }))}>
                       {UNITS.map((u) => <option key={u} value={u}>{u}</option>)}
                     </select>
+                    <input
+                      className="input w-20 text-sm"
+                      type="text"
+                      inputMode="numeric"
+                      value={editForm.units_per_box}
+                      onChange={(e) => setEditForm((f) => ({ ...f, units_per_box: e.target.value }))}
+                      placeholder="Env/caja"
+                      title="Envases por caja"
+                    />
                   </div>
                   {error && <p className="text-xs font-bold text-red-600">{error}</p>}
                 </div>

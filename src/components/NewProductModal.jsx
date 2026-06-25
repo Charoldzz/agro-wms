@@ -37,6 +37,7 @@ export default function NewProductModal({ clients, onClose, onSaved }) {
   const [name, setName] = useState('')
   const [packageSize, setPackageSize] = useState('')
   const [packageUnit, setPackageUnit] = useState('lt')
+  const [unitsPerBox, setUnitsPerBox] = useState('')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [loadingCode, setLoadingCode] = useState(false)
@@ -87,6 +88,7 @@ export default function NewProductModal({ clients, onClose, onSaved }) {
       name: name.trim().toUpperCase(),
       package_size: packageSize ? Number(packageSize) : null,
       package_unit: packageSize ? packageUnit : null,
+      units_per_box: unitsPerBox ? Number(unitsPerBox) : null,
     })
     setSaving(false)
     if (err) return setError(err.message)
@@ -142,7 +144,7 @@ export default function NewProductModal({ clients, onClose, onSaved }) {
           </div>
 
           <div>
-            <label className="block text-sm font-bold text-slate-700">Medida</label>
+            <label className="block text-sm font-bold text-slate-700">Medida por envase</label>
             <div className="mt-1 flex gap-2">
               <input
                 className="input w-32"
@@ -160,6 +162,18 @@ export default function NewProductModal({ clients, onClose, onSaved }) {
                 {UNITS.map((u) => <option key={u} value={u}>{u}</option>)}
               </select>
             </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-bold text-slate-700">Envases por caja</label>
+            <input
+              className="input mt-1 w-32"
+              type="text"
+              inputMode="numeric"
+              value={unitsPerBox}
+              onChange={(e) => setUnitsPerBox(e.target.value)}
+              placeholder="Ej: 5"
+            />
           </div>
 
           {productLabel && (

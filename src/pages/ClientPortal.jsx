@@ -139,6 +139,7 @@ export default function ClientPortal({ view = 'inventory' }) {
   const initialDraft = useMemo(readDraft, [])
 
   const [lots,       setLots]       = useState([])
+  const [catalog,    setCatalog]    = useState([])
   const [movements,  setMovements]  = useState([])
   const [requests,   setRequests]   = useState([])
   const [loading,    setLoading]    = useState(true)
@@ -177,15 +178,23 @@ export default function ClientPortal({ view = 'inventory' }) {
       return
     }
 
-    const { data: lotsData } = await supabase
-      .from('lots')
-      .select('id,lot_code,client_id,product,solucion_product_code,current_quantity,package_size,package_unit,location,entry_date,expiry_date,status,clients(name,contact)')
-      .eq('inventory_source','stock_independiente')
-      .eq('client_id', clientId)
-      .eq('status','activo')
-      .gt('current_quantity', 0)
-      .order('product')
+    const [{ data: lotsData }, { data: catalogData }] = await Promise.all([
+      supabase
+        .from('lots')
+        .select('id,lot_code,client_id,product,solucion_product_code,current_quantity,package_size,package_unit,location,entry_date,expiry_date,status,clients(name,contact)')
+        .eq('inventory_source','stock_independiente')
+        .eq('client_id', clientId)
+        .eq('status','activo')
+        .gt('current_quantity', 0)
+        .order('product'),
+      supabase
+        .from('product_catalog')
+        .select('code,name,units_per_box')
+        .eq('client_id', clientId)
+        .not('units_per_box', 'is', null),
+    ])
     setLots(lotsData || [])
+    setCatalog(catalogData || [])
 
     const lotIds = (lotsData||[]).map(l => l.id)
     const { data: movData } = lotIds.length
@@ -223,6 +232,26 @@ export default function ClientPortal({ view = 'inventory' }) {
   const preparingDispatchRequests = requests.filter(r => r.status === 'en_preparacion')
   const dispatchedRequests = requests.filter(r => r.status === 'despachado')
   const clientName    = lots[0]?.clients?.name || profile?.full_name || 'Cliente'
+
+  // Mapa nombre→units_per_box del catálogo para calcular cajas
+  const catalogBoxMap = useMemo(() => {
+    const m = new Map()
+    catalog.forEach(p => {
+      if (p.units_per_box > 0) m.set(p.name.toUpperCase(), p.units_per_box)
+    })
+    return m
+  }, [catalog])
+
+  function lotUnitsPerBox(lot) {
+    const name = cleanProductName(lot.product).toUpperCase()
+    return catalogBoxMap.get(name) || 0
+  }
+
+  function lotCajas(lot) {
+    const upb = lotUnitsPerBox(lot)
+    if (!upb) return 0
+    return Math.floor(Number(lot.current_quantity || 0) / upb)
+  }
 
   const eqTotals = useMemo(() => {
     const t = { lts: 0, kgs: 0 }
@@ -393,18 +422,19 @@ export default function ClientPortal({ view = 'inventory' }) {
       const wb = new ExcelJS.Workbook()
       const ws = wb.addWorksheet('Inventario')
 
-      // Column widths — 5 columns
+      // Column widths — 6 columns
       ws.columns = [
         { key: 'producto',    width: 40 },
         { key: 'lote',        width: 22 },
         { key: 'vencimiento', width: 16 },
         { key: 'equivalente', width: 18 },
         { key: 'envases',     width: 14 },
+        { key: 'cajas',       width: 12 },
       ]
 
       // Row 1: client name — green header
       const titleRow = ws.addRow([clientName])
-      ws.mergeCells('A1:E1')
+      ws.mergeCells('A1:F1')
       titleRow.height = 28
       titleRow.getCell(1).font  = { bold: true, size: 14, color: { argb: 'FFFFFFFF' } }
       titleRow.getCell(1).fill  = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1D593A' } }
@@ -412,7 +442,7 @@ export default function ClientPortal({ view = 'inventory' }) {
 
       // Row 2: timestamp
       const subRow = ws.addRow([`Inventario al ${timestamp}`])
-      ws.mergeCells('A2:E2')
+      ws.mergeCells('A2:F2')
       subRow.getCell(1).font      = { italic: true, size: 10, color: { argb: 'FF475569' } }
       subRow.getCell(1).alignment = { horizontal: 'left', indent: 1 }
 
@@ -420,7 +450,7 @@ export default function ClientPortal({ view = 'inventory' }) {
       ws.addRow([])
 
       // Row 4: column headers
-      const headerLabels = ['Producto', 'Lote', 'Vencimiento', 'Cantidad Lts/Kgs', 'Cantidad Envases']
+      const headerLabels = ['Producto', 'Lote', 'Vencimiento', 'Cantidad Lts/Kgs', 'Cantidad Envases', 'Cajas']
       const hdrRow = ws.addRow(headerLabels)
       hdrRow.height = 18
       hdrRow.eachCell(cell => {
@@ -435,12 +465,14 @@ export default function ClientPortal({ view = 'inventory' }) {
       lots.forEach((l) => {
         let eqStr = ''
         try { const eq = lotEquivalent(l); if (eq) eqStr = `${formatNumber(eq.quantity)} ${eq.unit}` } catch (_) {}
+        const cajas = lotCajas(l)
         const row = ws.addRow([
           cleanProductName(l.product) || '',
           displayLotCode(l.lot_code, l) || '',
           l.expiry_date ? formatDate(l.expiry_date) : '-',
           eqStr || '-',
           Number(l.current_quantity || 0),
+          cajas > 0 ? cajas : '',
         ])
         row.eachCell((cell, colNum) => {
           cell.alignment = colNum === 1
@@ -470,12 +502,14 @@ export default function ClientPortal({ view = 'inventory' }) {
     const rows = lots.map(l => {
       let eqStr = '-'
       try { const eq = lotEquivalent(l); if (eq) eqStr = `${formatNumber(eq.quantity)} ${eq.unit}` } catch (_) {}
+      const cajas = lotCajas(l)
       return `<tr>
         <td>${escapeHtml(cleanProductName(l.product))}</td>
         <td>${escapeHtml(displayLotCode(l.lot_code, l))}</td>
         <td style="text-align:right">${escapeHtml(l.expiry_date ? formatDate(l.expiry_date) : '-')}</td>
         <td style="text-align:right">${escapeHtml(eqStr)}</td>
         <td style="text-align:right">${escapeHtml(formatNumber(l.current_quantity))}</td>
+        <td style="text-align:right">${cajas > 0 ? escapeHtml(String(cajas)) : '-'}</td>
       </tr>`
     }).join('')
 
@@ -518,7 +552,7 @@ export default function ClientPortal({ view = 'inventory' }) {
 <table>
   <thead><tr>
     <th>Producto</th><th>Lote</th>
-    <th class="r">Vencimiento</th><th class="r">Cantidad Lts/Kgs</th><th class="r">Cantidad Envases</th>
+    <th class="r">Vencimiento</th><th class="r">Cantidad Lts/Kgs</th><th class="r">Cantidad Envases</th><th class="r">Cajas</th>
   </tr></thead>
   <tbody>${rows}</tbody>
 </table>
@@ -836,6 +870,9 @@ export default function ClientPortal({ view = 'inventory' }) {
                                     </>
                                   ) : (
                                     <p className="text-sm font-black text-campo-700">{formatNumber(lot.current_quantity)} env.</p>
+                                  )}
+                                  {lotCajas(lot) > 0 && (
+                                    <p className="text-[10px] font-semibold text-campo-500">{formatNumber(lotCajas(lot))} cajas</p>
                                   )}
                                 </div>
                               </Link>
