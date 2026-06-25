@@ -28,11 +28,13 @@ function productDisplayName(p) {
 
 function parseProductUnit(productName) {
   if (!productName) return { size: 1, unit: '' }
-  // Match patterns like "X 10 Kgs", "x 5 Lts.", "X 20 L", "x 1 Lt."
-  const match = productName.match(/[xX×]\s*([\d.,]+)\s*(lts?\.?|kgs?\.?|l\.?)\b/i)
-  if (!match) return { size: 1, unit: '' }
-  const size = parseFloat(match[1].replace(',', '.'))
-  const raw = match[2].toLowerCase().replace('.', '')
+  // Primero: patrón "X N unidad" (ej: "X 5 LTS.", "X 20 Kgs")
+  let m = productName.match(/[xX×]\s*([\d.,]+)\s*(lts?\.?|kgs?\.?|l\.?)(?!\w)/i)
+  // Fallback: patrón "N unidad" sin X (ej: "GLORY 15 KGS.", "BONDER 20 LTS.")
+  if (!m) m = productName.match(/(?<!\w)([\d.,]+)\s*(lts?\.?|kgs?\.?|l\.?)(?!\w)/i)
+  if (!m) return { size: 1, unit: '' }
+  const size = parseFloat(m[1].replace(',', '.'))
+  const raw = m[2].toLowerCase().replace(/\./g, '')
   const unit = /^l(ts?)?$/.test(raw) ? 'lts' : /^kgs?$/.test(raw) ? 'kgs' : ''
   return { size: isNaN(size) ? 1 : size, unit }
 }
