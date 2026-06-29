@@ -261,7 +261,12 @@ export default function Dashboard() {
           </span>
           <span>Nuevo ingreso</span>
         </Link>
-        <Link className="inline-flex aspect-square min-h-36 flex-col items-start justify-between gap-3 rounded-lg bg-maiz px-4 py-4 text-left text-base font-semibold leading-tight text-slate-950 shadow-soft transition active:scale-[0.99] sm:min-h-40 sm:px-5 sm:py-5 sm:text-lg" to="/operacion/despacho-lista?nuevo=1">
+        <Link className="relative inline-flex aspect-square min-h-36 flex-col items-start justify-between gap-3 rounded-lg bg-maiz px-4 py-4 text-left text-base font-semibold leading-tight text-slate-950 shadow-soft transition active:scale-[0.99] sm:min-h-40 sm:px-5 sm:py-5 sm:text-lg" to="/operacion/salidas">
+          {dispatchRequests.length > 0 && (
+            <span className="absolute right-2 top-2 flex h-6 min-w-6 items-center justify-center rounded-full bg-red-500 px-1.5 text-xs font-black text-white">
+              {dispatchRequests.length}
+            </span>
+          )}
           <span className="flex h-12 w-12 items-center justify-center rounded-lg bg-white/35">
             <LogOut size={28} />
           </span>
@@ -325,7 +330,7 @@ export default function Dashboard() {
                       {cleanProductName(request.product || request.lots?.product)} - {displayLotCode(request.lots?.lot_code)}
                     </p>
                   )}
-                  <Link className="btn-primary mt-3 w-full !min-h-10 !py-2" to={`/operacion/despacho-lista?request=${request.id}`}>
+                  <Link className="btn-primary mt-3 w-full !min-h-10 !py-2" to={`/nueva-salida?request=${request.id}`}>
                     <LogOut size={16} /> Iniciar despacho
                   </Link>
                 </div>

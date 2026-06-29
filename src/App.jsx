@@ -16,6 +16,7 @@ import Operation from './pages/Operation'
 import ExpiringLots from './pages/ExpiringLots'
 import OperatorEntry from './pages/OperatorEntry'
 import NuevaSalida from './pages/NuevaSalida'
+import SalidasHub from './pages/SalidasHub'
 import Kardex from './pages/Kardex'
 import OperatorService from './pages/OperatorService'
 import DispatchList from './pages/DispatchList'
@@ -72,6 +73,7 @@ function AppRoutes() {
         <Route path="operacion/nuevo-ingreso" element={<RoleRoute roles={['administrador', 'operador']}><OperatorEntry /></RoleRoute>} />
         <Route path="nueva-salida" element={<RoleRoute roles={['administrador', 'operador']}><NuevaSalida /></RoleRoute>} />
         <Route path="kardex" element={<RoleRoute roles={['administrador', 'operador']}><Kardex /></RoleRoute>} />
+        <Route path="operacion/salidas" element={<RoleRoute roles={['administrador', 'operador']}><SalidasHub /></RoleRoute>} />
         <Route path="operacion/despacho-lista" element={<RoleRoute roles={['administrador', 'operador']}><DispatchList /></RoleRoute>} />
         <Route path="operacion/reparacion-traslado" element={<RoleRoute roles={['administrador', 'operador']}><OperatorService /></RoleRoute>} />
         <Route path="operacion/correcciones" element={<RoleRoute roles={['administrador', 'operador']}><CorrectionRequests /></RoleRoute>} />

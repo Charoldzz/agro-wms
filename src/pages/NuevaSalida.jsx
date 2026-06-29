@@ -51,8 +51,12 @@ export default function NuevaSalida() {
   const location = useLocation()
   const { user } = useAuth()
   const restoringRef = useRef(false)
+  const params = new URLSearchParams(location.search)
+  const requestId = params.get('request')
+  const isRequestMode = Boolean(requestId)
 
   const [clients, setClients] = useState([])
+  const [solicitud, setSolicitud] = useState(null)
   const [clientId, setClientId] = useState('')
   const [guiaPreview, setGuiaPreview] = useState('')
   const [contacto, setContacto] = useState('')
@@ -75,6 +79,7 @@ export default function NuevaSalida() {
 
   // Restaurar borrador solo en F5 o navegación "atrás"; limpiar en navegación fresca
   useEffect(() => {
+    if (isRequestMode) return
     const navType = performance.getEntriesByType?.('navigation')?.[0]?.type
     const prevKey = sessionStorage.getItem('salida_loc_key')
     const isReload = navType === 'reload'
@@ -104,6 +109,7 @@ export default function NuevaSalida() {
 
   // Guardar borrador en cada cambio
   useEffect(() => {
+    if (isRequestMode) return
     localStorage.setItem(DRAFT_KEY, JSON.stringify({ clientId, contacto, transportista, placa, observaciones, rows }))
   }, [clientId, contacto, transportista, placa, observaciones, rows])
 
@@ -122,6 +128,58 @@ export default function NuevaSalida() {
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   })
+
+  useEffect(() => {
+    if (!requestId) return
+    supabase
+      .from('client_dispatch_requests')
+      .select('*, clients(name)')
+      .eq('id', requestId)
+      .single()
+      .then(({ data }) => {
+        if (!data) return
+        setSolicitud(data)
+        if (data.transporter_ci) setContacto(data.transporter_ci)
+        if (data.transporter_name) setTransportista(data.transporter_name)
+        if (data.transporter_plate) setPlaca(data.transporter_plate)
+        if (data.notes) setObservaciones(data.notes)
+        if (data.client_id) {
+          restoringRef.current = true
+          setClientId(data.client_id)
+        }
+      })
+  }, [requestId])
+
+  useEffect(() => {
+    if (!solicitud || !Array.isArray(solicitud.items) || solicitud.items.length === 0 || lots.length === 0) return
+    const newRows = solicitud.items.map((item) => {
+      const lot = lots.find((l) => l.id === item.lot_id)
+      if (!lot) return null
+      const uds = Number(item.quantity) || 0
+      const pkgSize = Number(lot.package_size) || 1
+      const cantidad = uds * pkgSize
+      const product = cleanProductName(lot.product)
+      const upb = catalogMap.get(product.toUpperCase()) || 0
+      const cajas = upb > 0 && uds > 0 ? Math.floor(uds / upb) : 0
+      const cajas_rem = upb > 0 && uds > 0 ? uds % upb : 0
+      return {
+        ...emptyRow(),
+        lot_id: lot.id,
+        product,
+        lot_code: displayLotCode(lot.lot_code),
+        expiry_date: lot.expiry_date || '',
+        saldo: lot.current_quantity,
+        package_size: pkgSize,
+        package_unit: lot.package_unit || '',
+        cantidad: String(cantidad),
+        uds: uds > 0 ? String(uds) : '',
+        uds_rem: '',
+        cajas: cajas > 0 ? String(cajas) : '',
+        cajas_rem: cajas_rem > 0 ? String(cajas_rem) : '',
+      }
+    }).filter(Boolean)
+    if (newRows.length > 0) setRows(newRows)
+  }, [solicitud, lots, catalogMap])
 
   async function loadClients() {
     const { data } = await supabase
@@ -286,7 +344,7 @@ export default function NuevaSalida() {
         p_vehicle_plate: placa.trim() || null,
         p_notes: observaciones.trim() || null,
         p_items: operationItems,
-        p_request_id: null,
+        p_request_id: requestId || null,
         p_user_id: user.id,
       })
 
@@ -294,6 +352,10 @@ export default function NuevaSalida() {
         if (rpcError.message?.includes('inventario') || rpcError.message?.includes('stock'))
           throw new Error('No hay inventario suficiente para completar esta salida.')
         throw rpcError
+      }
+
+      if (requestId) {
+        await supabase.rpc('complete_client_dispatch_request', { p_request_id: requestId, p_user_id: user.id })
       }
 
       clearDraft()
@@ -311,16 +373,31 @@ export default function NuevaSalida() {
     <div>
       <PageHeader title="Salida" subtitle="Nota de salida de mercadería" />
 
+      {solicitud && (
+        <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 p-4">
+          <p className="text-sm font-bold text-amber-800">
+            Solicitud de <span className="font-black text-amber-900">{solicitud.clients?.name || 'cliente'}</span> — los datos de operación son fijos y vienen del cliente.
+          </p>
+        </div>
+      )}
+
       <section className="panel mb-4 grid gap-3 sm:grid-cols-2">
-        <label className="block">
-          <span className="label">Empresa</span>
-          <select className="input mt-1" value={clientId} onChange={(e) => setClientId(e.target.value)} required>
-            <option value="">Seleccionar empresa</option>
-            {clients.map((c) => (
-              <option key={c.id} value={c.id}>{displayClientName(c.name)}</option>
-            ))}
-          </select>
-        </label>
+        {isRequestMode ? (
+          <div>
+            <span className="label">Empresa</span>
+            <div className="input mt-1 cursor-not-allowed select-none bg-slate-100 font-semibold text-slate-700">{solicitud?.clients?.name || '...'}</div>
+          </div>
+        ) : (
+          <label className="block">
+            <span className="label">Empresa</span>
+            <select className="input mt-1" value={clientId} onChange={(e) => setClientId(e.target.value)} required>
+              <option value="">Seleccionar empresa</option>
+              {clients.map((c) => (
+                <option key={c.id} value={c.id}>{displayClientName(c.name)}</option>
+              ))}
+            </select>
+          </label>
+        )}
         <div>
           <span className="label">Fecha</span>
           <div className="input mt-1 cursor-not-allowed select-none bg-slate-100 font-semibold text-slate-600">{today}</div>
@@ -331,35 +408,37 @@ export default function NuevaSalida() {
         </div>
         <label className="block">
           <span className="label">Contacto</span>
-          <input className="input mt-1" value={contacto} onChange={(e) => setContacto(e.target.value)} placeholder="Teléfono o CI" />
+          <input className="input mt-1" value={contacto} onChange={(e) => setContacto(e.target.value)} placeholder="Teléfono o CI" disabled={isRequestMode} />
         </label>
         <label className="block">
           <span className="label">Transportista</span>
-          <input className="input mt-1" value={transportista} onChange={(e) => setTransportista(e.target.value)} />
+          <input className="input mt-1" value={transportista} onChange={(e) => setTransportista(e.target.value)} disabled={isRequestMode} />
         </label>
         <label className="block">
           <span className="label">Placa</span>
-          <input className="input mt-1 uppercase" value={placa} onChange={(e) => setPlaca(e.target.value.toUpperCase())} />
+          <input className="input mt-1 uppercase" value={placa} onChange={(e) => setPlaca(e.target.value.toUpperCase())} disabled={isRequestMode} />
         </label>
         <label className="block sm:col-span-2">
           <span className="label">Observaciones</span>
-          <input className="input mt-1" value={observaciones} onChange={(e) => setObservaciones(e.target.value)} />
+          <input className="input mt-1" value={observaciones} onChange={(e) => setObservaciones(e.target.value)} disabled={isRequestMode} />
         </label>
       </section>
 
-      <div className="mb-3 flex flex-wrap items-center gap-2">
-        <button className="btn-primary !min-h-10 !px-4 !py-2 text-sm" type="button" onClick={addRow}>
-          <Plus size={17} /> Agregar item <span className="hidden sm:inline">(F12)</span>
-        </button>
-        <button
-          className="btn-secondary hidden !min-h-10 !px-4 !py-2 text-sm sm:flex"
-          type="button"
-          onClick={removeSelectedRow}
-          disabled={rows.length <= 1}
-        >
-          <Trash2 size={17} /> Quitar seleccionado (F10)
-        </button>
-      </div>
+      {!isRequestMode && (
+        <div className="mb-3 flex flex-wrap items-center gap-2">
+          <button className="btn-primary !min-h-10 !px-4 !py-2 text-sm" type="button" onClick={addRow}>
+            <Plus size={17} /> Agregar item <span className="hidden sm:inline">(F12)</span>
+          </button>
+          <button
+            className="btn-secondary hidden !min-h-10 !px-4 !py-2 text-sm sm:flex"
+            type="button"
+            onClick={removeSelectedRow}
+            disabled={rows.length <= 1}
+          >
+            <Trash2 size={17} /> Quitar seleccionado (F10)
+          </button>
+        </div>
+      )}
 
       {clientId && lots.length === 0 && (
         <div className="mb-4 rounded-lg bg-amber-50 p-3 text-sm font-semibold text-amber-700">
@@ -404,14 +483,16 @@ export default function NuevaSalida() {
                           </div>
                         )}
                       </div>
-                      <button
-                        type="button"
-                        className="shrink-0 rounded p-0.5 text-slate-400 hover:text-red-500"
-                        onClick={(e) => { e.stopPropagation(); setSelectedIdx(i); clearLot(row.id) }}
-                        title="Cambiar lote"
-                      >
-                        <X size={14} />
-                      </button>
+                      {!isRequestMode && (
+                        <button
+                          type="button"
+                          className="shrink-0 rounded p-0.5 text-slate-400 hover:text-red-500"
+                          onClick={(e) => { e.stopPropagation(); setSelectedIdx(i); clearLot(row.id) }}
+                          title="Cambiar lote"
+                        >
+                          <X size={14} />
+                        </button>
+                      )}
                     </div>
                   ) : (
                     <select
@@ -419,7 +500,7 @@ export default function NuevaSalida() {
                       value=""
                       onChange={(e) => { setSelectedIdx(i); selectLot(row.id, e.target.value) }}
                       onFocus={() => setSelectedIdx(i)}
-                      disabled={!clientId || lots.length === 0}
+                      disabled={!clientId || lots.length === 0 || isRequestMode}
                     >
                       <option value="">— Seleccionar lote —</option>
                       {lots.map((lot) => (
@@ -444,7 +525,7 @@ export default function NuevaSalida() {
                     onChange={(e) => updateCantidad(row.id, e.target.value)}
                     onFocus={() => setSelectedIdx(i)}
                     placeholder="0"
-                    disabled={!row.lot_id}
+                    disabled={!row.lot_id || isRequestMode}
                   />
                   {row.package_unit && Number(row.cantidad) > 0 && (
                     <div className="text-right text-[10px] font-bold text-slate-400">{row.package_unit}</div>
@@ -462,7 +543,7 @@ export default function NuevaSalida() {
                       }}
                       onFocus={() => setSelectedIdx(i)}
                       placeholder="0"
-                      disabled={!row.lot_id}
+                      disabled={!row.lot_id || isRequestMode}
                     />
                     {field === 'uds' && Number(row.uds_rem) > 0 && (
                       <div className="text-right text-[10px] font-bold text-campo-600">+{formatNumber(row.uds_rem)} {row.package_unit}</div>
@@ -480,7 +561,7 @@ export default function NuevaSalida() {
                     type="button"
                     className="flex h-7 w-7 items-center justify-center rounded text-slate-300 hover:bg-red-50 hover:text-red-500 disabled:opacity-30"
                     onClick={(e) => { e.stopPropagation(); removeRow(row.id) }}
-                    disabled={rows.length <= 1}
+                    disabled={rows.length <= 1 || isRequestMode}
                   >
                     <Trash2 size={13} />
                   </button>
