@@ -23,6 +23,7 @@ function emptyRow() {
     package_unit: '',
     cantidad: '',
     uds: '',
+    uds_rem: '',
     cajas: '',
     cajas_rem: '',
     galones: '',
@@ -197,7 +198,8 @@ export default function NuevaSalida() {
         const product = cleanProductName(lot.product)
         const pkgSize = Number(lot.package_size) || 1
         const qty = Number(row.cantidad || 0)
-        const uds = qty > 0 ? Math.round(qty / pkgSize) : 0
+        const uds = qty > 0 ? Math.floor(qty / pkgSize) : 0
+        const uds_rem = qty > 0 && uds > 0 ? Math.round((qty - uds * pkgSize) * 1000) / 1000 : 0
         const upb = catalogMap.get(product.toUpperCase()) || 0
         const cajas = upb > 0 && uds > 0 ? Math.floor(uds / upb) : 0
         return {
@@ -210,6 +212,7 @@ export default function NuevaSalida() {
           package_size: pkgSize,
           package_unit: lot.package_unit || '',
           uds: uds > 0 ? String(uds) : row.uds,
+          uds_rem: uds_rem > 0 ? String(uds_rem) : '',
           cajas: upb > 0 && uds > 0 ? String(cajas) : row.cajas,
           cajas_rem: upb > 0 && uds > 0 ? String(uds % upb) : '',
         }
@@ -232,13 +235,15 @@ export default function NuevaSalida() {
     setRows((r) => r.map((row) => {
       if (row.id !== rowId) return row
       const pkgSize = Number(row.package_size) || 1
-      const uds = pkgSize > 0 && qty > 0 ? Math.round(qty / pkgSize) : (qty > 0 ? qty : 0)
+      const uds = pkgSize > 0 && qty > 0 ? Math.floor(qty / pkgSize) : (qty > 0 ? qty : 0)
+      const uds_rem = pkgSize > 0 && qty > 0 && uds > 0 ? Math.round((qty - uds * pkgSize) * 1000) / 1000 : 0
       const upb = catalogMap.get((row.product || '').toUpperCase()) || 0
       const cajas = upb > 0 && uds > 0 ? Math.floor(uds / upb) : 0
       return {
         ...row,
         cantidad: v,
         uds: uds > 0 ? String(uds) : '',
+        uds_rem: uds_rem > 0 ? String(uds_rem) : '',
         cajas: upb > 0 && uds > 0 ? String(cajas) : row.cajas,
         cajas_rem: upb > 0 && uds > 0 ? String(uds % upb) : '',
       }
@@ -459,6 +464,9 @@ export default function NuevaSalida() {
                       placeholder="0"
                       disabled={!row.lot_id}
                     />
+                    {field === 'uds' && Number(row.uds_rem) > 0 && (
+                      <div className="text-right text-[10px] font-bold text-slate-500">+{formatNumber(row.uds_rem)} {row.package_unit}</div>
+                    )}
                     {field === 'cajas' && Number(row.cajas_rem) > 0 && (
                       <div className="text-right text-[10px] font-bold text-campo-600">+{row.cajas_rem}u</div>
                     )}

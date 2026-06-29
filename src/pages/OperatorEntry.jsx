@@ -41,7 +41,7 @@ function parseProductUnit(productName) {
 }
 
 function emptyRow() {
-  return { id: crypto.randomUUID(), product: '', lot_code: '', expiry_date: '', cantidad: '', uds: '', cajas: '', cajas_rem: '', galones: '', bidones: '', tambores: '', pallets: '' }
+  return { id: crypto.randomUUID(), product: '', lot_code: '', expiry_date: '', cantidad: '', uds: '', uds_rem: '', cajas: '', cajas_rem: '', galones: '', bidones: '', tambores: '', pallets: '' }
 }
 
 function createLotCode(index = 0) {
@@ -247,14 +247,15 @@ export default function OperatorEntry() {
     setRows((r) => r.map((row) => {
       if (row.id !== id) return row
       const { size } = parseProductUnit(row.product)
-      // CANTIDAD es el total en lts/kgs; UDS = envases = CANTIDAD / medida
-      const uds = size > 0 && qty > 0 ? Math.round(qty / size) : (qty > 0 ? qty : 0)
+      const uds = size > 0 && qty > 0 ? Math.floor(qty / size) : (qty > 0 ? qty : 0)
+      const uds_rem = size > 0 && qty > 0 && uds > 0 ? Math.round((qty - uds * size) * 1000) / 1000 : 0
       const upb = catalogMap.get(row.product) || 0
       const cajas = upb > 0 && uds > 0 ? Math.floor(uds / upb) : 0
       return {
         ...row,
         cantidad: v,
         uds: uds > 0 ? String(uds) : '',
+        uds_rem: uds_rem > 0 ? String(uds_rem) : '',
         cajas: upb > 0 && uds > 0 ? String(cajas) : row.cajas,
         cajas_rem: upb > 0 && uds > 0 ? String(uds % upb) : '',
       }
@@ -266,13 +267,15 @@ export default function OperatorEntry() {
       if (row.id !== id) return row
       const qty = Number(row.cantidad || 0)
       const { size } = parseProductUnit(value)
-      const uds = size > 0 && qty > 0 ? Math.round(qty / size) : (qty > 0 ? qty : 0)
+      const uds = size > 0 && qty > 0 ? Math.floor(qty / size) : (qty > 0 ? qty : 0)
+      const uds_rem = size > 0 && qty > 0 && uds > 0 ? Math.round((qty - uds * size) * 1000) / 1000 : 0
       const upb = catalogMap.get(value) || 0
       const cajas = upb > 0 && uds > 0 ? Math.floor(uds / upb) : 0
       return {
         ...row,
         product: value,
         uds: uds > 0 ? String(uds) : row.uds,
+        uds_rem: uds_rem > 0 ? String(uds_rem) : '',
         cajas: upb > 0 && uds > 0 ? String(cajas) : row.cajas,
         cajas_rem: upb > 0 && uds > 0 ? String(uds % upb) : '',
       }
@@ -492,6 +495,9 @@ export default function OperatorEntry() {
                       onFocus={() => setSelectedIdx(i)}
                       placeholder="0"
                     />
+                    {field === 'uds' && Number(row.uds_rem) > 0 && (
+                      <div className="text-right text-[10px] font-bold text-slate-500">+{formatNumber(row.uds_rem)} {parseProductUnit(row.product).unit}</div>
+                    )}
                     {field === 'cajas' && Number(row.cajas_rem) > 0 && (
                       <div className="text-right text-[10px] font-bold text-campo-600">+{row.cajas_rem}u</div>
                     )}
