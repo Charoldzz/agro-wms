@@ -38,16 +38,13 @@ function displayClientName(name) {
 
 function lotOptionLabel(lot) {
   const lote = displayLotCode(lot.lot_code)
-  const venc = lot.expiry_date
-    ? new Intl.DateTimeFormat('es-BO', { day: '2-digit', month: 'short', year: 'numeric' }).format(
-        new Date(`${lot.expiry_date}T00:00:00`),
-      )
-    : 'SIN VENC'
   const pkgSize = Number(lot.package_size) || 1
   const total = lot.current_quantity * pkgSize
   const unit = lot.package_unit || ''
-  const saldo = unit ? `${formatNumber(total)} ${unit}  (${formatNumber(lot.current_quantity)} env)` : formatNumber(lot.current_quantity)
-  return `${cleanProductName(lot.product)}   Lote: ${lote}   Venc: ${venc}   Saldo: ${saldo}`
+  const saldo = unit
+    ? `${formatNumber(total)} ${unit} (${formatNumber(lot.current_quantity)} env)`
+    : formatNumber(lot.current_quantity)
+  return `${cleanProductName(lot.product)}   [Lote: ${lote}]   ${saldo}`
 }
 
 export default function NuevaSalida() {
@@ -368,14 +365,13 @@ export default function NuevaSalida() {
       )}
 
       <div className="mb-4 overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm">
-        <table className="w-full border-collapse" style={{ minWidth: '1080px' }}>
+        <table className="w-full border-collapse" style={{ minWidth: '1008px' }}>
           <thead>
             <tr className="bg-campo-700 text-white">
               <th className="border-b border-campo-600 px-2 py-2.5 text-center text-xs font-bold uppercase tracking-wide" style={{width:'36px'}}>N°</th>
               <th className="border-b border-campo-600 px-2 py-2.5 text-left text-xs font-bold uppercase tracking-wide">PRODUCTO</th>
               <th className="border-b border-campo-600 px-2 py-2.5 text-center text-xs font-bold uppercase tracking-wide" style={{width:'100px'}}>LOTE</th>
               <th className="border-b border-campo-600 px-2 py-2.5 text-center text-xs font-bold uppercase tracking-wide" style={{width:'110px'}}>VENC</th>
-              <th className="border-b border-campo-600 px-2 py-2.5 text-right text-xs font-bold uppercase tracking-wide" style={{width:'72px'}}>SALDO</th>
               <th className="border-b border-campo-600 px-2 py-2.5 text-right text-xs font-bold uppercase tracking-wide" style={{width:'80px'}}>CANTIDAD</th>
               <th className="border-b border-campo-600 px-2 py-2.5 text-right text-xs font-bold uppercase tracking-wide" style={{width:'64px'}}>UDS</th>
               <th className="border-b border-campo-600 px-2 py-2.5 text-right text-xs font-bold uppercase tracking-wide" style={{width:'64px'}}>CAJAS</th>
@@ -397,9 +393,14 @@ export default function NuevaSalida() {
                 <td className="px-2 py-1">
                   {row.lot_id ? (
                     <div className="flex min-w-0 items-center gap-1">
-                      <span className="min-w-0 flex-1 truncate text-sm font-semibold text-slate-900" title={row.product}>
-                        {row.product}
-                      </span>
+                      <div className="min-w-0 flex-1">
+                        <div className="truncate text-sm font-semibold text-slate-900" title={row.product}>{row.product}</div>
+                        {row.package_unit && (
+                          <div className="text-[10px] font-semibold text-slate-400">
+                            {formatNumber(row.saldo * (Number(row.package_size) || 1))} {row.package_unit} disponibles ({formatNumber(row.saldo)} env)
+                          </div>
+                        )}
+                      </div>
                       <button
                         type="button"
                         className="shrink-0 rounded p-0.5 text-slate-400 hover:text-red-500"
@@ -431,16 +432,6 @@ export default function NuevaSalida() {
                   {row.expiry_date
                     ? new Intl.DateTimeFormat('es-BO', { day: '2-digit', month: 'short', year: 'numeric' }).format(new Date(`${row.expiry_date}T00:00:00`))
                     : <span className="text-slate-300">—</span>}
-                </td>
-                <td className="px-2 py-1.5 text-right">
-                  {row.lot_id ? (
-                    <>
-                      <div className="text-sm font-bold text-slate-800">
-                        {formatNumber(row.saldo * (Number(row.package_size) || 1))}{row.package_unit ? ` ${row.package_unit}` : ''}
-                      </div>
-                      <div className="text-[10px] font-semibold text-slate-400">{formatNumber(row.saldo)} env</div>
-                    </>
-                  ) : <span className="text-slate-300">—</span>}
                 </td>
                 <td className="px-2 py-1">
                   <input
@@ -491,7 +482,6 @@ export default function NuevaSalida() {
           <tfoot>
             <tr className="border-t-2 border-slate-200 bg-slate-50">
               <td colSpan={5} className="px-3 py-2.5 text-xs font-black uppercase text-slate-500">Totales</td>
-              <td className="px-3 py-2.5"><span className="text-sm text-slate-300">—</span></td>
               {['uds', 'cajas', 'galones', 'bidones', 'tambores', 'pallets'].map((f) => (
                 <td key={f} className="px-2 py-2.5 text-right text-sm font-black text-slate-950">
                   {f === 'cajas'
