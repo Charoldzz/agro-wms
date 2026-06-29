@@ -363,7 +363,7 @@ export default function NuevaSalida() {
       )}
 
       <div className="mb-4 overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm">
-        <table className="w-full border-collapse" style={{ minWidth: '1008px' }}>
+        <table className="w-full border-collapse" style={{ minWidth: '1008px', tableLayout: 'fixed' }}>
           <thead>
             <tr className="bg-campo-700 text-white">
               <th className="border-b border-campo-600 px-2 py-2.5 text-center text-xs font-bold uppercase tracking-wide" style={{width:'36px'}}>N°</th>

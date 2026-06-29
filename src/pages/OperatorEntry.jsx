@@ -407,7 +407,7 @@ export default function OperatorEntry() {
 
       {/* ── Tabla desktop ── */}
       <div className="mb-4 hidden overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm sm:block" ref={tableRef}>
-        <table className="w-full border-collapse" style={{ minWidth: '1080px' }}>
+        <table className="w-full border-collapse" style={{ minWidth: '1080px', tableLayout: 'fixed' }}>
           <thead>
             <tr className="bg-campo-700 text-white">
               <th className="border-b border-campo-600 px-2 py-2.5 text-center text-xs font-bold uppercase tracking-wide" style={{width:'36px'}}>N°</th>
