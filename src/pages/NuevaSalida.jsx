@@ -41,9 +41,7 @@ function lotOptionLabel(lot) {
   const pkgSize = Number(lot.package_size) || 1
   const total = lot.current_quantity * pkgSize
   const unit = lot.package_unit || ''
-  const saldo = unit
-    ? `${formatNumber(total)} ${unit} (${formatNumber(lot.current_quantity)} env)`
-    : formatNumber(lot.current_quantity)
+  const saldo = unit ? `${formatNumber(total)} ${unit}` : formatNumber(lot.current_quantity)
   return `${cleanProductName(lot.product)}   [Lote: ${lote}]   ${saldo}`
 }
 
@@ -397,7 +395,7 @@ export default function NuevaSalida() {
                         <div className="truncate text-sm font-semibold text-slate-900" title={row.product}>{row.product}</div>
                         {row.package_unit && (
                           <div className="text-[10px] font-semibold text-slate-400">
-                            {formatNumber(row.saldo * (Number(row.package_size) || 1))} {row.package_unit} disponibles ({formatNumber(row.saldo)} env)
+                            {formatNumber(row.saldo * (Number(row.package_size) || 1))} {row.package_unit} disponibles
                           </div>
                         )}
                       </div>
@@ -479,21 +477,6 @@ export default function NuevaSalida() {
               </tr>
             ))}
           </tbody>
-          <tfoot>
-            <tr className="border-t-2 border-slate-200 bg-slate-50">
-              <td colSpan={5} className="px-3 py-2.5 text-xs font-black uppercase text-slate-500">Totales</td>
-              {['uds', 'cajas', 'galones', 'bidones', 'tambores', 'pallets'].map((f) => (
-                <td key={f} className="px-2 py-2.5 text-right text-sm font-black text-slate-950">
-                  {f === 'cajas'
-                    ? fieldTotals.cajas > 0
-                      ? <>{formatNumber(fieldTotals.cajas)}{fieldTotals.cajas_rem > 0 ? <span className="text-xs font-bold text-campo-600"> +{fieldTotals.cajas_rem}u</span> : null}</>
-                      : <span className="text-slate-300">—</span>
-                    : fieldTotals[f] > 0 ? formatNumber(fieldTotals[f]) : <span className="text-slate-300">—</span>}
-                </td>
-              ))}
-              <td />
-            </tr>
-          </tfoot>
         </table>
       </div>
 

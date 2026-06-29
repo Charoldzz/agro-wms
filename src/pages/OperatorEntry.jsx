@@ -478,16 +478,6 @@ export default function OperatorEntry() {
                     onFocus={() => setSelectedIdx(i)}
                     placeholder="0"
                   />
-                  {(() => {
-                    const { unit } = parseProductUnit(row.product)
-                    if (!unit || !Number(row.cantidad)) return null
-                    return (
-                      <>
-                        <div className="text-right text-[10px] font-bold text-slate-400">{unit}</div>
-                        {Number(row.uds) > 0 && <div className="text-right text-[10px] font-semibold text-slate-400">{row.uds} env</div>}
-                      </>
-                    )
-                  })()}
                 </td>
                 {['uds', 'cajas', 'galones', 'bidones', 'tambores', 'pallets'].map((field) => (
                   <td key={field} className="px-2 py-1">
@@ -520,24 +510,6 @@ export default function OperatorEntry() {
               </tr>
             ))}
           </tbody>
-          <tfoot>
-            <tr className="border-t-2 border-slate-200 bg-slate-50">
-              <td colSpan={4} className="px-3 py-2.5 text-xs font-black uppercase text-slate-500">Totales</td>
-              <td className="px-3 py-2.5">
-                <span className="text-sm text-slate-300">—</span>
-              </td>
-              {['uds', 'cajas', 'galones', 'bidones', 'tambores', 'pallets'].map((f) => (
-                <td key={f} className="px-2 py-2.5 text-right text-sm font-black text-slate-950">
-                  {f === 'cajas'
-                    ? fieldTotals.cajas > 0
-                      ? <>{formatNumber(fieldTotals.cajas)}{fieldTotals.cajas_rem > 0 ? <span className="text-xs font-bold text-campo-600"> +{fieldTotals.cajas_rem}u</span> : null}</>
-                      : <span className="text-slate-300">—</span>
-                    : fieldTotals[f] > 0 ? formatNumber(fieldTotals[f]) : <span className="text-slate-300">—</span>}
-                </td>
-              ))}
-              <td />
-            </tr>
-          </tfoot>
         </table>
       </div>
 
