@@ -19,10 +19,9 @@ const clienteNavItems = [
 ]
 
 const operadorNavItems = [
-  { to: '/lotes',             label: 'Almacenes',  icon: Boxes },
-  { to: '/operacion/salidas', label: 'Salidas',    icon: LogOut },
-  { to: '/movimientos',       label: 'Movimientos', icon: ClipboardList },
-  { to: '/kardex',            label: 'Kardex',      icon: BarChart2 },
+  { to: '/lotes',       label: 'Almacenes',  icon: Boxes },
+  { to: '/movimientos', label: 'Movimientos', icon: ClipboardList },
+  { to: '/kardex',      label: 'Kardex',      icon: BarChart2 },
 ]
 
 export default function AppLayout() {
