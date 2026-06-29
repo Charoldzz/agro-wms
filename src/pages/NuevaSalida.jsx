@@ -465,7 +465,7 @@ export default function NuevaSalida() {
         <table className="w-full border-collapse" style={{ minWidth: '1008px', tableLayout: 'fixed' }}>
           <thead>
             <tr className="bg-campo-700 text-white">
-              <th className="border-b border-campo-600 px-2 py-2.5 text-center text-xs font-bold uppercase tracking-wide" style={{width:'36px'}}>N°</th>
+              <th className="border-b border-campo-600 px-2 py-2.5 text-center text-xs font-bold uppercase tracking-wide" style={{width:'40px'}}>{isRequestMode ? '✓' : 'N°'}</th>
               <th className="border-b border-campo-600 px-2 py-2.5 text-left text-xs font-bold uppercase tracking-wide">PRODUCTO</th>
               <th className="border-b border-campo-600 px-2 py-2.5 text-center text-xs font-bold uppercase tracking-wide" style={{width:'100px'}}>LOTE</th>
               <th className="border-b border-campo-600 px-2 py-2.5 text-center text-xs font-bold uppercase tracking-wide" style={{width:'110px'}}>VENC</th>
@@ -476,7 +476,7 @@ export default function NuevaSalida() {
               <th className="border-b border-campo-600 px-2 py-2.5 text-right text-xs font-bold uppercase tracking-wide" style={{width:'72px'}}>BIDONES</th>
               <th className="border-b border-campo-600 px-2 py-2.5 text-right text-xs font-bold uppercase tracking-wide" style={{width:'78px'}}>TAMBORES</th>
               <th className="border-b border-campo-600 px-2 py-2.5 text-right text-xs font-bold uppercase tracking-wide" style={{width:'68px'}}>PALLETS</th>
-              <th className="border-b border-campo-600 px-1 py-2.5 text-center text-xs font-bold uppercase tracking-wide" style={{width:'40px'}}>{isRequestMode ? '✓' : ''}</th>
+              {!isRequestMode && <th className="border-b border-campo-600 px-1 py-2.5" style={{width:'32px'}}></th>}
             </tr>
           </thead>
           <tbody>
@@ -492,7 +492,24 @@ export default function NuevaSalida() {
                 }`}
                 onClick={() => setSelectedIdx(i)}
               >
-                <td className="px-2 py-1 text-center text-sm font-bold text-slate-500">{i + 1}</td>
+                <td className="px-1 py-1 text-center">
+                  {isRequestMode ? (
+                    <button
+                      type="button"
+                      className={`mx-auto flex h-8 w-8 items-center justify-center rounded-full transition-all ${
+                        row.confirmed
+                          ? 'bg-campo-600 text-white shadow-sm'
+                          : 'border-2 border-slate-300 text-slate-300 hover:border-campo-500 hover:text-campo-500'
+                      }`}
+                      onClick={(e) => { e.stopPropagation(); updateRow(row.id, 'confirmed', !row.confirmed) }}
+                      title={row.confirmed ? 'Quitar confirmación' : 'Confirmar producto'}
+                    >
+                      <CheckCircle2 size={16} />
+                    </button>
+                  ) : (
+                    <span className="text-sm font-bold text-slate-500">{i + 1}</span>
+                  )}
+                </td>
                 <td className="px-2 py-1">
                   {row.lot_id ? (
                     <div className="flex min-w-0 items-center gap-1">
@@ -577,21 +594,8 @@ export default function NuevaSalida() {
                     )}
                   </td>
                 ))}
-                <td className="px-1 py-1 text-center">
-                  {isRequestMode ? (
-                    <button
-                      type="button"
-                      className={`mx-auto flex h-8 w-8 items-center justify-center rounded-full transition-all ${
-                        row.confirmed
-                          ? 'bg-campo-600 text-white shadow-sm'
-                          : 'border-2 border-slate-300 text-slate-300 hover:border-campo-500 hover:text-campo-500'
-                      }`}
-                      onClick={(e) => { e.stopPropagation(); updateRow(row.id, 'confirmed', !row.confirmed) }}
-                      title={row.confirmed ? 'Quitar confirmación' : 'Confirmar producto'}
-                    >
-                      <CheckCircle2 size={16} />
-                    </button>
-                  ) : (
+                {!isRequestMode && (
+                  <td className="px-1 py-1 text-center">
                     <button
                       type="button"
                       className="flex h-7 w-7 items-center justify-center rounded text-slate-300 hover:bg-red-50 hover:text-red-500 disabled:opacity-30"
@@ -600,8 +604,8 @@ export default function NuevaSalida() {
                     >
                       <Trash2 size={13} />
                     </button>
-                  )}
-                </td>
+                  </td>
+                )}
               </tr>
             ))}
           </tbody>
