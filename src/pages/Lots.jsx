@@ -153,7 +153,7 @@ export default function Lots() {
           </Link>
           <Link
             className="inline-flex min-h-20 flex-col items-start justify-between gap-2 rounded-lg bg-maiz px-5 py-4 text-left text-lg font-semibold text-slate-950 shadow-soft transition active:scale-[0.99] sm:min-h-24"
-            to="/nueva-salida"
+            to="/operacion/salidas"
           >
             <LogOut size={26} className="opacity-70" />
             <span>Salida</span>

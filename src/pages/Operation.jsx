@@ -134,7 +134,7 @@ export default function Operation() {
             </p>
           </div>
         )}
-        <Link className="btn-primary mt-3 w-full !min-h-11 !py-2" to={`/operacion/despacho-lista?request=${request.id}`}>Iniciar despacho</Link>
+        <Link className="btn-primary mt-3 w-full !min-h-11 !py-2" to={`/nueva-salida?request=${request.id}`}>Iniciar despacho</Link>
       </article>
     ))
   }
