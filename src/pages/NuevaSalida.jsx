@@ -47,7 +47,10 @@ export default function NuevaSalida() {
   const [clients, setClients] = useState([])
   const [clientId, setClientId] = useState('')
   const [guiaPreview, setGuiaPreview] = useState('')
-  const [concepto, setConcepto] = useState('Salida de producto')
+  const [contacto, setContacto] = useState('')
+  const [transportista, setTransportista] = useState('')
+  const [placa, setPlaca] = useState('')
+  const [observaciones, setObservaciones] = useState('')
   const [lotesAutomaticos, setLotesAutomaticos] = useState(false)
   const [lots, setLots] = useState([])
   const [rows, setRows] = useState([emptyRow()])
@@ -75,7 +78,10 @@ export default function NuevaSalida() {
         const saved = localStorage.getItem(DRAFT_KEY)
         if (saved) {
           const d = JSON.parse(saved)
-          if (d.concepto) setConcepto(d.concepto)
+          if (d.contacto) setContacto(d.contacto)
+          if (d.transportista) setTransportista(d.transportista)
+          if (d.placa) setPlaca(d.placa)
+          if (d.observaciones) setObservaciones(d.observaciones)
           if (d.rows?.length) setRows(d.rows)
           if (d.clientId) {
             restoringRef.current = true
@@ -90,8 +96,8 @@ export default function NuevaSalida() {
 
   // Guardar borrador en cada cambio
   useEffect(() => {
-    localStorage.setItem(DRAFT_KEY, JSON.stringify({ clientId, concepto, rows }))
-  }, [clientId, concepto, rows])
+    localStorage.setItem(DRAFT_KEY, JSON.stringify({ clientId, contacto, transportista, placa, observaciones, rows }))
+  }, [clientId, contacto, transportista, placa, observaciones, rows])
 
   useEffect(() => { loadClients() }, [])
 
@@ -201,6 +207,9 @@ export default function NuevaSalida() {
   async function save() {
     setError('')
     if (!clientId) { setError('Selecciona la empresa.'); return }
+    if (!transportista.trim()) { setError('El transportista es obligatorio.'); return }
+    if (!contacto.trim()) { setError('El contacto es obligatorio.'); return }
+    if (!placa.trim()) { setError('La placa es obligatoria.'); return }
     const validRows = rows.filter((r) => r.lot_id && Number(r.quantity || 0) > 0)
     if (validRows.length === 0) { setError('Agrega al menos un item con lote y cantidad.'); return }
 
@@ -219,10 +228,10 @@ export default function NuevaSalida() {
 
       const { error: rpcError } = await supabase.rpc('create_dispatch_operation', {
         p_client_id: clientId,
-        p_receiver_name: concepto || 'Salida de producto',
-        p_receiver_document: '',
-        p_vehicle_plate: null,
-        p_notes: concepto.trim() || null,
+        p_receiver_name: transportista.trim(),
+        p_receiver_document: contacto.trim(),
+        p_vehicle_plate: placa.trim() || null,
+        p_notes: observaciones.trim() || null,
         p_items: operationItems,
         p_request_id: null,
         p_user_id: user.id,
@@ -268,8 +277,20 @@ export default function NuevaSalida() {
           <div className="input mt-1 cursor-not-allowed select-none bg-slate-100 font-mono font-bold text-campo-700">{guiaPreview || '...'}</div>
         </div>
         <label className="block">
-          <span className="label">Concepto</span>
-          <input className="input mt-1" value={concepto} onChange={(e) => setConcepto(e.target.value)} />
+          <span className="label">Contacto</span>
+          <input className="input mt-1" value={contacto} onChange={(e) => setContacto(e.target.value)} placeholder="Teléfono o CI" />
+        </label>
+        <label className="block">
+          <span className="label">Transportista</span>
+          <input className="input mt-1" value={transportista} onChange={(e) => setTransportista(e.target.value)} />
+        </label>
+        <label className="block">
+          <span className="label">Placa</span>
+          <input className="input mt-1 uppercase" value={placa} onChange={(e) => setPlaca(e.target.value.toUpperCase())} />
+        </label>
+        <label className="block sm:col-span-2">
+          <span className="label">Observaciones</span>
+          <input className="input mt-1" value={observaciones} onChange={(e) => setObservaciones(e.target.value)} />
         </label>
       </section>
 
