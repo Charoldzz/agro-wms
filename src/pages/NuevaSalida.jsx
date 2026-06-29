@@ -19,7 +19,16 @@ function emptyRow() {
     lot_code: '',
     expiry_date: '',
     saldo: 0,
-    quantity: '',
+    package_size: 1,
+    package_unit: '',
+    cantidad: '',
+    uds: '',
+    cajas: '',
+    cajas_rem: '',
+    galones: '',
+    bidones: '',
+    tambores: '',
+    pallets: '',
   }
 }
 
@@ -51,8 +60,8 @@ export default function NuevaSalida() {
   const [transportista, setTransportista] = useState('')
   const [placa, setPlaca] = useState('')
   const [observaciones, setObservaciones] = useState('')
-  const [lotesAutomaticos, setLotesAutomaticos] = useState(false)
   const [lots, setLots] = useState([])
+  const [catalogMap, setCatalogMap] = useState(new Map())
   const [rows, setRows] = useState([emptyRow()])
   const [selectedIdx, setSelectedIdx] = useState(0)
   const [saving, setSaving] = useState(false)
@@ -133,15 +142,26 @@ export default function NuevaSalida() {
   function clearDraft() { localStorage.removeItem(DRAFT_KEY) }
 
   async function loadClientLots(cid) {
-    const { data } = await supabase
-      .from('lots')
-      .select('id, product, lot_code, expiry_date, current_quantity, location')
-      .eq('inventory_source', 'stock_independiente')
-      .eq('client_id', cid)
-      .gt('current_quantity', 0)
-      .order('product')
-      .order('expiry_date', { ascending: true, nullsFirst: false })
-    setLots(data || [])
+    const [{ data: lotsData }, { data: catalogData }] = await Promise.all([
+      supabase
+        .from('lots')
+        .select('id, product, lot_code, expiry_date, current_quantity, location, package_size, package_unit')
+        .eq('inventory_source', 'stock_independiente')
+        .eq('client_id', cid)
+        .gt('current_quantity', 0)
+        .order('product')
+        .order('expiry_date', { ascending: true, nullsFirst: false }),
+      supabase
+        .from('product_catalog')
+        .select('name, units_per_box')
+        .eq('client_id', cid),
+    ])
+    const map = new Map()
+    ;(catalogData || []).forEach((p) => {
+      if (p.units_per_box && p.name) map.set(p.name.toUpperCase(), p.units_per_box)
+    })
+    setCatalogMap(map)
+    setLots(lotsData || [])
     if (!restoringRef.current) setRows([emptyRow()])
     restoringRef.current = false
   }
@@ -174,18 +194,28 @@ export default function NuevaSalida() {
     const lot = lots.find((l) => l.id === lotId)
     if (!lot) return
     setRows((r) =>
-      r.map((row) =>
-        row.id === rowId
-          ? {
-              ...row,
-              lot_id: lot.id,
-              product: cleanProductName(lot.product),
-              lot_code: displayLotCode(lot.lot_code),
-              expiry_date: lot.expiry_date || '',
-              saldo: lot.current_quantity,
-            }
-          : row,
-      ),
+      r.map((row) => {
+        if (row.id !== rowId) return row
+        const product = cleanProductName(lot.product)
+        const pkgSize = Number(lot.package_size) || 1
+        const qty = Number(row.cantidad || 0)
+        const uds = qty > 0 ? Math.round(qty / pkgSize) : 0
+        const upb = catalogMap.get(product.toUpperCase()) || 0
+        const cajas = upb > 0 && uds > 0 ? Math.floor(uds / upb) : 0
+        return {
+          ...row,
+          lot_id: lot.id,
+          product,
+          lot_code: displayLotCode(lot.lot_code),
+          expiry_date: lot.expiry_date || '',
+          saldo: lot.current_quantity,
+          package_size: pkgSize,
+          package_unit: lot.package_unit || '',
+          uds: uds > 0 ? String(uds) : row.uds,
+          cajas: upb > 0 && uds > 0 ? String(cajas) : row.cajas,
+          cajas_rem: upb > 0 && uds > 0 ? String(uds % upb) : '',
+        }
+      }),
     )
   }
 
@@ -193,16 +223,36 @@ export default function NuevaSalida() {
     setRows((r) => r.map((row) => row.id === rowId ? { ...emptyRow(), id: rowId } : row))
   }
 
-  function updateQuantity(rowId, value) {
-    const v = value.replace(',', '.')
-    if (/^\d*\.?\d*$/.test(v))
-      setRows((r) => r.map((row) => row.id === rowId ? { ...row, quantity: v } : row))
+  function updateRow(id, field, value) {
+    setRows((r) => r.map((row) => (row.id === id ? { ...row, [field]: value } : row)))
   }
 
-  const totalQuantity = useMemo(
-    () => rows.reduce((sum, r) => sum + Number(r.quantity || 0), 0),
-    [rows],
-  )
+  function updateCantidad(rowId, value) {
+    const v = value.replace(',', '.')
+    if (!/^\d*\.?\d*$/.test(v)) return
+    const qty = Number(v || 0)
+    setRows((r) => r.map((row) => {
+      if (row.id !== rowId) return row
+      const pkgSize = Number(row.package_size) || 1
+      const uds = pkgSize > 0 && qty > 0 ? Math.round(qty / pkgSize) : (qty > 0 ? qty : 0)
+      const upb = catalogMap.get((row.product || '').toUpperCase()) || 0
+      const cajas = upb > 0 && uds > 0 ? Math.floor(uds / upb) : 0
+      return {
+        ...row,
+        cantidad: v,
+        uds: uds > 0 ? String(uds) : '',
+        cajas: upb > 0 && uds > 0 ? String(cajas) : row.cajas,
+        cajas_rem: upb > 0 && uds > 0 ? String(uds % upb) : '',
+      }
+    }))
+  }
+
+  const fieldTotals = useMemo(() => {
+    const fields = ['uds', 'cajas', 'galones', 'bidones', 'tambores', 'pallets']
+    const totals = Object.fromEntries(fields.map((f) => [f, rows.reduce((sum, r) => sum + Number(r[f] || 0), 0)]))
+    totals.cajas_rem = rows.reduce((sum, r) => sum + Number(r.cajas_rem || 0), 0)
+    return totals
+  }, [rows])
 
   async function save() {
     setError('')
@@ -210,12 +260,12 @@ export default function NuevaSalida() {
     if (!transportista.trim()) { setError('El transportista es obligatorio.'); return }
     if (!contacto.trim()) { setError('El contacto es obligatorio.'); return }
     if (!placa.trim()) { setError('La placa es obligatoria.'); return }
-    const validRows = rows.filter((r) => r.lot_id && Number(r.quantity || 0) > 0)
+    const validRows = rows.filter((r) => r.lot_id && Number(r.uds || 0) > 0)
     if (validRows.length === 0) { setError('Agrega al menos un item con lote y cantidad.'); return }
 
-    const overStock = validRows.find((r) => Number(r.quantity) > Number(r.saldo))
+    const overStock = validRows.find((r) => Number(r.uds) > Number(r.saldo))
     if (overStock) {
-      setError(`Cantidad excede el saldo disponible para: ${overStock.product} (saldo: ${formatNumber(overStock.saldo)}).`)
+      setError(`Cantidad excede el saldo disponible para: ${overStock.product} (saldo: ${formatNumber(overStock.saldo)} uds).`)
       return
     }
 
@@ -223,7 +273,7 @@ export default function NuevaSalida() {
     try {
       const operationItems = validRows.map((r) => ({
         lot_id: r.lot_id,
-        quantity: Number(r.quantity),
+        quantity: Number(r.uds),
       }))
 
       const { error: rpcError } = await supabase.rpc('create_dispatch_operation', {
@@ -294,34 +344,19 @@ export default function NuevaSalida() {
         </label>
       </section>
 
-      <div className="mb-3 flex flex-wrap items-center gap-3">
-        <button className="btn-primary !min-h-10 !px-4 !py-2 text-sm" type="button" onClick={addRow} disabled={!clientId}>
-          <Plus size={17} /> Agregar item (F12)
+      <div className="mb-3 flex flex-wrap items-center gap-2">
+        <button className="btn-primary !min-h-10 !px-4 !py-2 text-sm" type="button" onClick={addRow}>
+          <Plus size={17} /> Agregar item <span className="hidden sm:inline">(F12)</span>
         </button>
         <button
-          className="btn-secondary !min-h-10 !px-4 !py-2 text-sm"
+          className="btn-secondary hidden !min-h-10 !px-4 !py-2 text-sm sm:flex"
           type="button"
           onClick={removeSelectedRow}
           disabled={rows.length <= 1}
         >
           <Trash2 size={17} /> Quitar seleccionado (F10)
         </button>
-        <label className="flex cursor-pointer items-center gap-2 text-sm font-semibold text-slate-700">
-          <input
-            type="checkbox"
-            className="h-4 w-4 rounded accent-campo-700"
-            checked={lotesAutomaticos}
-            onChange={(e) => setLotesAutomaticos(e.target.checked)}
-          />
-          Lotes automáticos
-        </label>
       </div>
-
-      {!clientId && (
-        <div className="mb-4 rounded-lg bg-slate-50 p-3 text-sm font-semibold text-slate-500">
-          Selecciona la empresa para ver los lotes disponibles.
-        </div>
-      )}
 
       {clientId && lots.length === 0 && (
         <div className="mb-4 rounded-lg bg-amber-50 p-3 text-sm font-semibold text-amber-700">
@@ -330,25 +365,22 @@ export default function NuevaSalida() {
       )}
 
       <div className="mb-4 overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm">
-        <table className="w-full border-collapse" style={{ minWidth: '680px' }}>
-          <colgroup>
-            <col style={{ width: '40px' }} />
-            <col />
-            <col style={{ width: '105px' }} />
-            <col style={{ width: '110px' }} />
-            <col style={{ width: '80px' }} />
-            <col style={{ width: '90px' }} />
-            <col style={{ width: '34px' }} />
-          </colgroup>
+        <table className="w-full border-collapse" style={{ minWidth: '1080px' }}>
           <thead>
             <tr className="bg-campo-700 text-white">
-              <th className="border-b border-campo-600 px-3 py-2.5 text-center text-xs font-bold uppercase tracking-wide">N°</th>
-              <th className="border-b border-campo-600 px-3 py-2.5 text-left text-xs font-bold uppercase tracking-wide">PRODUCTO</th>
-              <th className="border-b border-campo-600 px-3 py-2.5 text-center text-xs font-bold uppercase tracking-wide">LOTE</th>
-              <th className="border-b border-campo-600 px-3 py-2.5 text-center text-xs font-bold uppercase tracking-wide">VENC</th>
-              <th className="border-b border-campo-600 px-3 py-2.5 text-right text-xs font-bold uppercase tracking-wide">SALDO</th>
-              <th className="border-b border-campo-600 px-3 py-2.5 text-right text-xs font-bold uppercase tracking-wide">CANTIDAD</th>
-              <th className="border-b border-campo-600 px-1 py-2.5"></th>
+              <th className="border-b border-campo-600 px-2 py-2.5 text-center text-xs font-bold uppercase tracking-wide" style={{width:'36px'}}>N°</th>
+              <th className="border-b border-campo-600 px-2 py-2.5 text-left text-xs font-bold uppercase tracking-wide">PRODUCTO</th>
+              <th className="border-b border-campo-600 px-2 py-2.5 text-center text-xs font-bold uppercase tracking-wide" style={{width:'100px'}}>LOTE</th>
+              <th className="border-b border-campo-600 px-2 py-2.5 text-center text-xs font-bold uppercase tracking-wide" style={{width:'110px'}}>VENC</th>
+              <th className="border-b border-campo-600 px-2 py-2.5 text-right text-xs font-bold uppercase tracking-wide" style={{width:'72px'}}>SALDO</th>
+              <th className="border-b border-campo-600 px-2 py-2.5 text-right text-xs font-bold uppercase tracking-wide" style={{width:'80px'}}>CANTIDAD</th>
+              <th className="border-b border-campo-600 px-2 py-2.5 text-right text-xs font-bold uppercase tracking-wide" style={{width:'64px'}}>UDS</th>
+              <th className="border-b border-campo-600 px-2 py-2.5 text-right text-xs font-bold uppercase tracking-wide" style={{width:'64px'}}>CAJAS</th>
+              <th className="border-b border-campo-600 px-2 py-2.5 text-right text-xs font-bold uppercase tracking-wide" style={{width:'72px'}}>GALONES</th>
+              <th className="border-b border-campo-600 px-2 py-2.5 text-right text-xs font-bold uppercase tracking-wide" style={{width:'72px'}}>BIDONES</th>
+              <th className="border-b border-campo-600 px-2 py-2.5 text-right text-xs font-bold uppercase tracking-wide" style={{width:'78px'}}>TAMBORES</th>
+              <th className="border-b border-campo-600 px-2 py-2.5 text-right text-xs font-bold uppercase tracking-wide" style={{width:'68px'}}>PALLETS</th>
+              <th className="border-b border-campo-600 px-1 py-2.5" style={{width:'32px'}}></th>
             </tr>
           </thead>
           <tbody>
@@ -358,7 +390,7 @@ export default function NuevaSalida() {
                 className={`cursor-pointer border-b border-slate-100 transition-colors ${selectedIdx === i ? 'bg-blue-50 ring-1 ring-inset ring-blue-200' : 'hover:bg-slate-50'}`}
                 onClick={() => setSelectedIdx(i)}
               >
-                <td className="px-3 py-1.5 text-center text-sm font-bold text-slate-500">{i + 1}</td>
+                <td className="px-2 py-1 text-center text-sm font-bold text-slate-500">{i + 1}</td>
                 <td className="px-2 py-1">
                   {row.lot_id ? (
                     <div className="flex min-w-0 items-center gap-1">
@@ -389,35 +421,56 @@ export default function NuevaSalida() {
                     </select>
                   )}
                 </td>
-                <td className="px-3 py-1.5 text-center text-sm font-semibold text-slate-700">
+                <td className="px-2 py-1.5 text-center text-sm font-semibold text-slate-700">
                   {row.lot_code || <span className="text-slate-300">—</span>}
                 </td>
-                <td className="px-3 py-1.5 text-center text-sm font-semibold text-slate-700">
+                <td className="px-2 py-1.5 text-center text-sm font-semibold text-slate-700">
                   {row.expiry_date
                     ? new Intl.DateTimeFormat('es-BO', { day: '2-digit', month: 'short', year: 'numeric' }).format(new Date(`${row.expiry_date}T00:00:00`))
                     : <span className="text-slate-300">—</span>}
                 </td>
-                <td className="px-3 py-1.5 text-right text-sm font-semibold text-slate-500">
+                <td className="px-2 py-1.5 text-right text-sm font-semibold text-slate-500">
                   {row.lot_id ? formatNumber(row.saldo) : <span className="text-slate-300">—</span>}
                 </td>
                 <td className="px-2 py-1">
                   <input
-                    className="w-full rounded border border-transparent bg-transparent px-1.5 py-1 text-right text-sm font-bold focus:border-campo-400 focus:bg-white focus:outline-none"
+                    className="w-full rounded border border-transparent bg-transparent px-1.5 py-1 text-right text-sm font-bold focus:border-campo-400 focus:bg-white focus:outline-none disabled:opacity-30"
                     inputMode="decimal"
-                    value={row.quantity}
-                    onChange={(e) => updateQuantity(row.id, e.target.value)}
+                    value={row.cantidad}
+                    onChange={(e) => updateCantidad(row.id, e.target.value)}
                     onFocus={() => setSelectedIdx(i)}
                     placeholder="0"
                     disabled={!row.lot_id}
                   />
+                  {row.package_unit && Number(row.cantidad) > 0 && (
+                    <div className="text-right text-[10px] font-bold text-slate-400">{row.package_unit}</div>
+                  )}
                 </td>
+                {['uds', 'cajas', 'galones', 'bidones', 'tambores', 'pallets'].map((field) => (
+                  <td key={field} className="px-2 py-1">
+                    <input
+                      className="w-full rounded border border-transparent bg-transparent px-1.5 py-1 text-right text-sm focus:border-campo-400 focus:bg-white focus:outline-none disabled:opacity-30"
+                      inputMode="decimal"
+                      value={row[field]}
+                      onChange={(e) => {
+                        const v = e.target.value.replace(',', '.')
+                        if (/^\d*\.?\d*$/.test(v)) updateRow(row.id, field, v)
+                      }}
+                      onFocus={() => setSelectedIdx(i)}
+                      placeholder="0"
+                      disabled={!row.lot_id}
+                    />
+                    {field === 'cajas' && Number(row.cajas_rem) > 0 && (
+                      <div className="text-right text-[10px] font-bold text-campo-600">+{row.cajas_rem}u</div>
+                    )}
+                  </td>
+                ))}
                 <td className="px-1 py-1 text-center">
                   <button
                     type="button"
                     className="flex h-7 w-7 items-center justify-center rounded text-slate-300 hover:bg-red-50 hover:text-red-500 disabled:opacity-30"
                     onClick={(e) => { e.stopPropagation(); removeRow(row.id) }}
                     disabled={rows.length <= 1}
-                    title="Eliminar fila"
                   >
                     <Trash2 size={13} />
                   </button>
@@ -427,8 +480,17 @@ export default function NuevaSalida() {
           </tbody>
           <tfoot>
             <tr className="border-t-2 border-slate-200 bg-slate-50">
-              <td colSpan={5} className="px-3 py-2.5 text-sm font-black uppercase text-slate-600">Total cantidad:</td>
-              <td className="px-3 py-2.5 text-right text-sm font-black text-slate-950">{formatNumber(totalQuantity)}</td>
+              <td colSpan={5} className="px-3 py-2.5 text-xs font-black uppercase text-slate-500">Totales</td>
+              <td className="px-3 py-2.5"><span className="text-sm text-slate-300">—</span></td>
+              {['uds', 'cajas', 'galones', 'bidones', 'tambores', 'pallets'].map((f) => (
+                <td key={f} className="px-2 py-2.5 text-right text-sm font-black text-slate-950">
+                  {f === 'cajas'
+                    ? fieldTotals.cajas > 0
+                      ? <>{formatNumber(fieldTotals.cajas)}{fieldTotals.cajas_rem > 0 ? <span className="text-xs font-bold text-campo-600"> +{fieldTotals.cajas_rem}u</span> : null}</>
+                      : <span className="text-slate-300">—</span>
+                    : fieldTotals[f] > 0 ? formatNumber(fieldTotals[f]) : <span className="text-slate-300">—</span>}
+                </td>
+              ))}
               <td />
             </tr>
           </tfoot>
