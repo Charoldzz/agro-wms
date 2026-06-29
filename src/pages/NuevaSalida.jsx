@@ -46,7 +46,7 @@ function lotOptionLabel(lot) {
   const pkgSize = Number(lot.package_size) || 1
   const total = lot.current_quantity * pkgSize
   const unit = lot.package_unit || ''
-  const saldo = unit ? `${formatNumber(total)} ${unit}` : formatNumber(lot.current_quantity)
+  const saldo = unit ? `${formatNumber(total)} ${unit}  (${formatNumber(lot.current_quantity)} env)` : formatNumber(lot.current_quantity)
   return `${cleanProductName(lot.product)}   Lote: ${lote}   Venc: ${venc}   Saldo: ${saldo}`
 }
 
@@ -432,8 +432,15 @@ export default function NuevaSalida() {
                     ? new Intl.DateTimeFormat('es-BO', { day: '2-digit', month: 'short', year: 'numeric' }).format(new Date(`${row.expiry_date}T00:00:00`))
                     : <span className="text-slate-300">—</span>}
                 </td>
-                <td className="px-2 py-1.5 text-right text-sm font-semibold text-slate-500">
-                  {row.lot_id ? formatNumber(row.saldo) : <span className="text-slate-300">—</span>}
+                <td className="px-2 py-1.5 text-right">
+                  {row.lot_id ? (
+                    <>
+                      <div className="text-sm font-bold text-slate-800">
+                        {formatNumber(row.saldo * (Number(row.package_size) || 1))}{row.package_unit ? ` ${row.package_unit}` : ''}
+                      </div>
+                      <div className="text-[10px] font-semibold text-slate-400">{formatNumber(row.saldo)} env</div>
+                    </>
+                  ) : <span className="text-slate-300">—</span>}
                 </td>
                 <td className="px-2 py-1">
                   <input

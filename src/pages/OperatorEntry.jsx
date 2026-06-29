@@ -478,7 +478,16 @@ export default function OperatorEntry() {
                     onFocus={() => setSelectedIdx(i)}
                     placeholder="0"
                   />
-                  {(() => { const { unit } = parseProductUnit(row.product); return unit && Number(row.cantidad) > 0 ? <div className="text-right text-[10px] font-bold text-slate-400">{unit}</div> : null })()}
+                  {(() => {
+                    const { unit } = parseProductUnit(row.product)
+                    if (!unit || !Number(row.cantidad)) return null
+                    return (
+                      <>
+                        <div className="text-right text-[10px] font-bold text-slate-400">{unit}</div>
+                        {Number(row.uds) > 0 && <div className="text-right text-[10px] font-semibold text-slate-400">{row.uds} env</div>}
+                      </>
+                    )
+                  })()}
                 </td>
                 {['uds', 'cajas', 'galones', 'bidones', 'tambores', 'pallets'].map((field) => (
                   <td key={field} className="px-2 py-1">
