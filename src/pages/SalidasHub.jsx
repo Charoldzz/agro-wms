@@ -102,7 +102,7 @@ export default function SalidasHub() {
                 )}
 
                 <Link className="btn-primary w-full !min-h-10 !py-2 text-sm" to={`/nueva-salida?request=${req.id}`}>
-                  <LogOut size={16} /> Iniciar despacho
+                  <LogOut size={16} /> {req.status === 'en_preparacion' ? 'Continuar despacho' : 'Iniciar despacho'}
                 </Link>
               </div>
             )

@@ -19,10 +19,10 @@ const clienteNavItems = [
 ]
 
 const operadorNavItems = [
-  { to: '/lotes',       label: 'Almacenes',  icon: Boxes },
-  { to: '/solicitudes', label: 'Solicitudes', icon: Truck },
-  { to: '/movimientos', label: 'Movimientos', icon: ClipboardList },
-  { to: '/kardex',      label: 'Kardex',      icon: BarChart2 },
+  { to: '/lotes',             label: 'Almacenes',  icon: Boxes },
+  { to: '/operacion/salidas', label: 'Salidas',    icon: LogOut },
+  { to: '/movimientos',       label: 'Movimientos', icon: ClipboardList },
+  { to: '/kardex',            label: 'Kardex',      icon: BarChart2 },
 ]
 
 export default function AppLayout() {
@@ -40,7 +40,7 @@ export default function AppLayout() {
       : profile?.role === 'cliente'
         ? clienteNavItems
         : adminNavItems
-  const mainTabPaths = new Set(['/', '/operacion', '/lotes', '/movimientos', '/offline', '/despachos', '/historial', '/solicitudes'])
+  const mainTabPaths = new Set(['/', '/operacion', '/lotes', '/movimientos', '/offline', '/despachos', '/historial', '/solicitudes', '/operacion/salidas'])
   const showBackButton = !mainTabPaths.has(location.pathname)
 
   async function signOut() {
@@ -231,7 +231,7 @@ export default function AppLayout() {
         <div className="mx-auto flex max-w-5xl gap-1.5 px-3 py-2.5">
           {visibleNavItems.map((item) => {
             const Icon = item.icon
-            const badge = item.to === '/solicitudes' && pendingDispatch > 0 ? pendingDispatch : 0
+            const badge = item.to === '/operacion/salidas' && pendingDispatch > 0 ? pendingDispatch : 0
             return (
               <NavLink
                 key={item.to}

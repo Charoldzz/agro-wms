@@ -46,6 +46,24 @@ export default function Lots() {
   const [showEmpresasModal, setShowEmpresasModal] = useState(false)
   const [showCatalogoModal, setShowCatalogoModal] = useState(false)
   const [showMovimientosModal, setShowMovimientosModal] = useState(false)
+  const [pendingDispatch, setPendingDispatch] = useState(0)
+
+  useEffect(() => {
+    if (!canOperate) return
+    async function loadPending() {
+      const { count } = await supabase
+        .from('client_dispatch_requests')
+        .select('id', { count: 'exact', head: true })
+        .in('status', ['pendiente', 'aprobado', 'en_preparacion'])
+      setPendingDispatch(count || 0)
+    }
+    loadPending()
+    const ch = supabase
+      .channel('lots-dispatch-badge')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'client_dispatch_requests' }, loadPending)
+      .subscribe()
+    return () => supabase.removeChannel(ch)
+  }, [canOperate])
 
   useEffect(() => { loadData(false) }, [])
 
@@ -152,9 +170,14 @@ export default function Lots() {
             <span>Ingreso</span>
           </Link>
           <Link
-            className="inline-flex min-h-20 flex-col items-start justify-between gap-2 rounded-lg bg-maiz px-5 py-4 text-left text-lg font-semibold text-slate-950 shadow-soft transition active:scale-[0.99] sm:min-h-24"
+            className="relative inline-flex min-h-20 flex-col items-start justify-between gap-2 rounded-lg bg-maiz px-5 py-4 text-left text-lg font-semibold text-slate-950 shadow-soft transition active:scale-[0.99] sm:min-h-24"
             to="/operacion/salidas"
           >
+            {pendingDispatch > 0 && (
+              <span className="absolute right-2 top-2 flex h-6 min-w-6 items-center justify-center rounded-full bg-red-500 px-1.5 text-xs font-black text-white">
+                {pendingDispatch > 99 ? '99+' : pendingDispatch}
+              </span>
+            )}
             <LogOut size={26} className="opacity-70" />
             <span>Salida</span>
           </Link>
