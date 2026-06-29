@@ -496,10 +496,13 @@ export default function OperatorEntry() {
                       placeholder="0"
                     />
                     {field === 'uds' && Number(row.uds_rem) > 0 && (
-                      <div className="text-right text-[10px] font-bold text-slate-500">+{formatNumber(row.uds_rem)} {parseProductUnit(row.product).unit}</div>
+                      <div className="text-right text-[10px] font-bold text-campo-600">+{formatNumber(row.uds_rem)} {parseProductUnit(row.product).unit}</div>
                     )}
-                    {field === 'cajas' && Number(row.cajas_rem) > 0 && (
-                      <div className="text-right text-[10px] font-bold text-campo-600">+{row.cajas_rem}u</div>
+                    {field === 'cajas' && (Number(row.cajas_rem) > 0 || Number(row.uds_rem) > 0) && (
+                      <>
+                        {Number(row.cajas_rem) > 0 && <div className="text-right text-[10px] font-bold text-campo-600">+{row.cajas_rem}u</div>}
+                        {Number(row.uds_rem) > 0 && <div className="text-right text-[10px] font-bold text-campo-600">+{formatNumber(row.uds_rem)} {parseProductUnit(row.product).unit}</div>}
+                      </>
                     )}
                   </td>
                 ))}
