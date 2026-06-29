@@ -43,7 +43,10 @@ function lotOptionLabel(lot) {
         new Date(`${lot.expiry_date}T00:00:00`),
       )
     : 'SIN VENC'
-  const saldo = formatNumber(lot.current_quantity)
+  const pkgSize = Number(lot.package_size) || 1
+  const total = lot.current_quantity * pkgSize
+  const unit = lot.package_unit || ''
+  const saldo = unit ? `${formatNumber(total)} ${unit}` : formatNumber(lot.current_quantity)
   return `${cleanProductName(lot.product)}   Lote: ${lote}   Venc: ${venc}   Saldo: ${saldo}`
 }
 
