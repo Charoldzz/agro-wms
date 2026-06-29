@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
 import { CheckCircle2, LogOut, Plus, Trash2, X } from 'lucide-react'
 import PageHeader from '../components/PageHeader'
 import { useAuth } from '../hooks/useAuth.jsx'
@@ -40,6 +40,7 @@ function lotOptionLabel(lot) {
 
 export default function NuevaSalida() {
   const navigate = useNavigate()
+  const location = useLocation()
   const { user } = useAuth()
   const restoringRef = useRef(false)
 
@@ -61,12 +62,15 @@ export default function NuevaSalida() {
       .then(({ data }) => { if (data) setGuiaPreview(data) })
   }, [])
 
-  // Restaurar borrador en F5; limpiar si el usuario navegó al formulario de nuevo
+  // Restaurar borrador solo en F5 o navegación "atrás"; limpiar en navegación fresca
   useEffect(() => {
     const navType = performance.getEntriesByType?.('navigation')?.[0]?.type
-    if (navType === 'navigate') {
-      localStorage.removeItem(DRAFT_KEY)
-    } else {
+    const prevKey = sessionStorage.getItem('salida_loc_key')
+    const isReload = navType === 'reload'
+    const isBackNav = prevKey !== null && prevKey === location.key
+    sessionStorage.setItem('salida_loc_key', location.key)
+
+    if (isReload || isBackNav) {
       try {
         const saved = localStorage.getItem(DRAFT_KEY)
         if (saved) {
@@ -74,11 +78,13 @@ export default function NuevaSalida() {
           if (d.concepto) setConcepto(d.concepto)
           if (d.rows?.length) setRows(d.rows)
           if (d.clientId) {
-            restoringRef.current = true // evita que loadClientLots borre las rows restauradas
+            restoringRef.current = true
             setClientId(d.clientId)
           }
         }
       } catch {}
+    } else {
+      localStorage.removeItem(DRAFT_KEY)
     }
   }, [])
 

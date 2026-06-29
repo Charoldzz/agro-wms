@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
 import { CheckCircle2, PackagePlus, Plus, Trash2 } from 'lucide-react'
 import PageHeader from '../components/PageHeader'
 import { useAuth } from '../hooks/useAuth.jsx'
@@ -41,7 +41,7 @@ function parseProductUnit(productName) {
 }
 
 function emptyRow() {
-  return { id: crypto.randomUUID(), product: '', lot_code: '', expiry_date: '', cantidad: '', cajas: '', uds: '', galones: '', bidones: '', tambores: '', pallets: '' }
+  return { id: crypto.randomUUID(), product: '', lot_code: '', expiry_date: '', cantidad: '', uds: '', cajas: '', cajas_rem: '', galones: '', bidones: '', tambores: '', pallets: '' }
 }
 
 function createLotCode(index = 0) {
@@ -107,6 +107,7 @@ function DateInput({ value, onChange, onFocus, className }) {
 
 export default function OperatorEntry() {
   const navigate = useNavigate()
+  const location = useLocation()
   const { user } = useAuth()
   const tableRef = useRef(null)
 
@@ -131,12 +132,15 @@ export default function OperatorEntry() {
       .then(({ data }) => { if (data) setGuiaPreview(data) })
   }, [])
 
-  // Restaurar borrador en F5; limpiar si el usuario navegó al formulario de nuevo
+  // Restaurar borrador solo en F5 o navegación "atrás"; limpiar en navegación fresca
   useEffect(() => {
     const navType = performance.getEntriesByType?.('navigation')?.[0]?.type
-    if (navType === 'navigate') {
-      localStorage.removeItem(DRAFT_KEY)
-    } else {
+    const prevKey = sessionStorage.getItem('ingreso_loc_key')
+    const isReload = navType === 'reload'
+    const isBackNav = prevKey !== null && prevKey === location.key
+    sessionStorage.setItem('ingreso_loc_key', location.key)
+
+    if (isReload || isBackNav) {
       try {
         const saved = localStorage.getItem(DRAFT_KEY)
         if (saved) {
@@ -149,6 +153,8 @@ export default function OperatorEntry() {
           if (d.rows?.length) setRows(d.rows)
         }
       } catch {}
+    } else {
+      localStorage.removeItem(DRAFT_KEY)
     }
   }, [])
 
@@ -244,11 +250,13 @@ export default function OperatorEntry() {
       // CANTIDAD es el total en lts/kgs; UDS = envases = CANTIDAD / medida
       const uds = size > 0 && qty > 0 ? Math.round(qty / size) : (qty > 0 ? qty : 0)
       const upb = catalogMap.get(row.product) || 0
+      const cajas = upb > 0 && uds > 0 ? Math.floor(uds / upb) : 0
       return {
         ...row,
         cantidad: v,
         uds: uds > 0 ? String(uds) : '',
-        cajas: upb > 0 && uds > 0 ? String(Math.floor(uds / upb)) : row.cajas,
+        cajas: upb > 0 && uds > 0 ? String(cajas) : row.cajas,
+        cajas_rem: upb > 0 && uds > 0 ? String(uds % upb) : '',
       }
     }))
   }
@@ -260,11 +268,13 @@ export default function OperatorEntry() {
       const { size } = parseProductUnit(value)
       const uds = size > 0 && qty > 0 ? Math.round(qty / size) : (qty > 0 ? qty : 0)
       const upb = catalogMap.get(value) || 0
+      const cajas = upb > 0 && uds > 0 ? Math.floor(uds / upb) : 0
       return {
         ...row,
         product: value,
         uds: uds > 0 ? String(uds) : row.uds,
-        cajas: upb > 0 && uds > 0 ? String(Math.floor(uds / upb)) : row.cajas,
+        cajas: upb > 0 && uds > 0 ? String(cajas) : row.cajas,
+        cajas_rem: upb > 0 && uds > 0 ? String(uds % upb) : '',
       }
     }))
   }
@@ -281,7 +291,9 @@ export default function OperatorEntry() {
   }, [rows])
   const fieldTotals = useMemo(() => {
     const fields = ['cajas', 'uds', 'galones', 'bidones', 'tambores', 'pallets']
-    return Object.fromEntries(fields.map((f) => [f, rows.reduce((sum, r) => sum + Number(r[f] || 0), 0)]))
+    const totals = Object.fromEntries(fields.map((f) => [f, rows.reduce((sum, r) => sum + Number(r[f] || 0), 0)]))
+    totals.cajas_rem = rows.reduce((sum, r) => sum + Number(r.cajas_rem || 0), 0)
+    return totals
   }, [rows])
 
   async function save() {
@@ -466,6 +478,7 @@ export default function OperatorEntry() {
                     onFocus={() => setSelectedIdx(i)}
                     placeholder="0"
                   />
+                  {(() => { const { unit } = parseProductUnit(row.product); return unit && Number(row.cantidad) > 0 ? <div className="text-right text-[10px] font-bold text-slate-400">{unit}</div> : null })()}
                 </td>
                 {['uds', 'cajas', 'galones', 'bidones', 'tambores', 'pallets'].map((field) => (
                   <td key={field} className="px-2 py-1">
@@ -480,6 +493,9 @@ export default function OperatorEntry() {
                       onFocus={() => setSelectedIdx(i)}
                       placeholder="0"
                     />
+                    {field === 'cajas' && Number(row.cajas_rem) > 0 && (
+                      <div className="text-right text-[10px] font-bold text-campo-600">+{row.cajas_rem}u</div>
+                    )}
                   </td>
                 ))}
                 <td className="px-1 py-1 text-center">
@@ -499,15 +515,15 @@ export default function OperatorEntry() {
             <tr className="border-t-2 border-slate-200 bg-slate-50">
               <td colSpan={4} className="px-3 py-2.5 text-xs font-black uppercase text-slate-500">Totales</td>
               <td className="px-3 py-2.5">
-                {Object.keys(unitTotals).length > 0
-                  ? <span className="flex flex-wrap gap-3">{Object.entries(unitTotals).map(([u, v]) => (
-                      <span key={u} className="text-sm font-black text-campo-700">{formatNumber(v)} <span className="font-bold text-campo-500">{u}</span></span>
-                    ))}</span>
-                  : <span className="text-sm text-slate-300">—</span>}
+                <span className="text-sm text-slate-300">—</span>
               </td>
               {['uds', 'cajas', 'galones', 'bidones', 'tambores', 'pallets'].map((f) => (
                 <td key={f} className="px-2 py-2.5 text-right text-sm font-black text-slate-950">
-                  {fieldTotals[f] > 0 ? formatNumber(fieldTotals[f]) : <span className="text-slate-300">—</span>}
+                  {f === 'cajas'
+                    ? fieldTotals.cajas > 0
+                      ? <>{formatNumber(fieldTotals.cajas)}{fieldTotals.cajas_rem > 0 ? <span className="text-xs font-bold text-campo-600"> +{fieldTotals.cajas_rem}u</span> : null}</>
+                      : <span className="text-slate-300">—</span>
+                    : fieldTotals[f] > 0 ? formatNumber(fieldTotals[f]) : <span className="text-slate-300">—</span>}
                 </td>
               ))}
               <td />
