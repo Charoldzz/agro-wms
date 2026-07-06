@@ -55,17 +55,18 @@ function printReport(title, headers, rows) {
           table { border-collapse: collapse; width: 100%; }
           th, td { border-bottom: 1px solid #cbd5e1; font-size: 11px; padding: 7px; text-align: left; vertical-align: top; }
           th { background: #f1f5f9; color: #334155; }
-          @media print { body { margin: 10mm; } }
+          .print-btn { background: #15803d; border: none; border-radius: 8px; color: #fff; cursor: pointer; font-size: 13px; font-weight: bold; padding: 10px 18px; position: fixed; right: 20px; top: 20px; }
+          @media print { body { margin: 10mm; } .print-btn { display: none; } }
         </style>
       </head>
       <body>
+        <button class="print-btn" onclick="window.print()">Imprimir / Guardar PDF</button>
         <h1>Todo Agricola Boliviana Ltda</h1>
         <p>${escapeHtml(title)} - Emitido ${escapeHtml(formatDate(new Date().toISOString()))}</p>
         <table>
           <thead><tr>${headers.map((header) => `<th>${escapeHtml(header)}</th>`).join('')}</tr></thead>
           <tbody>${tableRows}</tbody>
         </table>
-        <script>window.addEventListener('load', () => window.print())</script>
       </body>
     </html>
   `)
