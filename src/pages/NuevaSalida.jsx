@@ -1,12 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
-import { CheckCircle2, LogOut, Plus, Trash2, X } from 'lucide-react'
+import { CheckCircle2, FileText, LogOut, Plus, Trash2, X } from 'lucide-react'
 import PageHeader from '../components/PageHeader'
 import { useAuth } from '../hooks/useAuth.jsx'
 import { supabase } from '../lib/supabase'
 import { formatNumber } from '../lib/format'
 import { cleanProductName, displayLotCode } from '../lib/display'
 import { vibrateSuccess } from '../lib/haptics'
+import { openDispatchReceipt } from '../lib/comprobante'
 
 const today = new Date().toISOString().slice(0, 10)
 const DRAFT_KEY = 'draft_salida'
@@ -80,6 +81,7 @@ export default function NuevaSalida() {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState(false)
+  const [comprobante, setComprobante] = useState(null)
 
   // Cargar preview del número de guía automático
   useEffect(() => {
@@ -349,7 +351,7 @@ export default function NuevaSalida() {
         quantity: Number(r.uds),
       }))
 
-      const { error: rpcError } = await supabase.rpc('create_dispatch_operation', {
+      const { data: rpcData, error: rpcError } = await supabase.rpc('create_dispatch_operation', {
         p_client_id: clientId,
         p_receiver_name: transportista.trim(),
         p_receiver_document: contacto.trim(),
@@ -370,10 +372,22 @@ export default function NuevaSalida() {
         await supabase.rpc('complete_client_dispatch_request', { p_request_id: requestId, p_user_id: user.id })
       }
 
+      const empresaNombre = isRequestMode
+        ? solicitud?.clients?.name || ''
+        : displayClientName(clients.find((c) => c.id === clientId)?.name)
+      setComprobante({
+        guide: rpcData?.guide_number || guiaPreview,
+        empresa: empresaNombre,
+        contacto: contacto.trim(),
+        transportista: transportista.trim(),
+        placa: placa.trim(),
+        observaciones: observaciones.trim(),
+        rows: validRows,
+      })
+
       clearDraft()
       vibrateSuccess()
       setSuccess(true)
-      setTimeout(() => navigate(-1), 2200)
     } catch (err) {
       setError(err.message || 'Error al guardar la salida.')
     } finally {
@@ -624,7 +638,17 @@ export default function NuevaSalida() {
         <div className="mb-4 rounded-xl border border-campo-200 bg-campo-50 p-5 text-center">
           <CheckCircle2 className="mx-auto mb-2 text-campo-700" size={38} />
           <p className="text-base font-black text-campo-800">Salida guardada correctamente.</p>
-          <p className="mt-1 text-sm font-semibold text-campo-600">Redirigiendo...</p>
+          {comprobante?.guide && (
+            <p className="mt-1 font-mono text-sm font-bold text-campo-700">{comprobante.guide}</p>
+          )}
+          <div className="mx-auto mt-4 flex max-w-md gap-3">
+            <button className="btn-primary flex-1" type="button" onClick={() => openDispatchReceipt(comprobante)}>
+              <FileText size={20} /> Ver comprobante
+            </button>
+            <button className="btn-secondary flex-1" type="button" onClick={() => navigate(-1)}>
+              Volver
+            </button>
+          </div>
         </div>
       ) : (
         <div className="flex gap-3">
