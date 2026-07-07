@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { ClipboardList, LogOut, Plus } from 'lucide-react'
+import { ClipboardList, LogOut, Plus, X } from 'lucide-react'
 import PageHeader from '../components/PageHeader'
+import { useAuth } from '../hooks/useAuth.jsx'
 import { supabase } from '../lib/supabase'
 import { formatDate, formatNumber } from '../lib/format'
 import { cleanProductName } from '../lib/display'
@@ -20,8 +21,12 @@ const STATUS_COLOR = {
 }
 
 export default function SalidasHub() {
+  const { user } = useAuth()
   const [requests, setRequests] = useState([])
   const [loading, setLoading] = useState(true)
+  const [rejectingId, setRejectingId] = useState(null)
+  const [rejectReason, setRejectReason] = useState('')
+  const [rejectError, setRejectError] = useState('')
 
   useEffect(() => {
     load()
@@ -42,6 +47,35 @@ export default function SalidasHub() {
     const normalized = await normalizeDispatchRequests(data || [])
     setRequests(normalized)
     setLoading(false)
+  }
+
+  function startReject(id) {
+    setRejectingId(id)
+    setRejectReason('')
+    setRejectError('')
+  }
+
+  async function confirmReject(id) {
+    if (!rejectReason.trim()) {
+      setRejectError('Escribe el motivo del rechazo para que el cliente lo vea.')
+      return
+    }
+    const { error } = await supabase
+      .from('client_dispatch_requests')
+      .update({
+        status: 'rechazado',
+        admin_notes: rejectReason.trim(),
+        reviewed_by: user.id,
+        reviewed_at: new Date().toISOString(),
+      })
+      .eq('id', id)
+    if (error) {
+      setRejectError('No se pudo rechazar la solicitud. Intenta nuevamente.')
+      return
+    }
+    setRejectingId(null)
+    setRejectReason('')
+    load()
   }
 
   return (
@@ -110,9 +144,45 @@ export default function SalidasHub() {
                   </p>
                 )}
 
-                <Link className="btn-primary w-full !min-h-10 !py-2 text-sm" to={`/nueva-salida?request=${req.id}`}>
-                  <LogOut size={16} /> {req.status === 'en_preparacion' ? 'Continuar despacho' : 'Iniciar despacho'}
-                </Link>
+                {rejectingId === req.id ? (
+                  <div className="rounded-lg border border-red-200 bg-red-50 p-3">
+                    <p className="mb-2 text-xs font-bold text-red-800">Motivo del rechazo (el cliente lo verá en su historial):</p>
+                    <textarea
+                      className="w-full rounded-lg border border-red-200 bg-white p-2 text-sm focus:border-red-400 focus:outline-none"
+                      rows={2}
+                      value={rejectReason}
+                      onChange={(e) => setRejectReason(e.target.value)}
+                      placeholder="Ej: sin stock suficiente del producto solicitado"
+                      autoFocus
+                    />
+                    {rejectError && <p className="mt-1 text-xs font-bold text-red-700">{rejectError}</p>}
+                    <div className="mt-2 grid grid-cols-2 gap-2">
+                      <button className="btn-secondary !min-h-9 !py-1.5 text-sm" type="button" onClick={() => setRejectingId(null)}>
+                        Cancelar
+                      </button>
+                      <button
+                        className="inline-flex min-h-9 items-center justify-center gap-1.5 rounded-lg bg-red-600 px-3 py-1.5 text-sm font-bold text-white transition active:scale-[0.99]"
+                        type="button"
+                        onClick={() => confirmReject(req.id)}
+                      >
+                        <X size={15} /> Confirmar rechazo
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex gap-2">
+                    <Link className="btn-primary flex-1 !min-h-10 !py-2 text-sm" to={`/nueva-salida?request=${req.id}`}>
+                      <LogOut size={16} /> {req.status === 'en_preparacion' ? 'Continuar despacho' : 'Iniciar despacho'}
+                    </Link>
+                    <button
+                      className="inline-flex min-h-10 shrink-0 items-center justify-center gap-1.5 rounded-lg border border-red-200 bg-white px-3 py-2 text-sm font-bold text-red-600 transition hover:bg-red-50 active:scale-[0.99]"
+                      type="button"
+                      onClick={() => startReject(req.id)}
+                    >
+                      <X size={15} /> Rechazar
+                    </button>
+                  </div>
+                )}
               </div>
             )
           })}
