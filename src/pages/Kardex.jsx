@@ -37,7 +37,7 @@ export default function Kardex() {
   async function loadClients() {
     const { data } = await supabase
       .from('clients')
-      .select('id, name')
+      .select('id, name, product_code_prefix')
       .eq('inventory_source', 'stock_independiente')
       .order('name')
     const seen = new Set()
@@ -73,19 +73,46 @@ export default function Kardex() {
       return
     }
 
-    const { data, error } = await supabase
-      .from('movements')
-      .select('id, type, quantity, quantity_before, quantity_after, notes, created_at, lot_id, lots(lot_code, product, clients(name))')
-      .in('lot_id', lotIds)
-      .order('created_at', { ascending: false })
-      .limit(1000)
+    const prefix = (clients.find((c) => c.id === clientId)?.product_code_prefix || '').toUpperCase()
 
-    if (error) {
+    const [webResult, desktopResult] = await Promise.all([
+      supabase
+        .from('movements')
+        .select('id, type, quantity, previous_quantity, new_quantity, notes, created_at, lot_id, lots(lot_code, product, clients(name))')
+        .in('lot_id', lotIds)
+        .order('created_at', { ascending: false })
+        .limit(1000),
+      prefix
+        ? supabase
+            .from('desktop_movements')
+            .select('id, note_number, type, date, product_name, lot, quantity')
+            .eq('client_prefix', prefix)
+            .order('date', { ascending: false })
+            .limit(3000)
+        : Promise.resolve({ data: [], error: null }),
+    ])
+
+    if (webResult.error && desktopResult.error) {
       setLoadError('No se pudieron cargar los movimientos.')
       setMovements([])
-    } else {
-      setMovements(data || [])
+      setLoading(false)
+      return
     }
+
+    const webRows = (webResult.data || []).map((m) => ({ ...m, saldo: m.new_quantity }))
+    const desktopRows = (desktopResult.data || []).map((r) => ({
+      id: `desktop-${r.id}`,
+      type: r.type === 'INGRESO' ? 'entrada' : 'salida',
+      quantity: r.quantity,
+      saldo: null,
+      notes: r.note_number || null,
+      created_at: r.date,
+      lots: { product: r.product_name, lot_code: r.lot },
+    }))
+
+    setMovements(
+      [...webRows, ...desktopRows].sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0)),
+    )
     setLoading(false)
   }
 
@@ -208,7 +235,7 @@ export default function Kardex() {
                   const isEntry = m.type === 'entrada'
                   const isSalida = m.type === 'salida'
                   const qty = Number(m.quantity || 0)
-                  const saldo = m.quantity_after != null ? Number(m.quantity_after) : null
+                  const saldo = m.saldo != null ? Number(m.saldo) : null
 
                   return (
                     <tr key={m.id} className="border-b border-slate-100 hover:bg-slate-50">
