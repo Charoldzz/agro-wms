@@ -78,7 +78,7 @@ export default function Kardex() {
     const [webResult, desktopResult] = await Promise.all([
       supabase
         .from('movements')
-        .select('id, type, quantity, previous_quantity, new_quantity, notes, created_at, lot_id, lots(lot_code, product, package_size, package_unit, clients(name))')
+        .select('id, type, quantity, previous_quantity, new_quantity, notes, created_at, lot_id, lots(lot_code, product, package_size, package_unit, clients(name)), warehouse_operations(guide_number)')
         .in('lot_id', lotIds)
         .order('created_at', { ascending: false })
         .limit(1000),
@@ -114,6 +114,7 @@ export default function Kardex() {
       const size = Number(m.lots?.package_size) || 0
       return {
         ...m,
+        note: m.warehouse_operations?.guide_number || null,
         eqQuantity: size > 0 ? Number(m.quantity || 0) * size : Number(m.quantity || 0),
         unit: m.lots?.package_unit || '',
       }
@@ -125,7 +126,8 @@ export default function Kardex() {
         type: r.type === 'INGRESO' ? 'entrada' : 'salida',
         eqQuantity: Number(r.quantity || 0),
         unit: info?.unit || '',
-        notes: r.note_number || null,
+        note: r.note_number || null,
+        notes: null,
         created_at: r.date,
         lots: { product: r.product_name, lot_code: r.lot },
       }
@@ -155,7 +157,8 @@ export default function Kardex() {
       const product = cleanProductName(m.lots?.product || '').toLowerCase()
       const lotCode = displayLotCode(m.lots?.lot_code || '').toLowerCase()
       const notes = (m.notes || '').toLowerCase()
-      return product.includes(q) || lotCode.includes(q) || notes.includes(q)
+      const note = (m.note || '').toLowerCase()
+      return product.includes(q) || lotCode.includes(q) || notes.includes(q) || note.includes(q)
     })
   }, [movements, search])
 
@@ -255,9 +258,10 @@ export default function Kardex() {
           </div>
 
           <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm">
-            <table className="w-full border-collapse" style={{ minWidth: '600px' }}>
+            <table className="w-full border-collapse" style={{ minWidth: '700px' }}>
               <colgroup>
                 <col style={{ width: '140px' }} />
+                <col style={{ width: '95px' }} />
                 <col style={{ width: '80px' }} />
                 <col />
                 <col style={{ width: '90px' }} />
@@ -267,6 +271,7 @@ export default function Kardex() {
               <thead>
                 <tr className="bg-slate-700 text-white">
                   <th className="border-b border-slate-600 px-3 py-2.5 text-left text-xs font-bold uppercase tracking-wide">FECHA</th>
+                  <th className="border-b border-slate-600 px-3 py-2.5 text-left text-xs font-bold uppercase tracking-wide">NOTA</th>
                   <th className="border-b border-slate-600 px-3 py-2.5 text-center text-xs font-bold uppercase tracking-wide">TIPO</th>
                   <th className="border-b border-slate-600 px-3 py-2.5 text-left text-xs font-bold uppercase tracking-wide">PRODUCTO / LOTE</th>
                   <th className="border-b border-slate-600 px-3 py-2.5 text-right text-xs font-bold uppercase tracking-wide text-campo-300">ENTRADA</th>
@@ -286,6 +291,9 @@ export default function Kardex() {
                     <tr key={m.id} className="border-b border-slate-100 hover:bg-slate-50">
                       <td className="px-3 py-2 text-xs font-semibold text-slate-600">
                         {formatDate(m.created_at)}
+                      </td>
+                      <td className="px-3 py-2 font-mono text-xs font-bold text-campo-700 whitespace-nowrap">
+                        {m.note || <span className="text-slate-300">—</span>}
                       </td>
                       <td className="px-3 py-2 text-center">
                         <span className={`text-xs font-black ${TYPE_COLORS[m.type] || 'text-slate-600'}`}>
