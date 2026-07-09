@@ -50,22 +50,34 @@ export default function Movements() {
         .filter((c) => c.product_code_prefix)
         .map((c) => [c.product_code_prefix.toUpperCase(), c.name]),
     )
-    setDesktopMovements((rows || []).map((row) => ({
-      id: `desktop-${row.id}`,
-      source: 'desktop',
-      type: row.type === 'INGRESO' ? 'entrada' : 'salida',
-      created_at: row.date,
-      quantity: row.quantity,
-      note_number: row.note_number,
-      product: row.product_name,
-      lot_code: row.lot,
-      empresa: row.dispatch_company || prefixMap.get((row.client_prefix || '').toUpperCase()) || '',
-      transporter: row.transporter,
-      plate: row.plate,
-      contact_person: row.contact_person,
-      observations: row.observations,
-      concept: row.concept,
-    })))
+    const groupedByNote = new Map()
+    for (const row of rows || []) {
+      const key = row.note_number || `sin-nota-${row.id}`
+      if (!groupedByNote.has(key)) groupedByNote.set(key, [])
+      groupedByNote.get(key).push(row)
+    }
+    setDesktopMovements([...groupedByNote.values()].map((group) => {
+      const first = group[0]
+      return {
+        id: `desktop-${first.note_number || first.id}`,
+        source: 'desktop',
+        type: first.type === 'INGRESO' ? 'entrada' : 'salida',
+        created_at: group.reduce((max, r) => (r.date > max ? r.date : max), first.date),
+        quantity: group.reduce((sum, r) => sum + Number(r.quantity || 0), 0),
+        note_number: first.note_number,
+        product: group.length > 1 ? `${group.length} ITEMS` : first.product_name,
+        lot_code: group.length > 1 ? 'VARIOS' : first.lot,
+        items: group.map((r) => ({ product: r.product_name, lot: r.lot, quantity: r.quantity })),
+        empresa: group.find((r) => r.dispatch_company)?.dispatch_company
+          || prefixMap.get((first.client_prefix || '').toUpperCase())
+          || '',
+        transporter: group.find((r) => r.transporter)?.transporter || '',
+        plate: group.find((r) => r.plate)?.plate || '',
+        contact_person: group.find((r) => r.contact_person)?.contact_person || '',
+        observations: group.find((r) => r.observations)?.observations || '',
+        concept: first.concept,
+      }
+    }))
   }
 
   async function loadMovements() {
@@ -153,6 +165,8 @@ export default function Movements() {
         movement.plate,
         movement.observations,
         movement.concept,
+        ...(movement.items ? movement.items.map((item) => item.product) : []),
+        ...(movement.items ? movement.items.map((item) => item.lot) : []),
       ]
         .filter(Boolean)
         .some((value) => String(value).toLowerCase().includes(term))
@@ -219,8 +233,24 @@ export default function Movements() {
                         </div>
                         <p className="text-xl font-bold text-campo-700">{formatNumber(movement.quantity)}</p>
                       </div>
-                      <p className="mt-2 font-semibold text-slate-800">{cleanProductName(movement.product)}</p>
-                      {movement.lot_code ? <p className="text-sm font-bold text-slate-500">Lote: {movement.lot_code}</p> : null}
+                      {movement.items && movement.items.length > 1 ? (
+                        <div className="mt-2 space-y-1">
+                          {movement.items.map((item, idx) => (
+                            <div key={idx} className="flex items-start justify-between gap-2 rounded-lg bg-slate-50 px-2.5 py-1.5">
+                              <div className="min-w-0">
+                                <p className="text-sm font-semibold text-slate-800 [overflow-wrap:anywhere]">{cleanProductName(item.product)}</p>
+                                {item.lot ? <p className="text-xs font-semibold text-slate-400">Lote: {item.lot}</p> : null}
+                              </div>
+                              <p className="shrink-0 text-sm font-black text-campo-700">{formatNumber(item.quantity)}</p>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <>
+                          <p className="mt-2 font-semibold text-slate-800">{cleanProductName(movement.product)}</p>
+                          {movement.lot_code ? <p className="text-sm font-bold text-slate-500">Lote: {movement.lot_code}</p> : null}
+                        </>
+                      )}
                       <p className="text-sm text-slate-500">Empresa: {movement.empresa || '-'}</p>
                       {(movement.transporter || movement.plate || movement.contact_person) ? (
                         <p className="mt-1 text-sm text-slate-600">

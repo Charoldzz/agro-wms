@@ -64,26 +64,40 @@ export default function MovimientosModal({ onClose }) {
         .filter((c) => c.product_code_prefix)
         .map((c) => [c.product_code_prefix.toUpperCase(), c.name]),
     )
-    const desktopRows = (desktopResult.data || []).map((row) => ({
-      id: `desktop-${row.id}`,
-      source: 'desktop',
-      type: row.type === 'INGRESO' ? 'entrada' : 'salida',
-      created_at: row.date,
-      quantity: row.quantity,
-      notes: row.concept,
-      note_number: row.note_number,
-      transporter: row.transporter,
-      plate: row.plate,
-      contact_person: row.contact_person,
-      observations: row.observations,
-      lots: {
-        product: row.product_name,
-        lot_code: row.lot,
-        expiry_date: row.expiry_date,
-        location: null,
-        clients: { name: row.dispatch_company || prefixMap.get((row.client_prefix || '').toUpperCase()) || '' },
-      },
-    }))
+    const groupedByNote = new Map()
+    for (const row of desktopResult.data || []) {
+      const key = row.note_number || `sin-nota-${row.id}`
+      if (!groupedByNote.has(key)) groupedByNote.set(key, [])
+      groupedByNote.get(key).push(row)
+    }
+    const desktopRows = [...groupedByNote.values()].map((rows) => {
+      const first = rows[0]
+      const multi = rows.length > 1
+      const empresa = rows.find((r) => r.dispatch_company)?.dispatch_company
+        || prefixMap.get((first.client_prefix || '').toUpperCase())
+        || ''
+      return {
+        id: `desktop-${first.note_number || first.id}`,
+        source: 'desktop',
+        type: first.type === 'INGRESO' ? 'entrada' : 'salida',
+        created_at: rows.reduce((max, r) => (r.date > max ? r.date : max), first.date),
+        quantity: rows.reduce((sum, r) => sum + Number(r.quantity || 0), 0),
+        notes: first.concept,
+        note_number: first.note_number,
+        transporter: rows.find((r) => r.transporter)?.transporter || '',
+        plate: rows.find((r) => r.plate)?.plate || '',
+        contact_person: rows.find((r) => r.contact_person)?.contact_person || '',
+        observations: rows.find((r) => r.observations)?.observations || '',
+        items: rows.map((r) => ({ product: r.product_name, lot: r.lot, expiry_date: r.expiry_date, quantity: r.quantity })),
+        lots: {
+          product: multi ? `${rows.length} ITEMS` : first.product_name,
+          lot_code: multi ? 'VARIOS' : first.lot,
+          expiry_date: multi ? null : first.expiry_date,
+          location: null,
+          clients: { name: empresa },
+        },
+      }
+    })
 
     const merged = [...webMovements, ...desktopRows].sort(
       (a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0),
@@ -106,6 +120,8 @@ export default function MovimientosModal({ onClose }) {
         m.transporter,
         m.plate,
         m.observations,
+        ...(m.items ? m.items.map((item) => item.product) : []),
+        ...(m.items ? m.items.map((item) => item.lot) : []),
         cleanProductName(lot.product),
         displayLotCode(lot.lot_code, lot),
         lot.clients?.name,
@@ -266,10 +282,29 @@ export default function MovimientosModal({ onClose }) {
                   <>
                     <InfoRow label="Nota" value={selected.note_number || '-'} bold />
                     <InfoRow label="Empresa" value={lot.clients?.name || '-'} />
-                    <InfoRow label="Producto" value={cleanProductName(lot.product) || '-'} />
-                    <InfoRow label="Lote" value={lot.lot_code || '-'} />
-                    <InfoRow label="Vencimiento" value={lot.expiry_date ? fmtDate(lot.expiry_date + 'T00:00:00') : 'Sin venc.'} />
-                    <InfoRow label="Cantidad" value={formatNumber(selected.quantity)} bold />
+                    {selected.items && selected.items.length > 1 ? (
+                      <div>
+                        <p className="text-[10px] font-black uppercase tracking-wide text-slate-400">Productos ({selected.items.length})</p>
+                        <div className="mt-1 space-y-1">
+                          {selected.items.map((item, idx) => (
+                            <div key={idx} className="rounded-lg bg-slate-50 px-2.5 py-1.5">
+                              <div className="flex items-start justify-between gap-2">
+                                <p className="min-w-0 text-xs font-bold text-slate-800 [overflow-wrap:anywhere]">{cleanProductName(item.product)}</p>
+                                <p className="shrink-0 text-sm font-black text-campo-700">{formatNumber(item.quantity)}</p>
+                              </div>
+                              {item.lot ? <p className="text-[10px] font-semibold text-slate-400">Lote: {item.lot}</p> : null}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ) : (
+                      <>
+                        <InfoRow label="Producto" value={cleanProductName(lot.product) || '-'} />
+                        <InfoRow label="Lote" value={lot.lot_code || '-'} />
+                        <InfoRow label="Vencimiento" value={lot.expiry_date ? fmtDate(lot.expiry_date + 'T00:00:00') : 'Sin venc.'} />
+                      </>
+                    )}
+                    <InfoRow label="Cantidad total" value={formatNumber(selected.quantity)} bold />
                     {selected.transporter ? <InfoRow label="Transportista" value={selected.transporter} /> : null}
                     {selected.plate ? <InfoRow label="Placa" value={selected.plate} /> : null}
                     {selected.contact_person ? <InfoRow label="Contacto" value={selected.contact_person} /> : null}
