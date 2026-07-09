@@ -162,8 +162,11 @@ export default function Kardex() {
   function totalsByUnit(rows) {
     const totals = new Map()
     for (const m of rows) {
-      const unit = m.unit || 'uds'
-      totals.set(unit, (totals.get(unit) || 0) + Number(m.eqQuantity || 0))
+      let unit = String(m.unit || 'uds').toLowerCase()
+      let value = Number(m.eqQuantity || 0)
+      if (unit === 'gr' || unit === 'grs') { unit = 'kg'; value /= 1000 }
+      if (unit === 'ml') { unit = 'lt'; value /= 1000 }
+      totals.set(unit, (totals.get(unit) || 0) + value)
     }
     return [...totals.entries()].map(([unit, value]) => `${formatNumber(value)} ${unit}`).join(' · ') || '0'
   }
