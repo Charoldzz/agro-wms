@@ -32,23 +32,63 @@ export default function MovimientosModal({ onClose }) {
 
   async function load() {
     setLoading(true)
-    const { data, error: err } = await supabase
-      .from('movements')
-      .select('*, lots(lot_code, product, location, expiry_date, clients(name)), profiles(full_name)')
-      .order('created_at', { ascending: false })
-      .limit(500)
+    const [webResult, desktopResult, clientsResult] = await Promise.all([
+      supabase
+        .from('movements')
+        .select('*, lots(lot_code, product, location, expiry_date, clients(name)), profiles(full_name)')
+        .order('created_at', { ascending: false })
+        .limit(500),
+      supabase
+        .from('desktop_movements')
+        .select('*')
+        .order('date', { ascending: false })
+        .limit(5000),
+      supabase
+        .from('clients')
+        .select('name, product_code_prefix')
+        .eq('inventory_source', 'stock_independiente'),
+    ])
 
-    if (!err) {
-      setMovements(data || [])
-    } else {
-      // fallback without joins
+    let webMovements = webResult.data || []
+    if (webResult.error) {
       const { data: raw } = await supabase
         .from('movements')
         .select('*')
         .order('created_at', { ascending: false })
         .limit(500)
-      setMovements(raw || [])
+      webMovements = raw || []
     }
+
+    const prefixMap = new Map(
+      (clientsResult.data || [])
+        .filter((c) => c.product_code_prefix)
+        .map((c) => [c.product_code_prefix.toUpperCase(), c.name]),
+    )
+    const desktopRows = (desktopResult.data || []).map((row) => ({
+      id: `desktop-${row.id}`,
+      source: 'desktop',
+      type: row.type === 'INGRESO' ? 'entrada' : 'salida',
+      created_at: row.date,
+      quantity: row.quantity,
+      notes: row.concept,
+      note_number: row.note_number,
+      transporter: row.transporter,
+      plate: row.plate,
+      contact_person: row.contact_person,
+      observations: row.observations,
+      lots: {
+        product: row.product_name,
+        lot_code: row.lot,
+        expiry_date: row.expiry_date,
+        location: null,
+        clients: { name: row.dispatch_company || prefixMap.get((row.client_prefix || '').toUpperCase()) || '' },
+      },
+    }))
+
+    const merged = [...webMovements, ...desktopRows].sort(
+      (a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0),
+    )
+    setMovements(merged)
     setLoading(false)
   }
 
@@ -62,12 +102,16 @@ export default function MovimientosModal({ onClose }) {
         m.notes,
         m.type,
         TYPE_LABELS[m.type],
+        m.note_number,
+        m.transporter,
+        m.plate,
+        m.observations,
         cleanProductName(lot.product),
         displayLotCode(lot.lot_code, lot),
         lot.clients?.name,
         lot.location,
         m.profiles?.full_name,
-      ].filter(Boolean).some((v) => v.toLowerCase().includes(term))
+      ].filter(Boolean).some((v) => String(v).toLowerCase().includes(term))
     })
   }, [movements, search, typeFilter])
 
@@ -144,8 +188,9 @@ export default function MovimientosModal({ onClose }) {
               ) : filtered.length === 0 ? (
                 <p className="py-12 text-center text-sm font-bold text-slate-400">Sin resultados.</p>
               ) : (
-                <table className="w-full border-collapse" style={{ minWidth: '520px' }}>
+                <table className="w-full border-collapse" style={{ minWidth: '600px' }}>
                   <colgroup>
+                    <col style={{ width: '86px' }} />
                     <col style={{ width: '80px' }} />
                     <col style={{ width: '90px' }} />
                     <col />
@@ -155,6 +200,7 @@ export default function MovimientosModal({ onClose }) {
                   </colgroup>
                   <thead className="sticky top-0">
                     <tr className="bg-campo-700 text-white">
+                      <th className="px-3 py-2.5 text-left text-xs font-black uppercase tracking-wide">NOTA</th>
                       <th className="px-3 py-2.5 text-left text-xs font-black uppercase tracking-wide">TIPO</th>
                       <th className="px-3 py-2.5 text-left text-xs font-black uppercase tracking-wide">FECHA</th>
                       <th className="px-3 py-2.5 text-left text-xs font-black uppercase tracking-wide">EMPRESA</th>
@@ -175,6 +221,7 @@ export default function MovimientosModal({ onClose }) {
                           }`}
                           onClick={() => openDetail(m)}
                         >
+                          <td className="px-3 py-2 font-mono text-xs font-bold text-campo-700 whitespace-nowrap">{m.note_number || '-'}</td>
                           <td className="px-3 py-2">
                             <span className={`inline-block rounded px-1.5 py-0.5 text-[10px] font-black uppercase ${TYPE_COLORS[m.type] || 'bg-slate-100 text-slate-700'}`}>
                               {TYPE_LABELS[m.type] || m.type}
@@ -215,6 +262,26 @@ export default function MovimientosModal({ onClose }) {
               </div>
 
               <div className="flex-1 overflow-y-auto p-4 space-y-3">
+                {selected.source === 'desktop' ? (
+                  <>
+                    <InfoRow label="Nota" value={selected.note_number || '-'} bold />
+                    <InfoRow label="Empresa" value={lot.clients?.name || '-'} />
+                    <InfoRow label="Producto" value={cleanProductName(lot.product) || '-'} />
+                    <InfoRow label="Lote" value={lot.lot_code || '-'} />
+                    <InfoRow label="Vencimiento" value={lot.expiry_date ? fmtDate(lot.expiry_date + 'T00:00:00') : 'Sin venc.'} />
+                    <InfoRow label="Cantidad" value={formatNumber(selected.quantity)} bold />
+                    {selected.transporter ? <InfoRow label="Transportista" value={selected.transporter} /> : null}
+                    {selected.plate ? <InfoRow label="Placa" value={selected.plate} /> : null}
+                    {selected.contact_person ? <InfoRow label="Contacto" value={selected.contact_person} /> : null}
+                    {selected.observations ? <InfoRow label="Observaciones" value={selected.observations} /> : null}
+                    <div className="rounded-lg bg-slate-50 px-3 py-2">
+                      <p className="text-xs font-semibold text-slate-400">Concepto</p>
+                      <p className="mt-0.5 text-sm font-semibold text-slate-700">{selected.notes || 'Sin concepto'}</p>
+                    </div>
+                    <p className="inline-flex rounded-full bg-slate-100 px-2 py-0.5 text-xs font-bold text-slate-500">Registrado en el programa</p>
+                  </>
+                ) : (
+                <>
                 <InfoRow label="Empresa" value={lot.clients?.name || '-'} />
                 <InfoRow label="Producto" value={cleanProductName(lot.product) || '-'} />
                 <InfoRow label="Lote" value={displayLotCode(lot.lot_code, lot) || '-'} />
@@ -261,6 +328,8 @@ export default function MovimientosModal({ onClose }) {
                       Editar concepto
                     </button>
                   </div>
+                )}
+                </>
                 )}
               </div>
             </div>
