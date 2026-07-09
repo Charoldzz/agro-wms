@@ -17,6 +17,34 @@ function fmtDate(str) {
   return new Intl.DateTimeFormat('es-BO', { day: '2-digit', month: 'short', year: 'numeric' }).format(new Date(str))
 }
 
+const PACKAGE_FIELDS = [
+  ['package_boxes', 'cajas'],
+  ['package_units', 'uds'],
+  ['package_gallons', 'galones'],
+  ['package_bidones', 'bidones'],
+  ['package_drums', 'tambores'],
+  ['package_pallets', 'pallets'],
+]
+
+function packageChips(row) {
+  return PACKAGE_FIELDS
+    .map(([field, label]) => ({ label, value: Number(row[field]) }))
+    .filter((p) => p.value > 0)
+}
+
+function PackageChips({ chips }) {
+  if (!chips || chips.length === 0) return null
+  return (
+    <span className="mt-1 flex flex-wrap gap-1">
+      {chips.map((p) => (
+        <span key={p.label} className="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-bold text-slate-600">
+          {formatNumber(p.value)} {p.label}
+        </span>
+      ))}
+    </span>
+  )
+}
+
 export default function MovimientosModal({ onClose }) {
   const [movements, setMovements] = useState([])
   const [loading, setLoading] = useState(true)
@@ -122,7 +150,7 @@ export default function MovimientosModal({ onClose }) {
         plate: rows.find((r) => r.plate)?.plate || '',
         contact_person: rows.find((r) => r.contact_person)?.contact_person || '',
         observations: rows.find((r) => r.observations)?.observations || '',
-        items: rows.map((r) => ({ product: r.product_name, lot: r.lot, expiry_date: r.expiry_date, quantity: r.quantity })),
+        items: rows.map((r) => ({ product: r.product_name, lot: r.lot, expiry_date: r.expiry_date, quantity: r.quantity, chips: packageChips(r) })),
         lots: {
           product: multi ? `${rows.length} ITEMS` : first.product_name,
           lot_code: multi ? 'VARIOS' : first.lot,
@@ -327,6 +355,7 @@ export default function MovimientosModal({ onClose }) {
                                 <p className="shrink-0 text-sm font-black text-campo-700">{formatNumber(item.quantity)}</p>
                               </div>
                               {item.lot ? <p className="text-[10px] font-semibold text-slate-400">Lote: {item.lot}</p> : null}
+                              <PackageChips chips={item.chips} />
                             </div>
                           ))}
                         </div>
@@ -339,6 +368,7 @@ export default function MovimientosModal({ onClose }) {
                       </>
                     )}
                     <InfoRow label="Cantidad total" value={formatNumber(selected.quantity)} bold />
+                    {selected.items?.length === 1 && <PackageChips chips={selected.items[0].chips} />}
                     {selected.transporter ? <InfoRow label="Transportista" value={selected.transporter} /> : null}
                     {selected.plate ? <InfoRow label="Placa" value={selected.plate} /> : null}
                     {selected.contact_person ? <InfoRow label="Contacto" value={selected.contact_person} /> : null}

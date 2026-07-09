@@ -13,6 +13,34 @@ const movementIcons = {
   ajuste: RotateCcw,
 }
 
+const PACKAGE_FIELDS = [
+  ['package_boxes', 'cajas'],
+  ['package_units', 'uds'],
+  ['package_gallons', 'galones'],
+  ['package_bidones', 'bidones'],
+  ['package_drums', 'tambores'],
+  ['package_pallets', 'pallets'],
+]
+
+function packageChips(row) {
+  return PACKAGE_FIELDS
+    .map(([field, label]) => ({ label, value: Number(row[field]) }))
+    .filter((p) => p.value > 0)
+}
+
+function PackageChips({ chips }) {
+  if (!chips || chips.length === 0) return null
+  return (
+    <span className="mt-0.5 flex flex-wrap justify-end gap-1">
+      {chips.map((p) => (
+        <span key={p.label} className="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-bold text-slate-600">
+          {formatNumber(p.value)} {p.label}
+        </span>
+      ))}
+    </span>
+  )
+}
+
 export default function Movements() {
   const [movements, setMovements] = useState([])
   const [desktopMovements, setDesktopMovements] = useState([])
@@ -67,7 +95,7 @@ export default function Movements() {
         note_number: first.note_number,
         product: group.length > 1 ? `${group.length} ITEMS` : first.product_name,
         lot_code: group.length > 1 ? 'VARIOS' : first.lot,
-        items: group.map((r) => ({ product: r.product_name, lot: r.lot, quantity: r.quantity })),
+        items: group.map((r) => ({ product: r.product_name, lot: r.lot, quantity: r.quantity, chips: packageChips(r) })),
         empresa: group.find((r) => r.dispatch_company)?.dispatch_company
           || prefixMap.get((first.client_prefix || '').toUpperCase())
           || '',
@@ -287,7 +315,10 @@ export default function Movements() {
                                 <p className="text-sm font-semibold text-slate-800 [overflow-wrap:anywhere]">{cleanProductName(item.product)}</p>
                                 {item.lot ? <p className="text-xs font-semibold text-slate-400">Lote: {item.lot}</p> : null}
                               </div>
-                              <p className="shrink-0 text-sm font-black text-campo-700">{formatNumber(item.quantity)}</p>
+                              <div className="shrink-0 text-right">
+                                <p className="text-sm font-black text-campo-700">{formatNumber(item.quantity)}</p>
+                                <PackageChips chips={item.chips} />
+                              </div>
                             </div>
                           ))}
                         </div>
@@ -295,6 +326,15 @@ export default function Movements() {
                         <>
                           <p className="mt-2 font-semibold text-slate-800">{cleanProductName(movement.product)}</p>
                           {movement.lot_code ? <p className="text-sm font-bold text-slate-500">Lote: {movement.lot_code}</p> : null}
+                          {movement.items?.[0]?.chips?.length > 0 && (
+                            <div className="mt-1 flex flex-wrap gap-1">
+                              {movement.items[0].chips.map((p) => (
+                                <span key={p.label} className="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-bold text-slate-600">
+                                  {formatNumber(p.value)} {p.label}
+                                </span>
+                              ))}
+                            </div>
+                          )}
                         </>
                       )}
                       <p className="text-sm text-slate-500">Empresa: {movement.empresa || '-'}</p>
