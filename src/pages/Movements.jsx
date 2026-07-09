@@ -85,12 +85,12 @@ export default function Movements() {
 
     const { data, error } = await supabase
       .from('movements')
-      .select('*, lots(lot_code, product, solucion_product_code, location, clients(name)), profiles(full_name)')
+      .select('*, lots(lot_code, product, solucion_product_code, location, clients(name)), profiles(full_name), warehouse_operations(guide_number)')
       .order('created_at', { ascending: false })
       .limit(1000)
 
     if (!error) {
-      setMovements(data || [])
+      setMovements(groupWebOperations(data || []))
       return
     }
 
@@ -106,7 +106,47 @@ export default function Movements() {
       return
     }
 
-    setMovements(await enrichMovements(fallback.data || []))
+    setMovements(groupWebOperations(await enrichMovements(fallback.data || [])))
+  }
+
+  // Une en un solo movimiento las líneas web que comparten operación (misma guía)
+  function groupWebOperations(rawMovements) {
+    const byOperation = new Map()
+    const result = []
+    for (const m of rawMovements) {
+      if (m.operation_id && (m.type === 'entrada' || m.type === 'salida')) {
+        if (!byOperation.has(m.operation_id)) byOperation.set(m.operation_id, [])
+        byOperation.get(m.operation_id).push(m)
+      } else {
+        result.push(m)
+      }
+    }
+    for (const group of byOperation.values()) {
+      if (group.length === 1) {
+        result.push(group[0])
+        continue
+      }
+      const first = group[0]
+      result.push({
+        id: `op-${first.operation_id}`,
+        source: 'web-group',
+        type: first.type,
+        created_at: group.reduce((max, m) => (m.created_at > max ? m.created_at : max), first.created_at),
+        quantity: group.reduce((sum, m) => sum + Number(m.quantity || 0), 0),
+        note_number: first.warehouse_operations?.guide_number || null,
+        product: `${group.length} ITEMS`,
+        lot_code: 'VARIOS',
+        items: group.map((m) => ({ product: m.lots?.product, lot: displayLotCode(m.lots?.lot_code, m.lots), quantity: m.quantity })),
+        empresa: first.lots?.clients?.name || '',
+        usuario: first.profiles?.full_name || '',
+        observations: '',
+        transporter: '',
+        plate: '',
+        contact_person: '',
+        concept: first.notes || '',
+      })
+    }
+    return result
   }
 
   async function enrichMovements(rawMovements) {
@@ -139,6 +179,10 @@ export default function Movements() {
       const matchesSearch = [
         movement.type,
         movement.notes,
+        movement.note_number,
+        movement.product,
+        movement.empresa,
+        movement.usuario,
         movement.lots?.lot_code,
         displayLotCode(movement.lots?.lot_code, movement.lots),
         productCodeLabel(movement.lots),
@@ -146,9 +190,11 @@ export default function Movements() {
         movement.lots?.location,
         movement.lots?.clients?.name,
         movement.profiles?.full_name,
+        ...(movement.items ? movement.items.map((item) => item.product) : []),
+        ...(movement.items ? movement.items.map((item) => item.lot) : []),
       ]
         .filter(Boolean)
-        .some((value) => value.toLowerCase().includes(term))
+        .some((value) => String(value).toLowerCase().includes(term))
 
       return matchesType && matchesSearch
     })
@@ -215,7 +261,7 @@ export default function Movements() {
           filteredMovements.map((movement) => {
             const Icon = movementIcons[movement.type] || RotateCcw
 
-            if (movement.source === 'desktop') {
+            if (movement.source === 'desktop' || movement.source === 'web-group') {
               return (
                 <article key={movement.id} className="panel">
                   <div className="flex items-start gap-3">
@@ -260,7 +306,10 @@ export default function Movements() {
                         </p>
                       ) : null}
                       {movement.observations ? <p className="mt-1 text-sm text-slate-600">{movement.observations}</p> : null}
-                      <p className="mt-1 inline-flex rounded-full bg-slate-100 px-2 py-0.5 text-xs font-bold text-slate-500">Registrado en el programa</p>
+                      {movement.usuario ? <p className="mt-1 text-sm text-slate-600">Usuario: {movement.usuario}</p> : null}
+                      {movement.source === 'desktop' ? (
+                        <p className="mt-1 inline-flex rounded-full bg-slate-100 px-2 py-0.5 text-xs font-bold text-slate-500">Registrado en el programa</p>
+                      ) : null}
                     </div>
                   </div>
                 </article>

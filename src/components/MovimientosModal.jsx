@@ -35,7 +35,7 @@ export default function MovimientosModal({ onClose }) {
     const [webResult, desktopResult, clientsResult] = await Promise.all([
       supabase
         .from('movements')
-        .select('*, lots(lot_code, product, location, expiry_date, clients(name)), profiles(full_name)')
+        .select('*, lots(lot_code, product, location, expiry_date, clients(name)), profiles(full_name), warehouse_operations(guide_number)')
         .order('created_at', { ascending: false })
         .limit(500),
       supabase
@@ -49,14 +49,48 @@ export default function MovimientosModal({ onClose }) {
         .eq('inventory_source', 'stock_independiente'),
     ])
 
-    let webMovements = webResult.data || []
+    let rawWebMovements = webResult.data || []
     if (webResult.error) {
       const { data: raw } = await supabase
         .from('movements')
         .select('*')
         .order('created_at', { ascending: false })
         .limit(500)
-      webMovements = raw || []
+      rawWebMovements = raw || []
+    }
+
+    // Agrupar movimientos web que pertenecen a la misma operación (misma guía)
+    const webByOperation = new Map()
+    const webMovements = []
+    for (const m of rawWebMovements) {
+      const noteNumber = m.warehouse_operations?.guide_number || null
+      if (m.operation_id && (m.type === 'entrada' || m.type === 'salida')) {
+        if (!webByOperation.has(m.operation_id)) webByOperation.set(m.operation_id, [])
+        webByOperation.get(m.operation_id).push({ ...m, note_number: noteNumber })
+      } else {
+        webMovements.push({ ...m, note_number: noteNumber })
+      }
+    }
+    for (const group of webByOperation.values()) {
+      if (group.length === 1) {
+        webMovements.push(group[0])
+        continue
+      }
+      const first = group[0]
+      webMovements.push({
+        ...first,
+        id: `op-${first.operation_id}`,
+        grouped: true,
+        quantity: group.reduce((sum, m) => sum + Number(m.quantity || 0), 0),
+        created_at: group.reduce((max, m) => (m.created_at > max ? m.created_at : max), first.created_at),
+        items: group.map((m) => ({ product: m.lots?.product, lot: displayLotCode(m.lots?.lot_code, m.lots), quantity: m.quantity })),
+        lots: {
+          ...first.lots,
+          product: `${group.length} ITEMS`,
+          lot_code: 'VARIOS',
+          expiry_date: null,
+        },
+      })
     }
 
     const prefixMap = new Map(
@@ -278,7 +312,7 @@ export default function MovimientosModal({ onClose }) {
               </div>
 
               <div className="flex-1 overflow-y-auto p-4 space-y-3">
-                {selected.source === 'desktop' ? (
+                {selected.source === 'desktop' || selected.grouped ? (
                   <>
                     <InfoRow label="Nota" value={selected.note_number || '-'} bold />
                     <InfoRow label="Empresa" value={lot.clients?.name || '-'} />
@@ -309,11 +343,14 @@ export default function MovimientosModal({ onClose }) {
                     {selected.plate ? <InfoRow label="Placa" value={selected.plate} /> : null}
                     {selected.contact_person ? <InfoRow label="Contacto" value={selected.contact_person} /> : null}
                     {selected.observations ? <InfoRow label="Observaciones" value={selected.observations} /> : null}
+                    {selected.profiles?.full_name ? <InfoRow label="Usuario" value={selected.profiles.full_name} /> : null}
                     <div className="rounded-lg bg-slate-50 px-3 py-2">
                       <p className="text-xs font-semibold text-slate-400">Concepto</p>
                       <p className="mt-0.5 text-sm font-semibold text-slate-700">{selected.notes || 'Sin concepto'}</p>
                     </div>
-                    <p className="inline-flex rounded-full bg-slate-100 px-2 py-0.5 text-xs font-bold text-slate-500">Registrado en el programa</p>
+                    {selected.source === 'desktop' ? (
+                      <p className="inline-flex rounded-full bg-slate-100 px-2 py-0.5 text-xs font-bold text-slate-500">Registrado en el programa</p>
+                    ) : null}
                   </>
                 ) : (
                 <>
