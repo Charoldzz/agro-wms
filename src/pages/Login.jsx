@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Navigate, useLocation } from 'react-router-dom'
-import { Lock, Mail } from 'lucide-react'
+import { Eye, EyeOff, Lock, Mail } from 'lucide-react'
 import { supabase, isSupabaseConfigured } from '../lib/supabase'
 import { useAuth } from '../hooks/useAuth.jsx'
 import ConfigWarning from '../components/ConfigWarning'
@@ -11,6 +11,7 @@ export default function Login() {
   const { user, profile, profileLoading } = useAuth()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 
@@ -77,11 +78,19 @@ export default function Login() {
               <Lock className="text-slate-400" size={20} />
               <input
                 className="min-h-12 flex-1 border-0 bg-transparent px-3 outline-none"
-                type="password"
+                type={showPassword ? 'text' : 'password'}
                 value={password}
                 onChange={(event) => setPassword(event.target.value)}
                 required
               />
+              <button
+                type="button"
+                className="flex h-9 w-9 items-center justify-center rounded-lg text-slate-400 transition hover:text-slate-600"
+                onClick={() => setShowPassword((v) => !v)}
+                title={showPassword ? 'Ocultar contraseña' : 'Ver contraseña'}
+              >
+                {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+              </button>
             </div>
           </label>
         </div>
