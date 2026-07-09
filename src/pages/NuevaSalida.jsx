@@ -82,6 +82,7 @@ export default function NuevaSalida() {
   const [error, setError] = useState('')
   const [success, setSuccess] = useState(false)
   const [comprobante, setComprobante] = useState(null)
+  const [missingItems, setMissingItems] = useState([])
 
   // Cargar preview del número de guía automático
   useEffect(() => {
@@ -164,9 +165,10 @@ export default function NuevaSalida() {
 
   useEffect(() => {
     if (!solicitud || !Array.isArray(solicitud.items) || solicitud.items.length === 0 || lots.length === 0) return
+    const missing = []
     const newRows = solicitud.items.map((item) => {
       const lot = lots.find((l) => l.id === item.lot_id)
-      if (!lot) return null
+      if (!lot) { missing.push(item); return null }
       const uds = Number(item.quantity) || 0
       const pkgSize = Number(lot.package_size) || 1
       const cantidad = uds * pkgSize
@@ -190,6 +192,7 @@ export default function NuevaSalida() {
         cajas_rem: cajas_rem > 0 ? String(cajas_rem) : '',
       }
     }).filter(Boolean)
+    setMissingItems(missing)
     if (newRows.length > 0) setRows(newRows)
   }, [solicitud, lots, catalogMap])
 
@@ -320,6 +323,8 @@ export default function NuevaSalida() {
     }))
   }
 
+  const rowInsufficient = (row) => isRequestMode && row.lot_id && Number(row.uds || 0) > Number(row.saldo || 0)
+  const insufficientRows = isRequestMode ? rows.filter(rowInsufficient) : []
   const allConfirmed = !isRequestMode || rows.every((r) => r.confirmed)
 
   const fieldTotals = useMemo(() => {
@@ -475,6 +480,36 @@ export default function NuevaSalida() {
         </div>
       )}
 
+      {isRequestMode && missingItems.length > 0 && (
+        <div className="mb-4 rounded-lg border border-red-200 bg-red-50 p-3">
+          <p className="text-sm font-black text-red-800">
+            {missingItems.length === 1 ? 'Un producto de la solicitud ya no tiene stock:' : `${missingItems.length} productos de la solicitud ya no tienen stock:`}
+          </p>
+          <ul className="mt-1 space-y-0.5">
+            {missingItems.map((item, idx) => (
+              <li key={idx} className="text-sm font-semibold text-red-700">
+                • {cleanProductName(item.product) || 'Producto'} — pedía {formatNumber(item.quantity)} env.
+              </li>
+            ))}
+          </ul>
+          <p className="mt-2 text-xs font-semibold text-red-600">No se puede despachar esta solicitud completa. Podés rechazarla con motivo desde la pantalla de Salidas.</p>
+        </div>
+      )}
+
+      {insufficientRows.length > 0 && (
+        <div className="mb-4 rounded-lg border border-red-200 bg-red-50 p-3">
+          <p className="text-sm font-black text-red-800">Saldo insuficiente para {insufficientRows.length === 1 ? 'un producto' : `${insufficientRows.length} productos`} (marcados en rojo):</p>
+          <ul className="mt-1 space-y-0.5">
+            {insufficientRows.map((row) => (
+              <li key={row.id} className="text-sm font-semibold text-red-700">
+                • {row.product} — pide {formatNumber(row.uds)} env. y hay {formatNumber(row.saldo)} env.
+              </li>
+            ))}
+          </ul>
+          <p className="mt-2 text-xs font-semibold text-red-600">El stock cambió desde que el cliente hizo la solicitud. Podés rechazarla con motivo desde la pantalla de Salidas.</p>
+        </div>
+      )}
+
       <div className="mb-4 overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm">
         <table className="w-full border-collapse" style={{ minWidth: '1008px', tableLayout: 'fixed' }}>
           <thead>
@@ -498,11 +533,13 @@ export default function NuevaSalida() {
               <tr
                 key={row.id}
                 className={`cursor-pointer border-b border-slate-100 transition-colors ${
-                  isRequestMode && row.confirmed
-                    ? 'bg-campo-50'
-                    : selectedIdx === i
-                      ? 'bg-blue-50 ring-1 ring-inset ring-blue-200'
-                      : 'hover:bg-slate-50'
+                  rowInsufficient(row)
+                    ? 'bg-red-50 ring-1 ring-inset ring-red-200'
+                    : isRequestMode && row.confirmed
+                      ? 'bg-campo-50'
+                      : selectedIdx === i
+                        ? 'bg-blue-50 ring-1 ring-inset ring-blue-200'
+                        : 'hover:bg-slate-50'
                 }`}
                 onClick={() => setSelectedIdx(i)}
               >
@@ -511,12 +548,14 @@ export default function NuevaSalida() {
                     <button
                       type="button"
                       className={`mx-auto flex h-8 w-8 items-center justify-center rounded-full transition-all ${
-                        row.confirmed
-                          ? 'bg-campo-600 text-white shadow-sm'
-                          : 'border-2 border-slate-300 text-slate-300 hover:border-campo-500 hover:text-campo-500'
+                        rowInsufficient(row)
+                          ? 'cursor-not-allowed border-2 border-red-200 text-red-300'
+                          : row.confirmed
+                            ? 'bg-campo-600 text-white shadow-sm'
+                            : 'border-2 border-slate-300 text-slate-300 hover:border-campo-500 hover:text-campo-500'
                       }`}
-                      onClick={(e) => { e.stopPropagation(); updateRow(row.id, 'confirmed', !row.confirmed) }}
-                      title={row.confirmed ? 'Quitar confirmación' : 'Confirmar producto'}
+                      onClick={(e) => { e.stopPropagation(); if (!rowInsufficient(row)) updateRow(row.id, 'confirmed', !row.confirmed) }}
+                      title={rowInsufficient(row) ? 'Saldo insuficiente — no se puede confirmar' : row.confirmed ? 'Quitar confirmación' : 'Confirmar producto'}
                     >
                       <CheckCircle2 size={16} />
                     </button>
@@ -529,11 +568,15 @@ export default function NuevaSalida() {
                     <div className="flex min-w-0 items-center gap-1">
                       <div className="min-w-0 flex-1">
                         <div className="truncate text-sm font-semibold text-slate-900" title={row.product}>{row.product}</div>
-                        {row.package_unit && (
+                        {rowInsufficient(row) ? (
+                          <div className="text-[10px] font-black text-red-600">
+                            Saldo insuficiente: hay {formatNumber(row.saldo)} env. y pide {formatNumber(row.uds)}
+                          </div>
+                        ) : row.package_unit ? (
                           <div className="text-[10px] font-semibold text-slate-400">
                             {formatNumber(row.saldo * (Number(row.package_size) || 1))} {row.package_unit} disponibles
                           </div>
-                        )}
+                        ) : null}
                       </div>
                       {!isRequestMode && (
                         <button
