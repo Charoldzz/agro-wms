@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Download, FileText, Search } from 'lucide-react'
+import { Download, FileText, RefreshCcw, Search } from 'lucide-react'
 import PageHeader from '../components/PageHeader'
 import EmptyState from '../components/EmptyState'
 import SimpleDateSelect from '../components/SimpleDateSelect'
@@ -82,6 +82,56 @@ export default function AdminExports() {
   const [dateFrom, setDateFrom] = useState('')
   const [dateTo, setDateTo] = useState('')
   const [notice, setNotice] = useState('')
+  const [syncStatus, setSyncStatus] = useState('')
+  const [syncing, setSyncing] = useState(false)
+
+  async function exportForDesktop() {
+    setSyncing(true)
+    setSyncStatus('')
+    const { data, error } = await supabase
+      .from('movements')
+      .select('id, type, quantity, notes, created_at, operation_id, lots(lot_code, product, solucion_product_code, package_size, package_unit, clients(name)), warehouse_operations(guide_number)')
+      .not('operation_id', 'is', null)
+      .in('type', ['entrada', 'salida'])
+      .order('created_at', { ascending: true })
+
+    if (error) {
+      setSyncStatus('No se pudieron cargar las operaciones web.')
+      setSyncing(false)
+      return
+    }
+
+    const exportMovements = (data || []).map((m) => ({
+      NoteNumber: m.warehouse_operations?.guide_number || '',
+      Type: m.type === 'entrada' ? 'INGRESO' : 'SALIDA',
+      Date: m.created_at,
+      ProductCode: m.lots?.solucion_product_code || '',
+      ProductName: cleanProductName(m.lots?.product) || '',
+      Lot: displayLotCode(m.lots?.lot_code, m.lots) || '',
+      Quantity: Number(m.quantity || 0),
+      PackageSize: Number(m.lots?.package_size || 0) || null,
+      PackageUnit: m.lots?.package_unit || null,
+      DispatchCompany: m.lots?.clients?.name || '',
+      Observations: m.notes || '',
+      WebMovementId: m.id,
+    }))
+
+    const payload = {
+      GeneratedAt: new Date().toISOString(),
+      Source: 'todo-agricola-web',
+      FormatVersion: 1,
+      Movements: exportMovements,
+    }
+    const blob = new Blob([JSON.stringify(payload, null, 1)], { type: 'application/json' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `operaciones-web-para-programa-${new Date().toISOString().slice(0, 10)}.json`
+    link.click()
+    URL.revokeObjectURL(url)
+    setSyncStatus(`Archivo generado: ${exportMovements.length} operaciones web listas para importar en el programa.`)
+    setSyncing(false)
+  }
 
   useEffect(() => {
     loadData()
@@ -291,6 +341,19 @@ export default function AdminExports() {
             <PreviewRow key={`${row[0]}-${row[2]}-${row[4]}-${row[5]}`} title={row[3]} meta={`${row[1]} - ${row[2]} - ${row[0]}`} value={`${row[5]} env.`} />
           ))}
         </ExportPanel>
+      </section>
+
+      <section className="panel mt-4 flex flex-wrap items-center justify-between gap-3 border-dashed border-slate-300">
+        <div>
+          <h3 className="font-black text-slate-950">Sincronización con el programa</h3>
+          <p className="mt-1 text-sm font-semibold text-slate-500">
+            Descarga las operaciones registradas en la web (ingresos y salidas con guía) en formato JSON para importarlas en el Panel Stock.
+          </p>
+          {syncStatus ? <p className="mt-1 text-sm font-bold text-campo-700">{syncStatus}</p> : null}
+        </div>
+        <button className="btn-secondary !min-h-11" type="button" onClick={exportForDesktop} disabled={syncing}>
+          <RefreshCcw size={18} className={syncing ? 'animate-spin' : ''} /> {syncing ? 'Generando...' : 'Exportar para el programa'}
+        </button>
       </section>
     </div>
   )

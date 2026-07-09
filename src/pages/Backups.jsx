@@ -1,10 +1,69 @@
-import { CalendarCheck, DatabaseBackup, FileArchive, RotateCcw, ShieldCheck } from 'lucide-react'
+import { useState } from 'react'
+import { CalendarCheck, DatabaseBackup, Download, FileArchive, RotateCcw, ShieldCheck } from 'lucide-react'
 import PageHeader from '../components/PageHeader'
+import { supabase } from '../lib/supabase'
+
+const BACKUP_TABLES = [
+  'clients',
+  'lots',
+  'movements',
+  'warehouse_operations',
+  'product_catalog',
+  'client_dispatch_requests',
+  'desktop_movements',
+]
 
 export default function Backups() {
+  const [downloading, setDownloading] = useState(false)
+  const [status, setStatus] = useState('')
+
+  async function downloadBackup() {
+    setDownloading(true)
+    setStatus('')
+    try {
+      const backup = { exported_at: new Date().toISOString(), source: 'todo-agricola-web', tables: {} }
+      for (const table of BACKUP_TABLES) {
+        const rows = []
+        const pageSize = 1000
+        for (let from = 0; ; from += pageSize) {
+          const { data, error } = await supabase.from(table).select('*').range(from, from + pageSize - 1)
+          if (error) { backup.tables[table] = { error: error.message }; break }
+          rows.push(...(data || []))
+          if (!data || data.length < pageSize) { backup.tables[table] = rows; break }
+        }
+      }
+      const blob = new Blob([JSON.stringify(backup, null, 1)], { type: 'application/json' })
+      const url = URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = `backup-todo-agricola-${new Date().toISOString().slice(0, 10)}.json`
+      link.click()
+      URL.revokeObjectURL(url)
+      const total = Object.values(backup.tables).reduce((sum, t) => sum + (Array.isArray(t) ? t.length : 0), 0)
+      setStatus(`Backup descargado: ${total.toLocaleString('es-BO')} registros de ${BACKUP_TABLES.length} tablas. Guardalo en Drive/OneDrive.`)
+    } catch (err) {
+      setStatus('No se pudo generar el backup. Revisa la conexión e intenta de nuevo.')
+    } finally {
+      setDownloading(false)
+    }
+  }
+
   return (
     <div>
       <PageHeader title="Backups" subtitle="Politica de respaldo y recuperacion" />
+
+      <section className="panel mb-4 flex flex-wrap items-center justify-between gap-3 border-2 border-campo-200">
+        <div>
+          <h3 className="font-black text-slate-950">Backup manual ahora</h3>
+          <p className="mt-1 text-sm font-semibold text-slate-600">
+            Descarga todas las tablas (clientes, lotes, movimientos, catálogo, solicitudes e historial del programa) en un archivo JSON.
+          </p>
+          {status ? <p className="mt-1 text-sm font-bold text-campo-700">{status}</p> : null}
+        </div>
+        <button className="btn-primary !min-h-11" type="button" onClick={downloadBackup} disabled={downloading}>
+          <Download size={18} /> {downloading ? 'Generando...' : 'Descargar backup'}
+        </button>
+      </section>
 
       <section className="grid gap-4 lg:grid-cols-2">
         <BackupCard
