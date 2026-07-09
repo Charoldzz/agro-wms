@@ -109,6 +109,7 @@ const STATUS_MAP = {
   en_preparacion:  { label: 'En preparación',     cls: 'bg-campo-100 text-campo-800',  accent: 'bg-campo-500' },
   despachado:      { label: 'Despachado',          cls: 'bg-slate-100 text-slate-600',  accent: 'bg-slate-400' },
   rechazado:       { label: 'Rechazado',           cls: 'bg-red-50 text-red-700',       accent: 'bg-red-400' },
+  cancelado:       { label: 'Cancelada',           cls: 'bg-slate-100 text-slate-500',  accent: 'bg-slate-300' },
 }
 function requestStatus(s) { return STATUS_MAP[s] || { label: 'Recibido', cls: 'bg-amber-50 text-amber-800', accent: 'bg-amber-400' } }
 
@@ -163,6 +164,9 @@ export default function ClientPortal({ view = 'inventory' }) {
   const [reqTransporter, setReqTransporter]  = useState({ name: '', ci: '', plate: '' })
   const [reqAttachFile,  setReqAttachFile]   = useState(null)
   const [reqUploading,   setReqUploading]    = useState(false)
+  const [editingRequestId, setEditingRequestId] = useState(null)
+  const [existingAttachment, setExistingAttachment] = useState(null)
+  const [cancelingId,    setCancelingId]     = useState(null)
 
   useEffect(() => { if (user?.id && profile) loadData() }, [user?.id, profile?.client_id])
   useEffect(() => { writeDraft({ lotId: reqLotId, quantity: reqQuantity, notes: reqNotes, items: reqItems }) }, [reqLotId, reqQuantity, reqNotes, reqItems])
@@ -227,7 +231,7 @@ export default function ClientPortal({ view = 'inventory' }) {
   const productCount  = lots.length
   const expiring      = lots.filter(l => { const d = daysUntil(l.expiry_date); return d !== null && d <= 90 })
   const alerts        = lots.filter(l => lotStatus(l).label !== 'Disponible' && lotStatus(l).label !== 'Por vencer')
-  const activeRequests = requests.filter(r => !['despachado','rechazado'].includes(r.status))
+  const activeRequests = requests.filter(r => !['despachado','rechazado','cancelado'].includes(r.status))
   const pendingDispatchRequests = requests.filter(r => ['pendiente', 'aprobado'].includes(r.status))
   const preparingDispatchRequests = requests.filter(r => r.status === 'en_preparacion')
   const dispatchedRequests = requests.filter(r => r.status === 'despachado')
@@ -367,6 +371,39 @@ export default function ClientPortal({ view = 'inventory' }) {
     clearDraft()
   }
 
+  function startEditRequest(req) {
+    if (!['pendiente', 'aprobado'].includes(req.status)) return
+    setEditingRequestId(req.id)
+    setReqItems(Array.isArray(req.items) ? req.items : [])
+    setReqNotes(req.notes || '')
+    setReqTransporter({ name: req.transporter_name || '', ci: req.transporter_ci || '', plate: req.transporter_plate || '' })
+    setExistingAttachment(req.attachment_url || null)
+    setReqAttachFile(null)
+    setReqSuccess(null)
+    setReqMessage('')
+    setCancelingId(null)
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+
+  function stopEditRequest() {
+    setEditingRequestId(null)
+    setExistingAttachment(null)
+    setReqItems([]); setReqNotes(''); setReqTransporter({ name: '', ci: '', plate: '' })
+    setReqAttachFile(null); setReqMessage(''); clearDraft()
+  }
+
+  async function cancelRequest(id) {
+    const { error } = await supabase
+      .from('client_dispatch_requests')
+      .update({ status: 'cancelado' })
+      .eq('id', id)
+      .in('status', ['pendiente', 'aprobado'])
+    setCancelingId(null)
+    if (error) { setReqMessage('No se pudo cancelar la solicitud. Puede que ya esté en preparación.'); return }
+    if (editingRequestId === id) stopEditRequest()
+    loadData()
+  }
+
   async function submitRequest(e) {
     e.preventDefault(); setReqMessage('')
     if (!reqTransporter.name.trim() || !reqTransporter.ci.trim() || !reqTransporter.plate.trim()) {
@@ -383,7 +420,7 @@ export default function ClientPortal({ view = 'inventory' }) {
     if (!fresh[0] || !clientId) { setReqMessage('No se pudo validar el cliente. Recarga e intenta de nuevo.'); return }
     if (clientIds.some(id => id !== clientId)) { setReqMessage('La solicitud contiene productos de otro cliente. Recarga e intenta de nuevo.'); return }
     if (over) { setReqMessage(`${cleanProductName(over.product)} solo tiene ${formatNumber(over.current_quantity ?? over.available ?? 0)} env. disponibles.`); return }
-    let attachmentUrl = null
+    let attachmentUrl = editingRequestId ? existingAttachment : null
     if (reqAttachFile) {
       setReqUploading(true)
       const ext = reqAttachFile.name.split('.').pop().toLowerCase().replace(/[^a-z0-9]/g, '') || 'bin'
@@ -394,21 +431,30 @@ export default function ClientPortal({ view = 'inventory' }) {
       const { data: urlData } = supabase.storage.from('Dispatch_Attachments').getPublicUrl(path)
       attachmentUrl = urlData.publicUrl
     }
-    const { error } = await supabase.from('client_dispatch_requests').insert({
+    const payload = {
       client_id: clientId, lot_id: fresh[0].lot_id,
       product: fresh.length === 1 ? fresh[0].product : `Lista de despacho (${fresh.length} productos)`,
       quantity: fresh.reduce((s,i) => s + Number(i.quantity||0), 0),
       items: fresh.map(i => ({ ...i, client_id: i.client_id||clientId, client_name: i.client_name||clientName })),
-      notes: reqNotes.trim()||null, status:'pendiente', requested_by: user.id,
+      notes: reqNotes.trim()||null, status:'pendiente',
       transporter_name: reqTransporter.name.trim(),
       transporter_ci: reqTransporter.ci.trim(),
       transporter_plate: reqTransporter.plate.trim().toUpperCase(),
       attachment_url: attachmentUrl,
-    })
-    if (error) { setReqMessage('No se pudo enviar la solicitud. Contacta a almacén.'); return }
+    }
+    const { error } = editingRequestId
+      ? await supabase.from('client_dispatch_requests').update(payload).eq('id', editingRequestId).in('status', ['pendiente', 'aprobado'])
+      : await supabase.from('client_dispatch_requests').insert({ ...payload, requested_by: user.id })
+    if (error) {
+      setReqMessage(editingRequestId
+        ? 'No se pudo guardar el cambio. Puede que la solicitud ya esté en preparación.'
+        : 'No se pudo enviar la solicitud. Contacta a almacén.')
+      return
+    }
     setReqLotId(''); setReqQuantity(''); setReqItems([]); setReqNotes(''); setEditingLotId(''); setReqProductName(''); clearDraft()
     setReqTransporter({ name: '', ci: '', plate: '' }); setReqAttachFile(null)
-    setReqSuccess({ clientName, items: fresh, createdAt: new Date().toISOString() })
+    setReqSuccess({ clientName, items: fresh, createdAt: new Date().toISOString(), edited: Boolean(editingRequestId) })
+    setEditingRequestId(null); setExistingAttachment(null)
     if (navigator.vibrate) navigator.vibrate(80)
     loadData()
   }
@@ -998,7 +1044,7 @@ export default function ClientPortal({ view = 'inventory' }) {
                   <div className="flex h-16 w-16 items-center justify-center rounded-full bg-campo-50 ring-8 ring-campo-100">
                     <CheckCircle2 size={34} className="text-campo-600" />
                   </div>
-                  <h2 className="mt-4 text-xl font-black text-slate-950">¡Solicitud enviada!</h2>
+                  <h2 className="mt-4 text-xl font-black text-slate-950">{reqSuccess.edited ? '¡Solicitud actualizada!' : '¡Solicitud enviada!'}</h2>
                   <p className="mt-1 text-sm font-semibold text-slate-500">
                     {reqSuccess.items.length === 1 ? '1 producto quedó' : `${reqSuccess.items.length} productos quedaron`} como despacho pendiente.
                   </p>
@@ -1037,6 +1083,15 @@ export default function ClientPortal({ view = 'inventory' }) {
                 </div>
               ) : (
                 <form className="space-y-4 p-4" onSubmit={submitRequest} noValidate>
+
+                  {editingRequestId && (
+                    <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-blue-200 bg-blue-50 px-4 py-3">
+                      <p className="text-sm font-black text-blue-800">Editando una solicitud enviada</p>
+                      <button type="button" className="text-xs font-bold text-blue-700 underline" onClick={stopEditRequest}>
+                        Salir sin guardar
+                      </button>
+                    </div>
+                  )}
 
                   {/* Transportista */}
                   <div className="space-y-3 rounded-xl border border-slate-200 bg-slate-50 p-4">
@@ -1255,6 +1310,14 @@ export default function ClientPortal({ view = 'inventory' }) {
                           Quitar adjunto
                         </button>
                       )}
+                      {editingRequestId && existingAttachment && !reqAttachFile && (
+                        <p className="text-[10px] font-semibold text-slate-400">
+                          Ya hay una nota adjunta — se mantiene si no seleccionas otro archivo.
+                          <button type="button" className="ml-2 font-bold text-red-500 hover:underline" onClick={() => setExistingAttachment(null)}>
+                            Quitarla
+                          </button>
+                        </p>
+                      )}
                     </div>
                   )}
 
@@ -1272,7 +1335,11 @@ export default function ClientPortal({ view = 'inventory' }) {
 
                   {reqItems.length > 0 && (
                     <button className="btn-primary w-full" type="submit" disabled={reqUploading}>
-                      {reqUploading ? 'Subiendo archivo...' : <><Send size={18} /> Enviar solicitud a almacén</>}
+                      {reqUploading
+                        ? 'Subiendo archivo...'
+                        : editingRequestId
+                          ? <><Send size={18} /> Guardar cambios de la solicitud</>
+                          : <><Send size={18} /> Enviar solicitud a almacén</>}
                     </button>
                   )}
 
@@ -1366,6 +1433,42 @@ export default function ClientPortal({ view = 'inventory' }) {
                               <p className="text-xs font-semibold text-slate-600 italic [overflow-wrap:anywhere]">{req.admin_notes}</p>
                             )}
                           </div>
+                          {['pendiente', 'aprobado'].includes(req.status) && (
+                            cancelingId === req.id ? (
+                              <div className="mt-2 rounded-lg border border-red-200 bg-red-50 p-2.5">
+                                <p className="text-xs font-bold text-red-800">¿Cancelar esta solicitud? El almacén dejará de verla.</p>
+                                <div className="mt-2 grid grid-cols-2 gap-2">
+                                  <button type="button" className="btn-secondary !min-h-8 !py-1 text-xs" onClick={() => setCancelingId(null)}>
+                                    No, volver
+                                  </button>
+                                  <button
+                                    type="button"
+                                    className="inline-flex min-h-8 items-center justify-center rounded-lg bg-red-600 px-2 py-1 text-xs font-bold text-white active:scale-[0.98]"
+                                    onClick={() => cancelRequest(req.id)}
+                                  >
+                                    Sí, cancelar
+                                  </button>
+                                </div>
+                              </div>
+                            ) : (
+                              <div className="mt-2 flex gap-2">
+                                <button
+                                  type="button"
+                                  className="btn-secondary flex-1 !min-h-8 !py-1 text-xs"
+                                  onClick={() => startEditRequest(req)}
+                                >
+                                  Modificar
+                                </button>
+                                <button
+                                  type="button"
+                                  className="inline-flex min-h-8 flex-1 items-center justify-center rounded-lg border border-red-200 bg-white px-2 py-1 text-xs font-bold text-red-600 transition hover:bg-red-50 active:scale-[0.98]"
+                                  onClick={() => setCancelingId(req.id)}
+                                >
+                                  Cancelar
+                                </button>
+                              </div>
+                            )
+                          )}
                         </div>
                       </div>
                     )
@@ -1480,6 +1583,14 @@ function RequestProgress({ status }) {
       <div className="mt-3 flex items-center gap-2 rounded-lg bg-red-50 px-3 py-2">
         <X size={13} className="shrink-0 text-red-600" />
         <span className="text-xs font-black text-red-700">Solicitud rechazada</span>
+      </div>
+    )
+  }
+  if (status === 'cancelado') {
+    return (
+      <div className="mt-3 flex items-center gap-2 rounded-lg bg-slate-100 px-3 py-2">
+        <X size={13} className="shrink-0 text-slate-500" />
+        <span className="text-xs font-black text-slate-600">Cancelada por ti</span>
       </div>
     )
   }

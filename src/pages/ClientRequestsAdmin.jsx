@@ -23,6 +23,7 @@ const STATUS_STYLES = {
   en_preparacion: { border: 'border-l-campo-500',  bg: 'bg-campo-50',   badge: 'bg-campo-100 text-campo-800',   label: 'En preparación' },
   despachado:     { border: 'border-l-slate-300',  bg: 'bg-white',      badge: 'bg-slate-100 text-slate-600',   label: 'Despachado' },
   rechazado:      { border: 'border-l-red-400',    bg: 'bg-red-50',     badge: 'bg-red-100 text-red-700',       label: 'Rechazado' },
+  cancelado:      { border: 'border-l-slate-300',  bg: 'bg-white',      badge: 'bg-slate-100 text-slate-500',   label: 'Cancelada por el cliente' },
 }
 
 export default function ClientRequestsAdmin() {

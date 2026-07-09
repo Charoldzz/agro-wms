@@ -83,7 +83,7 @@ function AppRoutes() {
         <Route path="productos/:name" element={<RoleRoute roles={['administrador', 'operador', 'cliente']}><ProductLots /></RoleRoute>} />
         <Route path="vencimientos" element={<RoleRoute roles={['administrador', 'operador', 'cliente']}><ExpiringLots /></RoleRoute>} />
         <Route path="scanner" element={<Scanner />} />
-        <Route path="movimientos" element={<RoleRoute roles={['administrador', 'operador']}><Movements /></RoleRoute>} />
+        <Route path="movimientos" element={<RoleRoute roles={['administrador']}><Movements /></RoleRoute>} />
         <Route path="offline" element={<RoleRoute roles={['administrador']}><OfflineAudit /></RoleRoute>} />
         <Route path="solicitudes" element={<RoleRoute roles={['administrador', 'operador']}><ClientRequestsAdmin /></RoleRoute>} />
         <Route path="despachos" element={<RoleRoute roles={['cliente']}><ClientPortal view="requests" /></RoleRoute>} />
