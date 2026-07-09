@@ -15,12 +15,14 @@ const movementIcons = {
 
 export default function Movements() {
   const [movements, setMovements] = useState([])
+  const [desktopMovements, setDesktopMovements] = useState([])
   const [search, setSearch] = useState('')
   const [typeFilter, setTypeFilter] = useState('')
   const [loadNotice, setLoadNotice] = useState('')
 
   useEffect(() => {
     loadMovements()
+    loadDesktopMovements()
 
     const channel = supabase
       .channel('movements-page')
@@ -29,6 +31,42 @@ export default function Movements() {
 
     return () => supabase.removeChannel(channel)
   }, [])
+
+  async function loadDesktopMovements() {
+    const [{ data: rows, error }, { data: clientRows }] = await Promise.all([
+      supabase
+        .from('desktop_movements')
+        .select('*')
+        .order('date', { ascending: false })
+        .limit(5000),
+      supabase
+        .from('clients')
+        .select('name, product_code_prefix')
+        .eq('inventory_source', 'stock_independiente'),
+    ])
+    if (error) return
+    const prefixMap = new Map(
+      (clientRows || [])
+        .filter((c) => c.product_code_prefix)
+        .map((c) => [c.product_code_prefix.toUpperCase(), c.name]),
+    )
+    setDesktopMovements((rows || []).map((row) => ({
+      id: `desktop-${row.id}`,
+      source: 'desktop',
+      type: row.type === 'INGRESO' ? 'entrada' : 'salida',
+      created_at: row.date,
+      quantity: row.quantity,
+      note_number: row.note_number,
+      product: row.product_name,
+      lot_code: row.lot,
+      empresa: row.dispatch_company || prefixMap.get((row.client_prefix || '').toUpperCase()) || '',
+      transporter: row.transporter,
+      plate: row.plate,
+      contact_person: row.contact_person,
+      observations: row.observations,
+      concept: row.concept,
+    })))
+  }
 
   async function loadMovements() {
     setLoadNotice('')
@@ -84,7 +122,7 @@ export default function Movements() {
 
   const filteredMovements = useMemo(() => {
     const term = search.toLowerCase()
-    return movements.filter((movement) => {
+    const webFiltered = movements.filter((movement) => {
       const matchesType = !typeFilter || movement.type === typeFilter
       const matchesSearch = [
         movement.type,
@@ -102,7 +140,30 @@ export default function Movements() {
 
       return matchesType && matchesSearch
     })
-  }, [movements, search, typeFilter])
+
+    const desktopFiltered = desktopMovements.filter((movement) => {
+      const matchesType = !typeFilter || movement.type === typeFilter
+      const matchesSearch = [
+        movement.type,
+        movement.note_number,
+        movement.product,
+        movement.lot_code,
+        movement.empresa,
+        movement.transporter,
+        movement.plate,
+        movement.observations,
+        movement.concept,
+      ]
+        .filter(Boolean)
+        .some((value) => String(value).toLowerCase().includes(term))
+
+      return matchesType && matchesSearch
+    })
+
+    return [...webFiltered, ...desktopFiltered].sort(
+      (a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0),
+    )
+  }, [movements, desktopMovements, search, typeFilter])
 
   return (
     <div>
@@ -139,6 +200,43 @@ export default function Movements() {
         ) : (
           filteredMovements.map((movement) => {
             const Icon = movementIcons[movement.type] || RotateCcw
+
+            if (movement.source === 'desktop') {
+              return (
+                <article key={movement.id} className="panel">
+                  <div className="flex items-start gap-3">
+                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-500">
+                      <Icon size={22} />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-start justify-between gap-2">
+                        <div>
+                          <p className="font-bold text-slate-950">
+                            {movementLabel(movement.type)}
+                            {movement.note_number ? <span className="ml-2 font-mono text-sm font-bold text-campo-700">{movement.note_number}</span> : null}
+                          </p>
+                          <p className="text-sm text-slate-500">{formatDate(movement.created_at)}</p>
+                        </div>
+                        <p className="text-xl font-bold text-campo-700">{formatNumber(movement.quantity)}</p>
+                      </div>
+                      <p className="mt-2 font-semibold text-slate-800">{cleanProductName(movement.product)}</p>
+                      {movement.lot_code ? <p className="text-sm font-bold text-slate-500">Lote: {movement.lot_code}</p> : null}
+                      <p className="text-sm text-slate-500">Empresa: {movement.empresa || '-'}</p>
+                      {(movement.transporter || movement.plate || movement.contact_person) ? (
+                        <p className="mt-1 text-sm text-slate-600">
+                          {movement.transporter ? `Transportista: ${movement.transporter}` : ''}
+                          {movement.plate ? ` - Placa: ${movement.plate}` : ''}
+                          {movement.contact_person ? ` - Contacto: ${movement.contact_person}` : ''}
+                        </p>
+                      ) : null}
+                      {movement.observations ? <p className="mt-1 text-sm text-slate-600">{movement.observations}</p> : null}
+                      <p className="mt-1 inline-flex rounded-full bg-slate-100 px-2 py-0.5 text-xs font-bold text-slate-500">Registrado en el programa</p>
+                    </div>
+                  </div>
+                </article>
+              )
+            }
+
             const lot = movement.lots || {}
             return (
               <article key={movement.id} className="panel">
