@@ -306,7 +306,7 @@ export default function Lots() {
                 </button>
                 <button
                   className="btn-secondary !min-h-8 !px-2.5 !py-1.5 text-xs font-bold"
-                  onClick={() => navigate('/movimientos')}
+                  onClick={() => navigate('/kardex')}
                   title="Ver Kardex"
                 >
                   <ClipboardList size={14} />

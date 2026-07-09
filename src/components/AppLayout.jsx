@@ -38,7 +38,7 @@ export default function AppLayout() {
       : profile?.role === 'cliente'
         ? clienteNavItems
         : adminNavItems
-  const mainTabPaths = new Set(['/', '/operacion', '/lotes', '/movimientos', '/offline', '/despachos', '/historial', '/solicitudes', '/operacion/salidas'])
+  const mainTabPaths = new Set(['/', '/operacion', '/lotes', '/offline', '/despachos', '/historial', '/solicitudes', '/operacion/salidas'])
   const showBackButton = !mainTabPaths.has(location.pathname)
 
   async function signOut() {
