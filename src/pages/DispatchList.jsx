@@ -846,11 +846,11 @@ export default function DispatchList() {
             <div class="box">Recibe: ${escapeHtml(receipt.receiverName)}</div>
             <div class="box">Documento: ${escapeHtml(receipt.receiverDocument)}</div>
             <div class="box">Placa: ${escapeHtml(receipt.vehiclePlate || '-')}</div>
-            <div class="box">Total envases: ${escapeHtml(formatNumber(receipt.totalPackages))}</div>
+            <div class="box">Total unidades: ${escapeHtml(formatNumber(receipt.totalPackages))}</div>
           </div>
           <table>
             <thead>
-              <tr><th>Producto</th><th>Lote</th><th>Envases</th><th>Equivalente</th><th>Ubicacion</th><th>Vence</th><th>Estado</th></tr>
+              <tr><th>Producto</th><th>Lote</th><th>Unidades</th><th>Equivalente</th><th>Ubicacion</th><th>Vence</th><th>Estado</th></tr>
             </thead>
             <tbody>${rows}</tbody>
           </table>
@@ -967,7 +967,7 @@ export default function DispatchList() {
                   <div key={item.lot_id || item.product} className="rounded-lg bg-white px-2.5 py-2">
                     <p className="text-xs font-black text-slate-800">{cleanProductName(item.product)}</p>
                     <p className="text-[11px] font-semibold text-slate-400">
-                      {item.lot_code ? displayLotCode(item.lot_code) : 'Sin lote'} · {formatNumber(qty)} env.{eqText}
+                      {item.lot_code ? displayLotCode(item.lot_code) : 'Sin lote'} · {formatNumber(qty)} uds{eqText}
                     </p>
                   </div>
                 )
@@ -999,22 +999,22 @@ export default function DispatchList() {
               >
                 <ListProductCard
                   title={cleanProductName(item.lot.product)}
-                  envases={item.lot.current_quantity || 0}
-                  envasesLabel="env. disponibles"
-                  envasesVariant="available"
+                  unidades={item.lot.current_quantity || 0}
+                  unidadesLabel="env. disponibles"
+                  unidadesVariant="available"
                   equivalent={Number(item.lot.package_size) > 0 ? availableEquivalent : null}
                   equivalentUnit={item.lot.package_unit}
                   presentation={packageLabel(item.lot) || 'Sin dato'}
                   secondary={`${displayLotCode(item.lot.lot_code)} - ${item.lot.location || '-'}`}
                   detailTitle="Producto del despacho"
                   detailRows={[
-                    { label: 'Envases a despachar', value: `${formatNumber(item.package_count || 0)} env.` },
+                    { label: 'Unidades a despachar', value: `${formatNumber(item.package_count || 0)} uds` },
                     { label: 'Equivalente', value: Number(item.lot.package_size) > 0 ? `${formatNumber(equivalent)} ${item.lot.package_unit || ''}` : 'Sin dato' },
                     { label: 'Presentacion', value: packageLabel(item.lot) || 'Sin dato' },
                     { label: 'Lote', value: displayLotCode(item.lot.lot_code) },
                     { label: 'Cliente', value: item.lot.clients?.name || '-' },
                     { label: 'Ubicacion', value: item.lot.location || '-' },
-                    { label: 'Disponible', value: `${formatNumber(item.lot.current_quantity)} env.` },
+                    { label: 'Disponible', value: `${formatNumber(item.lot.current_quantity)} uds` },
                     { label: 'Vencimiento', value: item.lot.expiry_date ? formatDate(item.lot.expiry_date) : 'Sin dato' },
                     { label: 'Estado', value: item.lot.status || 'activo' },
                   ]}
@@ -1024,7 +1024,7 @@ export default function DispatchList() {
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-start justify-between gap-2">
                       <p className="min-w-0 flex-1 text-lg font-black text-slate-950 [overflow-wrap:anywhere]">{cleanProductName(item.lot.product)}</p>
-                      <span className="rounded-lg bg-campo-50 px-2.5 py-1 text-base font-black text-campo-800">{formatNumber(item.package_count)} env.</span>
+                      <span className="rounded-lg bg-campo-50 px-2.5 py-1 text-base font-black text-campo-800">{formatNumber(item.package_count)} uds</span>
                     </div>
                     <p className="text-sm font-semibold text-slate-500">
                       {displayLotCode(item.lot.lot_code)} · {item.lot.location || '-'}
@@ -1034,7 +1034,7 @@ export default function DispatchList() {
                       <div className="rounded-lg bg-campo-50 p-3">
                         <p className="text-xs font-semibold uppercase text-campo-700">Disponible</p>
                         <p className="mt-1 text-3xl font-black text-campo-800">{formatNumber(item.lot.current_quantity)}</p>
-                        <p className="text-sm font-bold text-campo-700">envases</p>
+                        <p className="text-sm font-bold text-campo-700">unidades</p>
                       </div>
                       <div className="rounded-lg bg-slate-50 p-3">
                         <p className="text-xs font-semibold uppercase text-slate-500">Vencimiento</p>
@@ -1056,12 +1056,12 @@ export default function DispatchList() {
                 ) : null}
                 {item.fefo_lot ? (
                   <div className="mt-3 rounded-lg bg-red-50 p-2 text-xs font-bold text-red-700">
-                    FEFO: existe un lote anterior ({displayLotCode(item.fefo_lot.lot_code)}, vence {formatDate(item.fefo_lot.expiry_date)}, {formatNumber(item.fefo_lot.current_quantity)} envases en {item.fefo_lot.location}). Es una advertencia para considerar antes de confirmar, no bloquea la salida.
+                    FEFO: existe un lote anterior ({displayLotCode(item.fefo_lot.lot_code)}, vence {formatDate(item.fefo_lot.expiry_date)}, {formatNumber(item.fefo_lot.current_quantity)} unidades en {item.fefo_lot.location}). Es una advertencia para considerar antes de confirmar, no bloquea la salida.
                   </div>
                 ) : null}
                 <div className="mt-3 grid gap-3 sm:grid-cols-2">
                   <label>
-                    <span className="label">Envases a despachar</span>
+                    <span className="label">Unidades a despachar</span>
                     <input
                       className={`input mt-1 ${isApprovedDispatch ? 'bg-slate-100 font-black text-slate-700' : ''}`}
                       inputMode="decimal"
@@ -1148,10 +1148,10 @@ export default function DispatchList() {
                         <p className="text-xs font-semibold text-slate-500">
                           {lotLabel(item.lot.lot_code)} - {packageLabel(item.lot) || 'Sin presentacion'}
                         </p>
-                        <p className="mt-1 text-xs font-bold text-slate-500">Stock: {formatNumber(item.lot.current_quantity)} a {formatNumber(remaining)} env.</p>
+                        <p className="mt-1 text-xs font-bold text-slate-500">Stock: {formatNumber(item.lot.current_quantity)} a {formatNumber(remaining)} uds</p>
                       </div>
                       <div className="shrink-0 rounded-lg bg-campo-50 px-3 py-2 text-right text-campo-800">
-                        <p className="text-base font-black">{formatNumber(quantity)} env.</p>
+                        <p className="text-base font-black">{formatNumber(quantity)} uds</p>
                         <p className="text-xs font-black">
                           {Number(item.lot.package_size) > 0 ? `${formatNumber(equivalent)} ${item.lot.package_unit || ''}` : 'Sin equiv.'}
                         </p>

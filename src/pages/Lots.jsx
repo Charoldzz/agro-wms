@@ -466,7 +466,7 @@ export default function Lots() {
                                 <p className="text-sm font-black text-campo-700 whitespace-nowrap">
                                   {formatNumber(eqNorm)} <span className="text-xs font-semibold text-campo-500">{eqUnit}</span>
                                 </p>
-                                <p className="text-[10px] font-semibold text-slate-400">{formatNumber(lot.current_quantity)} env.</p>
+                                <p className="text-[10px] font-semibold text-slate-400">{formatNumber(lot.current_quantity)} uds</p>
                               </>
                             ) : (
                               <p className="text-sm font-black text-campo-700 whitespace-nowrap">

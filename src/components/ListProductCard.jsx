@@ -5,9 +5,9 @@ import { formatNumber } from '../lib/format'
 export default function ListProductCard({
   title,
   boxes,
-  envases,
-  envasesLabel = 'env.',
-  envasesVariant = 'neutral',
+  unidades,
+  unidadesLabel = 'env.',
+  unidadesVariant = 'neutral',
   equivalent,
   equivalentUnit,
   presentation,
@@ -47,9 +47,9 @@ export default function ListProductCard({
             {boxes !== undefined && boxes !== null ? (
               <strong className="rounded-lg bg-campo-50 px-2 py-1 text-sm font-black text-campo-800">{formatNumber(boxes)} cajas</strong>
             ) : null}
-            {envases !== undefined && envases !== null ? (
-              <strong className={`rounded-lg px-2 py-1 text-sm font-black ${envasesVariant === 'available' ? 'bg-campo-50 text-campo-800' : 'bg-slate-100 text-slate-800'}`}>
-                {formatNumber(envases)} {envasesLabel}
+            {unidades !== undefined && unidades !== null ? (
+              <strong className={`rounded-lg px-2 py-1 text-sm font-black ${unidadesVariant === 'available' ? 'bg-campo-50 text-campo-800' : 'bg-slate-100 text-slate-800'}`}>
+                {formatNumber(unidades)} {unidadesLabel}
               </strong>
             ) : null}
             {equivalent !== undefined && equivalent !== null && Number.isFinite(Number(equivalent)) ? (

@@ -47,10 +47,10 @@ export default function ProductLots() {
   )
 
   const { total, eqTotal, eqUnit } = useMemo(() => {
-    let envases = 0, lts = 0, kgs = 0
+    let unidades = 0, lts = 0, kgs = 0
     productLots.forEach(lot => {
       const qty = Number(lot.current_quantity || 0)
-      envases += qty
+      unidades += qty
       const { size, unit } = lotSizeAndUnit(lot)
       if (size > 0 && qty > 0) {
         const t = qty * size
@@ -61,17 +61,17 @@ export default function ProductLots() {
       }
     })
     return lts > 0
-      ? { total: envases, eqTotal: lts, eqUnit: 'lts' }
+      ? { total: unidades, eqTotal: lts, eqUnit: 'lts' }
       : kgs > 0
-        ? { total: envases, eqTotal: kgs, eqUnit: 'kgs' }
-        : { total: envases, eqTotal: 0, eqUnit: '' }
+        ? { total: unidades, eqTotal: kgs, eqUnit: 'kgs' }
+        : { total: unidades, eqTotal: 0, eqUnit: '' }
   }, [productLots])
 
   return (
     <div>
       <PageHeader
         title={productName || 'Producto'}
-        subtitle={`${productLots.length} lotes · ${formatNumber(total)} env.${eqTotal > 0 ? ` · ${formatNumber(eqTotal)} ${eqUnit}` : ''}`}
+        subtitle={`${productLots.length} lotes · ${formatNumber(total)} uds${eqTotal > 0 ? ` · ${formatNumber(eqTotal)} ${eqUnit}` : ''}`}
       />
 
       <div className="grid gap-2">
@@ -109,7 +109,7 @@ export default function ProductLots() {
                         <span className="text-base font-black sm:text-xl">{formatNumber(lotEq)}</span>
                         <span className="text-xs font-bold text-campo-700">{lotEqUnit}</span>
                       </div>
-                      <p className="text-[10px] font-semibold text-slate-400">{formatNumber(qty)} env.</p>
+                      <p className="text-[10px] font-semibold text-slate-400">{formatNumber(qty)} uds</p>
                     </>
                   ) : (
                     <div className="inline-flex items-baseline gap-1">

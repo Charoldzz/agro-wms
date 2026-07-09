@@ -116,7 +116,7 @@ export default function Operation() {
               <div key={item.lot_id} className="rounded-lg bg-white/80 p-2">
                 <div className="flex flex-wrap items-start justify-between gap-2">
                   <p className="min-w-0 flex-1 text-sm font-black text-slate-950 [overflow-wrap:anywhere]">{cleanProductName(item.product)}</p>
-                  <span className="rounded-lg bg-campo-50 px-2 py-1 text-xs font-black text-campo-800">{formatNumber(item.quantity)} env.</span>
+                  <span className="rounded-lg bg-campo-50 px-2 py-1 text-xs font-black text-campo-800">{formatNumber(item.quantity)} uds</span>
                 </div>
                 <p className="text-xs font-semibold text-slate-500">{displayLotCode(item.lot_code)} - Presentacion: {packageLabel(item) || 'Sin dato'}</p>
               </div>
@@ -127,10 +127,10 @@ export default function Operation() {
           <div className="mt-2 rounded-lg bg-white/80 p-2">
             <div className="flex flex-wrap items-start justify-between gap-2">
               <p className="min-w-0 flex-1 text-sm font-black text-slate-950 [overflow-wrap:anywhere]">{cleanProductName(request.product || request.lots?.product)}</p>
-              <span className="rounded-lg bg-campo-50 px-2 py-1 text-xs font-black text-campo-800">{formatNumber(request.quantity)} env.</span>
+              <span className="rounded-lg bg-campo-50 px-2 py-1 text-xs font-black text-campo-800">{formatNumber(request.quantity)} uds</span>
             </div>
             <p className="text-xs font-semibold text-slate-500">
-              {displayLotCode(request.lots?.lot_code)} - Presentacion: {packageLabel(request.lots) || 'Sin dato'} - {request.lots?.location || '-'} - disponible {formatNumber(request.lots?.current_quantity)} env.
+              {displayLotCode(request.lots?.lot_code)} - Presentacion: {packageLabel(request.lots) || 'Sin dato'} - {request.lots?.location || '-'} - disponible {formatNumber(request.lots?.current_quantity)} uds
             </p>
           </div>
         )}
@@ -145,7 +145,7 @@ export default function Operation() {
       <article key={movement.id} className="rounded-lg bg-orange-50 p-3">
         <div className="flex flex-wrap items-start justify-between gap-2">
           <p className="font-bold text-slate-950">{movementLabel(movement.type)} - {displayLotCode(movement.lots?.lot_code)}</p>
-          <span className="rounded-lg bg-white px-2 py-1 text-xs font-black text-orange-800">{formatNumber(movement.quantity)} env.</span>
+          <span className="rounded-lg bg-white px-2 py-1 text-xs font-black text-orange-800">{formatNumber(movement.quantity)} uds</span>
         </div>
         <p className="text-sm font-semibold text-slate-700 [overflow-wrap:anywhere]">{cleanProductName(movement.lots?.product)}</p>
         <p className="text-xs font-semibold text-slate-500 [overflow-wrap:anywhere]">{movement.lots?.clients?.name || '-'} - {movement.lots?.location || '-'}</p>
@@ -165,7 +165,7 @@ export default function Operation() {
       >
         <div className="flex flex-wrap items-start justify-between gap-2">
           <p className="min-w-0 flex-1 font-bold text-slate-950 [overflow-wrap:anywhere]">{cleanProductName(lot.product)}</p>
-          <span className={`rounded-lg bg-white px-2 py-1 text-xs font-black ${lot.daysLeft < 0 ? 'text-red-700' : 'text-amber-800'}`}>{formatNumber(lot.current_quantity)} env.</span>
+          <span className={`rounded-lg bg-white px-2 py-1 text-xs font-black ${lot.daysLeft < 0 ? 'text-red-700' : 'text-amber-800'}`}>{formatNumber(lot.current_quantity)} uds</span>
         </div>
         <p className="text-sm font-semibold text-slate-600 [overflow-wrap:anywhere]">{displayLotCode(lot.lot_code)} - {lot.clients?.name || '-'}</p>
         <p className="text-xs font-semibold text-slate-500 [overflow-wrap:anywhere]">{lot.location || '-'} - {lot.expiry_date ? formatDate(lot.expiry_date) : 'Sin fecha'}</p>

@@ -212,7 +212,7 @@ export default function CorrectionRequests() {
                 </div>
                 <div className="flex items-start justify-between gap-2 sm:block sm:text-right">
                   <p className="rounded-lg bg-campo-50 px-2 py-1 text-sm font-black text-campo-800">
-                    {group.items.length === 1 ? `${formatNumber(group.items[0].quantity)} env.` : `${group.items.length} items`}
+                    {group.items.length === 1 ? `${formatNumber(group.items[0].quantity)} uds` : `${group.items.length} items`}
                   </p>
                 </div>
               </div>
@@ -267,7 +267,7 @@ export default function CorrectionRequests() {
             )}
             <label className="mt-3 block">
               <span className="label">Motivo</span>
-              <textarea className="input mt-1" rows="3" value={reason} onChange={(event) => setReason(event.target.value)} placeholder={correctionType === 'cantidad' ? 'Ej. se escribio 120 envases y eran 102.' : 'Ej. el producto era otro o el vencimiento estaba mal.'} />
+              <textarea className="input mt-1" rows="3" value={reason} onChange={(event) => setReason(event.target.value)} placeholder={correctionType === 'cantidad' ? 'Ej. se escribio 120 unidades y eran 102.' : 'Ej. el producto era otro o el vencimiento estaba mal.'} />
             </label>
             {error ? <p className="mt-3 rounded-lg bg-red-50 p-3 text-sm font-bold text-red-700">{error}</p> : null}
             <button className="btn-primary mt-4 w-full" type="button" onClick={submitCorrection} disabled={saving}>
@@ -326,7 +326,7 @@ function QuantityCorrectionFields({ movement, quantity, onChange }) {
     <div className="mt-3">
       <div className="rounded-lg bg-campo-50 px-3 py-2">
         <p className="text-xs font-black uppercase text-campo-700">{stockReference.label}</p>
-        <p className="mt-0.5 text-lg font-black text-slate-950">{formatNumber(stockReference.quantity)} env.</p>
+        <p className="mt-0.5 text-lg font-black text-slate-950">{formatNumber(stockReference.quantity)} uds</p>
       </div>
       <div className="mt-2 grid grid-cols-[minmax(0,0.82fr)_minmax(0,1fr)] gap-2">
         <label className="block min-w-0">
@@ -543,7 +543,7 @@ function MovementLine({ movement, onRequest }) {
           </p>
         </div>
         <div className="text-left sm:text-right">
-          <p className="inline-flex rounded-lg bg-campo-50 px-2 py-1 text-base font-black text-campo-800">{formatNumber(movement.quantity)} env.</p>
+          <p className="inline-flex rounded-lg bg-campo-50 px-2 py-1 text-base font-black text-campo-800">{formatNumber(movement.quantity)} uds</p>
           <button
             className="mt-1 block min-h-7 rounded-lg border border-orange-200 bg-white px-2 py-1 text-xs font-black text-orange-700 transition hover:bg-orange-50 sm:ml-auto"
             type="button"
@@ -555,8 +555,8 @@ function MovementLine({ movement, onRequest }) {
       </div>
       <dl className="mt-2 grid gap-1.5 rounded-lg bg-white p-2 text-xs font-bold text-slate-600 sm:grid-cols-2">
         <DetailRow label="Equivalente" value={Number(movement.lots?.package_size) > 0 ? `${formatNumber(equivalent)} ${movement.lots?.package_unit || ''}` : 'Sin dato'} />
-        <DetailRow label="Stock anterior" value={`${formatNumber(movement.previous_quantity)} env.`} />
-        <DetailRow label="Stock despues" value={`${formatNumber(movement.new_quantity)} env.`} />
+        <DetailRow label="Stock anterior" value={`${formatNumber(movement.previous_quantity)} uds`} />
+        <DetailRow label="Stock despues" value={`${formatNumber(movement.new_quantity)} uds`} />
       </dl>
       {visibleMovementNotes(movement.notes) ? <p className="mt-2 text-xs font-semibold text-slate-500 [overflow-wrap:anywhere]">{visibleMovementNotes(movement.notes)}</p> : null}
     </article>

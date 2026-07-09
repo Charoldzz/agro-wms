@@ -340,7 +340,7 @@ export default function Scanner() {
               .slice(0, 4)
               .map((item) => (
                 <span key={item.lot_id || item.lot_code || item.product} className="shrink-0 rounded-lg bg-white px-2 py-1 text-xs font-bold text-slate-700">
-                  {cleanProductName(item.product)} · {formatNumber(item.quantity)} env.
+                  {cleanProductName(item.product)} · {formatNumber(item.quantity)} uds
                 </span>
               ))}
             {Array.isArray(dispatchReference.items) && dispatchReference.items.length > 4 ? (

@@ -488,7 +488,7 @@ export default function NuevaSalida() {
           <ul className="mt-1 space-y-0.5">
             {missingItems.map((item, idx) => (
               <li key={idx} className="text-sm font-semibold text-red-700">
-                • {cleanProductName(item.product) || 'Producto'} — pedía {formatNumber(item.quantity)} env.
+                • {cleanProductName(item.product) || 'Producto'} — pedía {formatNumber(item.quantity)} uds
               </li>
             ))}
           </ul>
@@ -502,7 +502,7 @@ export default function NuevaSalida() {
           <ul className="mt-1 space-y-0.5">
             {insufficientRows.map((row) => (
               <li key={row.id} className="text-sm font-semibold text-red-700">
-                • {row.product} — pide {formatNumber(row.uds)} env. y hay {formatNumber(row.saldo)} env.
+                • {row.product} — pide {formatNumber(row.uds)} uds y hay {formatNumber(row.saldo)} uds
               </li>
             ))}
           </ul>
@@ -570,7 +570,7 @@ export default function NuevaSalida() {
                         <div className="truncate text-sm font-semibold text-slate-900" title={row.product}>{row.product}</div>
                         {rowInsufficient(row) ? (
                           <div className="text-[10px] font-black text-red-600">
-                            Saldo insuficiente: hay {formatNumber(row.saldo)} env. y pide {formatNumber(row.uds)}
+                            Saldo insuficiente: hay {formatNumber(row.saldo)} uds y pide {formatNumber(row.uds)}
                           </div>
                         ) : row.package_unit ? (
                           <div className="text-[10px] font-semibold text-slate-400">

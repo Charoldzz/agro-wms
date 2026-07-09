@@ -165,7 +165,7 @@ export default function Clients() {
                 <button className="min-w-0 flex-1 text-left" type="button" onClick={() => setSelectedClient(client)}>
                   <h3 className="truncate text-sm font-bold text-slate-900">{client.name}</h3>
                   <p className="truncate text-xs font-semibold text-campo-700">
-                    {formatNumber(clientStats[client.id]?.quantity || 0)} envases · {formatNumber(companyBillingPallets(client.name, clientStats[client.id]?.pallets || 0))} pallets
+                    {formatNumber(clientStats[client.id]?.quantity || 0)} unidades · {formatNumber(companyBillingPallets(client.name, clientStats[client.id]?.pallets || 0))} pallets
                     {client.product_code_prefix ? <span className="ml-2 rounded bg-campo-50 px-1 font-mono text-campo-600">{client.product_code_prefix}</span> : null}
                   </p>
                 </button>
@@ -196,7 +196,7 @@ export default function Clients() {
             <div className="space-y-3">
               <Info
                 label="Inventario"
-                value={`${formatNumber(clientStats[selectedClient.id]?.quantity || 0)} envases · ${
+                value={`${formatNumber(clientStats[selectedClient.id]?.quantity || 0)} unidades · ${
                   clientStats[selectedClient.id]?.lots || 0
                 } lotes · ${formatNumber(companyBillingPallets(selectedClient.name, clientStats[selectedClient.id]?.pallets || 0))} pallets`}
               />

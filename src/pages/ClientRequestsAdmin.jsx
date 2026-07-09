@@ -109,7 +109,7 @@ export default function ClientRequestsAdmin() {
                           <p className="text-xs font-black text-slate-900 [overflow-wrap:anywhere]">{cleanProductName(item.product)}</p>
                           <p className="text-[10px] font-semibold text-slate-400">{displayLotCode(item.lot_code)} · {packageLabel(item) || 'Sin presentación'}</p>
                         </div>
-                        <span className="shrink-0 text-xs font-black text-campo-700">{formatNumber(item.quantity)} env.</span>
+                        <span className="shrink-0 text-xs font-black text-campo-700">{formatNumber(item.quantity)} uds</span>
                       </div>
                     ))}
                   </div>
@@ -117,7 +117,7 @@ export default function ClientRequestsAdmin() {
                   <p className="text-xs font-semibold text-slate-700">
                     <span className="font-black">{cleanProductName(req.product || req.lots?.product)}</span>
                     {req.lots?.lot_code ? <span className="text-slate-400"> · {displayLotCode(req.lots.lot_code)}</span> : null}
-                    <span className="ml-2 font-black text-campo-700">{formatNumber(req.quantity)} env.</span>
+                    <span className="ml-2 font-black text-campo-700">{formatNumber(req.quantity)} uds</span>
                   </p>
                 )}
               </div>

@@ -313,14 +313,14 @@ export default function OperatorEntry() {
       const items = validRows.map((r, i) => {
         const { size, unit } = parseProductUnit(r.product)
         const totalEq = Number(r.cantidad || 0)
-        // CANTIDAD es el total en lts/kgs; loose_units = envases = total / medida
-        const envases = size > 0 ? totalEq / size : totalEq
+        // CANTIDAD es el total en lts/kgs; loose_units = unidades = total / medida
+        const unidades = size > 0 ? totalEq / size : totalEq
         return {
           lot_code: r.lot_code?.trim() || createLotCode(i),
           product: r.product.trim(),
           box_count: Number(r.cajas || 0),
           units_per_box: 0,
-          loose_units: envases,
+          loose_units: unidades,
           package_size: size || null,
           package_unit: unit || null,
           location: internalLocations[0] || 'ALMACEN',

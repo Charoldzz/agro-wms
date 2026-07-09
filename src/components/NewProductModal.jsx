@@ -57,7 +57,7 @@ export default function NewProductModal({ clients, onClose, onSaved }) {
     loadNextCode(clientId, selectedClient?.product_code_prefix)
   }, [clientId, selectedClient?.product_code_prefix])
 
-  // Auto-detectar envases por caja desde el nombre si el campo está vacío
+  // Auto-detectar unidades por caja desde el nombre si el campo está vacío
   useEffect(() => {
     const detected = unitsPerBoxFromName(name)
     if (detected > 0 && !unitsPerBox) setUnitsPerBox(String(detected))
@@ -168,7 +168,7 @@ export default function NewProductModal({ clients, onClose, onSaved }) {
           </div>
 
           <div>
-            <label className="block text-sm font-bold text-slate-700">Envases por caja</label>
+            <label className="block text-sm font-bold text-slate-700">Unidades por caja</label>
             <input
               className="input mt-1 w-32"
               type="text"

@@ -85,7 +85,7 @@ export default function ExpiringLots() {
                     {lot.daysLeft < 0 ? 'Vencido' : `${lot.daysLeft} d`}
                   </p>
                   <p className="rounded-lg bg-white/80 px-2.5 py-1 text-xs font-bold text-slate-600">{formatDate(lot.expiry_date)}</p>
-                  <p className="rounded-lg bg-campo-50 px-2.5 py-1 text-xs font-black text-campo-700">{formatNumber(lot.current_quantity)} env.</p>
+                  <p className="rounded-lg bg-campo-50 px-2.5 py-1 text-xs font-black text-campo-700">{formatNumber(lot.current_quantity)} uds</p>
                 </div>
               </div>
             </Link>

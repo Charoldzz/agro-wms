@@ -290,7 +290,7 @@ export default function CatalogoModal({ clients, onClose }) {
               </div>
             </div>
             <div>
-              <span className="text-sm font-bold text-slate-700">Envases por caja</span>
+              <span className="text-sm font-bold text-slate-700">Unidades por caja</span>
               <input
                 className="input mt-1 w-28"
                 type="text"

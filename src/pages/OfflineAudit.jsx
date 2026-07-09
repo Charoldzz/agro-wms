@@ -128,8 +128,8 @@ export default function OfflineAudit() {
               </div>
 
               <div className="mt-3 grid gap-2 text-sm font-bold text-slate-700 sm:grid-cols-3">
-                <div className="rounded-lg bg-slate-50 p-3">Salida: {formatNumber(movement.quantity)} envases</div>
-                <div className="rounded-lg bg-slate-50 p-3">Stock actual: {formatNumber(movement.lots?.current_quantity)} envases</div>
+                <div className="rounded-lg bg-slate-50 p-3">Salida: {formatNumber(movement.quantity)} unidades</div>
+                <div className="rounded-lg bg-slate-50 p-3">Stock actual: {formatNumber(movement.lots?.current_quantity)} unidades</div>
                 <div className="rounded-lg bg-slate-50 p-3">Ubicacion: {movement.lots?.location || '-'}</div>
               </div>
 

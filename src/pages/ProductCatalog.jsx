@@ -180,7 +180,7 @@ export default function ProductCatalog() {
                       value={editForm.units_per_box}
                       onChange={(e) => setEditForm((f) => ({ ...f, units_per_box: e.target.value }))}
                       placeholder="Env/caja"
-                      title="Envases por caja"
+                      title="Unidades por caja"
                     />
                   </div>
                   {error && <p className="text-xs font-bold text-red-600">{error}</p>}

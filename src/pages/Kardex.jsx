@@ -56,7 +56,7 @@ export default function Kardex() {
 
     const { data: lotsData, error: lotsError } = await supabase
       .from('lots')
-      .select('id, product, lot_code')
+      .select('id, product, lot_code, package_size, package_unit')
       .eq('inventory_source', 'stock_independiente')
       .eq('client_id', clientId)
 
@@ -78,7 +78,7 @@ export default function Kardex() {
     const [webResult, desktopResult] = await Promise.all([
       supabase
         .from('movements')
-        .select('id, type, quantity, previous_quantity, new_quantity, notes, created_at, lot_id, lots(lot_code, product, clients(name))')
+        .select('id, type, quantity, previous_quantity, new_quantity, notes, created_at, lot_id, lots(lot_code, product, package_size, package_unit, clients(name))')
         .in('lot_id', lotIds)
         .order('created_at', { ascending: false })
         .limit(1000),
@@ -99,20 +99,52 @@ export default function Kardex() {
       return
     }
 
-    const webRows = (webResult.data || []).map((m) => ({ ...m, saldo: m.new_quantity }))
-    const desktopRows = (desktopResult.data || []).map((r) => ({
-      id: `desktop-${r.id}`,
-      type: r.type === 'INGRESO' ? 'entrada' : 'salida',
-      quantity: r.quantity,
-      saldo: null,
-      notes: r.note_number || null,
-      created_at: r.date,
-      lots: { product: r.product_name, lot_code: r.lot },
-    }))
+    // Mapa producto → presentación para etiquetar unidades de las filas del programa
+    const productInfo = new Map()
+    for (const lot of lotsData || []) {
+      const key = String(lot.product || '').toUpperCase()
+      if (!productInfo.has(key) && Number(lot.package_size) > 0) {
+        productInfo.set(key, { size: Number(lot.package_size), unit: lot.package_unit || '' })
+      }
+    }
 
-    setMovements(
-      [...webRows, ...desktopRows].sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0)),
+    // La web guarda unidades (unidades); el programa guarda el equivalente en lts/kgs.
+    // Todo se muestra en equivalente.
+    const webRows = (webResult.data || []).map((m) => {
+      const size = Number(m.lots?.package_size) || 0
+      return {
+        ...m,
+        eqQuantity: size > 0 ? Number(m.quantity || 0) * size : Number(m.quantity || 0),
+        unit: m.lots?.package_unit || '',
+      }
+    })
+    const desktopRows = (desktopResult.data || []).map((r) => {
+      const info = productInfo.get(String(r.product_name || '').toUpperCase())
+      return {
+        id: `desktop-${r.id}`,
+        type: r.type === 'INGRESO' ? 'entrada' : 'salida',
+        eqQuantity: Number(r.quantity || 0),
+        unit: info?.unit || '',
+        notes: r.note_number || null,
+        created_at: r.date,
+        lots: { product: r.product_name, lot_code: r.lot },
+      }
+    })
+
+    // Saldo acumulado por producto+lote, en orden cronológico (arranca del inventario inicial)
+    const merged = [...webRows, ...desktopRows].sort(
+      (a, b) => new Date(a.created_at || 0) - new Date(b.created_at || 0),
     )
+    const balance = new Map()
+    for (const row of merged) {
+      const key = `${String(row.lots?.product || '').toUpperCase()}|${String(row.lots?.lot_code || '').toUpperCase()}`
+      const prev = balance.get(key) || 0
+      const next = row.type === 'entrada' ? prev + row.eqQuantity : prev - row.eqQuantity
+      balance.set(key, next)
+      row.saldo = next
+    }
+
+    setMovements(merged.reverse())
     setLoading(false)
   }
 
@@ -127,12 +159,21 @@ export default function Kardex() {
     })
   }, [movements, search])
 
+  function totalsByUnit(rows) {
+    const totals = new Map()
+    for (const m of rows) {
+      const unit = m.unit || 'uds'
+      totals.set(unit, (totals.get(unit) || 0) + Number(m.eqQuantity || 0))
+    }
+    return [...totals.entries()].map(([unit, value]) => `${formatNumber(value)} ${unit}`).join(' · ') || '0'
+  }
+
   const totalEntradas = useMemo(
-    () => filtered.filter((m) => m.type === 'entrada').reduce((s, m) => s + Number(m.quantity || 0), 0),
+    () => totalsByUnit(filtered.filter((m) => m.type === 'entrada')),
     [filtered],
   )
   const totalSalidas = useMemo(
-    () => filtered.filter((m) => m.type === 'salida').reduce((s, m) => s + Number(m.quantity || 0), 0),
+    () => totalsByUnit(filtered.filter((m) => m.type === 'salida')),
     [filtered],
   )
 
@@ -202,11 +243,11 @@ export default function Kardex() {
             </div>
             <div className="px-4 py-3 text-center">
               <p className="text-xs font-bold uppercase text-campo-700">Total entradas</p>
-              <p className="mt-0.5 text-lg font-black text-campo-800">{formatNumber(totalEntradas)}</p>
+              <p className="mt-0.5 text-lg font-black text-campo-800">{totalEntradas}</p>
             </div>
             <div className="px-4 py-3 text-center">
               <p className="text-xs font-bold uppercase text-red-600">Total salidas</p>
-              <p className="mt-0.5 text-lg font-black text-red-700">{formatNumber(totalSalidas)}</p>
+              <p className="mt-0.5 text-lg font-black text-red-700">{totalSalidas}</p>
             </div>
           </div>
 
@@ -234,7 +275,8 @@ export default function Kardex() {
                 {filtered.map((m) => {
                   const isEntry = m.type === 'entrada'
                   const isSalida = m.type === 'salida'
-                  const qty = Number(m.quantity || 0)
+                  const qty = Number(m.eqQuantity || 0)
+                  const unit = m.unit ? ` ${m.unit}` : ''
                   const saldo = m.saldo != null ? Number(m.saldo) : null
 
                   return (
@@ -257,13 +299,13 @@ export default function Kardex() {
                         </p>
                       </td>
                       <td className="px-3 py-2 text-right text-sm font-black text-campo-700">
-                        {isEntry ? formatNumber(qty) : <span className="text-slate-200">—</span>}
+                        {isEntry ? `${formatNumber(qty)}${unit}` : <span className="text-slate-200">—</span>}
                       </td>
                       <td className="px-3 py-2 text-right text-sm font-black text-red-700">
-                        {isSalida ? formatNumber(qty) : <span className="text-slate-200">—</span>}
+                        {isSalida ? `${formatNumber(qty)}${unit}` : <span className="text-slate-200">—</span>}
                       </td>
                       <td className="px-3 py-2 text-right text-sm font-bold text-slate-700">
-                        {saldo != null ? formatNumber(saldo) : <span className="text-slate-300">—</span>}
+                        {saldo != null ? `${formatNumber(saldo)}${unit}` : <span className="text-slate-300">—</span>}
                       </td>
                     </tr>
                   )

@@ -147,7 +147,7 @@ export default function AdminPending() {
                   <p className="font-black text-slate-950">{movementLabel(movement.type)}</p>
                   <div className="mt-1 flex flex-wrap items-start gap-2">
                     <p className="text-sm font-black text-slate-950 [overflow-wrap:anywhere]">{cleanProductName(movement.lots?.product)}</p>
-                    <span className="rounded-lg bg-white px-2 py-1 text-xs font-black text-orange-800">{formatNumber(movement.quantity)} env.</span>
+                    <span className="rounded-lg bg-white px-2 py-1 text-xs font-black text-orange-800">{formatNumber(movement.quantity)} uds</span>
                   </div>
                   <p className="mt-1 text-xs font-semibold text-slate-500">
                     {displayLotCode(movement.lots?.lot_code)} - {movement.profiles?.full_name || 'Usuario'} - {movement.lots?.clients?.name || '-'} - {formatDate(movement.created_at)}
@@ -157,7 +157,7 @@ export default function AdminPending() {
               </div>
 
               <div className="mt-3 grid gap-2 text-sm font-bold text-slate-600 sm:grid-cols-2">
-                <div className="rounded-lg bg-white p-3">Stock actual: {formatNumber(movement.lots?.current_quantity)} env.</div>
+                <div className="rounded-lg bg-white p-3">Stock actual: {formatNumber(movement.lots?.current_quantity)} uds</div>
                 <div className="rounded-lg bg-white p-3">Ubicacion: {movement.lots?.location || '-'}</div>
               </div>
               {movement.notes ? <p className="mt-3 rounded-lg bg-white p-3 text-sm font-semibold text-slate-600">{movement.notes}</p> : null}
@@ -228,8 +228,8 @@ function CorrectionReviewDetails({ correction, clients }) {
   if (correction.correction_type === 'cantidad') {
     return (
       <div className="mt-3 grid gap-2 text-sm font-bold sm:grid-cols-2">
-        <p className="rounded-lg bg-white p-3">Registrado: {formatNumber(correction.movements?.quantity)} env.</p>
-        <p className="rounded-lg bg-white p-3">Correcto: {formatNumber(correction.requested_quantity)} env.</p>
+        <p className="rounded-lg bg-white p-3">Registrado: {formatNumber(correction.movements?.quantity)} uds</p>
+        <p className="rounded-lg bg-white p-3">Correcto: {formatNumber(correction.requested_quantity)} uds</p>
       </div>
     )
   }

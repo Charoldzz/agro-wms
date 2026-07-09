@@ -227,7 +227,7 @@ export function lotSizeAndUnit(lotOrItem) {
   return { size: rawSize || 0, unit: rawUnit }
 }
 
-// Extrae el número de envases por caja del nombre del producto.
+// Extrae el número de unidades por caja del nombre del producto.
 // Reconoce patrones NxM donde N = unidades por caja (ej: "4x10 LTS" → 4, "10x1" → 10).
 export function unitsPerBoxFromName(name) {
   const m = String(name || '').match(/\b(\d+)\s*[xX×]\s*(\d+(?:[.,]\d+)?)/)

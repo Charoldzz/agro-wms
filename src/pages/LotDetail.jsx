@@ -30,7 +30,7 @@ const initialMovement = {
 }
 
 const incidentTypes = [
-  { value: 'envases', label: 'Envases', needsAffected: true, needsPhysicalCount: false },
+  { value: 'unidades', label: 'Unidades', needsAffected: true, needsPhysicalCount: false },
   { value: 'cajas', label: 'Cajas', needsAffected: true, needsPhysicalCount: false },
   { value: 'etiquetado', label: 'Etiquetado', needsAffected: false, needsPhysicalCount: false },
   { value: 'reempaquetado', label: 'Reempaquetado', needsAffected: true, needsPhysicalCount: false },
@@ -354,7 +354,7 @@ export default function LotDetail() {
     }
 
     if (movement.type === 'ajuste' && selectedIncident?.needsAffected && Number(movement.affected_packages || 0) <= 0) {
-      setError('Escribe cuantos envases estan afectados.')
+      setError('Escribe cuantos unidades estan afectados.')
       vibrateError()
       return
     }
@@ -418,7 +418,7 @@ export default function LotDetail() {
 
     const movementNotes = [
       pendingMovement.type === 'ajuste' && pendingMovement.incident_type ? `Incidencia: ${getIncidentConfig(pendingMovement.incident_type)?.label || pendingMovement.incident_type}` : null,
-      pendingMovement.type === 'ajuste' && pendingMovement.affected_packages ? `Envases afectados: ${pendingMovement.affected_packages}` : null,
+      pendingMovement.type === 'ajuste' && pendingMovement.affected_packages ? `Unidades afectados: ${pendingMovement.affected_packages}` : null,
       pendingMovement.type === 'ajuste' && pendingMovement.physical_count !== '' ? `Cantidad fisica: ${pendingMovement.physical_count}` : null,
       pendingMovement.notes || null,
       pendingMovement.type === 'salida' && pendingMovement.to_location ? `Placa: ${pendingMovement.to_location}` : null,
@@ -766,7 +766,7 @@ export default function LotDetail() {
           <div className="p-4">
             <div className="grid gap-3 sm:grid-cols-2">
               <div className="rounded-lg bg-slate-50 p-4">
-                <p className="text-xs font-bold uppercase text-slate-500">Envases disponibles</p>
+                <p className="text-xs font-bold uppercase text-slate-500">Unidades disponibles</p>
                 <p className="mt-1 text-4xl font-black text-slate-950">{formatNumber(lot.current_quantity)}</p>
               </div>
               <div className="rounded-lg bg-campo-50 p-4">
@@ -818,7 +818,7 @@ export default function LotDetail() {
             <div className="p-4">
               <div className="grid gap-3 sm:grid-cols-2">
                 <div className="rounded-lg bg-slate-50 p-4">
-                  <p className="text-xs font-bold uppercase text-slate-500">Envases disponibles</p>
+                  <p className="text-xs font-bold uppercase text-slate-500">Unidades disponibles</p>
                   <p className="mt-1 text-4xl font-black text-slate-950">{formatNumber(lot.current_quantity)}</p>
                 </div>
                 <div className="rounded-lg bg-campo-50 p-4">
@@ -897,7 +897,7 @@ export default function LotDetail() {
           {/* Metrics */}
           <div className="grid grid-cols-2 divide-x divide-slate-100 border-b border-slate-100">
             <div className="px-4 py-4 sm:px-5">
-              <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">Envases</p>
+              <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">Unidades</p>
               <p className="mt-1 text-2xl font-black text-slate-900 sm:text-3xl [overflow-wrap:anywhere]">{formatNumber(lot.current_quantity)}</p>
             </div>
             <div className="px-4 py-4 sm:px-5">
@@ -993,7 +993,7 @@ export default function LotDetail() {
           </p>
           <ListProductCard
             title={cleanProductName(lot.product)}
-            envases={lot.current_quantity}
+            unidades={lot.current_quantity}
             equivalent={Number(lot.package_size) > 0 ? currentEquivalent : null}
             equivalentUnit={lot.package_unit}
             presentation={lot.package_size ? `${formatNumber(lot.package_size)} ${lot.package_unit || ''}` : 'Sin dato'}
@@ -1003,7 +1003,7 @@ export default function LotDetail() {
               { label: 'Cliente', value: lot.clients?.name || '-' },
               { label: 'Codigo', value: productCodeLabel(lot) || '-' },
               { label: 'Lote', value: visibleLotCode },
-              { label: 'Disponible', value: `${formatNumber(lot.current_quantity)} env.` },
+              { label: 'Disponible', value: `${formatNumber(lot.current_quantity)} uds` },
               { label: 'Equivalente', value: Number(lot.package_size) > 0 ? `${formatNumber(currentEquivalent)} ${lot.package_unit || ''}` : 'Sin dato' },
               { label: 'Presentacion', value: lot.package_size ? `${formatNumber(lot.package_size)} ${lot.package_unit || ''}` : 'Sin dato' },
               { label: 'Ubicacion', value: lot.location || '-' },
@@ -1023,7 +1023,7 @@ export default function LotDetail() {
           <div className="rounded-lg bg-slate-50 p-3">
             <p className="text-xs font-semibold uppercase text-slate-500">Disponible</p>
             <p className="mt-1 text-3xl font-black text-slate-950">{formatNumber(lot.current_quantity)}</p>
-            <p className="text-sm font-bold text-slate-500">envases</p>
+            <p className="text-sm font-bold text-slate-500">unidades</p>
           </div>
           <div className="rounded-lg bg-campo-50 p-3">
             <p className="text-xs font-semibold uppercase text-campo-700">Equivalente actual</p>
@@ -1093,7 +1093,7 @@ export default function LotDetail() {
           {['entrada', 'salida'].includes(movement.type) && Number(lot.package_size) > 0 ? (
             <>
               <label>
-                <span className="label">Cantidad de envases</span>
+                <span className="label">Cantidad de unidades</span>
                 <input
                   className="input mt-1"
                   type="text"
@@ -1137,7 +1137,7 @@ export default function LotDetail() {
               </label>
               {selectedIncident?.needsAffected ? (
                 <label>
-                  <span className="label">Envases afectados</span>
+                  <span className="label">Unidades afectados</span>
                   <input
                     className="input mt-1"
                     type="text"
@@ -1245,12 +1245,12 @@ export default function LotDetail() {
           <div className="rounded-lg bg-orange-50 p-3 text-sm font-semibold text-orange-800">
             <div className="flex justify-between gap-3">
               <span>Stock actual</span>
-              <span>{formatNumber(lot.current_quantity)} envases</span>
+              <span>{formatNumber(lot.current_quantity)} unidades</span>
             </div>
             {selectedIncident?.needsPhysicalCount ? (
               <div className="mt-1 flex justify-between gap-3">
                 <span>Stock propuesto</span>
-                <span>{formatNumber(nextQuantity)} envases</span>
+                <span>{formatNumber(nextQuantity)} unidades</span>
               </div>
             ) : (
               <p className="mt-1">No cambia stock automaticamente hasta revision administrativa.</p>
@@ -1260,7 +1260,7 @@ export default function LotDetail() {
         <div className="rounded-lg bg-campo-50 p-3 text-sm font-semibold text-campo-700">
           <div className="flex justify-between gap-3">
             <span>Stock despues</span>
-            <span>{formatNumber(nextQuantity)} envases</span>
+            <span>{formatNumber(nextQuantity)} unidades</span>
           </div>
           {Number(lot.package_size) > 0 ? (
             <div className="mt-1 flex justify-between gap-3 text-campo-800">
@@ -1282,7 +1282,7 @@ export default function LotDetail() {
         ) : null}
         {movement.type === 'salida' && fefoLot ? (
           <div className="rounded-lg bg-amber-50 p-3 text-sm font-bold text-amber-800">
-            FEFO: existe un lote que vence antes ({displayLotCode(fefoLot.lot_code, fefoLot)}, vence {formatDate(fefoLot.expiry_date)}, {formatNumber(fefoLot.current_quantity)} envases en {fefoLot.location}). Es una advertencia para considerar, no bloquea la salida.
+            FEFO: existe un lote que vence antes ({displayLotCode(fefoLot.lot_code, fefoLot)}, vence {formatDate(fefoLot.expiry_date)}, {formatNumber(fefoLot.current_quantity)} unidades en {fefoLot.location}). Es una advertencia para considerar, no bloquea la salida.
           </div>
         ) : null}
         {movement.type === 'salida' && movementMode !== 'despacho' ? (
@@ -1311,7 +1311,7 @@ export default function LotDetail() {
               <p className="mt-2 text-sm font-semibold text-slate-500">
                 {pendingMovement.type === 'ajuste'
                   ? `Vas a enviar ${getIncidentConfig(pendingMovement.incident_type)?.label || 'reparacion'} a revision.`
-                  : `Vas a registrar ${movementLabel(pendingMovement.type).toLowerCase()} de ${formatNumber(pendingMovement.quantity)} envases.`}
+                  : `Vas a registrar ${movementLabel(pendingMovement.type).toLowerCase()} de ${formatNumber(pendingMovement.quantity)} unidades.`}
               </p>
             </div>
             <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-3">
@@ -1325,7 +1325,7 @@ export default function LotDetail() {
               <div className="grid grid-cols-2 gap-2">
                 <div className="rounded-lg bg-white p-2">
                   <span className="block text-xs uppercase text-slate-400">Cantidad</span>
-                  <span className="text-slate-950">{formatNumber(pendingMovement.quantity)} env.</span>
+                  <span className="text-slate-950">{formatNumber(pendingMovement.quantity)} uds</span>
                 </div>
                 <div className={`rounded-lg p-2 ${lotState.panel}`}>
                   <span className="block text-xs uppercase opacity-70">Estado</span>
@@ -1334,18 +1334,18 @@ export default function LotDetail() {
               </div>
               {pendingMovement.type === 'ajuste' && pendingMovement.affected_packages ? (
                 <div className="flex justify-between gap-3">
-                  <span>Envases afectados</span>
+                  <span>Unidades afectados</span>
                   <span>{formatNumber(pendingMovement.affected_packages)}</span>
                 </div>
               ) : null}
               <div className="flex justify-between gap-3">
                 <span>Stock actual</span>
-                <span>{formatNumber(pendingMovement.previousQuantity)} envases</span>
+                <span>{formatNumber(pendingMovement.previousQuantity)} unidades</span>
               </div>
               {pendingMovement.type !== 'ajuste' || getIncidentConfig(pendingMovement.incident_type)?.needsPhysicalCount ? (
                 <div className="flex justify-between gap-3">
                   <span>{pendingMovement.type === 'ajuste' ? 'Stock propuesto' : 'Stock despues'}</span>
-                  <span>{formatNumber(pendingMovement.newQuantity)} envases</span>
+                  <span>{formatNumber(pendingMovement.newQuantity)} unidades</span>
                 </div>
               ) : null}
               {pendingMovement.calculatedQuantity ? (
@@ -1447,8 +1447,8 @@ export default function LotDetail() {
               </div>
               <div className="mt-3 grid gap-2 text-sm sm:grid-cols-2">
                 <p className="rounded-lg bg-slate-50 p-2 font-semibold text-slate-600">Usuario: {item.profiles?.full_name || 'Usuario'}</p>
-                <p className="rounded-lg bg-slate-50 p-2 font-semibold text-slate-600">Stock anterior: {formatNumber(item.previous_quantity)} envases</p>
-                <p className="rounded-lg bg-slate-50 p-2 font-semibold text-slate-600">Stock nuevo: {formatNumber(item.new_quantity)} envases</p>
+                <p className="rounded-lg bg-slate-50 p-2 font-semibold text-slate-600">Stock anterior: {formatNumber(item.previous_quantity)} unidades</p>
+                <p className="rounded-lg bg-slate-50 p-2 font-semibold text-slate-600">Stock nuevo: {formatNumber(item.new_quantity)} unidades</p>
                 {item.to_location ? (
                   <p className="rounded-lg bg-slate-50 p-2 font-semibold text-slate-600">Nueva ubicacion: {item.to_location}</p>
                 ) : null}

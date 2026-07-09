@@ -129,8 +129,8 @@ export default function SalidasHub() {
                       <div key={item.lot_id || idx} className="flex items-center justify-between gap-2 rounded-lg bg-slate-50 px-3 py-1.5">
                         <span className="min-w-0 truncate text-sm font-semibold text-slate-800">{cleanProductName(item.product) || '—'}</span>
                         <span className="shrink-0 text-right">
-                          <span className="block text-sm font-black text-campo-700">{equivalente || `${formatNumber(item.quantity)} env.`}</span>
-                          {equivalente && <span className="block text-[10px] font-semibold text-slate-400">{formatNumber(item.quantity)} env.</span>}
+                          <span className="block text-sm font-black text-campo-700">{equivalente || `${formatNumber(item.quantity)} uds`}</span>
+                          {equivalente && <span className="block text-[10px] font-semibold text-slate-400">{formatNumber(item.quantity)} uds</span>}
                         </span>
                       </div>
                     )

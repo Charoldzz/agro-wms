@@ -339,7 +339,7 @@ export default function ClientPortal({ view = 'inventory' }) {
     const qty = Number(reqQuantity||0)
     if (!selectedLot) { setReqMessage('Selecciona un lote.'); return }
     if (qty <= 0) { setReqMessage('Ingresa una cantidad mayor a 0.'); return }
-    if (qty > Number(selectedLot.current_quantity||0)) { setReqMessage('La cantidad supera los envases disponibles.'); return }
+    if (qty > Number(selectedLot.current_quantity||0)) { setReqMessage('La cantidad supera los unidades disponibles.'); return }
     if (['Retenido','Cerrado'].includes(lotStatus(selectedLot).label)) { setReqMessage('Este lote no está disponible para despacho.'); return }
     setReqItems(cur => {
       const existing = cur.find(i => i.lot_id === selectedLot.id)
@@ -419,7 +419,7 @@ export default function ClientPortal({ view = 'inventory' }) {
     const clientId  = profileClientId
     if (!fresh[0] || !clientId) { setReqMessage('No se pudo validar el cliente. Recarga e intenta de nuevo.'); return }
     if (clientIds.some(id => id !== clientId)) { setReqMessage('La solicitud contiene productos de otro cliente. Recarga e intenta de nuevo.'); return }
-    if (over) { setReqMessage(`${cleanProductName(over.product)} solo tiene ${formatNumber(over.current_quantity ?? over.available ?? 0)} env. disponibles.`); return }
+    if (over) { setReqMessage(`${cleanProductName(over.product)} solo tiene ${formatNumber(over.current_quantity ?? over.available ?? 0)} uds disponibles.`); return }
     let attachmentUrl = editingRequestId ? existingAttachment : null
     if (reqAttachFile) {
       setReqUploading(true)
@@ -474,7 +474,7 @@ export default function ClientPortal({ view = 'inventory' }) {
         { key: 'lote',        width: 22 },
         { key: 'vencimiento', width: 16 },
         { key: 'equivalente', width: 18 },
-        { key: 'envases',     width: 14 },
+        { key: 'unidades',     width: 14 },
         { key: 'cajas',       width: 12 },
       ]
 
@@ -496,7 +496,7 @@ export default function ClientPortal({ view = 'inventory' }) {
       ws.addRow([])
 
       // Row 4: column headers
-      const headerLabels = ['Producto', 'Lote', 'Vencimiento', 'Cantidad Lts/Kgs', 'Cantidad Envases', 'Cajas']
+      const headerLabels = ['Producto', 'Lote', 'Vencimiento', 'Cantidad Lts/Kgs', 'Cantidad Unidades', 'Cajas']
       const hdrRow = ws.addRow(headerLabels)
       hdrRow.height = 18
       hdrRow.eachCell(cell => {
@@ -598,7 +598,7 @@ export default function ClientPortal({ view = 'inventory' }) {
 <table>
   <thead><tr>
     <th>Producto</th><th>Lote</th>
-    <th class="r">Vencimiento</th><th class="r">Cantidad Lts/Kgs</th><th class="r">Cantidad Envases</th><th class="r">Cajas</th>
+    <th class="r">Vencimiento</th><th class="r">Cantidad Lts/Kgs</th><th class="r">Cantidad Unidades</th><th class="r">Cajas</th>
   </tr></thead>
   <tbody>${rows}</tbody>
 </table>
@@ -612,7 +612,7 @@ export default function ClientPortal({ view = 'inventory' }) {
     const lot = movement.lots||{}; const eq = Number(movement.quantity||0)*Number(lot.package_size||0)
     const type = movement.type==='salida'?'despacho':movementLabel(movement.type).toLowerCase()
     const w = window.open('','_blank'); if(!w) return
-    w.document.write(`<!doctype html><html><head><title>Comprobante</title><style>body{color:#0f172a;font-family:Arial,sans-serif;margin:24px}h1{margin:0 0 4px}.box{border:1px solid #cbd5e1;border-radius:8px;margin-top:14px;padding:12px}.grid{display:grid;gap:10px;grid-template-columns:repeat(2,1fr)}strong{display:block}@media print{body{margin:12mm}}</style></head><body><h1>Todo Agricola Boliviana Ltda</h1><p>Comprobante de ${escapeHtml(type)} para ${escapeHtml(clientName)}</p><div class="box grid"><div><strong>Fecha</strong>${escapeHtml(formatDate(movement.created_at))}</div><div><strong>Movimiento</strong>${escapeHtml(movementLabel(movement.type))}</div><div><strong>Codigo</strong>${escapeHtml(productCodeLabel(lot)||'-')}</div><div><strong>Lote</strong>${escapeHtml(displayLotCode(lot.lot_code,lot))}</div><div><strong>Producto</strong>${escapeHtml(cleanProductName(lot.product))}</div><div><strong>Cantidad</strong>${escapeHtml(formatNumber(movement.quantity))} envases</div><div><strong>Equivalente</strong>${escapeHtml(Number(lot.package_size)>0?`${formatNumber(eq)} ${lot.package_unit||''}`:'-')}</div><div><strong>Ubicacion</strong>${escapeHtml(lot.location||'-')}</div></div>${movement.notes?`<div class="box"><strong>Referencia</strong>${escapeHtml(movement.notes)}</div>`:''}<script>window.addEventListener('load',()=>window.print())</script></body></html>`)
+    w.document.write(`<!doctype html><html><head><title>Comprobante</title><style>body{color:#0f172a;font-family:Arial,sans-serif;margin:24px}h1{margin:0 0 4px}.box{border:1px solid #cbd5e1;border-radius:8px;margin-top:14px;padding:12px}.grid{display:grid;gap:10px;grid-template-columns:repeat(2,1fr)}strong{display:block}@media print{body{margin:12mm}}</style></head><body><h1>Todo Agricola Boliviana Ltda</h1><p>Comprobante de ${escapeHtml(type)} para ${escapeHtml(clientName)}</p><div class="box grid"><div><strong>Fecha</strong>${escapeHtml(formatDate(movement.created_at))}</div><div><strong>Movimiento</strong>${escapeHtml(movementLabel(movement.type))}</div><div><strong>Codigo</strong>${escapeHtml(productCodeLabel(lot)||'-')}</div><div><strong>Lote</strong>${escapeHtml(displayLotCode(lot.lot_code,lot))}</div><div><strong>Producto</strong>${escapeHtml(cleanProductName(lot.product))}</div><div><strong>Cantidad</strong>${escapeHtml(formatNumber(movement.quantity))} unidades</div><div><strong>Equivalente</strong>${escapeHtml(Number(lot.package_size)>0?`${formatNumber(eq)} ${lot.package_unit||''}`:'-')}</div><div><strong>Ubicacion</strong>${escapeHtml(lot.location||'-')}</div></div>${movement.notes?`<div class="box"><strong>Referencia</strong>${escapeHtml(movement.notes)}</div>`:''}<script>window.addEventListener('load',()=>window.print())</script></body></html>`)
     w.document.close()
   }
 
@@ -874,7 +874,7 @@ export default function ClientPortal({ view = 'inventory' }) {
                           {Object.keys(group.equivalents).length > 0 ? (
                             <>
                               <p className="text-base font-black text-campo-700">{equivalentTotalsLabel(group.equivalents)}</p>
-                              <p className="text-[10px] font-semibold text-slate-400">{formatNumber(group.quantity)} envases</p>
+                              <p className="text-[10px] font-semibold text-slate-400">{formatNumber(group.quantity)} unidades</p>
                             </>
                           ) : (
                             <p className="text-base font-black text-campo-700">{formatNumber(group.quantity)} <span className="text-xs font-bold text-campo-500">env.</span></p>
@@ -912,10 +912,10 @@ export default function ClientPortal({ view = 'inventory' }) {
                                   {eq ? (
                                     <>
                                       <p className="text-sm font-black text-campo-700">{formatNumber(eq.quantity)} {eq.unit}</p>
-                                      <p className="text-[10px] font-semibold text-slate-400">{formatNumber(lot.current_quantity)} envases</p>
+                                      <p className="text-[10px] font-semibold text-slate-400">{formatNumber(lot.current_quantity)} unidades</p>
                                     </>
                                   ) : (
-                                    <p className="text-sm font-black text-campo-700">{formatNumber(lot.current_quantity)} env.</p>
+                                    <p className="text-sm font-black text-campo-700">{formatNumber(lot.current_quantity)} uds</p>
                                   )}
                                   {lotCajas(lot) > 0 && (
                                     <p className="text-[10px] font-semibold text-campo-500">{formatNumber(lotCajas(lot))} cajas</p>
@@ -979,7 +979,7 @@ export default function ClientPortal({ view = 'inventory' }) {
               )}
               <div className="px-5 py-3.5 text-center">
                 <p className="text-lg font-black tabular-nums text-slate-900">{formatNumber(totalStock)}</p>
-                <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">envases</p>
+                <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">unidades</p>
               </div>
               <div className="px-5 py-3.5 text-center">
                 <p className="text-lg font-black tabular-nums text-slate-900">{productCount}</p>
@@ -1010,7 +1010,7 @@ export default function ClientPortal({ view = 'inventory' }) {
                         <p className="text-sm font-bold text-slate-900 truncate">{cleanProductName(lot.product)}</p>
                         <p className="text-xs font-semibold text-slate-400">{formatDate(m.created_at)}</p>
                       </div>
-                      <p className="shrink-0 text-sm font-black text-campo-700">{formatNumber(m.quantity)} env.</p>
+                      <p className="shrink-0 text-sm font-black text-campo-700">{formatNumber(m.quantity)} uds</p>
                     </div>
                   )
                 })}
@@ -1062,9 +1062,9 @@ export default function ClientPortal({ view = 'inventory' }) {
                               {eq
                                 ? <>
                                     <span className="text-sm font-black text-campo-700">{formatNumber(eq.quantity)} {eq.unit}</span>
-                                    <span className="text-[10px] font-semibold text-slate-400">({formatNumber(item.quantity)} env.)</span>
+                                    <span className="text-[10px] font-semibold text-slate-400">({formatNumber(item.quantity)} uds)</span>
                                   </>
-                                : <span className="text-xs font-semibold text-slate-600">{formatNumber(item.quantity)} env.</span>
+                                : <span className="text-xs font-semibold text-slate-600">{formatNumber(item.quantity)} uds</span>
                               }
                               <span className="text-[10px] font-semibold text-slate-400">· {lotLabel(item.lot_code, item)}</span>
                             </div>
@@ -1164,7 +1164,7 @@ export default function ClientPortal({ view = 'inventory' }) {
                           const statusText = st.label === 'Vencido' ? ' ⚠ VENCIDO' : st.label === 'Por vencer' ? ' · Por vencer' : st.label === 'Retenido' ? ' · Retenido' : ''
                           return (
                             <option key={l.id} value={l.id}>
-                              {lotLabel(l.lot_code, l)} · {formatNumber(l.current_quantity)} env. {l.expiry_date ? `· Vence ${formatDate(l.expiry_date)}` : ''}{statusText}
+                              {lotLabel(l.lot_code, l)} · {formatNumber(l.current_quantity)} uds {l.expiry_date ? `· Vence ${formatDate(l.expiry_date)}` : ''}{statusText}
                             </option>
                           )
                         })}
@@ -1200,7 +1200,7 @@ export default function ClientPortal({ view = 'inventory' }) {
                             return eq ? (
                               <>
                                 <p className="text-lg font-black text-campo-700">{formatNumber(eq.quantity)} <span className="text-sm font-bold text-campo-500">{eq.unit}</span></p>
-                                <p className="text-[10px] font-semibold text-slate-400">{formatNumber(selectedLot.current_quantity)} env. disp.</p>
+                                <p className="text-[10px] font-semibold text-slate-400">{formatNumber(selectedLot.current_quantity)} uds disp.</p>
                               </>
                             ) : (
                               <>
@@ -1221,7 +1221,7 @@ export default function ClientPortal({ view = 'inventory' }) {
                   {/* Step 3: cantidad */}
                   {reqLotId && (
                     <label className="block">
-                      <span className="text-xs font-black uppercase tracking-wide text-slate-500">3 · Cantidad de envases</span>
+                      <span className="text-xs font-black uppercase tracking-wide text-slate-500">3 · Cantidad de unidades</span>
                       <div className="flex items-center gap-2 mt-1.5">
                         <input
                           className="input flex-1"
@@ -1273,9 +1273,9 @@ export default function ClientPortal({ view = 'inventory' }) {
                               {eq
                                 ? <>
                                     <span className="text-sm font-black text-campo-700">{formatNumber(eq.quantity)} {eq.unit}</span>
-                                    <span className="text-[10px] font-semibold text-slate-400">({formatNumber(item.quantity)} env.)</span>
+                                    <span className="text-[10px] font-semibold text-slate-400">({formatNumber(item.quantity)} uds)</span>
                                   </>
-                                : <span className="text-xs font-black text-slate-700">{formatNumber(item.quantity)} env.</span>
+                                : <span className="text-xs font-black text-slate-700">{formatNumber(item.quantity)} uds</span>
                               }
                             </div>
                           </div>
@@ -1387,9 +1387,9 @@ export default function ClientPortal({ view = 'inventory' }) {
                                       {eq
                                         ? <>
                                             <span className="text-xs font-black text-campo-700">{formatNumber(eq.quantity)} {eq.unit}</span>
-                                            <span className="ml-1 text-[10px] font-semibold text-slate-400">({formatNumber(item.quantity)} env.)</span>
+                                            <span className="ml-1 text-[10px] font-semibold text-slate-400">({formatNumber(item.quantity)} uds)</span>
                                           </>
-                                        : <span className="text-xs font-black text-slate-700">{formatNumber(item.quantity)} env.</span>
+                                        : <span className="text-xs font-black text-slate-700">{formatNumber(item.quantity)} uds</span>
                                       }
                                     </div>
                                   </div>
@@ -1407,9 +1407,9 @@ export default function ClientPortal({ view = 'inventory' }) {
                                   {eq
                                     ? <>
                                         <span className="text-xs font-black text-campo-700">{formatNumber(eq.quantity)} {eq.unit}</span>
-                                        <span className="ml-1 text-[10px] font-semibold text-slate-400">({formatNumber(req.quantity)} env.)</span>
+                                        <span className="ml-1 text-[10px] font-semibold text-slate-400">({formatNumber(req.quantity)} uds)</span>
                                       </>
-                                    : <span className="text-xs font-black text-slate-700">{formatNumber(req.quantity)} env.</span>
+                                    : <span className="text-xs font-black text-slate-700">{formatNumber(req.quantity)} uds</span>
                                   }
                                 </div>
                               </div>
@@ -1507,7 +1507,7 @@ export default function ClientPortal({ view = 'inventory' }) {
                         </p>
                       </div>
                       <div className="flex shrink-0 items-center gap-2">
-                        <span className="text-sm font-black text-campo-700">{formatNumber(m.quantity)} env.</span>
+                        <span className="text-sm font-black text-campo-700">{formatNumber(m.quantity)} uds</span>
                         <button
                           className="rounded-lg border border-slate-200 p-1.5 text-slate-400 hover:text-campo-700"
                           type="button"
@@ -1649,7 +1649,7 @@ function MovementModal({ movement, clientName, onClose, onPrint }) {
           {[
             ['Fecha',       formatDate(movement.created_at)],
             ['Lote',        displayLotCode(lot.lot_code, lot)],
-            ['Envases',     `${formatNumber(movement.quantity)} env.`],
+            ['Unidades',     `${formatNumber(movement.quantity)} uds`],
             ['Equivalente', Number(lot.package_size) > 0 ? `${formatNumber(eq)} ${lot.package_unit||''}` : 'Sin dato'],
             ['Ubicación',   lot.location || '-'],
           ].map(([label, val]) => (

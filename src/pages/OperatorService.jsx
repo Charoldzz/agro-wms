@@ -5,7 +5,7 @@ import PageHeader from '../components/PageHeader'
 
 const repairTypes = [
   { value: 'fraccionamiento', label: 'Fraccionamiento' },
-  { value: 'envases', label: 'Envases' },
+  { value: 'unidades', label: 'Unidades' },
   { value: 'cajas', label: 'Cajas' },
   { value: 'etiquetado', label: 'Etiquetado' },
   { value: 'reempaquetado', label: 'Reempaquetado' },

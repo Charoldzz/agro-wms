@@ -219,7 +219,7 @@ export default function AdminExports() {
     })
   }, [movements, search, clientFilter, movementType, dateFrom, dateTo])
 
-  const inventoryHeaders = ['Cliente', 'Producto', 'Lote', 'Envases', 'Presentacion', 'Equivalente', 'Ubicacion', 'Ingreso', 'Vencimiento', 'Estado']
+  const inventoryHeaders = ['Cliente', 'Producto', 'Lote', 'Unidades', 'Presentacion', 'Equivalente', 'Ubicacion', 'Ingreso', 'Vencimiento', 'Estado']
   const inventoryRows = filteredLots.map((lot) => [
     lot.clients?.name || '',
     cleanProductName(lot.product),
@@ -327,7 +327,7 @@ export default function AdminExports() {
           onPdf={() => printReport('Inventario actual', inventoryHeaders, inventoryRows)}
         >
           {inventoryRows.length === 0 ? <EmptyState title="Sin inventario" text="Ajusta los filtros para ver resultados." /> : inventoryRows.slice(0, 8).map((row) => (
-            <PreviewRow key={`${row[0]}-${row[2]}-${row[3]}`} title={row[1]} meta={`${row[0]} - ${row[2]} - vence ${row[8] || '-'}`} value={`${row[3]} env.`} />
+            <PreviewRow key={`${row[0]}-${row[2]}-${row[3]}`} title={row[1]} meta={`${row[0]} - ${row[2]} - vence ${row[8] || '-'}`} value={`${row[3]} uds`} />
           ))}
         </ExportPanel>
 
@@ -338,7 +338,7 @@ export default function AdminExports() {
           onPdf={() => printReport('Movimientos de inventario', movementHeaders, movementRows)}
         >
           {movementRows.length === 0 ? <EmptyState title="Sin movimientos" text="Ajusta los filtros para ver resultados." /> : movementRows.slice(0, 8).map((row) => (
-            <PreviewRow key={`${row[0]}-${row[2]}-${row[4]}-${row[5]}`} title={row[3]} meta={`${row[1]} - ${row[2]} - ${row[0]}`} value={`${row[5]} env.`} />
+            <PreviewRow key={`${row[0]}-${row[2]}-${row[4]}-${row[5]}`} title={row[3]} meta={`${row[1]} - ${row[2]} - ${row[0]}`} value={`${row[5]} uds`} />
           ))}
         </ExportPanel>
       </section>

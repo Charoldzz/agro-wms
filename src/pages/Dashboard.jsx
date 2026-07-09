@@ -150,7 +150,7 @@ export default function Dashboard() {
   }, [lots, movements])
 
   function exportInventoryExcel() {
-    const headers = ['Cliente', 'Lote', 'Producto', 'Envases', 'Presentacion', 'Equivalente', 'Ubicacion', 'Ingreso', 'Vencimiento', 'Estado']
+    const headers = ['Cliente', 'Lote', 'Producto', 'Unidades', 'Presentacion', 'Equivalente', 'Ubicacion', 'Ingreso', 'Vencimiento', 'Estado']
     const rows = lots.map((lot) => [
       lot.clients?.name || '',
       displayLotCode(lot.lot_code),
@@ -268,14 +268,14 @@ export default function Dashboard() {
                       <p className="text-xs font-bold text-amber-700">{request.status === 'en_preparacion' ? 'En preparación' : 'Despacho pendiente'}</p>
                     </div>
                     <span className="rounded-full bg-white px-2 py-1 text-xs font-black text-amber-800">
-                      {Array.isArray(request.items) && request.items.length > 1 ? `${request.items.length} items` : `${formatNumber(request.quantity)} env.`}
+                      {Array.isArray(request.items) && request.items.length > 1 ? `${request.items.length} items` : `${formatNumber(request.quantity)} uds`}
                     </span>
                   </div>
                   {Array.isArray(request.items) && request.items.length > 1 ? (
                     <div className="mt-2 space-y-1">
                       {request.items.slice(0, 2).map((item) => (
                         <p key={item.lot_id} className="rounded-lg bg-white/80 px-2 py-1 text-xs font-bold text-slate-600 [overflow-wrap:anywhere]">
-                          {cleanProductName(item.product)} - {formatNumber(item.quantity)} env.
+                          {cleanProductName(item.product)} - {formatNumber(item.quantity)} uds
                         </p>
                       ))}
                       {request.items.length > 2 ? <p className="text-xs font-bold text-slate-600">+ {request.items.length - 2} producto{request.items.length - 2 === 1 ? '' : 's'} mas</p> : null}
@@ -315,8 +315,8 @@ export default function Dashboard() {
                     {movement.type === 'traslado'
                       ? `De ${movement.from_location || '-'} a ${movement.to_location || '-'}`
                       : movement.type === 'salida'
-                        ? `Salida offline: ${formatNumber(movement.quantity)} env. - Stock actual: ${formatNumber(movement.lots?.current_quantity)} env.`
-                      : `Actual: ${formatNumber(movement.previous_quantity)} env. - Solicitado: ${formatNumber(movement.quantity)} env.`}
+                        ? `Salida offline: ${formatNumber(movement.quantity)} uds - Stock actual: ${formatNumber(movement.lots?.current_quantity)} uds`
+                      : `Actual: ${formatNumber(movement.previous_quantity)} uds - Solicitado: ${formatNumber(movement.quantity)} uds`}
                   </p>
                   <p className="text-xs text-slate-500">{movement.profiles?.full_name || 'Usuario'} - {movement.lots?.clients?.name || '-'}</p>
                   {movement.notes ? <p className="mt-1 text-xs text-slate-600">{movement.notes}</p> : null}
@@ -362,7 +362,7 @@ export default function Dashboard() {
                     </div>
                     <div className="text-right">
                       <p className="text-lg font-bold text-amber-700">{lot.daysLeft < 0 ? 'Vencido' : `${lot.daysLeft} d`}</p>
-                      <p className="text-xs font-semibold text-slate-500">{formatNumber(lot.current_quantity)} env.</p>
+                      <p className="text-xs font-semibold text-slate-500">{formatNumber(lot.current_quantity)} uds</p>
                     </div>
                   </div>
                 </Link>
