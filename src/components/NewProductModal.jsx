@@ -147,7 +147,7 @@ export default function NewProductModal({ clients, onClose, onSaved }) {
           </div>
 
           <div>
-            <label className="block text-sm font-bold text-slate-700">Medida por envase</label>
+            <label className="block text-sm font-bold text-slate-700">Tamaño de presentación</label>
             <div className="mt-1 flex gap-2">
               <input
                 className="input w-32"

@@ -270,7 +270,7 @@ export default function CatalogoModal({ clients, onClose }) {
               />
             </label>
             <div>
-              <span className="text-sm font-bold text-slate-700">Medida por envase</span>
+              <span className="text-sm font-bold text-slate-700">Tamaño de presentación</span>
               <div className="mt-1 flex gap-2">
                 <input
                   className="input w-28"
