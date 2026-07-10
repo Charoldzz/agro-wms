@@ -314,16 +314,18 @@ export default function OperatorEntry() {
     setSaving(true)
     try {
       const items = validRows.map((r, i) => {
-        const { size, unit } = productInfo(r.product)
+        const { size, unit, upb } = productInfo(r.product)
         const totalEq = Number(r.cantidad || 0)
-        // CANTIDAD es el total en lts/kgs; loose_units = unidades = total / medida
-        const unidades = size > 0 ? totalEq / size : totalEq
+        // CANTIDAD es el total en lts/kgs; las unidades exactas conservan el equivalente
+        const unidadesExactas = size > 0 ? totalEq / size : totalEq
+        const cajas = upb > 0 ? Math.floor(Math.floor(unidadesExactas) / upb) : 0
+        const sueltas = Math.round((unidadesExactas - cajas * upb) * 1000) / 1000
         return {
           lot_code: r.lot_code?.trim() || createLotCode(i),
           product: r.product.trim(),
-          box_count: Number(r.cajas || 0),
-          units_per_box: 0,
-          loose_units: unidades,
+          box_count: cajas,
+          units_per_box: cajas > 0 ? upb : 0,
+          loose_units: sueltas,
           package_size: size || null,
           package_unit: unit || null,
           location: internalLocations[0] || 'ALMACEN',
