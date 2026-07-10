@@ -32,8 +32,8 @@ function nextCodeForClient(existingCodes, fallbackPrefix = '') {
   return `${prefix}-${String(last + 1).padStart(width, '0')}`
 }
 
-export default function NewProductModal({ clients, onClose, onSaved }) {
-  const [clientId, setClientId] = useState('')
+export default function NewProductModal({ clients, onClose, onSaved, fixedClientId = '', pendingReview = false }) {
+  const [clientId, setClientId] = useState(fixedClientId)
   const [nextCode, setNextCode] = useState('')
   const [name, setName] = useState('')
   const [packageSize, setPackageSize] = useState('')
@@ -85,17 +85,18 @@ export default function NewProductModal({ clients, onClose, onSaved }) {
 
     setSaving(true)
 
-    const { error: err } = await supabase.from('product_catalog').insert({
+    const { data: created, error: err } = await supabase.from('product_catalog').insert({
       client_id: clientId,
       code: nextCode,
       name: name.trim().toUpperCase(),
       package_size: packageSize ? Number(packageSize) : null,
       package_unit: packageSize ? packageUnit : null,
       units_per_box: unitsPerBox ? Number(unitsPerBox) : null,
-    })
+      pending_review: Boolean(pendingReview),
+    }).select().single()
     setSaving(false)
     if (err) return setError(err.message)
-    onSaved?.()
+    onSaved?.(created)
     onClose()
   }
 
@@ -112,17 +113,29 @@ export default function NewProductModal({ clients, onClose, onSaved }) {
         <form onSubmit={handleSave} className="space-y-4 p-5">
           <div>
             <label className="block text-sm font-bold text-slate-700">Empresa</label>
-            <select
-              className="input mt-1 w-full"
-              value={clientId}
-              onChange={(e) => setClientId(e.target.value)}
-            >
-              <option value="">Seleccionar empresa...</option>
-              {clients.map((c) => (
-                <option key={c.id} value={c.id}>{c.name}</option>
-              ))}
-            </select>
+            {fixedClientId ? (
+              <div className="input mt-1 w-full cursor-not-allowed select-none bg-slate-50 font-semibold text-slate-600">
+                {clients.find((c) => c.id === fixedClientId)?.name || 'Empresa'}
+              </div>
+            ) : (
+              <select
+                className="input mt-1 w-full"
+                value={clientId}
+                onChange={(e) => setClientId(e.target.value)}
+              >
+                <option value="">Seleccionar empresa...</option>
+                {clients.map((c) => (
+                  <option key={c.id} value={c.id}>{c.name}</option>
+                ))}
+              </select>
+            )}
           </div>
+
+          {pendingReview && (
+            <p className="rounded-lg bg-amber-50 px-3 py-2 text-xs font-bold text-amber-800">
+              La ficha quedará pendiente de revisión del administrador.
+            </p>
+          )}
 
           <div>
             <label className="block text-sm font-bold text-slate-700">Codigo</label>

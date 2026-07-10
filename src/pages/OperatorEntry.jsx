@@ -9,6 +9,7 @@ import { internalLocations } from '../lib/locations'
 import { vibrateSuccess } from '../lib/haptics'
 import { desgloseEnvases } from '../lib/envases'
 import { catalogClientIds } from '../lib/catalogo'
+import NewProductModal from '../components/NewProductModal'
 
 const today = new Date().toISOString().slice(0, 10)
 const DRAFT_KEY = 'draft_ingreso'
@@ -96,7 +97,7 @@ function DateInput({ value, onChange, onFocus, className }) {
 export default function OperatorEntry() {
   const navigate = useNavigate()
   const location = useLocation()
-  const { user } = useAuth()
+  const { user, isAdmin } = useAuth()
   const tableRef = useRef(null)
 
   const [clients, setClients] = useState([])
@@ -113,6 +114,7 @@ export default function OperatorEntry() {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState(false)
+  const [newProductRowId, setNewProductRowId] = useState(null)
   const restoringRef = useRef(false)
 
   // Cargar preview del número de guía automático
@@ -171,7 +173,7 @@ export default function OperatorEntry() {
   async function loadClients() {
     const { data } = await supabase
       .from('clients')
-      .select('id, name')
+      .select('id, name, product_code_prefix')
       .eq('inventory_source', 'stock_independiente')
       .order('name')
     const seen = new Set()
@@ -440,13 +442,17 @@ export default function OperatorEntry() {
                     <select
                       className="absolute inset-0 w-full cursor-pointer opacity-0 disabled:cursor-not-allowed"
                       value={row.product}
-                      onChange={(e) => updateProduct(row.id, e.target.value)}
+                      onChange={(e) => {
+                        if (e.target.value === '__nuevo__') { setNewProductRowId(row.id); return }
+                        updateProduct(row.id, e.target.value)
+                      }}
                       onFocus={() => setSelectedIdx(i)}
                       disabled={!clientId}
                       title={row.product}
                     >
                       <option value="">—</option>
                       {products.map((p) => <option key={p} value={p}>{p}</option>)}
+                      <option value="__nuevo__">＋ Producto nuevo...</option>
                     </select>
                     <span className="pointer-events-none absolute inset-y-0 right-1 flex items-center text-slate-400">
                       <svg className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd"/></svg>
@@ -536,11 +542,15 @@ export default function OperatorEntry() {
             <select
               className="input mb-3 w-full text-sm disabled:opacity-40"
               value={row.product}
-              onChange={(e) => updateProduct(row.id, e.target.value)}
+              onChange={(e) => {
+                if (e.target.value === '__nuevo__') { setNewProductRowId(row.id); return }
+                updateProduct(row.id, e.target.value)
+              }}
               disabled={!clientId}
             >
               <option value="">—</option>
               {products.map((p) => <option key={p} value={p}>{p}</option>)}
+              <option value="__nuevo__">＋ Producto nuevo...</option>
             </select>
 
             <div className="mb-3 grid grid-cols-2 gap-2">
@@ -633,6 +643,21 @@ export default function OperatorEntry() {
             Cancelar
           </button>
         </div>
+      )}
+
+      {newProductRowId && (
+        <NewProductModal
+          clients={clients}
+          fixedClientId={clientId}
+          pendingReview={!isAdmin}
+          onClose={() => setNewProductRowId(null)}
+          onSaved={async (created) => {
+            const rowId = newProductRowId
+            restoringRef.current = true
+            await loadClientProducts(clientId)
+            if (created) updateProduct(rowId, productDisplayName(created))
+          }}
+        />
       )}
     </div>
   )

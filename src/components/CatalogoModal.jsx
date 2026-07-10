@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
-import { ArrowLeft, Edit2, Filter, Save, Search, Trash2, X } from 'lucide-react'
+import { ArrowLeft, CheckCircle2, Edit2, Filter, Save, Search, Trash2, X } from 'lucide-react'
 import { supabase } from '../lib/supabase'
+import { catalogClientIds } from '../lib/catalogo'
 
 const UNITS = ['lt', 'ml', 'kg', 'g', 'unid', 'caja', 'bolsa', 'saco']
 
@@ -25,6 +26,9 @@ export default function CatalogoModal({ clients, onClose }) {
   const [saving, setSaving] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [error, setError] = useState('')
+  const [showPendingOnly, setShowPendingOnly] = useState(false)
+
+  const pendingCount = useMemo(() => products.filter((p) => p.pending_review).length, [products])
 
   useEffect(() => { load() }, [])
 
@@ -41,6 +45,7 @@ export default function CatalogoModal({ clients, onClose }) {
   const filtered = useMemo(() => {
     const term = search.toLowerCase().trim()
     return products.filter((p) => {
+      if (showPendingOnly && !p.pending_review) return false
       if (filterClient && p.client_id !== filterClient) return false
       if (!term) return true
       return (
@@ -49,7 +54,18 @@ export default function CatalogoModal({ clients, onClose }) {
         (p.clients?.name || '').toLowerCase().includes(term)
       )
     })
-  }, [products, search, filterClient])
+  }, [products, search, filterClient, showPendingOnly])
+
+  async function marcarRevisada() {
+    if (!selectedId) return
+    const { error: err } = await supabase
+      .from('product_catalog')
+      .update({ pending_review: false })
+      .eq('id', selectedId)
+    if (err) { setError(err.message); return }
+    setSelectedId(null)
+    load()
+  }
 
   function handleModificar() {
     if (!selectedId) {
@@ -89,13 +105,29 @@ export default function CatalogoModal({ clients, onClose }) {
     if (!editForm.name.trim()) return setError('El nombre es obligatorio.')
     if (!editForm.code.trim()) return setError('El código es obligatorio.')
     setSaving(true)
-    const { error: err } = await supabase.from('product_catalog').update({
+
+    const before = products.find((x) => x.id === selectedId)
+    const updated = {
       code: editForm.code.trim().toUpperCase(),
       name: editForm.name.trim().toUpperCase(),
       package_size: editForm.package_size ? Number(editForm.package_size) : null,
       package_unit: editForm.package_size ? editForm.package_unit : null,
       units_per_box: editForm.units_per_box ? Number(editForm.units_per_box) : null,
-    }).eq('id', selectedId)
+      pending_review: false,
+    }
+    const { error: err } = await supabase.from('product_catalog').update(updated).eq('id', selectedId)
+
+    // Si cambió el nombre visible, propagar la corrección a los lotes existentes
+    if (!err && before) {
+      const oldLabel = productDisplayName(before)
+      const newLabel = productDisplayName({ ...before, ...updated })
+      if (oldLabel && newLabel && oldLabel !== newLabel) {
+        const ids = await catalogClientIds(before.client_id)
+        const escaped = oldLabel.replace(/[\\%_]/g, (m) => `\\${m}`)
+        await supabase.from('lots').update({ product: newLabel }).in('client_id', ids).ilike('product', escaped)
+      }
+    }
+
     setSaving(false)
     if (err) return setError(err.message)
     setMode(null)
@@ -151,6 +183,28 @@ export default function CatalogoModal({ clients, onClose }) {
                 <Trash2 size={15} />
                 {deleting ? 'Eliminando...' : 'Eliminar'}
               </button>
+              {selectedProduct?.pending_review && (
+                <button
+                  className="btn-secondary !min-h-9 !px-3 !py-1.5 text-sm text-campo-700 hover:bg-campo-50"
+                  type="button"
+                  onClick={marcarRevisada}
+                >
+                  <CheckCircle2 size={15} />
+                  Revisada
+                </button>
+              )}
+              {pendingCount > 0 && (
+                <button
+                  className={`inline-flex min-h-9 items-center gap-1.5 rounded-lg border px-3 py-1.5 text-sm font-bold transition ${
+                    showPendingOnly ? 'border-amber-400 bg-amber-100 text-amber-800' : 'border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100'
+                  }`}
+                  type="button"
+                  onClick={() => setShowPendingOnly((v) => !v)}
+                  title="Ver solo fichas pendientes de revisión"
+                >
+                  {pendingCount} pendiente{pendingCount !== 1 ? 's' : ''}
+                </button>
+              )}
               <div className="relative flex-1 min-w-0">
                 <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
                 <input
@@ -233,6 +287,9 @@ export default function CatalogoModal({ clients, onClose }) {
                         <p className="text-xs font-bold leading-snug text-slate-900 [overflow-wrap:anywhere]">{productDisplayName(p)}</p>
                         <p className="text-[10px] font-semibold text-slate-400 [overflow-wrap:anywhere]">{p.clients?.name || ''}</p>
                       </div>
+                      {p.pending_review && (
+                        <span className="shrink-0 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-black text-amber-800">Pendiente</span>
+                      )}
                     </div>
                   ))}
                 </div>
