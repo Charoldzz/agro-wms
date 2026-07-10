@@ -37,7 +37,19 @@ export function envaseTipo(size, unit) {
 export function desgloseEnvases(qty, size, unit, upb) {
   const cantidad = Number(qty) || 0
   const pkgSize = Number(size) || 0
-  if (cantidad <= 0 || pkgSize <= 0) return { uds: 0, cajas: 0, sueltos: 0, resto: 0, label: '' }
+  if (cantidad <= 0) return { uds: 0, cajas: 0, sueltos: 0, resto: 0, label: '' }
+
+  // Sin presentación definida: se cuenta en unidades sueltas, sin inventar lts/kgs
+  if (pkgSize <= 0) {
+    const uds = Math.floor(cantidad)
+    const porCaja = Number(upb) || 0
+    const cajas = porCaja > 0 ? Math.floor(uds / porCaja) : 0
+    const sueltos = porCaja > 0 ? uds % porCaja : uds
+    const partes = []
+    if (cajas > 0) partes.push(`${formatNumber(cajas)} ${cajas === 1 ? 'caja' : 'cajas'}`)
+    if (sueltos > 0) partes.push(`${formatNumber(sueltos)} ${sueltos === 1 ? 'unidad' : 'unidades'}`)
+    return { uds, cajas, sueltos, resto: 0, label: partes.join(' + ') }
+  }
 
   const uds = Math.floor(cantidad / pkgSize)
   const resto = Math.round((cantidad - uds * pkgSize) * 1000) / 1000
