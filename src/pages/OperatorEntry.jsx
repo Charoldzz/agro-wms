@@ -112,6 +112,7 @@ export default function OperatorEntry() {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState(false)
+  const restoringRef = useRef(false)
 
   // Cargar preview del número de guía automático
   useEffect(() => {
@@ -132,7 +133,7 @@ export default function OperatorEntry() {
         const saved = localStorage.getItem(DRAFT_KEY)
         if (saved) {
           const d = JSON.parse(saved)
-          if (d.clientId) setClientId(d.clientId)
+          if (d.clientId) { restoringRef.current = true; setClientId(d.clientId) }
           if (d.contacto) setContacto(d.contacto)
           if (d.transportista) setTransportista(d.transportista)
           if (d.placa) setPlaca(d.placa)
@@ -199,6 +200,12 @@ export default function OperatorEntry() {
     })
     setCatalogMap(map)
     setProducts([...new Set(items)].sort())
+    // Al cambiar de empresa se vacía el carrito (los productos son de la empresa anterior)
+    if (!restoringRef.current) {
+      setRows([emptyRow()])
+      setSelectedIdx(0)
+    }
+    restoringRef.current = false
   }
 
   function addRow() {
