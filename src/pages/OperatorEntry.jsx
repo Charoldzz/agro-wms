@@ -27,24 +27,6 @@ function productDisplayName(p) {
   return p.name
 }
 
-function parseProductUnit(productName) {
-  if (!productName) return { size: 1, unit: '' }
-  const s = String(productName)
-  const UNIDAD = '(ltr|lts?|l|kgs?|grs?|gr|ml)'
-  // Patrón "X N unidad" (ej: "X 5 LTS.", "X 20 Kgs", "PRUEBA FC X 5 lt")
-  let m = s.match(new RegExp(`[xX×]\\s*([\\d.,]+)\\s*${UNIDAD}(?![a-zA-Z])`, 'i'))
-  // Fallback: "N unidad" pegado o con separadores raros (ej: "_5L_BO", "10KG_BO_HK", "(200)L")
-  if (!m) m = s.match(new RegExp(`([\\d.,]+)\\s*${UNIDAD}(?![a-zA-Z])`, 'i'))
-  if (!m) return { size: 0, unit: '' }
-  const size = parseFloat(m[1].replace(',', '.'))
-  const raw = m[2].toLowerCase()
-  const unit = /^l(tr|ts?)?$/.test(raw) ? 'lts'
-    : /^kgs?$/.test(raw) ? 'kgs'
-      : /^grs?$/.test(raw) ? 'gr'
-        : raw === 'ml' ? 'ml' : ''
-  return { size: isNaN(size) ? 1 : size, unit }
-}
-
 function emptyRow() {
   return { id: crypto.randomUUID(), product: '', lot_code: '', expiry_date: '', cantidad: '', uds: '', uds_rem: '', cajas: '', cajas_rem: '', galones: '', bidones: '', tambores: '', pallets: '' }
 }
@@ -249,12 +231,12 @@ export default function OperatorEntry() {
     setRows((r) => r.map((row) => (row.id === id ? { ...row, [field]: value } : row)))
   }
 
-  // Presentación del producto: primero el catálogo (dato confiable), después el nombre
+  // Presentación del producto: SOLO del catálogo (dato cargado y verificado).
+  // Sin dato no se adivina: la fila avisa y el guardado se bloquea.
   function productInfo(name) {
     const cat = catalogMap.get(name)
     if (cat && cat.size > 0) return { size: cat.size, unit: cat.unit, upb: cat.upb }
-    const parsed = parseProductUnit(name)
-    return { size: parsed.size, unit: parsed.unit, upb: cat?.upb || 0 }
+    return { size: 0, unit: '', upb: cat?.upb || 0 }
   }
 
   function updateCantidad(id, value) {
