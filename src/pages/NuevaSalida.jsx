@@ -8,6 +8,7 @@ import { formatNumber } from '../lib/format'
 import { cleanProductName, displayLotCode } from '../lib/display'
 import { vibrateSuccess } from '../lib/haptics'
 import { openDispatchReceipt } from '../lib/comprobante'
+import { desgloseEnvases } from '../lib/envases'
 
 const today = new Date().toISOString().slice(0, 10)
 const DRAFT_KEY = 'draft_salida'
@@ -327,13 +328,6 @@ export default function NuevaSalida() {
   const insufficientRows = isRequestMode ? rows.filter(rowInsufficient) : []
   const allConfirmed = !isRequestMode || rows.every((r) => r.confirmed)
 
-  const fieldTotals = useMemo(() => {
-    const fields = ['uds', 'cajas', 'galones', 'bidones', 'tambores', 'pallets']
-    const totals = Object.fromEntries(fields.map((f) => [f, rows.reduce((sum, r) => sum + Number(r[f] || 0), 0)]))
-    totals.cajas_rem = rows.reduce((sum, r) => sum + Number(r.cajas_rem || 0), 0)
-    return totals
-  }, [rows])
-
   async function save() {
     setError('')
     if (!clientId) { setError('Selecciona la empresa.'); return }
@@ -387,7 +381,10 @@ export default function NuevaSalida() {
         transportista: transportista.trim(),
         placa: placa.trim(),
         observaciones: observaciones.trim(),
-        rows: validRows,
+        rows: validRows.map((r) => ({
+          ...r,
+          envases_label: desgloseEnvases(r.cantidad, r.package_size, r.package_unit, catalogMap.get((r.product || '').toUpperCase()) || 0).label,
+        })),
       })
 
       clearDraft()
@@ -511,7 +508,7 @@ export default function NuevaSalida() {
       )}
 
       <div className="mb-4 overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm">
-        <table className="w-full border-collapse" style={{ minWidth: '1008px', tableLayout: 'fixed' }}>
+        <table className="w-full border-collapse" style={{ minWidth: '880px', tableLayout: 'fixed' }}>
           <thead>
             <tr className="bg-campo-700 text-white">
               <th className="border-b border-campo-600 px-2 py-2.5 text-center text-xs font-bold uppercase tracking-wide" style={{width:'40px'}}>{isRequestMode ? '✓' : 'N°'}</th>
@@ -519,11 +516,7 @@ export default function NuevaSalida() {
               <th className="border-b border-campo-600 px-2 py-2.5 text-center text-xs font-bold uppercase tracking-wide" style={{width:'100px'}}>LOTE</th>
               <th className="border-b border-campo-600 px-2 py-2.5 text-center text-xs font-bold uppercase tracking-wide" style={{width:'110px'}}>VENC</th>
               <th className="border-b border-campo-600 px-2 py-2.5 text-right text-xs font-bold uppercase tracking-wide" style={{width:'80px'}}>CANTIDAD</th>
-              <th className="border-b border-campo-600 px-2 py-2.5 text-right text-xs font-bold uppercase tracking-wide" style={{width:'64px'}}>UDS</th>
-              <th className="border-b border-campo-600 px-2 py-2.5 text-right text-xs font-bold uppercase tracking-wide" style={{width:'64px'}}>CAJAS</th>
-              <th className="border-b border-campo-600 px-2 py-2.5 text-right text-xs font-bold uppercase tracking-wide" style={{width:'72px'}}>GALONES</th>
-              <th className="border-b border-campo-600 px-2 py-2.5 text-right text-xs font-bold uppercase tracking-wide" style={{width:'72px'}}>BIDONES</th>
-              <th className="border-b border-campo-600 px-2 py-2.5 text-right text-xs font-bold uppercase tracking-wide" style={{width:'78px'}}>TAMBORES</th>
+              <th className="border-b border-campo-600 px-2 py-2.5 text-right text-xs font-bold uppercase tracking-wide" style={{width:'200px'}}>ENVASES</th>
               <th className="border-b border-campo-600 px-2 py-2.5 text-right text-xs font-bold uppercase tracking-wide" style={{width:'68px'}}>PALLETS</th>
               {!isRequestMode && <th className="border-b border-campo-600 px-1 py-2.5" style={{width:'32px'}}></th>}
             </tr>
@@ -626,31 +619,29 @@ export default function NuevaSalida() {
                     <div className="text-right text-[10px] font-bold text-slate-400">{row.package_unit}</div>
                   )}
                 </td>
-                {['uds', 'cajas', 'galones', 'bidones', 'tambores', 'pallets'].map((field) => (
-                  <td key={field} className="px-2 py-1">
-                    <input
-                      className="w-full rounded border border-transparent bg-transparent px-1.5 py-1 text-right text-sm focus:border-campo-400 focus:bg-white focus:outline-none disabled:opacity-30"
-                      inputMode="decimal"
-                      value={row[field]}
-                      onChange={(e) => {
-                        const v = e.target.value.replace(',', '.')
-                        if (/^\d*\.?\d*$/.test(v)) updateRow(row.id, field, v)
-                      }}
-                      onFocus={() => setSelectedIdx(i)}
-                      placeholder="0"
-                      disabled={!row.lot_id || isRequestMode}
-                    />
-                    {field === 'uds' && Number(row.uds_rem) > 0 && (
-                      <div className="text-right text-[10px] font-bold text-campo-600">+{formatNumber(row.uds_rem)} {row.package_unit}</div>
-                    )}
-                    {field === 'cajas' && (Number(row.cajas_rem) > 0 || Number(row.uds_rem) > 0) && (
-                      <>
-                        {Number(row.cajas_rem) > 0 && <div className="text-right text-[10px] font-bold text-campo-600">+{row.cajas_rem}u</div>}
-                        {Number(row.uds_rem) > 0 && <div className="text-right text-[10px] font-bold text-campo-600">+{formatNumber(row.uds_rem)} {row.package_unit}</div>}
-                      </>
-                    )}
-                  </td>
-                ))}
+                <td className="px-2 py-1.5 text-right">
+                  {(() => {
+                    const upb = catalogMap.get((row.product || '').toUpperCase()) || 0
+                    const d = desgloseEnvases(row.cantidad, row.package_size, row.package_unit, upb)
+                    return d.label
+                      ? <span className="text-sm font-bold leading-snug text-campo-700">{d.label}</span>
+                      : <span className="text-slate-300">—</span>
+                  })()}
+                </td>
+                <td className="px-2 py-1">
+                  <input
+                    className="w-full rounded border border-transparent bg-transparent px-1.5 py-1 text-right text-sm focus:border-campo-400 focus:bg-white focus:outline-none disabled:opacity-30"
+                    inputMode="decimal"
+                    value={row.pallets}
+                    onChange={(e) => {
+                      const v = e.target.value.replace(',', '.')
+                      if (/^\d*\.?\d*$/.test(v)) updateRow(row.id, 'pallets', v)
+                    }}
+                    onFocus={() => setSelectedIdx(i)}
+                    placeholder="0"
+                    disabled={!row.lot_id || isRequestMode}
+                  />
+                </td>
                 {!isRequestMode && (
                   <td className="px-1 py-1 text-center">
                     <button

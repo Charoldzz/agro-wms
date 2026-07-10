@@ -7,6 +7,7 @@ import { supabase } from '../lib/supabase'
 import { formatNumber } from '../lib/format'
 import { internalLocations } from '../lib/locations'
 import { vibrateSuccess } from '../lib/haptics'
+import { desgloseEnvases } from '../lib/envases'
 
 const today = new Date().toISOString().slice(0, 10)
 const DRAFT_KEY = 'draft_ingreso'
@@ -292,12 +293,6 @@ export default function OperatorEntry() {
     })
     return totals
   }, [rows])
-  const fieldTotals = useMemo(() => {
-    const fields = ['cajas', 'uds', 'galones', 'bidones', 'tambores', 'pallets']
-    const totals = Object.fromEntries(fields.map((f) => [f, rows.reduce((sum, r) => sum + Number(r[f] || 0), 0)]))
-    totals.cajas_rem = rows.reduce((sum, r) => sum + Number(r.cajas_rem || 0), 0)
-    return totals
-  }, [rows])
 
   async function save() {
     setError('')
@@ -410,7 +405,7 @@ export default function OperatorEntry() {
 
       {/* ── Tabla desktop ── */}
       <div className="mb-4 hidden overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm sm:block" ref={tableRef}>
-        <table className="w-full border-collapse" style={{ minWidth: '1080px', tableLayout: 'fixed' }}>
+        <table className="w-full border-collapse" style={{ minWidth: '900px', tableLayout: 'fixed' }}>
           <thead>
             <tr className="bg-campo-700 text-white">
               <th className="border-b border-campo-600 px-2 py-2.5 text-center text-xs font-bold uppercase tracking-wide" style={{width:'36px'}}>N°</th>
@@ -418,11 +413,7 @@ export default function OperatorEntry() {
               <th className="border-b border-campo-600 px-2 py-2.5 text-center text-xs font-bold uppercase tracking-wide" style={{width:'100px'}}>LOTE</th>
               <th className="border-b border-campo-600 px-2 py-2.5 text-center text-xs font-bold uppercase tracking-wide" style={{width:'120px'}}>VENC</th>
               <th className="border-b border-campo-600 px-2 py-2.5 text-right text-xs font-bold uppercase tracking-wide" style={{width:'80px'}}>CANTIDAD</th>
-              <th className="border-b border-campo-600 px-2 py-2.5 text-right text-xs font-bold uppercase tracking-wide" style={{width:'64px'}}>UDS</th>
-              <th className="border-b border-campo-600 px-2 py-2.5 text-right text-xs font-bold uppercase tracking-wide" style={{width:'64px'}}>CAJAS</th>
-              <th className="border-b border-campo-600 px-2 py-2.5 text-right text-xs font-bold uppercase tracking-wide" style={{width:'72px'}}>GALONES</th>
-              <th className="border-b border-campo-600 px-2 py-2.5 text-right text-xs font-bold uppercase tracking-wide" style={{width:'72px'}}>BIDONES</th>
-              <th className="border-b border-campo-600 px-2 py-2.5 text-right text-xs font-bold uppercase tracking-wide" style={{width:'78px'}}>TAMBORES</th>
+              <th className="border-b border-campo-600 px-2 py-2.5 text-right text-xs font-bold uppercase tracking-wide" style={{width:'200px'}}>ENVASES</th>
               <th className="border-b border-campo-600 px-2 py-2.5 text-right text-xs font-bold uppercase tracking-wide" style={{width:'68px'}}>PALLETS</th>
               <th className="border-b border-campo-600 px-1 py-2.5" style={{width:'32px'}}></th>
             </tr>
@@ -482,30 +473,29 @@ export default function OperatorEntry() {
                     placeholder="0"
                   />
                 </td>
-                {['uds', 'cajas', 'galones', 'bidones', 'tambores', 'pallets'].map((field) => (
-                  <td key={field} className="px-2 py-1">
-                    <input
-                      className="w-full rounded border border-transparent bg-transparent px-1.5 py-1 text-right text-sm focus:border-campo-400 focus:bg-white focus:outline-none"
-                      inputMode="decimal"
-                      value={row[field]}
-                      onChange={(e) => {
-                        const v = e.target.value.replace(',', '.')
-                        if (/^\d*\.?\d*$/.test(v)) updateRow(row.id, field, v)
-                      }}
-                      onFocus={() => setSelectedIdx(i)}
-                      placeholder="0"
-                    />
-                    {field === 'uds' && Number(row.uds_rem) > 0 && (
-                      <div className="text-right text-[10px] font-bold text-campo-600">+{formatNumber(row.uds_rem)} {parseProductUnit(row.product).unit}</div>
-                    )}
-                    {field === 'cajas' && (Number(row.cajas_rem) > 0 || Number(row.uds_rem) > 0) && (
-                      <>
-                        {Number(row.cajas_rem) > 0 && <div className="text-right text-[10px] font-bold text-campo-600">+{row.cajas_rem}u</div>}
-                        {Number(row.uds_rem) > 0 && <div className="text-right text-[10px] font-bold text-campo-600">+{formatNumber(row.uds_rem)} {parseProductUnit(row.product).unit}</div>}
-                      </>
-                    )}
-                  </td>
-                ))}
+                <td className="px-2 py-1.5 text-right">
+                  {(() => {
+                    const { size, unit } = parseProductUnit(row.product)
+                    const upb = catalogMap.get(row.product) || 0
+                    const d = desgloseEnvases(row.cantidad, size, unit, upb)
+                    return d.label
+                      ? <span className="text-sm font-bold leading-snug text-campo-700">{d.label}</span>
+                      : <span className="text-slate-300">—</span>
+                  })()}
+                </td>
+                <td className="px-2 py-1">
+                  <input
+                    className="w-full rounded border border-transparent bg-transparent px-1.5 py-1 text-right text-sm focus:border-campo-400 focus:bg-white focus:outline-none"
+                    inputMode="decimal"
+                    value={row.pallets}
+                    onChange={(e) => {
+                      const v = e.target.value.replace(',', '.')
+                      if (/^\d*\.?\d*$/.test(v)) updateRow(row.id, 'pallets', v)
+                    }}
+                    onFocus={() => setSelectedIdx(i)}
+                    placeholder="0"
+                  />
+                </td>
                 <td className="px-1 py-1 text-center">
                   <button
                     type="button"
@@ -580,23 +570,30 @@ export default function OperatorEntry() {
               />
             </label>
 
-            <div className="grid grid-cols-3 gap-2">
-              {['uds', 'cajas', 'galones', 'bidones', 'tambores', 'pallets'].map((field) => (
-                <label key={field} className="block">
-                  <span className="text-xs font-bold uppercase text-slate-400">{field}</span>
-                  <input
-                    className="input mt-1 w-full text-right text-sm"
-                    inputMode="decimal"
-                    value={row[field]}
-                    onChange={(e) => {
-                      const v = e.target.value.replace(',', '.')
-                      if (/^\d*\.?\d*$/.test(v)) updateRow(row.id, field, v)
-                    }}
-                    placeholder="0"
-                  />
-                </label>
-              ))}
-            </div>
+            {(() => {
+              const { size, unit } = parseProductUnit(row.product)
+              const upb = catalogMap.get(row.product) || 0
+              const d = desgloseEnvases(row.cantidad, size, unit, upb)
+              return d.label ? (
+                <div className="mb-3 rounded-lg bg-campo-50 px-3 py-2">
+                  <p className="text-[10px] font-black uppercase text-campo-600">Envases</p>
+                  <p className="text-sm font-bold text-campo-800">{d.label}</p>
+                </div>
+              ) : null
+            })()}
+            <label className="block">
+              <span className="text-xs font-bold uppercase text-slate-400">Pallets</span>
+              <input
+                className="input mt-1 w-full text-right text-sm"
+                inputMode="decimal"
+                value={row.pallets}
+                onChange={(e) => {
+                  const v = e.target.value.replace(',', '.')
+                  if (/^\d*\.?\d*$/.test(v)) updateRow(row.id, 'pallets', v)
+                }}
+                placeholder="0"
+              />
+            </label>
           </div>
         ))}
 
@@ -612,16 +609,6 @@ export default function OperatorEntry() {
                 ))}
               </div>
             : <p className="text-sm text-slate-400 mb-2">Sin cantidades ingresadas</p>}
-          {Object.keys(fieldTotals).some((f) => fieldTotals[f] > 0) && (
-            <div className="border-t border-slate-200 pt-2 grid grid-cols-3 gap-x-4 gap-y-1">
-              {['uds', 'cajas', 'galones', 'bidones', 'tambores', 'pallets'].filter((f) => fieldTotals[f] > 0).map((f) => (
-                <div key={f} className="flex justify-between gap-1">
-                  <span className="text-xs font-bold uppercase text-slate-400">{f}</span>
-                  <span className="text-xs font-black text-slate-950">{formatNumber(fieldTotals[f])}</span>
-                </div>
-              ))}
-            </div>
-          )}
         </div>
       </div>
 
