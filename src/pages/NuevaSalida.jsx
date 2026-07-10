@@ -383,10 +383,10 @@ export default function NuevaSalida() {
         transportista: transportista.trim(),
         placa: placa.trim(),
         observaciones: observaciones.trim(),
-        rows: validRows.map((r) => ({
-          ...r,
-          envases_label: desgloseEnvases(r.cantidad, r.package_size, r.package_unit, catalogMap.get((r.product || '').toUpperCase()) || 0).label,
-        })),
+        rows: validRows.map((r) => {
+          const d = desgloseEnvases(r.cantidad, r.package_size, r.package_unit, catalogMap.get((r.product || '').toUpperCase()) || 0)
+          return { ...r, unidades_label: d.unidadesLabel, cajas_label: d.cajasLabel }
+        }),
       })
 
       clearDraft()
@@ -518,7 +518,8 @@ export default function NuevaSalida() {
               <th className="border-b border-campo-600 px-2 py-2.5 text-center text-xs font-bold uppercase tracking-wide" style={{width:'100px'}}>LOTE</th>
               <th className="border-b border-campo-600 px-2 py-2.5 text-center text-xs font-bold uppercase tracking-wide" style={{width:'110px'}}>VENC</th>
               <th className="border-b border-campo-600 px-2 py-2.5 text-right text-xs font-bold uppercase tracking-wide" style={{width:'80px'}}>CANTIDAD</th>
-              <th className="border-b border-campo-600 px-2 py-2.5 text-right text-xs font-bold uppercase tracking-wide" style={{width:'200px'}}>ENVASES</th>
+              <th className="border-b border-campo-600 px-2 py-2.5 text-right text-xs font-bold uppercase tracking-wide" style={{width:'150px'}}>UNIDADES</th>
+              <th className="border-b border-campo-600 px-2 py-2.5 text-right text-xs font-bold uppercase tracking-wide" style={{width:'120px'}}>CAJAS</th>
               <th className="border-b border-campo-600 px-2 py-2.5 text-right text-xs font-bold uppercase tracking-wide" style={{width:'68px'}}>PALLETS</th>
               {!isRequestMode && <th className="border-b border-campo-600 px-1 py-2.5" style={{width:'32px'}}></th>}
             </tr>
@@ -621,15 +622,24 @@ export default function NuevaSalida() {
                     <div className="text-right text-[10px] font-bold text-slate-400">{row.package_unit}</div>
                   )}
                 </td>
-                <td className="px-2 py-1.5 text-right">
-                  {(() => {
-                    const upb = catalogMap.get((row.product || '').toUpperCase()) || 0
-                    const d = desgloseEnvases(row.cantidad, row.package_size, row.package_unit, upb)
-                    return d.label
-                      ? <span className="text-sm font-bold leading-snug text-campo-700">{d.label}</span>
-                      : <span className="text-slate-300">—</span>
-                  })()}
-                </td>
+                {(() => {
+                  const upb = catalogMap.get((row.product || '').toUpperCase()) || 0
+                  const d = desgloseEnvases(row.cantidad, row.package_size, row.package_unit, upb)
+                  return (
+                    <>
+                      <td className="px-2 py-1.5 text-right">
+                        {d.unidadesLabel
+                          ? <span className="text-sm font-bold leading-snug text-campo-700">{d.unidadesLabel}</span>
+                          : <span className="text-slate-300">—</span>}
+                      </td>
+                      <td className="px-2 py-1.5 text-right">
+                        {d.cajasLabel
+                          ? <span className="text-sm font-bold leading-snug text-slate-700">{d.cajasLabel}</span>
+                          : <span className="text-slate-300">—</span>}
+                      </td>
+                    </>
+                  )
+                })()}
                 <td className="px-2 py-1">
                   <input
                     className="w-full rounded border border-transparent bg-transparent px-1.5 py-1 text-right text-sm focus:border-campo-400 focus:bg-white focus:outline-none disabled:opacity-30"

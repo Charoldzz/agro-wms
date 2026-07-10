@@ -26,7 +26,8 @@ export function openDispatchReceipt({ guide, empresa, contacto, transportista, p
         <td class="c">${escapeHtml(row.lot_code)}</td>
         <td class="c">${row.expiry_date ? escapeHtml(formatDate(row.expiry_date)) : '-'}</td>
         <td class="r">${escapeHtml(equivalente)}</td>
-        <td class="r">${escapeHtml(row.envases_label || formatNumber(row.uds))}</td>
+        <td class="r">${escapeHtml(row.unidades_label || formatNumber(row.uds))}</td>
+        <td class="r">${escapeHtml(row.cajas_label || '-')}</td>
       </tr>`
     })
     .join('')
@@ -80,7 +81,7 @@ export function openDispatchReceipt({ guide, empresa, contacto, transportista, p
           <thead>
             <tr>
               <th class="c">N&deg;</th><th>Producto</th><th class="c">Lote</th><th class="c">Venc.</th>
-              <th class="r">Cantidad</th><th class="r">Envases</th>
+              <th class="r">Cantidad</th><th class="r">Unidades</th><th class="r">Cajas</th>
             </tr>
           </thead>
           <tbody>${tableRows}</tbody>

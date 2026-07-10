@@ -421,7 +421,8 @@ export default function OperatorEntry() {
               <th className="border-b border-campo-600 px-2 py-2.5 text-center text-xs font-bold uppercase tracking-wide" style={{width:'100px'}}>LOTE</th>
               <th className="border-b border-campo-600 px-2 py-2.5 text-center text-xs font-bold uppercase tracking-wide" style={{width:'120px'}}>VENC</th>
               <th className="border-b border-campo-600 px-2 py-2.5 text-right text-xs font-bold uppercase tracking-wide" style={{width:'80px'}}>CANTIDAD</th>
-              <th className="border-b border-campo-600 px-2 py-2.5 text-right text-xs font-bold uppercase tracking-wide" style={{width:'200px'}}>ENVASES</th>
+              <th className="border-b border-campo-600 px-2 py-2.5 text-right text-xs font-bold uppercase tracking-wide" style={{width:'150px'}}>UNIDADES</th>
+              <th className="border-b border-campo-600 px-2 py-2.5 text-right text-xs font-bold uppercase tracking-wide" style={{width:'120px'}}>CAJAS</th>
               <th className="border-b border-campo-600 px-2 py-2.5 text-right text-xs font-bold uppercase tracking-wide" style={{width:'68px'}}>PALLETS</th>
               <th className="border-b border-campo-600 px-1 py-2.5" style={{width:'32px'}}></th>
             </tr>
@@ -485,15 +486,24 @@ export default function OperatorEntry() {
                     placeholder="0"
                   />
                 </td>
-                <td className="px-2 py-1.5 text-right">
-                  {(() => {
-                    const { size, unit, upb } = productInfo(row.product)
-                    const d = desgloseEnvases(row.cantidad, size, unit, upb)
-                    return d.label
-                      ? <span className="text-sm font-bold leading-snug text-campo-700">{d.label}</span>
-                      : <span className="text-slate-300">—</span>
-                  })()}
-                </td>
+                {(() => {
+                  const { size, unit, upb } = productInfo(row.product)
+                  const d = desgloseEnvases(row.cantidad, size, unit, upb)
+                  return (
+                    <>
+                      <td className="px-2 py-1.5 text-right">
+                        {d.unidadesLabel
+                          ? <span className="text-sm font-bold leading-snug text-campo-700">{d.unidadesLabel}</span>
+                          : <span className="text-slate-300">—</span>}
+                      </td>
+                      <td className="px-2 py-1.5 text-right">
+                        {d.cajasLabel
+                          ? <span className="text-sm font-bold leading-snug text-slate-700">{d.cajasLabel}</span>
+                          : <span className="text-slate-300">—</span>}
+                      </td>
+                    </>
+                  )
+                })()}
                 <td className="px-2 py-1">
                   <input
                     className="w-full rounded border border-transparent bg-transparent px-1.5 py-1 text-right text-sm focus:border-campo-400 focus:bg-white focus:outline-none"
@@ -588,10 +598,16 @@ export default function OperatorEntry() {
             {(() => {
               const { size, unit, upb } = productInfo(row.product)
               const d = desgloseEnvases(row.cantidad, size, unit, upb)
-              return d.label ? (
-                <div className="mb-3 rounded-lg bg-campo-50 px-3 py-2">
-                  <p className="text-[10px] font-black uppercase text-campo-600">Envases</p>
-                  <p className="text-sm font-bold text-campo-800">{d.label}</p>
+              return (d.unidadesLabel || d.cajasLabel) ? (
+                <div className="mb-3 grid grid-cols-2 gap-2">
+                  <div className="rounded-lg bg-campo-50 px-3 py-2">
+                    <p className="text-[10px] font-black uppercase text-campo-600">Unidades</p>
+                    <p className="text-sm font-bold text-campo-800">{d.unidadesLabel || '—'}</p>
+                  </div>
+                  <div className="rounded-lg bg-slate-50 px-3 py-2">
+                    <p className="text-[10px] font-black uppercase text-slate-500">Cajas</p>
+                    <p className="text-sm font-bold text-slate-700">{d.cajasLabel || '—'}</p>
+                  </div>
                 </div>
               ) : null
             })()}

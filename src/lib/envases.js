@@ -45,10 +45,11 @@ export function desgloseEnvases(qty, size, unit, upb) {
     const porCaja = Number(upb) || 0
     const cajas = porCaja > 0 ? Math.floor(uds / porCaja) : 0
     const sueltos = porCaja > 0 ? uds % porCaja : uds
-    const partes = []
-    if (cajas > 0) partes.push(`${formatNumber(cajas)} ${cajas === 1 ? 'caja' : 'cajas'}`)
-    if (sueltos > 0) partes.push(`${formatNumber(sueltos)} ${sueltos === 1 ? 'unidad' : 'unidades'}`)
-    return { uds, cajas, sueltos, resto: 0, label: partes.join(' + ') }
+    const unidadesLabel = `${formatNumber(uds)} ${uds === 1 ? 'unidad' : 'unidades'}`
+    const cajasLabel = porCaja > 0
+      ? `${formatNumber(cajas)}${sueltos > 0 ? ` + ${formatNumber(sueltos)} ${sueltos === 1 ? 'suelta' : 'sueltas'}` : ''}`
+      : ''
+    return { uds, cajas, sueltos, resto: 0, unidadesLabel, cajasLabel }
   }
 
   const uds = Math.floor(cantidad / pkgSize)
@@ -58,13 +59,12 @@ export function desgloseEnvases(qty, size, unit, upb) {
   const sueltos = porCaja > 0 ? uds % porCaja : uds
 
   const envase = envaseTipo(pkgSize, unit)
-  const partes = []
-  if (cajas > 0) partes.push(`${formatNumber(cajas)} ${cajas === 1 ? 'caja' : 'cajas'}`)
-  if (sueltos > 0) {
-    const nombre = envase ? (sueltos === 1 ? envase.singular : envase.plural) : (sueltos === 1 ? 'unidad' : 'unidades')
-    partes.push(`${formatNumber(sueltos)} ${nombre}`)
-  }
-  if (resto > 0) partes.push(`${formatNumber(resto)} ${unit || ''}`.trim())
+  const nombreUds = envase ? (uds === 1 ? envase.singular : envase.plural) : (uds === 1 ? 'unidad' : 'unidades')
+  let unidadesLabel = uds > 0 ? `${formatNumber(uds)} ${nombreUds}` : ''
+  if (resto > 0) unidadesLabel = `${unidadesLabel ? `${unidadesLabel} + ` : ''}${formatNumber(resto)} ${unit || ''}`.trim()
+  const cajasLabel = porCaja > 0 && uds > 0
+    ? `${formatNumber(cajas)}${sueltos > 0 ? ` + ${formatNumber(sueltos)} ${sueltos === 1 ? 'suelta' : 'sueltas'}` : ''}`
+    : ''
 
-  return { uds, cajas, sueltos, resto, label: partes.join(' + ') }
+  return { uds, cajas, sueltos, resto, unidadesLabel, cajasLabel }
 }
