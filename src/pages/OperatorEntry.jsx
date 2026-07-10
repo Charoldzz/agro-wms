@@ -35,7 +35,7 @@ function parseProductUnit(productName) {
   let m = s.match(new RegExp(`[xX×]\\s*([\\d.,]+)\\s*${UNIDAD}(?![a-zA-Z])`, 'i'))
   // Fallback: "N unidad" pegado o con separadores raros (ej: "_5L_BO", "10KG_BO_HK", "(200)L")
   if (!m) m = s.match(new RegExp(`([\\d.,]+)\\s*${UNIDAD}(?![a-zA-Z])`, 'i'))
-  if (!m) return { size: 1, unit: '' }
+  if (!m) return { size: 0, unit: '' }
   const size = parseFloat(m[1].replace(',', '.'))
   const raw = m[2].toLowerCase()
   const unit = /^l(tr|ts?)?$/.test(raw) ? 'lts'
@@ -317,6 +317,12 @@ export default function OperatorEntry() {
     const validRows = rows.filter((r) => r.product?.trim() && Number(r.cantidad || 0) > 0)
     if (validRows.length === 0) { setError('Agrega al menos un item con producto y cantidad.'); return }
 
+    const sinPresentacion = validRows.find((r) => productInfo(r.product).size <= 0)
+    if (sinPresentacion) {
+      setError(`"${sinPresentacion.product}" no tiene presentación definida (tamaño y unidad). Completala en el Catálogo antes de guardar, para que las cantidades no se registren mal.`)
+      return
+    }
+
     setSaving(true)
     try {
       const items = validRows.map((r, i) => {
@@ -490,6 +496,9 @@ export default function OperatorEntry() {
                 <td className="px-2 py-1.5 text-right">
                   {(() => {
                     const { size, unit, upb } = productInfo(row.product)
+                    if (row.product && size <= 0) {
+                      return <span className="text-xs font-bold text-amber-600">⚠ Sin presentación en Catálogo</span>
+                    }
                     const d = desgloseEnvases(row.cantidad, size, unit, upb)
                     return d.label
                       ? <span className="text-sm font-bold leading-snug text-campo-700">{d.label}</span>
