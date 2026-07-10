@@ -3,7 +3,7 @@ import { X } from 'lucide-react'
 import { unitsPerBoxFromName } from '../lib/display'
 import { supabase } from '../lib/supabase'
 
-const UNITS = ['lt', 'ml', 'kg', 'g', 'unid', 'caja', 'bolsa', 'saco']
+const UNITS = ['lt', 'ml', 'kg', 'gr']
 
 const SIZE_IN_NAME_RE = /[^a-zA-Z](\d+(?:[.,]\d+)?)\s*(ltrs?|lts?|kgs?|gr|gm|ml|cc|l(?:[^a-zA-Z]|$))|\s[xX×]\s*\d+/i
 
