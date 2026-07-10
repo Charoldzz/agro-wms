@@ -30,14 +30,18 @@ function productDisplayName(p) {
 function parseProductUnit(productName) {
   if (!productName) return { size: 1, unit: '' }
   const s = String(productName)
+  const UNIDAD = '(ltr|lts?|l|kgs?|grs?|gr|ml)'
   // Patrón "X N unidad" (ej: "X 5 LTS.", "X 20 Kgs", "PRUEBA FC X 5 lt")
-  let m = s.match(/[xX×]\s*([\d.,]+)\s*(lts?|kgs?|l)(?:[\s.,]|$)/i)
-  // Fallback: "N unidad" sin X (ej: "GLORY 15 KGS.", "BONDER 20 LTS.")
-  if (!m) m = s.match(/\b([\d.,]+)\s*(lts?|kgs?|l)(?:[\s.,]|$)/i)
+  let m = s.match(new RegExp(`[xX×]\\s*([\\d.,]+)\\s*${UNIDAD}(?![a-zA-Z])`, 'i'))
+  // Fallback: "N unidad" pegado o con separadores raros (ej: "_5L_BO", "10KG_BO_HK", "(200)L")
+  if (!m) m = s.match(new RegExp(`([\\d.,]+)\\s*${UNIDAD}(?![a-zA-Z])`, 'i'))
   if (!m) return { size: 1, unit: '' }
   const size = parseFloat(m[1].replace(',', '.'))
   const raw = m[2].toLowerCase()
-  const unit = /^l(ts?)?$/.test(raw) ? 'lts' : /^kgs?$/.test(raw) ? 'kgs' : ''
+  const unit = /^l(tr|ts?)?$/.test(raw) ? 'lts'
+    : /^kgs?$/.test(raw) ? 'kgs'
+      : /^grs?$/.test(raw) ? 'gr'
+        : raw === 'ml' ? 'ml' : ''
   return { size: isNaN(size) ? 1 : size, unit }
 }
 
@@ -204,7 +208,11 @@ export default function OperatorEntry() {
     const map = new Map()
     const items = (data || []).map((p) => {
       const label = productDisplayName(p)
-      if (p.units_per_box) map.set(label, p.units_per_box)
+      map.set(label, {
+        upb: Number(p.units_per_box) || 0,
+        size: Number(p.package_size) || 0,
+        unit: p.package_unit || '',
+      })
       return label
     })
     setCatalogMap(map)
@@ -241,16 +249,23 @@ export default function OperatorEntry() {
     setRows((r) => r.map((row) => (row.id === id ? { ...row, [field]: value } : row)))
   }
 
+  // Presentación del producto: primero el catálogo (dato confiable), después el nombre
+  function productInfo(name) {
+    const cat = catalogMap.get(name)
+    if (cat && cat.size > 0) return { size: cat.size, unit: cat.unit, upb: cat.upb }
+    const parsed = parseProductUnit(name)
+    return { size: parsed.size, unit: parsed.unit, upb: cat?.upb || 0 }
+  }
+
   function updateCantidad(id, value) {
     const v = value.replace(',', '.')
     if (!/^\d*\.?\d*$/.test(v)) return
     const qty = Number(v || 0)
     setRows((r) => r.map((row) => {
       if (row.id !== id) return row
-      const { size } = parseProductUnit(row.product)
+      const { size, upb } = productInfo(row.product)
       const uds = size > 0 && qty > 0 ? Math.floor(qty / size) : (qty > 0 ? qty : 0)
       const uds_rem = size > 0 && qty > 0 && uds > 0 ? Math.round((qty - uds * size) * 1000) / 1000 : 0
-      const upb = catalogMap.get(row.product) || 0
       const cajas = upb > 0 && uds > 0 ? Math.floor(uds / upb) : 0
       return {
         ...row,
@@ -267,10 +282,9 @@ export default function OperatorEntry() {
     setRows((r) => r.map((row) => {
       if (row.id !== id) return row
       const qty = Number(row.cantidad || 0)
-      const { size } = parseProductUnit(value)
+      const { size, upb } = productInfo(value)
       const uds = size > 0 && qty > 0 ? Math.floor(qty / size) : (qty > 0 ? qty : 0)
       const uds_rem = size > 0 && qty > 0 && uds > 0 ? Math.round((qty - uds * size) * 1000) / 1000 : 0
-      const upb = catalogMap.get(value) || 0
       const cajas = upb > 0 && uds > 0 ? Math.floor(uds / upb) : 0
       return {
         ...row,
@@ -287,7 +301,7 @@ export default function OperatorEntry() {
     const totals = {}
     rows.forEach((r) => {
       const qty = Number(r.cantidad || 0)
-      const { unit } = parseProductUnit(r.product)
+      const { unit } = productInfo(r.product)
       // CANTIDAD ya es el equivalente total (lts/kgs), no multiplicar
       if (unit && qty > 0) totals[unit] = (totals[unit] || 0) + qty
     })
@@ -306,7 +320,7 @@ export default function OperatorEntry() {
     setSaving(true)
     try {
       const items = validRows.map((r, i) => {
-        const { size, unit } = parseProductUnit(r.product)
+        const { size, unit } = productInfo(r.product)
         const totalEq = Number(r.cantidad || 0)
         // CANTIDAD es el total en lts/kgs; loose_units = unidades = total / medida
         const unidades = size > 0 ? totalEq / size : totalEq
@@ -475,8 +489,7 @@ export default function OperatorEntry() {
                 </td>
                 <td className="px-2 py-1.5 text-right">
                   {(() => {
-                    const { size, unit } = parseProductUnit(row.product)
-                    const upb = catalogMap.get(row.product) || 0
+                    const { size, unit, upb } = productInfo(row.product)
                     const d = desgloseEnvases(row.cantidad, size, unit, upb)
                     return d.label
                       ? <span className="text-sm font-bold leading-snug text-campo-700">{d.label}</span>
@@ -559,7 +572,7 @@ export default function OperatorEntry() {
 
             <label className="mb-3 block">
               <span className="text-xs font-bold uppercase text-slate-500">
-                {(() => { const { size, unit } = parseProductUnit(row.product); return unit ? `CANTIDAD (× ${size} ${unit})` : 'CANTIDAD' })()}
+                {(() => { const { size, unit } = productInfo(row.product); return unit ? `CANTIDAD (× ${size} ${unit})` : 'CANTIDAD' })()}
               </span>
               <input
                 className="input mt-1 w-full text-right font-bold text-sm"
@@ -571,8 +584,7 @@ export default function OperatorEntry() {
             </label>
 
             {(() => {
-              const { size, unit } = parseProductUnit(row.product)
-              const upb = catalogMap.get(row.product) || 0
+              const { size, unit, upb } = productInfo(row.product)
               const d = desgloseEnvases(row.cantidad, size, unit, upb)
               return d.label ? (
                 <div className="mb-3 rounded-lg bg-campo-50 px-3 py-2">
