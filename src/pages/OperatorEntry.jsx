@@ -8,6 +8,7 @@ import { formatNumber } from '../lib/format'
 import { internalLocations } from '../lib/locations'
 import { vibrateSuccess } from '../lib/haptics'
 import { desgloseEnvases } from '../lib/envases'
+import { catalogClientIds } from '../lib/catalogo'
 
 const today = new Date().toISOString().slice(0, 10)
 const DRAFT_KEY = 'draft_ingreso'
@@ -183,10 +184,11 @@ export default function OperatorEntry() {
   }
 
   async function loadClientProducts(cid) {
+    const catalogIds = await catalogClientIds(cid)
     const { data } = await supabase
       .from('product_catalog')
       .select('name, package_size, package_unit, units_per_box')
-      .eq('client_id', cid)
+      .in('client_id', catalogIds)
       .order('name')
     const map = new Map()
     const items = (data || []).map((p) => {

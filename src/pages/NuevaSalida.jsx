@@ -9,6 +9,7 @@ import { cleanProductName, displayLotCode } from '../lib/display'
 import { vibrateSuccess } from '../lib/haptics'
 import { openDispatchReceipt } from '../lib/comprobante'
 import { desgloseEnvases } from '../lib/envases'
+import { catalogClientIds } from '../lib/catalogo'
 
 const today = new Date().toISOString().slice(0, 10)
 const DRAFT_KEY = 'draft_salida'
@@ -215,6 +216,7 @@ export default function NuevaSalida() {
   function clearDraft() { localStorage.removeItem(DRAFT_KEY) }
 
   async function loadClientLots(cid) {
+    const catalogIds = await catalogClientIds(cid)
     const [{ data: lotsData }, { data: catalogData }] = await Promise.all([
       supabase
         .from('lots')
@@ -227,7 +229,7 @@ export default function NuevaSalida() {
       supabase
         .from('product_catalog')
         .select('name, units_per_box')
-        .eq('client_id', cid),
+        .in('client_id', catalogIds),
     ])
     const map = new Map()
     ;(catalogData || []).forEach((p) => {
