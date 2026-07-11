@@ -9,14 +9,6 @@ function rawDataFrom(lot) {
   }
 }
 
-function normalizeUnit(value) {
-  const unit = String(value || '').trim().toLowerCase()
-  if (['l', 'lt', 'lts', 'litro', 'litros'].includes(unit)) return 'lt'
-  if (['k', 'kg', 'kgs', 'kilo', 'kilos'].includes(unit)) return 'kg'
-  if (['ml', 'mls', 'mlt', 'mlts', 'mililitro', 'mililitros'].includes(unit)) return 'ml'
-  return unit
-}
-
 function normalizeCompanyName(value) {
   return String(value || '')
     .toUpperCase()
@@ -62,27 +54,8 @@ export function hasCompanyBillingPallets(companyName) {
   return PROGRAM_COMPANY_PALLETS.has(normalizeCompanyName(companyName))
 }
 
-function unitsByPresentation(lot) {
-  const size = Number(lot?.package_size || 0)
-  const unit = normalizeUnit(lot?.package_unit)
-
-  if (unit === 'lt') {
-    if (size === 20) return 960
-    if (size === 10 || size === 5) return 720
-    if (size === 1) return 600
-    if (size === 200) return 800
-  }
-
-  if (unit === 'kg') {
-    if (size === 50) return 1000
-    if (size === 15 || size === 10 || size === 1) return 600
-  }
-
-  if (unit === 'ml' && (size === 250 || size === 100)) return 1000
-
-  return null
-}
-
+// SOLO dato real (CantidadPorPallet del programa). Sin dato no se estima:
+// el lote no suma pallets (regla de Harold: nunca adivinar).
 export function palletUnitsPerPallet(lot) {
   const raw = rawDataFrom(lot)
   const value =
@@ -91,7 +64,7 @@ export function palletUnitsPerPallet(lot) {
     raw?.CantidadPorPallet ??
     raw?.cantidad_por_pallet
   const units = Number(value || 0)
-  return units > 0 ? units : unitsByPresentation(lot)
+  return units > 0 ? units : null
 }
 
 export function lotBillingPallets(lot) {
