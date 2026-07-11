@@ -63,7 +63,7 @@ export default function MovimientosModal({ onClose }) {
     const [webResult, desktopResult, clientsResult, catalogResult] = await Promise.all([
       supabase
         .from('movements')
-        .select('*, lots(lot_code, product, package_size, package_unit, location, expiry_date, clients(name)), profiles(full_name)')
+        .select('*, lots(lot_code, product, package_size, package_unit, location, expiry_date, clients(name)), profiles!movements_user_id_fkey(full_name)')
         .order('created_at', { ascending: false })
         .limit(500),
       supabase

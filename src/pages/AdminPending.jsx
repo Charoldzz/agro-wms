@@ -32,7 +32,7 @@ export default function AdminPending() {
     const [movementResult, correctionResult, issueResult, clientResult] = await Promise.all([
       supabase
         .from('movements')
-        .select('*, lots(product, lot_code, current_quantity, location, clients(name)), profiles(full_name)')
+        .select('*, lots(product, lot_code, current_quantity, location, clients(name)), profiles!movements_user_id_fkey(full_name)')
         .in('type', ['ajuste', 'traslado', 'salida'])
         .eq('approval_status', 'pendiente')
         .order('created_at', { ascending: false }),

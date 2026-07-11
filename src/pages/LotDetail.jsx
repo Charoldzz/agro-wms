@@ -217,7 +217,7 @@ export default function LotDetail() {
       supabase.from('lots').select('*, clients(name, contact)').eq('id', id).eq('inventory_source', 'stock_independiente').single(),
       supabase
         .from('movements')
-        .select('*, profiles(full_name)')
+        .select('*, profiles!movements_user_id_fkey(full_name)')
         .eq('lot_id', id)
         .order('created_at', { ascending: false }),
     ])

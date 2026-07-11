@@ -20,7 +20,7 @@ export default function OfflineAudit() {
     setError('')
     const { data, error: loadError } = await supabase
       .from('movements')
-      .select('*, lots(lot_code, product, current_quantity, location, clients(name)), profiles(full_name)')
+      .select('*, lots(lot_code, product, current_quantity, location, clients(name)), profiles!movements_user_id_fkey(full_name)')
       .ilike('notes', '%[OFFLINE]%')
       .order('created_at', { ascending: false })
       .limit(300)

@@ -42,12 +42,12 @@ export default function Dashboard() {
         .order('created_at', { ascending: false }),
       supabase
         .from('movements')
-        .select('*, lots(product, lot_code), profiles(full_name)')
+        .select('*, lots(product, lot_code), profiles!movements_user_id_fkey(full_name)')
         .order('created_at', { ascending: false })
         .limit(500),
       supabase
         .from('movements')
-        .select('*, lots(product, lot_code, current_quantity, clients(name)), profiles(full_name)')
+        .select('*, lots(product, lot_code, current_quantity, clients(name)), profiles!movements_user_id_fkey(full_name)')
         .in('type', ['ajuste', 'traslado', 'salida'])
         .eq('approval_status', 'pendiente')
         .order('created_at', { ascending: false }),
