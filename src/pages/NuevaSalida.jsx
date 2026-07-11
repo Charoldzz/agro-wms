@@ -5,7 +5,7 @@ import PageHeader from '../components/PageHeader'
 import { useAuth } from '../hooks/useAuth.jsx'
 import { supabase } from '../lib/supabase'
 import { formatNumber } from '../lib/format'
-import { catalogDisplayName, cleanProductName, displayLotCode } from '../lib/display'
+import { cleanProductName, displayLotCode } from '../lib/display'
 import { vibrateSuccess } from '../lib/haptics'
 import { openDispatchReceipt } from '../lib/comprobante'
 import { desgloseEnvases } from '../lib/envases'
@@ -176,7 +176,7 @@ export default function NuevaSalida() {
       const pkgSize = Number(lot.package_size) || 1
       const cantidad = uds * pkgSize
       const product = cleanProductName(lot.product)
-      const upb = upbFor(lot.solucion_product_code, product)
+      const upb = upbFor(lot.solucion_product_code)
       const cajas = upb > 0 && uds > 0 ? Math.floor(uds / upb) : 0
       const cajas_rem = upb > 0 && uds > 0 ? uds % upb : 0
       return {
@@ -233,16 +233,11 @@ export default function NuevaSalida() {
         .select('code, name, package_size, package_unit, units_per_box')
         .in('client_id', catalogIds),
     ])
-    // Relación por CÓDIGO (lots.solucion_product_code ↔ product_catalog.code);
-    // el nombre queda solo como respaldo para lotes viejos sin código
+    // Relación por CÓDIGO: lots.solucion_product_code ↔ product_catalog.code
+    // (verificado 2026-07-10: el 100% de los lotes activos tiene código)
     const map = new Map()
     ;(catalogData || []).forEach((p) => {
-      if (!p.units_per_box) return
-      if (p.code) map.set(`code:${p.code.toUpperCase()}`, p.units_per_box)
-      if (p.name) {
-        map.set(p.name.toUpperCase(), p.units_per_box)
-        map.set(catalogDisplayName(p).toUpperCase(), p.units_per_box)
-      }
+      if (p.units_per_box && p.code) map.set(p.code.toUpperCase(), p.units_per_box)
     })
     setCatalogMap(map)
     setLots(lotsData || [])
@@ -274,13 +269,10 @@ export default function NuevaSalida() {
     setSelectedIdx((prev) => Math.max(0, index <= prev ? prev - 1 : prev))
   }
 
-  // Unidades por caja: relación por CÓDIGO; nombre solo como respaldo (lotes viejos sin código)
-  function upbFor(code, productName) {
-    if (code) {
-      const byCode = catalogMap.get(`code:${String(code).toUpperCase()}`)
-      if (byCode) return byCode
-    }
-    return catalogMap.get(String(productName || '').toUpperCase()) || 0
+  // Unidades por caja: relación por CÓDIGO, sin excepciones
+  function upbFor(code) {
+    if (!code) return 0
+    return catalogMap.get(String(code).toUpperCase()) || 0
   }
 
   function selectLot(rowId, lotId) {
@@ -294,7 +286,7 @@ export default function NuevaSalida() {
         const qty = Number(row.cantidad || 0)
         const uds = qty > 0 ? Math.floor(qty / pkgSize) : 0
         const uds_rem = qty > 0 && uds > 0 ? Math.round((qty - uds * pkgSize) * 1000) / 1000 : 0
-        const upb = upbFor(lot.solucion_product_code, product)
+        const upb = upbFor(lot.solucion_product_code)
         const cajas = upb > 0 && uds > 0 ? Math.floor(uds / upb) : 0
         return {
           ...row,
@@ -332,7 +324,7 @@ export default function NuevaSalida() {
       const pkgSize = Number(row.package_size) || 1
       const uds = pkgSize > 0 && qty > 0 ? Math.floor(qty / pkgSize) : (qty > 0 ? qty : 0)
       const uds_rem = pkgSize > 0 && qty > 0 && uds > 0 ? Math.round((qty - uds * pkgSize) * 1000) / 1000 : 0
-      const upb = upbFor(row.solucion_code, row.product)
+      const upb = upbFor(row.solucion_code)
       const cajas = upb > 0 && uds > 0 ? Math.floor(uds / upb) : 0
       return {
         ...row,
@@ -403,7 +395,7 @@ export default function NuevaSalida() {
         placa: placa.trim(),
         observaciones: observaciones.trim(),
         rows: validRows.map((r) => {
-          const d = desgloseEnvases(r.cantidad, r.package_size, r.package_unit, upbFor(r.solucion_code, r.product))
+          const d = desgloseEnvases(r.cantidad, r.package_size, r.package_unit, upbFor(r.solucion_code))
           return { ...r, unidades_label: d.unidadesLabel, cajas_label: d.cajasLabel }
         }),
       })
@@ -642,7 +634,7 @@ export default function NuevaSalida() {
                   )}
                 </td>
                 {(() => {
-                  const upb = upbFor(row.solucion_code, row.product)
+                  const upb = upbFor(row.solucion_code)
                   const d = desgloseEnvases(row.cantidad, row.package_size, row.package_unit, upb)
                   return (
                     <>
