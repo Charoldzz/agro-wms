@@ -32,6 +32,23 @@ function packageChips(row) {
     .filter((p) => p.value > 0)
 }
 
+// Normaliza una cantidad a lts/kgs (ml→lts, gr→kgs); sin unidad conocida → uds
+function normalizaUnidad(value, unit) {
+  let u = String(unit || '').toLowerCase()
+  let v = Number(value || 0)
+  if (u === 'gr' || u === 'grs') { u = 'kgs'; v /= 1000 }
+  else if (u === 'ml') { u = 'lts'; v /= 1000 }
+  else if (/^l/.test(u)) u = 'lts'
+  else if (/^k/.test(u)) u = 'kgs'
+  else u = 'uds'
+  return { value: v, unit: u }
+}
+
+function equivalenteLabel(value, unit) {
+  const n = normalizaUnidad(value, unit)
+  return `${formatNumber(n.value)} ${n.unit}`
+}
+
 function PackageChips({ chips }) {
   if (!chips || chips.length === 0) return null
   return (
@@ -112,14 +129,8 @@ export default function MovimientosModal({ onClose }) {
     function totalesPorUnidad(pares) {
       const totals = new Map()
       for (const par of pares) {
-        let unit = String(par.unit || '').toLowerCase()
-        let value = Number(par.value || 0)
-        if (unit === 'gr' || unit === 'grs') { unit = 'kgs'; value /= 1000 }
-        else if (unit === 'ml') { unit = 'lts'; value /= 1000 }
-        else if (/^l/.test(unit)) unit = 'lts'
-        else if (/^k/.test(unit)) unit = 'kgs'
-        else unit = 'uds'
-        totals.set(unit, (totals.get(unit) || 0) + value)
+        const n = normalizaUnidad(par.value, par.unit)
+        totals.set(n.unit, (totals.get(n.unit) || 0) + n.value)
       }
       return [...totals.entries()].map(([u, v]) => `${formatNumber(v)} ${u}`).join(' · ')
     }
@@ -165,7 +176,18 @@ export default function MovimientosModal({ onClose }) {
         quantity: group.reduce((sum, m) => sum + Number(m.quantity || 0), 0),
         cantidadLabel: cantidadPorUnidad(group),
         created_at: group.reduce((max, m) => (m.created_at > max ? m.created_at : max), first.created_at),
-        items: group.map((m) => ({ product: m.lots?.product, lot: displayLotCode(m.lots?.lot_code, m.lots), quantity: m.quantity })),
+        items: group.map((m) => {
+          const size = Number(m.lots?.package_size) || 0
+          return {
+            product: m.lots?.product,
+            lot: displayLotCode(m.lots?.lot_code, m.lots),
+            quantity: m.quantity,
+            cantidadLabel: equivalenteLabel(
+              size > 0 ? Number(m.quantity || 0) * size : Number(m.quantity || 0),
+              size > 0 ? m.lots?.package_unit : null,
+            ),
+          }
+        }),
         lots: {
           ...first.lots,
           product: `${group.length} ITEMS`,
@@ -205,7 +227,14 @@ export default function MovimientosModal({ onClose }) {
         plate: rows.find((r) => r.plate)?.plate || '',
         contact_person: rows.find((r) => r.contact_person)?.contact_person || '',
         observations: rows.find((r) => r.observations)?.observations || '',
-        items: rows.map((r) => ({ product: r.product_name, lot: r.lot, expiry_date: r.expiry_date, quantity: r.quantity, chips: packageChips(r) })),
+        items: rows.map((r) => ({
+          product: r.product_name,
+          lot: r.lot,
+          expiry_date: r.expiry_date,
+          quantity: r.quantity,
+          cantidadLabel: equivalenteLabel(r.quantity, unitByCode.get(String(r.product_code || '').toUpperCase())),
+          chips: packageChips(r),
+        })),
         lots: {
           product: multi ? `${rows.length} ITEMS` : first.product_name,
           lot_code: multi ? 'VARIOS' : first.lot,
@@ -407,7 +436,7 @@ export default function MovimientosModal({ onClose }) {
                             <div key={idx} className="rounded-lg bg-slate-50 px-2.5 py-1.5">
                               <div className="flex items-start justify-between gap-2">
                                 <p className="min-w-0 text-xs font-bold text-slate-800 [overflow-wrap:anywhere]">{cleanProductName(item.product)}</p>
-                                <p className="shrink-0 text-sm font-black text-campo-700">{formatNumber(item.quantity)}</p>
+                                <p className="shrink-0 text-sm font-black text-campo-700">{item.cantidadLabel || formatNumber(item.quantity)}</p>
                               </div>
                               {item.lot ? <p className="text-[10px] font-semibold text-slate-400">Lote: {item.lot}</p> : null}
                               <PackageChips chips={item.chips} />
@@ -444,7 +473,7 @@ export default function MovimientosModal({ onClose }) {
                 <InfoRow label="Lote" value={displayLotCode(lot.lot_code, lot) || '-'} />
                 <InfoRow label="Vencimiento" value={lot.expiry_date ? fmtDate(lot.expiry_date + 'T00:00:00') : 'Sin venc.'} />
                 <InfoRow label="Ubicación" value={lot.location || '-'} />
-                <InfoRow label="Cantidad" value={formatNumber(selected.quantity)} bold />
+                <InfoRow label="Cantidad" value={selected.cantidadLabel || formatNumber(selected.quantity)} bold />
                 <InfoRow label="Stock anterior" value={formatNumber(selected.previous_quantity)} />
                 <InfoRow label="Stock nuevo" value={formatNumber(selected.new_quantity)} />
                 <InfoRow label="Usuario" value={selected.profiles?.full_name || '-'} />
