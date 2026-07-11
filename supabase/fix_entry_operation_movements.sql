@@ -262,5 +262,5 @@ WHERE l.inventory_source = 'stock_independiente'
   AND pc.client_id = l.client_id
   AND (
     upper(l.product) = upper(pc.name)
-    OR upper(l.product) = upper(pc.name || ' X ' || pc.package_size || ' ' || pc.package_unit)
+    OR upper(l.product) = upper(pc.name || ' X ' || trim_scale(pc.package_size)::text || ' ' || pc.package_unit)
   );
