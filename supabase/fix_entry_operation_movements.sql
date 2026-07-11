@@ -145,7 +145,8 @@ BEGIN
       status,
       photo_url,
       low_stock_threshold,
-      inventory_source
+      inventory_source,
+      solucion_product_code
     )
     VALUES (
       v_lot_code,
@@ -163,7 +164,8 @@ BEGIN
       'activo',
       nullif(trim(coalesce(p_photo_url, '')), ''),
       5,
-      'stock_independiente'
+      'stock_independiente',
+      nullif(trim(coalesce(v_item->>'product_code', '')), '')
     )
     RETURNING id INTO v_lot_id;
 
@@ -249,3 +251,16 @@ UPDATE public.lots
 SET inventory_source = 'stock_independiente'
 WHERE inventory_source = 'app'
   AND entry_date >= '2026-07-10';
+
+-- Reparación: vincular por código los lotes web ya creados sin código,
+-- usando la ficha de catálogo de su misma empresa
+UPDATE public.lots l
+SET solucion_product_code = pc.code
+FROM public.product_catalog pc
+WHERE l.inventory_source = 'stock_independiente'
+  AND coalesce(l.solucion_product_code, '') = ''
+  AND pc.client_id = l.client_id
+  AND (
+    upper(l.product) = upper(pc.name)
+    OR upper(l.product) = upper(pc.name || ' X ' || pc.package_size || ' ' || pc.package_unit)
+  );

@@ -229,7 +229,8 @@ BEGIN
       status,
       photo_url,
       low_stock_threshold,
-      inventory_source
+      inventory_source,
+      solucion_product_code
     )
     VALUES (
       v_lot_code,
@@ -247,7 +248,8 @@ BEGIN
       'activo',
       nullif(trim(coalesce(p_photo_url, '')), ''),
       5,
-      'stock_independiente'
+      'stock_independiente',
+      nullif(trim(coalesce(v_item->>'product_code', '')), '')
     )
     RETURNING id INTO v_lot_id;
 

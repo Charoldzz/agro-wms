@@ -189,7 +189,7 @@ export default function OperatorEntry() {
     const catalogIds = await catalogClientIds(cid)
     const { data } = await supabase
       .from('product_catalog')
-      .select('name, package_size, package_unit, units_per_box')
+      .select('code, name, package_size, package_unit, units_per_box')
       .in('client_id', catalogIds)
       .order('name')
     const map = new Map()
@@ -199,6 +199,7 @@ export default function OperatorEntry() {
         upb: Number(p.units_per_box) || 0,
         size: Number(p.package_size) || 0,
         unit: p.package_unit || '',
+        code: p.code || '',
       })
       return label
     })
@@ -246,8 +247,8 @@ export default function OperatorEntry() {
   // Sin dato no se adivina: la fila avisa y el guardado se bloquea.
   function productInfo(name) {
     const cat = catalogMap.get(name)
-    if (cat && cat.size > 0) return { size: cat.size, unit: cat.unit, upb: cat.upb }
-    return { size: 0, unit: '', upb: cat?.upb || 0 }
+    if (cat && cat.size > 0) return { size: cat.size, unit: cat.unit, upb: cat.upb, code: cat.code }
+    return { size: 0, unit: '', upb: cat?.upb || 0, code: cat?.code || '' }
   }
 
   function updateCantidad(id, value) {
@@ -314,7 +315,7 @@ export default function OperatorEntry() {
     setSaving(true)
     try {
       const items = validRows.map((r, i) => {
-        const { size, unit, upb } = productInfo(r.product)
+        const { size, unit, upb, code } = productInfo(r.product)
         const totalEq = Number(r.cantidad || 0)
         // CANTIDAD es el total en lts/kgs; las unidades exactas conservan el equivalente
         const unidadesExactas = size > 0 ? totalEq / size : totalEq
@@ -323,6 +324,7 @@ export default function OperatorEntry() {
         return {
           lot_code: r.lot_code?.trim() || createLotCode(i),
           product: r.product.trim(),
+          product_code: code || null,
           box_count: cajas,
           units_per_box: cajas > 0 ? upb : 0,
           loose_units: sueltas,
