@@ -228,7 +228,8 @@ BEGIN
       expiry_date,
       status,
       photo_url,
-      low_stock_threshold
+      low_stock_threshold,
+      inventory_source
     )
     VALUES (
       v_lot_code,
@@ -245,7 +246,8 @@ BEGIN
       nullif(v_item->>'expiry_date', '')::date,
       'activo',
       nullif(trim(coalesce(p_photo_url, '')), ''),
-      5
+      5,
+      'stock_independiente'
     )
     RETURNING id INTO v_lot_id;
 

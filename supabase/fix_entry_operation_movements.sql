@@ -144,7 +144,8 @@ BEGIN
       expiry_date,
       status,
       photo_url,
-      low_stock_threshold
+      low_stock_threshold,
+      inventory_source
     )
     VALUES (
       v_lot_code,
@@ -161,7 +162,8 @@ BEGIN
       nullif(v_item->>'expiry_date', '')::date,
       'activo',
       nullif(trim(coalesce(p_photo_url, '')), ''),
-      5
+      5,
+      'stock_independiente'
     )
     RETURNING id INTO v_lot_id;
 
@@ -240,3 +242,10 @@ END;
 $$;
 
 GRANT EXECUTE ON FUNCTION public.create_entry_operation(uuid, text, text, text, date, text, text, jsonb, uuid) TO authenticated;
+
+-- Reparación: los lotes creados hoy por la web quedaron con la etiqueta por
+-- defecto 'app' (invisibles para la app, que filtra stock_independiente)
+UPDATE public.lots
+SET inventory_source = 'stock_independiente'
+WHERE inventory_source = 'app'
+  AND entry_date >= '2026-07-10';
