@@ -63,7 +63,7 @@ export default function MovimientosModal({ onClose }) {
     const [webResult, desktopResult, clientsResult] = await Promise.all([
       supabase
         .from('movements')
-        .select('*, lots(lot_code, product, location, expiry_date, clients(name)), profiles(full_name), warehouse_operations(guide_number)')
+        .select('*, lots(lot_code, product, package_size, package_unit, location, expiry_date, clients(name)), profiles(full_name)')
         .order('created_at', { ascending: false })
         .limit(500),
       supabase
@@ -87,11 +87,40 @@ export default function MovimientosModal({ onClose }) {
       rawWebMovements = raw || []
     }
 
+    // Guías de las operaciones web, en consulta aparte (por id de operación)
+    const opIds = [...new Set(rawWebMovements.map((m) => m.operation_id).filter(Boolean))]
+    const guideMap = new Map()
+    if (opIds.length > 0) {
+      const { data: ops } = await supabase
+        .from('warehouse_operations')
+        .select('id, guide_number')
+        .in('id', opIds)
+      ;(ops || []).forEach((op) => guideMap.set(op.id, op.guide_number))
+    }
+
+    // Cantidad total en equivalente, separada por unidad (lts · kgs)
+    function cantidadPorUnidad(group) {
+      const totals = new Map()
+      for (const m of group) {
+        const size = Number(m.lots?.package_size) || 0
+        let unit = String(m.lots?.package_unit || '').toLowerCase()
+        let value = Number(m.quantity || 0)
+        if (size > 0) value *= size
+        if (unit === 'gr' || unit === 'grs') { unit = 'kgs'; value /= 1000 }
+        else if (unit === 'ml') { unit = 'lts'; value /= 1000 }
+        else if (/^l/.test(unit)) unit = 'lts'
+        else if (/^k/.test(unit)) unit = 'kgs'
+        else unit = 'uds'
+        totals.set(unit, (totals.get(unit) || 0) + value)
+      }
+      return [...totals.entries()].map(([u, v]) => `${formatNumber(v)} ${u}`).join(' · ')
+    }
+
     // Agrupar movimientos web que pertenecen a la misma operación (misma guía)
     const webByOperation = new Map()
     const webMovements = []
     for (const m of rawWebMovements) {
-      const noteNumber = m.warehouse_operations?.guide_number || null
+      const noteNumber = guideMap.get(m.operation_id) || null
       if (m.operation_id && (m.type === 'entrada' || m.type === 'salida')) {
         if (!webByOperation.has(m.operation_id)) webByOperation.set(m.operation_id, [])
         webByOperation.get(m.operation_id).push({ ...m, note_number: noteNumber })
@@ -101,7 +130,7 @@ export default function MovimientosModal({ onClose }) {
     }
     for (const group of webByOperation.values()) {
       if (group.length === 1) {
-        webMovements.push(group[0])
+        webMovements.push({ ...group[0], cantidadLabel: cantidadPorUnidad(group) })
         continue
       }
       const first = group[0]
@@ -110,6 +139,7 @@ export default function MovimientosModal({ onClose }) {
         id: `op-${first.operation_id}`,
         grouped: true,
         quantity: group.reduce((sum, m) => sum + Number(m.quantity || 0), 0),
+        cantidadLabel: cantidadPorUnidad(group),
         created_at: group.reduce((max, m) => (m.created_at > max ? m.created_at : max), first.created_at),
         items: group.map((m) => ({ product: m.lots?.product, lot: displayLotCode(m.lots?.lot_code, m.lots), quantity: m.quantity })),
         lots: {
@@ -308,7 +338,7 @@ export default function MovimientosModal({ onClose }) {
                           <td className="px-3 py-2 text-xs font-semibold text-slate-600 whitespace-nowrap">{fmtDate(m.created_at)}</td>
                           <td className="px-3 py-2 text-xs font-semibold text-slate-700 max-w-[120px] truncate">{mLot.clients?.name || '-'}</td>
                           <td className="px-3 py-2 text-xs font-semibold text-slate-900 max-w-[160px] truncate">{cleanProductName(mLot.product) || '-'}</td>
-                          <td className="px-3 py-2 text-right text-sm font-black text-campo-700 whitespace-nowrap">{formatNumber(m.quantity)}</td>
+                          <td className="px-3 py-2 text-right text-sm font-black leading-snug text-campo-700">{m.cantidadLabel || formatNumber(m.quantity)}</td>
                           <td className="px-3 py-2 text-xs text-slate-500 max-w-[100px] truncate">{m.notes || '-'}</td>
                         </tr>
                       )
@@ -367,7 +397,7 @@ export default function MovimientosModal({ onClose }) {
                         <InfoRow label="Vencimiento" value={lot.expiry_date ? fmtDate(lot.expiry_date + 'T00:00:00') : 'Sin venc.'} />
                       </>
                     )}
-                    <InfoRow label="Cantidad total" value={formatNumber(selected.quantity)} bold />
+                    <InfoRow label="Cantidad total" value={selected.cantidadLabel || formatNumber(selected.quantity)} bold />
                     {selected.items?.length === 1 && <PackageChips chips={selected.items[0].chips} />}
                     {selected.transporter ? <InfoRow label="Transportista" value={selected.transporter} /> : null}
                     {selected.plate ? <InfoRow label="Placa" value={selected.plate} /> : null}

@@ -78,7 +78,7 @@ export default function Kardex() {
     const [webResult, desktopResult] = await Promise.all([
       supabase
         .from('movements')
-        .select('id, type, quantity, previous_quantity, new_quantity, notes, created_at, lot_id, lots(lot_code, product, package_size, package_unit, clients(name)), warehouse_operations(guide_number)')
+        .select('id, type, quantity, previous_quantity, new_quantity, notes, created_at, lot_id, operation_id, lots(lot_code, product, package_size, package_unit, clients(name))')
         .in('lot_id', lotIds)
         .order('created_at', { ascending: false })
         .limit(1000),
@@ -108,13 +108,24 @@ export default function Kardex() {
       }
     }
 
-    // La web guarda unidades (unidades); el programa guarda el equivalente en lts/kgs.
+    // Guías de las operaciones web, en consulta aparte (por id de operación)
+    const opIds = [...new Set((webResult.data || []).map((m) => m.operation_id).filter(Boolean))]
+    const guideMap = new Map()
+    if (opIds.length > 0) {
+      const { data: ops } = await supabase
+        .from('warehouse_operations')
+        .select('id, guide_number')
+        .in('id', opIds)
+      ;(ops || []).forEach((op) => guideMap.set(op.id, op.guide_number))
+    }
+
+    // La web guarda unidades; el programa guarda el equivalente en lts/kgs.
     // Todo se muestra en equivalente.
     const webRows = (webResult.data || []).map((m) => {
       const size = Number(m.lots?.package_size) || 0
       return {
         ...m,
-        note: m.warehouse_operations?.guide_number || null,
+        note: guideMap.get(m.operation_id) || null,
         eqQuantity: size > 0 ? Number(m.quantity || 0) * size : Number(m.quantity || 0),
         unit: m.lots?.package_unit || '',
       }
