@@ -150,7 +150,24 @@ export default function Lots() {
   function handleClientSelect(id) { setSelectedClient(id); setPage(1); setSidebarOpen(false) }
 
   const totalItems = filteredLots.length
-  const totalMercaderia = filteredLots.reduce((sum, lot) => sum + Number(lot.current_quantity || 0), 0)
+  // Total equivalente separado por unidad (lts · kgs), normalizando ml→lt y gr→kg
+  const totalMercaderia = useMemo(() => {
+    const totals = new Map()
+    for (const lot of filteredLots) {
+      const qty = Number(lot.current_quantity || 0)
+      if (qty <= 0) continue
+      const { size, unit } = lotSizeAndUnit(lot)
+      if (!(size > 0) || !unit) continue
+      let value = qty * size
+      let key = unit
+      if (key === 'ml') { key = 'lts'; value /= 1000 }
+      else if (key === 'gr') { key = 'kgs'; value /= 1000 }
+      else if (/^l/.test(key)) key = 'lts'
+      else if (/^k/.test(key)) key = 'kgs'
+      totals.set(key, (totals.get(key) || 0) + value)
+    }
+    return [...totals.entries()].map(([unit, value]) => `${formatNumber(value)} ${unit}`).join(' · ') || '0'
+  }, [filteredLots])
   const totalPallets = sumBillingPallets(filteredLots)
 
   const selectedClientName = selectedClient ? clients.find((c) => c.id === selectedClient)?.name : ''
@@ -511,7 +528,7 @@ export default function Lots() {
           {/* Barra de totales */}
           <div className="grid grid-cols-3 divide-x divide-slate-200 rounded-xl border border-slate-200 bg-white">
             <Total label="TOTAL ITEM" value={formatNumber(totalItems)} />
-            <Total label="TOTAL MERCADERÍA" value={formatNumber(totalMercaderia)} />
+            <Total label="TOTAL MERCADERÍA" value={totalMercaderia} />
             <Total
               label="TOTAL PALLETS"
               value={totalPallets.value > 0 ? formatNumber(totalPallets.value) : '—'}
