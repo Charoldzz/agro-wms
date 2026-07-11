@@ -298,13 +298,13 @@ BEGIN
       from_location,
       to_location,
       notes,
-      created_by
+      user_id
     )
     VALUES (
       v_operation_id,
       v_item_id,
       v_lot_id,
-      'ingreso',
+      'entrada',
       v_quantity,
       0,
       v_quantity,
