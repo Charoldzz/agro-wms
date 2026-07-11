@@ -275,6 +275,12 @@ export default function NuevaSalida() {
     return catalogMap.get(String(code).toUpperCase()) || 0
   }
 
+  // El código se toma del LOTE vivo (por id) — inmune a borradores viejos sin código
+  function upbForRow(row) {
+    const lot = lots.find((l) => l.id === row.lot_id)
+    return upbFor(lot?.solucion_product_code || row.solucion_code)
+  }
+
   function selectLot(rowId, lotId) {
     const lot = lots.find((l) => l.id === lotId)
     if (!lot) return
@@ -324,7 +330,7 @@ export default function NuevaSalida() {
       const pkgSize = Number(row.package_size) || 1
       const uds = pkgSize > 0 && qty > 0 ? Math.floor(qty / pkgSize) : (qty > 0 ? qty : 0)
       const uds_rem = pkgSize > 0 && qty > 0 && uds > 0 ? Math.round((qty - uds * pkgSize) * 1000) / 1000 : 0
-      const upb = upbFor(row.solucion_code)
+      const upb = upbForRow(row)
       const cajas = upb > 0 && uds > 0 ? Math.floor(uds / upb) : 0
       return {
         ...row,
@@ -395,7 +401,7 @@ export default function NuevaSalida() {
         placa: placa.trim(),
         observaciones: observaciones.trim(),
         rows: validRows.map((r) => {
-          const d = desgloseEnvases(r.cantidad, r.package_size, r.package_unit, upbFor(r.solucion_code))
+          const d = desgloseEnvases(r.cantidad, r.package_size, r.package_unit, upbForRow(r))
           return { ...r, unidades_label: d.unidadesLabel, cajas_label: d.cajasLabel }
         }),
       })
@@ -634,7 +640,7 @@ export default function NuevaSalida() {
                   )}
                 </td>
                 {(() => {
-                  const upb = upbFor(row.solucion_code)
+                  const upb = upbForRow(row)
                   const d = desgloseEnvases(row.cantidad, row.package_size, row.package_unit, upb)
                   return (
                     <>
