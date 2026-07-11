@@ -5,7 +5,7 @@ import PageHeader from '../components/PageHeader'
 import { useAuth } from '../hooks/useAuth.jsx'
 import { supabase } from '../lib/supabase'
 import { formatNumber } from '../lib/format'
-import { cleanProductName, displayLotCode } from '../lib/display'
+import { catalogDisplayName, cleanProductName, displayLotCode } from '../lib/display'
 import { vibrateSuccess } from '../lib/haptics'
 import { openDispatchReceipt } from '../lib/comprobante'
 import { desgloseEnvases } from '../lib/envases'
@@ -228,12 +228,14 @@ export default function NuevaSalida() {
         .order('expiry_date', { ascending: true, nullsFirst: false }),
       supabase
         .from('product_catalog')
-        .select('name, units_per_box')
+        .select('name, package_size, package_unit, units_per_box')
         .in('client_id', catalogIds),
     ])
     const map = new Map()
     ;(catalogData || []).forEach((p) => {
-      if (p.units_per_box && p.name) map.set(p.name.toUpperCase(), p.units_per_box)
+      if (!p.units_per_box || !p.name) return
+      map.set(p.name.toUpperCase(), p.units_per_box)
+      map.set(catalogDisplayName(p).toUpperCase(), p.units_per_box)
     })
     setCatalogMap(map)
     setLots(lotsData || [])

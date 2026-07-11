@@ -243,3 +243,17 @@ function normalizeUnit(u) {
   if (s === 'gr') return 'gr'
   return s
 }
+
+// Nombre visible de una ficha de catálogo: agrega la presentación si el nombre no la trae
+const CATALOG_SIZE_WITH_UNIT_RE = /[^a-zA-Z](\d+(?:[.,]\d+)?)\s*(ltrs?|lts?|kgs?|gr|gm|ml|cc|l(?:[^a-zA-Z]|$))/i
+const CATALOG_BARE_X_N_RE = /\s[xX×]\s*\d+/i
+
+export function catalogDisplayName(p) {
+  if (!p?.name) return ''
+  if (CATALOG_SIZE_WITH_UNIT_RE.test(p.name)) return p.name
+  if (p.package_size && p.package_unit) {
+    if (CATALOG_BARE_X_N_RE.test(p.name)) return `${p.name} ${p.package_unit}`
+    return `${p.name} X ${p.package_size} ${p.package_unit}`
+  }
+  return p.name
+}
