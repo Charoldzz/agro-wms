@@ -230,7 +230,14 @@ BEGIN
       v_quantity,
       null,
       v_location,
-      nullif(trim(coalesce(p_notes, '')), ''),
+      concat_ws(
+        ' | ',
+        nullif(concat('Placa: ', nullif(upper(trim(coalesce(p_vehicle_plate, ''))), '')), 'Placa: '),
+        concat('Transportista: ', trim(p_driver_name)),
+        concat('Documento: ', trim(p_driver_document)),
+        'Ingreso manual (app)',
+        nullif(trim(coalesce(p_notes, '')), '')
+      ),
       p_user_id
     );
   END LOOP;

@@ -1,93 +1,10 @@
--- Migration: Cambiar formato de número de guía de TAB-NNN a SAL-NNNNN / ING-NNNNN
--- Contadores separados por tipo, secuencia de 5 dígitos
+-- Conceptos completos en las operaciones web (2026-07-10)
+-- 1) INGRESO: el movimiento guarda placa, transportista y documento en el
+--    concepto (antes quedaba vacio) + etiqueta "Ingreso manual (app)"
+-- 2) DESPACHO: la etiqueta distingue "Despacho manual (app)" de
+--    "Despacho de solicitud del cliente" (antes siempre "Despacho por lista")
+-- Correr UNA VEZ en Supabase SQL Editor. Reemplaza ambas funciones completas.
 
--- 1. Crear contadores SAL e ING, inicializados desde datos existentes
-INSERT INTO public.warehouse_operation_counters (counter_name, next_number)
-SELECT 'guide_sal',
-       coalesce(
-         (SELECT max(substring(guide_number FROM 5)::bigint) + 1
-          FROM public.warehouse_operations
-          WHERE guide_number ~ '^SAL-[0-9]+$'),
-         1
-       )
-ON CONFLICT (counter_name) DO UPDATE
-  SET next_number = EXCLUDED.next_number;
-
-INSERT INTO public.warehouse_operation_counters (counter_name, next_number)
-SELECT 'guide_ing',
-       coalesce(
-         (SELECT max(substring(guide_number FROM 5)::bigint) + 1
-          FROM public.warehouse_operations
-          WHERE guide_number ~ '^ING-[0-9]+$'),
-         1
-       )
-ON CONFLICT (counter_name) DO UPDATE
-  SET next_number = EXCLUDED.next_number;
-
--- 2. Eliminar funciones antiguas sin parámetro
-DROP FUNCTION IF EXISTS public.preview_next_warehouse_guide();
-DROP FUNCTION IF EXISTS public.next_warehouse_guide();
-
--- 3. Nueva función de preview con tipo
-CREATE OR REPLACE FUNCTION public.preview_next_warehouse_guide(p_type text DEFAULT 'sal')
-RETURNS text
-LANGUAGE sql
-SECURITY DEFINER
-SET search_path = public
-AS $$
-  SELECT CASE lower(p_type)
-    WHEN 'ing' THEN 'ING-' || lpad(next_number::text, 5, '0')
-    ELSE              'SAL-' || lpad(next_number::text, 5, '0')
-  END
-  FROM public.warehouse_operation_counters
-  WHERE counter_name = CASE lower(p_type)
-    WHEN 'ing' THEN 'guide_ing'
-    ELSE             'guide_sal'
-  END;
-$$;
-
-GRANT EXECUTE ON FUNCTION public.preview_next_warehouse_guide(text) TO authenticated;
-
--- 4. Nueva función next con tipo
-CREATE OR REPLACE FUNCTION public.next_warehouse_guide(p_type text DEFAULT 'sal')
-RETURNS text
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path = public
-AS $$
-DECLARE
-  v_counter text;
-  v_prefix  text;
-  v_number  bigint;
-BEGIN
-  IF lower(p_type) = 'ing' THEN
-    v_counter := 'guide_ing';
-    v_prefix  := 'ING-';
-  ELSE
-    v_counter := 'guide_sal';
-    v_prefix  := 'SAL-';
-  END IF;
-
-  UPDATE public.warehouse_operation_counters
-  SET next_number = next_number + 1
-  WHERE counter_name = v_counter
-  RETURNING next_number - 1 INTO v_number;
-
-  IF v_number IS NULL THEN
-    INSERT INTO public.warehouse_operation_counters (counter_name, next_number)
-    VALUES (v_counter, 2)
-    ON CONFLICT (counter_name) DO UPDATE
-      SET next_number = public.warehouse_operation_counters.next_number + 1
-    RETURNING public.warehouse_operation_counters.next_number - 1 INTO v_number;
-  END IF;
-
-  RETURN v_prefix || lpad(v_number::text, 5, '0');
-END;
-$$;
-
-GRANT EXECUTE ON FUNCTION public.next_warehouse_guide(text) TO authenticated;
-
--- 5. Actualizar create_entry_operation para usar 'ing'
 CREATE OR REPLACE FUNCTION public.create_entry_operation(
   p_client_id uuid,
   p_driver_name text,
@@ -336,7 +253,6 @@ $$;
 
 GRANT EXECUTE ON FUNCTION public.create_entry_operation(uuid, text, text, text, date, text, text, jsonb, uuid) TO authenticated;
 
--- 6. Actualizar create_dispatch_operation para usar 'sal' y permitir lotes vencidos
 CREATE OR REPLACE FUNCTION public.create_dispatch_operation(
   p_client_id uuid,
   p_receiver_name text,
