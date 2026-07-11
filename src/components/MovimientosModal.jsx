@@ -60,7 +60,7 @@ export default function MovimientosModal({ onClose }) {
 
   async function load() {
     setLoading(true)
-    const [webResult, desktopResult, clientsResult] = await Promise.all([
+    const [webResult, desktopResult, clientsResult, catalogResult] = await Promise.all([
       supabase
         .from('movements')
         .select('*, lots(lot_code, product, package_size, package_unit, location, expiry_date, clients(name)), profiles(full_name)')
@@ -75,7 +75,17 @@ export default function MovimientosModal({ onClose }) {
         .from('clients')
         .select('name, product_code_prefix')
         .eq('inventory_source', 'stock_independiente'),
+      supabase
+        .from('product_catalog')
+        .select('code, package_unit')
+        .limit(2000),
     ])
+
+    // Unidad de cada producto del programa, por CÓDIGO (desktop_movements.product_code ↔ catalog.code)
+    const unitByCode = new Map()
+    ;(catalogResult.data || []).forEach((p) => {
+      if (p.code && p.package_unit) unitByCode.set(p.code.toUpperCase(), p.package_unit)
+    })
 
     let rawWebMovements = webResult.data || []
     if (webResult.error) {
@@ -99,13 +109,11 @@ export default function MovimientosModal({ onClose }) {
     }
 
     // Cantidad total en equivalente, separada por unidad (lts · kgs)
-    function cantidadPorUnidad(group) {
+    function totalesPorUnidad(pares) {
       const totals = new Map()
-      for (const m of group) {
-        const size = Number(m.lots?.package_size) || 0
-        let unit = String(m.lots?.package_unit || '').toLowerCase()
-        let value = Number(m.quantity || 0)
-        if (size > 0) value *= size
+      for (const par of pares) {
+        let unit = String(par.unit || '').toLowerCase()
+        let value = Number(par.value || 0)
         if (unit === 'gr' || unit === 'grs') { unit = 'kgs'; value /= 1000 }
         else if (unit === 'ml') { unit = 'lts'; value /= 1000 }
         else if (/^l/.test(unit)) unit = 'lts'
@@ -114,6 +122,22 @@ export default function MovimientosModal({ onClose }) {
         totals.set(unit, (totals.get(unit) || 0) + value)
       }
       return [...totals.entries()].map(([u, v]) => `${formatNumber(v)} ${u}`).join(' · ')
+    }
+
+    // Web: la cantidad está en unidades → equivalente = unidades × tamaño del lote
+    function cantidadPorUnidad(group) {
+      return totalesPorUnidad(group.map((m) => {
+        const size = Number(m.lots?.package_size) || 0
+        return { value: size > 0 ? Number(m.quantity || 0) * size : Number(m.quantity || 0), unit: m.lots?.package_unit }
+      }))
+    }
+
+    // Programa: la cantidad ya es equivalente; la unidad sale del catálogo por código
+    function cantidadDesktop(rows) {
+      return totalesPorUnidad(rows.map((r) => ({
+        value: r.quantity,
+        unit: unitByCode.get(String(r.product_code || '').toUpperCase()),
+      })))
     }
 
     // Agrupar movimientos web que pertenecen a la misma operación (misma guía)
@@ -174,6 +198,7 @@ export default function MovimientosModal({ onClose }) {
         type: first.type === 'INGRESO' ? 'entrada' : 'salida',
         created_at: rows.reduce((max, r) => (r.date > max ? r.date : max), first.date),
         quantity: rows.reduce((sum, r) => sum + Number(r.quantity || 0), 0),
+        cantidadLabel: cantidadDesktop(rows),
         notes: first.concept,
         note_number: first.note_number,
         transporter: rows.find((r) => r.transporter)?.transporter || '',
