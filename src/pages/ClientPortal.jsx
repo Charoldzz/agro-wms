@@ -12,7 +12,7 @@ import ListProductCard from '../components/ListProductCard'
 import { useAuth } from '../hooks/useAuth.jsx'
 import { cleanProductName, displayLotCode, lotLabel, packageLabel, productCode, productCodeLabel, unitsPerBoxFromName } from '../lib/display'
 import { normalizeDispatchRequests } from '../lib/dispatchRequests'
-import { formatDate, formatNumber, movementLabel } from '../lib/format'
+import { formatDate, formatDateOnly, formatNumber, movementLabel } from '../lib/format'
 import { supabase } from '../lib/supabase'
 
 /* ─── helpers ─────────────────────────────────────────────────────── */
@@ -721,7 +721,7 @@ export default function ClientPortal({ view = 'inventory' }) {
   .muted { color: #64748b; }
   tfoot td { background: #f0fdf4; border-bottom: none; border-top: 2px solid #15803d; color: #14532d; font-size: 12.5px; font-weight: bold; padding: 9px 7px; }
   .foot { color: #94a3b8; font-size: 9.5px; margin-top: 30px; text-align: center; }
-  .print-btn { background: #15803d; border: none; border-radius: 8px; color: #fff; cursor: pointer; font-size: 13px; font-weight: bold; padding: 10px 18px; position: fixed; right: 20px; top: 20px; }
+  .print-btn { background: #15803d; border: none; border-radius: 8px; bottom: 20px; box-shadow: 0 4px 12px rgba(15, 23, 42, 0.25); color: #fff; cursor: pointer; font-size: 13px; font-weight: bold; padding: 10px 18px; position: fixed; right: 20px; }
   @media print { body { margin: 10mm; } .print-btn { display: none; } }
 </style></head><body>
 <button class="print-btn" onclick="window.print()">Imprimir / Guardar PDF</button>
@@ -737,7 +737,7 @@ export default function ClientPortal({ view = 'inventory' }) {
 </div>
 <div class="datos">
   <div><p class="l">Empresa</p><p class="v">${escapeHtml(clientName)}</p></div>
-  <div><p class="l">Fecha</p><p class="v">${escapeHtml(formatDate(note.createdAt))}</p></div>
+  <div><p class="l">Fecha</p><p class="v">${escapeHtml(formatDateOnly(note.createdAt))}</p></div>
   <div><p class="l">Movimiento</p><p class="v">${escapeHtml(movementLabel(note.type))}</p></div>
   <div><p class="l">Transportista</p><p class="v">${escapeHtml(note.transporter || '-')}</p></div>
   <div><p class="l">Placa</p><p class="v">${escapeHtml(note.plate || '-')}</p></div>
@@ -752,7 +752,7 @@ export default function ClientPortal({ view = 'inventory' }) {
   <tbody>${rows}</tbody>
   <tfoot><tr><td colspan="4">TOTAL</td><td class="r">${escapeHtml(note.equivalentLabel)}</td><td></td></tr></tfoot>
 </table>
-<p class="foot">Documento informativo generado desde el portal de clientes de Todo Agr&iacute;cola Boliviana Ltda &mdash; Emitido el ${escapeHtml(formatDate(new Date().toISOString()))}. Informaci&oacute;n referencial sujeta a validaci&oacute;n operativa.</p>
+<p class="foot">Documento informativo generado desde el portal de clientes de Todo Agr&iacute;cola Boliviana Ltda &mdash; Emitido el ${escapeHtml(formatDateOnly(new Date().toISOString()))}. Informaci&oacute;n referencial sujeta a validaci&oacute;n operativa.</p>
 </body></html>`)
     w.document.close()
   }
