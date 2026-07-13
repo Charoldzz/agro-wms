@@ -681,18 +681,79 @@ export default function ClientPortal({ view = 'inventory' }) {
   }
 
   function printReceipt(note) {
-    const type = note.type === 'salida' ? 'despacho' : movementLabel(note.type).toLowerCase()
-    const rows = note.movs.map(m => {
+    const type = note.type === 'salida' ? 'despacho' : 'ingreso'
+    const logoUrl = `${window.location.origin}/images/todo-logo.png`
+    const rows = note.movs.map((m, i) => {
       const lot = m.lots || {}
       return `<tr>
+        <td class="c">${i + 1}</td>
+        <td class="c mono">${escapeHtml(productCodeLabel(lot) || '-')}</td>
         <td>${escapeHtml(cleanProductName(lot.product))}</td>
-        <td>${escapeHtml(displayLotCode(lot.lot_code, lot))}</td>
-        <td class="r">${escapeHtml(movementEquivalentLabel(m))}</td>
-        <td class="r">${escapeHtml(formatNumber(m.quantity))} uds</td>
+        <td class="c mono">${escapeHtml(displayLotCode(lot.lot_code, lot))}</td>
+        <td class="r"><strong>${escapeHtml(movementEquivalentLabel(m))}</strong></td>
+        <td class="r muted">${escapeHtml(formatNumber(m.quantity))} uds</td>
       </tr>`
     }).join('')
     const w = window.open('','_blank'); if(!w) return
-    w.document.write(`<!doctype html><html><head><title>Comprobante ${escapeHtml(note.noteNumber || '')}</title><style>body{color:#0f172a;font-family:Arial,sans-serif;margin:24px}h1{margin:0 0 4px}.box{border:1px solid #cbd5e1;border-radius:8px;margin-top:14px;padding:12px}.grid{display:grid;gap:10px;grid-template-columns:repeat(2,1fr)}strong{display:block}table{border-collapse:collapse;margin-top:14px;width:100%}th,td{border-bottom:1px solid #e2e8f0;font-size:13px;padding:6px 8px;text-align:left}th{background:#f1f5f9;font-size:11px;text-transform:uppercase}.r{text-align:right}tfoot td{font-weight:bold}@media print{body{margin:12mm}}</style></head><body><h1>Todo Agricola Boliviana Ltda</h1><p>Comprobante de ${escapeHtml(type)} para ${escapeHtml(clientName)}</p><div class="box grid"><div><strong>Nota</strong>${escapeHtml(note.noteNumber || '-')}</div><div><strong>Fecha</strong>${escapeHtml(formatDate(note.createdAt))}</div><div><strong>Movimiento</strong>${escapeHtml(movementLabel(note.type))}</div><div><strong>Transportista</strong>${escapeHtml(note.transporter || '-')}</div><div><strong>Placa</strong>${escapeHtml(note.plate || '-')}</div><div><strong>Productos</strong>${escapeHtml(String(note.movs.length))}</div></div><table><thead><tr><th>Producto</th><th>Lote</th><th class="r">Cantidad</th><th class="r">Unidades</th></tr></thead><tbody>${rows}</tbody><tfoot><tr><td colspan="2">Total</td><td class="r">${escapeHtml(note.equivalentLabel)}</td><td></td></tr></tfoot></table>${note.observations?`<div class="box"><strong>Observaciones</strong>${escapeHtml(note.observations)}</div>`:''}<script>window.addEventListener('load',()=>window.print())</script></body></html>`)
+    w.document.write(`<!doctype html><html><head><title>Comprobante ${escapeHtml(note.noteNumber || '')}</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<style>
+  body { color: #0f172a; font-family: Arial, Helvetica, sans-serif; margin: 26px 30px; }
+  .top { align-items: center; border-bottom: 3px solid #15803d; display: flex; gap: 16px; justify-content: space-between; padding-bottom: 14px; }
+  .brand { align-items: center; display: flex; gap: 14px; }
+  .brand img { height: 54px; width: auto; }
+  h1 { font-size: 19px; margin: 0; }
+  .sub { color: #475569; font-size: 10px; letter-spacing: 1.5px; margin: 3px 0 0; text-transform: uppercase; }
+  .guide { border: 2px solid #15803d; border-radius: 10px; color: #15803d; font-family: 'Courier New', monospace; font-size: 20px; font-weight: bold; padding: 8px 18px; text-align: center; white-space: nowrap; }
+  .guide small { color: #64748b; display: block; font-family: Arial; font-size: 9px; font-weight: bold; letter-spacing: 1.5px; }
+  .datos { border: 1px solid #cbd5e1; border-radius: 10px; display: grid; gap: 12px 24px; grid-template-columns: repeat(3, 1fr); margin: 18px 0; padding: 14px 16px; }
+  .datos p { margin: 0; }
+  .datos .l { color: #64748b; font-size: 9px; font-weight: bold; letter-spacing: 1px; text-transform: uppercase; }
+  .datos .v { font-size: 13px; font-weight: bold; margin-top: 2px; }
+  .obs { grid-column: 1 / -1; }
+  table { border-collapse: collapse; width: 100%; }
+  th, td { border-bottom: 1px solid #e2e8f0; font-size: 11.5px; padding: 8px 7px; text-align: left; vertical-align: top; }
+  th { background: #f1f5f9; color: #334155; font-size: 9.5px; letter-spacing: 0.8px; text-transform: uppercase; }
+  td.c, th.c { text-align: center; }
+  td.r, th.r { text-align: right; }
+  .mono { font-family: 'Courier New', monospace; font-size: 11px; }
+  .muted { color: #64748b; }
+  tfoot td { background: #f0fdf4; border-bottom: none; border-top: 2px solid #15803d; color: #14532d; font-size: 12.5px; font-weight: bold; padding: 9px 7px; }
+  .foot { color: #94a3b8; font-size: 9.5px; margin-top: 30px; text-align: center; }
+  .print-btn { background: #15803d; border: none; border-radius: 8px; color: #fff; cursor: pointer; font-size: 13px; font-weight: bold; padding: 10px 18px; position: fixed; right: 20px; top: 20px; }
+  @media print { body { margin: 10mm; } .print-btn { display: none; } }
+</style></head><body>
+<button class="print-btn" onclick="window.print()">Imprimir / Guardar PDF</button>
+<div class="top">
+  <div class="brand">
+    <img src="${escapeHtml(logoUrl)}" alt="Todo Agricola" />
+    <div>
+      <h1>Todo Agr&iacute;cola Boliviana Ltda</h1>
+      <p class="sub">Comprobante de ${escapeHtml(type)} de mercader&iacute;a</p>
+    </div>
+  </div>
+  <div class="guide"><small>N&deg; NOTA</small>${escapeHtml(note.noteNumber || '-')}</div>
+</div>
+<div class="datos">
+  <div><p class="l">Empresa</p><p class="v">${escapeHtml(clientName)}</p></div>
+  <div><p class="l">Fecha</p><p class="v">${escapeHtml(formatDate(note.createdAt))}</p></div>
+  <div><p class="l">Movimiento</p><p class="v">${escapeHtml(movementLabel(note.type))}</p></div>
+  <div><p class="l">Transportista</p><p class="v">${escapeHtml(note.transporter || '-')}</p></div>
+  <div><p class="l">Placa</p><p class="v">${escapeHtml(note.plate || '-')}</p></div>
+  <div><p class="l">Productos</p><p class="v">${escapeHtml(String(note.movs.length))}</p></div>
+  ${note.observations ? `<div class="obs"><p class="l">Observaciones</p><p class="v">${escapeHtml(note.observations)}</p></div>` : ''}
+</div>
+<table>
+  <thead><tr>
+    <th class="c">N&deg;</th><th class="c">C&oacute;digo</th><th>Producto</th><th class="c">Lote</th>
+    <th class="r">Cantidad</th><th class="r">Unidades</th>
+  </tr></thead>
+  <tbody>${rows}</tbody>
+  <tfoot><tr><td colspan="4">TOTAL</td><td class="r">${escapeHtml(note.equivalentLabel)}</td><td></td></tr></tfoot>
+</table>
+<p class="foot">Documento informativo generado desde el portal de clientes de Todo Agr&iacute;cola Boliviana Ltda &mdash; Emitido el ${escapeHtml(formatDate(new Date().toISOString()))}. Informaci&oacute;n referencial sujeta a validaci&oacute;n operativa.</p>
+<script>window.addEventListener('load',()=>window.print())</script>
+</body></html>`)
     w.document.close()
   }
 
