@@ -50,12 +50,17 @@ export default function AppLayout() {
 
   function goBackInsideApp() {
     const path = location.pathname
-    if (location.state?.backTo) return navigate(location.state.backTo)
     if (path === '/scanner') {
       const returnTo = new URLSearchParams(location.search).get('return')
-      if (returnTo) return navigate(returnTo)
+      if (returnTo) return navigate(returnTo, { replace: true })
     }
-    navigate(-1)
+    // Con historial dentro de la app: retroceder de verdad (no apilar de nuevo,
+    // si no el botón queda rebotando entre dos pantallas)
+    const idx = window.history.state?.idx
+    if (typeof idx === 'number' && idx > 0) return navigate(-1)
+    // Sin historial (entró directo por URL): usar el destino marcado o el inicio
+    if (location.state?.backTo) return navigate(location.state.backTo, { replace: true })
+    navigate('/', { replace: true })
   }
 
   useEffect(() => {
