@@ -1,12 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
-import { CheckCircle2, PackagePlus, Plus, Trash2 } from 'lucide-react'
+import { CheckCircle2, FileText, PackagePlus, Plus, Trash2 } from 'lucide-react'
 import PageHeader from '../components/PageHeader'
 import { useAuth } from '../hooks/useAuth.jsx'
 import { supabase } from '../lib/supabase'
 import { formatNumber } from '../lib/format'
 import { vibrateSuccess } from '../lib/haptics'
 import { desgloseEnvases } from '../lib/envases'
+import { openEntryReceipt } from '../lib/comprobante'
 import { catalogClientIds } from '../lib/catalogo'
 import NewProductModal from '../components/NewProductModal'
 
@@ -113,6 +114,7 @@ export default function OperatorEntry() {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState(false)
+  const [comprobante, setComprobante] = useState(null)
   const [newProductRowId, setNewProductRowId] = useState(null)
   const restoringRef = useRef(false)
 
@@ -337,7 +339,7 @@ export default function OperatorEntry() {
       })
 
       const notasFinal = observaciones.trim() || null
-      const { error: rpcError } = await supabase.rpc('create_entry_operation', {
+      const { data: rpcData, error: rpcError } = await supabase.rpc('create_entry_operation', {
         p_client_id: clientId,
         p_driver_name: transportista.trim() || null,
         p_driver_document: contacto.trim() || null,
@@ -351,10 +353,35 @@ export default function OperatorEntry() {
 
       if (rpcError) throw rpcError
 
+      // Comprobante con la misma estética que la nota de salida
+      const receiptRows = validRows.map((r, i) => {
+        const { size, unit, upb } = productInfo(r.product)
+        const totalEq = Number(r.cantidad || 0)
+        const desglose = desgloseEnvases(totalEq, size, unit, upb)
+        return {
+          product: r.product.trim(),
+          lot_code: r.lot_code?.trim() || createLotCode(i),
+          expiry_date: r.expiry_date || null,
+          cantidad: totalEq,
+          package_size: size || 0,
+          package_unit: unit || '',
+          unidades_label: desglose.unidadesLabel,
+          cajas_label: desglose.cajasLabel,
+        }
+      })
+      setComprobante({
+        guide: rpcData?.guide_number || '',
+        empresa: displayClientName(clients.find((c) => c.id === clientId)?.name || ''),
+        contacto: contacto.trim(),
+        transportista: transportista.trim(),
+        placa: placa.trim().toUpperCase(),
+        observaciones: notasFinal,
+        rows: receiptRows,
+      })
+
       clearDraft()
       vibrateSuccess()
       setSuccess(true)
-      setTimeout(() => navigate(-1), 2200)
     } catch (err) {
       setError(err.message?.includes('duplicate') ? 'Uno de los lotes ya existe. Revisa los codigos de lote.' : (err.message || 'Error al guardar.'))
     } finally {
@@ -653,7 +680,17 @@ export default function OperatorEntry() {
         <div className="mb-4 rounded-xl border border-campo-200 bg-campo-50 p-5 text-center">
           <CheckCircle2 className="mx-auto mb-2 text-campo-700" size={38} />
           <p className="text-base font-black text-campo-800">Ingreso guardado correctamente.</p>
-          <p className="mt-1 text-sm font-semibold text-campo-600">Redirigiendo...</p>
+          {comprobante?.guide && (
+            <p className="mt-1 font-mono text-sm font-bold text-campo-700">{comprobante.guide}</p>
+          )}
+          <div className="mx-auto mt-4 flex max-w-md gap-3">
+            <button className="btn-primary flex-1" type="button" onClick={() => openEntryReceipt(comprobante)}>
+              <FileText size={20} /> Ver comprobante
+            </button>
+            <button className="btn-secondary flex-1" type="button" onClick={() => navigate(-1)}>
+              Volver
+            </button>
+          </div>
         </div>
       ) : (
         <div className="flex gap-3">
