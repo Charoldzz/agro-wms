@@ -457,7 +457,7 @@ export default function NuevaSalida() {
           </div>
           <label className="block">
             <span className="label">Contacto</span>
-            <input className="input mt-1" value={contacto} onChange={(e) => setContacto(e.target.value)} placeholder="Teléfono o CI" />
+            <input className="input mt-1" value={contacto} onChange={(e) => setContacto(e.target.value)} />
           </label>
           <label className="block">
             <span className="label">Transportista</span>
