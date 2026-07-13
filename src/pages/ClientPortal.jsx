@@ -11,6 +11,7 @@ import EmptyState from '../components/EmptyState'
 import ListProductCard from '../components/ListProductCard'
 import { useAuth } from '../hooks/useAuth.jsx'
 import { cleanProductName, displayLotCode, lotLabel, packageLabel, productCode, productCodeLabel, unitsPerBoxFromName } from '../lib/display'
+import { desgloseEnvases } from '../lib/envases'
 import { normalizeDispatchRequests } from '../lib/dispatchRequests'
 import { formatDate, formatDateOnly, formatNumber, movementLabel } from '../lib/format'
 import { supabase } from '../lib/supabase'
@@ -686,13 +687,18 @@ export default function ClientPortal({ view = 'inventory' }) {
     const logoUrl = `${window.location.origin}/images/todo-logo.png`
     const rows = note.movs.map((m, i) => {
       const lot = m.lots || {}
+      // Unidades con su tipo de envase real ("53 bidones + 15 lt"); sin presentación → uds
+      const size = Number(lot.package_size) || 0
+      const eqRaw = size > 0 ? Number(m.quantity || 0) * size : Number(m.quantity || 0)
+      const desglose = desgloseEnvases(eqRaw, size, lot.package_unit, 0)
+      const unidadesLabel = desglose.unidadesLabel || `${formatNumber(m.quantity)} uds`
       return `<tr>
         <td class="c">${i + 1}</td>
         <td class="c mono">${escapeHtml(productCode(lot) || '-')}</td>
         <td>${escapeHtml(cleanProductName(lot.product))}</td>
         <td class="c mono">${escapeHtml(displayLotCode(lot.lot_code, lot))}</td>
         <td class="r"><strong>${escapeHtml(movementEquivalentLabel(m))}</strong></td>
-        <td class="r muted">${escapeHtml(formatNumber(m.quantity))} uds</td>
+        <td class="r muted">${escapeHtml(unidadesLabel)}</td>
       </tr>`
     }).join('')
     const w = window.open('','_blank'); if(!w) return
