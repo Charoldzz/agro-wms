@@ -77,10 +77,10 @@ function AppRoutes() {
         <Route path="operacion/reparacion-traslado" element={<RoleRoute roles={['administrador', 'operador']}><OperatorService /></RoleRoute>} />
         <Route path="operacion/correcciones" element={<RoleRoute roles={['administrador', 'operador']}><CorrectionRequests /></RoleRoute>} />
         <Route path="clientes" element={<RoleRoute roles={['administrador']}><Clients /></RoleRoute>} />
-        <Route path="lotes" element={<RoleRoute roles={['administrador', 'operador', 'cliente']}><Lots /></RoleRoute>} />
-        <Route path="lotes/:id" element={<LotDetail />} />
-        <Route path="productos/:name" element={<RoleRoute roles={['administrador', 'operador', 'cliente']}><ProductLots /></RoleRoute>} />
-        <Route path="vencimientos" element={<RoleRoute roles={['administrador', 'operador', 'cliente']}><ExpiringLots /></RoleRoute>} />
+        <Route path="lotes" element={<RoleRoute roles={['administrador', 'operador']}><Lots /></RoleRoute>} />
+        <Route path="lotes/:id" element={<RoleRoute roles={['administrador', 'operador']}><LotDetail /></RoleRoute>} />
+        <Route path="productos/:name" element={<RoleRoute roles={['administrador', 'operador']}><ProductLots /></RoleRoute>} />
+        <Route path="vencimientos" element={<RoleRoute roles={['administrador', 'operador']}><ExpiringLots /></RoleRoute>} />
         <Route path="scanner" element={<Scanner />} />
         <Route path="offline" element={<RoleRoute roles={['administrador']}><OfflineAudit /></RoleRoute>} />
         <Route path="solicitudes" element={<RoleRoute roles={['administrador', 'operador']}><ClientRequestsAdmin /></RoleRoute>} />
