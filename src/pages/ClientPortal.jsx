@@ -698,15 +698,18 @@ export default function ClientPortal({ view = 'inventory' }) {
     const w = window.open('','_blank'); if(!w) return
     w.document.write(`<!doctype html><html><head><title>Comprobante ${escapeHtml(note.noteNumber || '')}</title>
 <meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&display=swap" rel="stylesheet" />
 <style>
   body { color: #0f172a; font-family: 'Segoe UI', 'Helvetica Neue', Helvetica, Arial, sans-serif; margin: 26px 30px; }
   .top { align-items: center; border-bottom: 3px solid #15803d; display: flex; gap: 16px; justify-content: space-between; padding-bottom: 14px; }
   .brand { align-items: center; display: flex; gap: 14px; }
   .brand img { height: 54px; width: auto; }
-  h1 { font-size: 20px; font-weight: 600; letter-spacing: -0.2px; margin: 0; }
-  .sub { color: #475569; font-size: 10px; letter-spacing: 2px; margin: 3px 0 0; text-transform: uppercase; }
-  .guide { border: 2px solid #15803d; border-radius: 10px; color: #15803d; font-size: 19px; font-weight: 700; letter-spacing: 1px; padding: 8px 18px; text-align: center; white-space: nowrap; }
-  .guide small { color: #64748b; display: block; font-size: 9px; font-weight: 600; letter-spacing: 2px; }
+  h1 { font-family: 'Bebas Neue', 'Segoe UI', Arial, sans-serif; font-size: 27px; font-weight: 400; letter-spacing: 1.5px; margin: 0; }
+  .sub { color: #475569; font-family: 'Bebas Neue', 'Segoe UI', Arial, sans-serif; font-size: 13px; letter-spacing: 3px; margin: 2px 0 0; text-transform: uppercase; }
+  .guide { border: 2px solid #15803d; border-radius: 10px; color: #15803d; font-family: 'Bebas Neue', 'Segoe UI', Arial, sans-serif; font-size: 24px; font-weight: 400; letter-spacing: 2px; padding: 7px 18px; text-align: center; white-space: nowrap; }
+  .guide small { color: #64748b; display: block; font-family: 'Segoe UI', Arial, sans-serif; font-size: 9px; font-weight: 600; letter-spacing: 2px; }
   .datos { border: 1px solid #cbd5e1; border-radius: 10px; display: grid; gap: 12px 24px; grid-template-columns: repeat(3, 1fr); margin: 18px 0; padding: 14px 16px; }
   .datos p { margin: 0; }
   .datos .l { color: #64748b; font-size: 9px; font-weight: bold; letter-spacing: 1px; text-transform: uppercase; }
