@@ -680,7 +680,8 @@ export default function ClientPortal({ view = 'inventory' }) {
     w.document.close()
   }
 
-  function printReceipt(note) {
+  // Abre la nota completa en pestaña nueva (con botón Imprimir / Guardar PDF adentro)
+  function openNotePdf(note) {
     const type = note.type === 'salida' ? 'despacho' : 'ingreso'
     const logoUrl = `${window.location.origin}/images/todo-logo.png`
     const rows = note.movs.map((m, i) => {
@@ -752,7 +753,6 @@ export default function ClientPortal({ view = 'inventory' }) {
   <tfoot><tr><td colspan="4">TOTAL</td><td class="r">${escapeHtml(note.equivalentLabel)}</td><td></td></tr></tfoot>
 </table>
 <p class="foot">Documento informativo generado desde el portal de clientes de Todo Agr&iacute;cola Boliviana Ltda &mdash; Emitido el ${escapeHtml(formatDate(new Date().toISOString()))}. Informaci&oacute;n referencial sujeta a validaci&oacute;n operativa.</p>
-<script>window.addEventListener('load',()=>window.print())</script>
 </body></html>`)
     w.document.close()
   }
@@ -1649,10 +1649,9 @@ export default function ClientPortal({ view = 'inventory' }) {
                 {movementNotes.map(n => {
                   const firstLot = n.movs[0]?.lots || {}
                   return (
-                    <button
+                    <div
                       key={n.id}
-                      className="flex w-full items-center gap-3 px-4 py-3.5 text-left transition-colors hover:bg-slate-50"
-                      type="button"
+                      className="flex cursor-pointer items-center gap-3 px-4 py-3.5 transition-colors hover:bg-slate-50"
                       onClick={() => setSelectedMovement(n)}
                     >
                       <span className={`shrink-0 rounded-lg px-2 py-1.5 text-[10px] font-black uppercase leading-none ${n.type === 'entrada' ? 'bg-campo-100 text-campo-800' : 'bg-red-50 text-red-700'}`}>
@@ -1676,7 +1675,15 @@ export default function ClientPortal({ view = 'inventory' }) {
                           <p className="text-xs font-semibold text-slate-400">{formatNumber(n.totalUds)} uds</p>
                         ) : null}
                       </div>
-                    </button>
+                      <button
+                        className="shrink-0 rounded-lg border border-slate-200 p-1.5 text-slate-400 transition-colors hover:border-campo-300 hover:text-campo-700"
+                        type="button"
+                        title="Ver nota (PDF)"
+                        onClick={(e) => { e.stopPropagation(); openNotePdf(n) }}
+                      >
+                        <FileText size={15} />
+                      </button>
+                    </div>
                   )
                 })}
               </div>
@@ -1691,7 +1698,7 @@ export default function ClientPortal({ view = 'inventory' }) {
           movement={selectedMovement}
           clientName={clientName}
           onClose={() => setSelectedMovement(null)}
-          onPrint={() => { printReceipt(selectedMovement); setSelectedMovement(null) }}
+          onPrint={() => openNotePdf(selectedMovement)}
         />
       )}
 
@@ -1836,7 +1843,7 @@ function MovementModal({ movement: note, clientName, onClose, onPrint }) {
             </div>
           ))}
         </dl>
-        <button className="btn-primary mt-3 w-full" onClick={onPrint}><Printer size={16} /> Imprimir comprobante</button>
+        <button className="btn-primary mt-3 w-full" onClick={onPrint}><FileText size={16} /> Ver nota (PDF)</button>
       </section>
     </div>
   )
