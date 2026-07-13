@@ -5,7 +5,6 @@ import PageHeader from '../components/PageHeader'
 import { useAuth } from '../hooks/useAuth.jsx'
 import { supabase } from '../lib/supabase'
 import { formatNumber } from '../lib/format'
-import { internalLocations } from '../lib/locations'
 import { vibrateSuccess } from '../lib/haptics'
 import { desgloseEnvases } from '../lib/envases'
 import { catalogClientIds } from '../lib/catalogo'
@@ -330,7 +329,9 @@ export default function OperatorEntry() {
           loose_units: sueltas,
           package_size: size || null,
           package_unit: unit || null,
-          location: internalLocations[0] || 'ALMACEN',
+          // Ubicación única por ahora; las ubicaciones internas (H1, H2...) quedan
+          // para más adelante — decisión Harold 2026-07-13
+          location: 'Deposito Warnes',
           expiry_date: r.expiry_date || null,
         }
       })
