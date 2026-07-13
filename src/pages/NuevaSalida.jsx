@@ -562,7 +562,7 @@ export default function NuevaSalida() {
         </div>
       )}
 
-      <div className="mb-4 overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm">
+      <div className="mb-4 hidden overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm sm:block">
         <table className="w-full border-collapse" style={{ minWidth: '880px', tableLayout: 'fixed' }}>
           <thead>
             <tr className="bg-campo-700 text-white">
@@ -723,6 +723,136 @@ export default function NuevaSalida() {
             ))}
           </tbody>
         </table>
+      </div>
+
+      {/* Carrito móvil: tarjetas apiladas (la tabla es solo para pantallas sm+) */}
+      <div className="mb-4 space-y-3 sm:hidden">
+        {rows.map((row, i) => {
+          const upb = upbForRow(row)
+          const d = desgloseEnvases(row.cantidad, row.package_size, row.package_unit, upb)
+          return (
+            <div
+              key={row.id}
+              className={`rounded-xl border p-3 shadow-sm ${
+                rowInsufficient(row)
+                  ? 'border-red-200 bg-red-50'
+                  : isRequestMode && row.confirmed
+                    ? 'border-campo-200 bg-campo-50'
+                    : 'border-slate-200 bg-white'
+              }`}
+            >
+              <div className="mb-2 flex items-center justify-between">
+                <span className="text-xs font-black text-slate-400">ITEM #{i + 1}</span>
+                {isRequestMode ? (
+                  <button
+                    type="button"
+                    className={`flex h-9 w-9 items-center justify-center rounded-full transition-all ${
+                      rowInsufficient(row)
+                        ? 'cursor-not-allowed border-2 border-red-200 text-red-300'
+                        : row.confirmed
+                          ? 'bg-campo-600 text-white shadow-sm'
+                          : 'border-2 border-slate-300 text-slate-300'
+                    }`}
+                    onClick={() => { if (!rowInsufficient(row)) updateRow(row.id, 'confirmed', !row.confirmed) }}
+                    title={rowInsufficient(row) ? 'Saldo insuficiente — no se puede confirmar' : row.confirmed ? 'Quitar confirmación' : 'Confirmar producto'}
+                  >
+                    <CheckCircle2 size={18} />
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    className="flex h-7 w-7 items-center justify-center rounded text-slate-300 hover:bg-red-50 hover:text-red-500 disabled:opacity-30"
+                    onClick={() => removeRow(row.id)}
+                    disabled={rows.length <= 1}
+                  >
+                    <Trash2 size={14} />
+                  </button>
+                )}
+              </div>
+
+              {row.lot_id ? (
+                <div className="mb-3 flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="text-sm font-bold text-slate-900 [overflow-wrap:anywhere]">{row.product}</p>
+                    {rowInsufficient(row) ? (
+                      <p className="text-[10px] font-black text-red-600">
+                        Saldo insuficiente: hay {formatNumber(row.saldo)} uds y pide {formatNumber(row.uds)}
+                      </p>
+                    ) : row.package_unit ? (
+                      <p className="text-[10px] font-semibold text-slate-400">
+                        {formatNumber(row.saldo * (Number(row.package_size) || 1))} {row.package_unit} disponibles
+                      </p>
+                    ) : null}
+                  </div>
+                  {!isRequestMode && (
+                    <button
+                      type="button"
+                      className="shrink-0 rounded p-1 text-slate-400 hover:text-red-500"
+                      onClick={() => clearLot(row.id)}
+                      title="Cambiar lote"
+                    >
+                      <X size={16} />
+                    </button>
+                  )}
+                </div>
+              ) : (
+                <select
+                  className="input mb-3 w-full text-sm disabled:opacity-40"
+                  value=""
+                  onChange={(e) => selectLot(row.id, e.target.value)}
+                  disabled={!clientId || lots.length === 0 || isRequestMode}
+                >
+                  <option value="">— Seleccionar lote —</option>
+                  {lots.map((lot) => (
+                    <option key={lot.id} value={lot.id}>{lotOptionLabel(lot)}</option>
+                  ))}
+                </select>
+              )}
+
+              <div className="mb-3 grid grid-cols-2 gap-2">
+                <div className="rounded-lg bg-slate-50 px-3 py-2">
+                  <p className="text-[10px] font-black uppercase text-slate-500">Lote</p>
+                  <p className="text-sm font-bold text-slate-700">{row.lot_code || '—'}</p>
+                </div>
+                <div className="rounded-lg bg-slate-50 px-3 py-2">
+                  <p className="text-[10px] font-black uppercase text-slate-500">Venc.</p>
+                  <p className="text-sm font-bold text-slate-700">
+                    {row.expiry_date
+                      ? new Intl.DateTimeFormat('es-BO', { day: '2-digit', month: 'short', year: 'numeric' }).format(new Date(`${row.expiry_date}T00:00:00`))
+                      : '—'}
+                  </p>
+                </div>
+              </div>
+
+              <label className="mb-3 block">
+                <span className="text-xs font-bold uppercase text-slate-500">
+                  {row.package_unit ? `Cantidad (${row.package_unit})` : 'Cantidad'}
+                </span>
+                <input
+                  className="input mt-1 w-full text-right text-sm font-bold disabled:opacity-30"
+                  inputMode="decimal"
+                  value={row.cantidad}
+                  onChange={(e) => updateCantidad(row.id, e.target.value)}
+                  placeholder="0"
+                  disabled={!row.lot_id || isRequestMode}
+                />
+              </label>
+
+              {(d.unidadesLabel || d.cajasLabel) ? (
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="rounded-lg bg-campo-50 px-3 py-2">
+                    <p className="text-[10px] font-black uppercase text-campo-600">Unidades</p>
+                    <p className="text-sm font-bold text-campo-800">{d.unidadesLabel || '—'}</p>
+                  </div>
+                  <div className="rounded-lg bg-slate-50 px-3 py-2">
+                    <p className="text-[10px] font-black uppercase text-slate-500">Cajas</p>
+                    <p className="text-sm font-bold text-slate-700">{d.cajasLabel || '—'}</p>
+                  </div>
+                </div>
+              ) : null}
+            </div>
+          )
+        })}
       </div>
 
       {isRequestMode && !allConfirmed && (

@@ -94,6 +94,11 @@ function openOperationNote({ tipo, guide, empresa, contacto, transportista, plac
       .firma { border-top: 1px solid #0f172a; font-size: 11px; padding-top: 6px; text-align: center; }
       .foot { color: #94a3b8; font-size: 9.5px; margin-top: 30px; text-align: center; }
       .print-btn { background: #15803d; border: none; border-radius: 8px; bottom: 20px; box-shadow: 0 4px 12px rgba(15, 23, 42, 0.25); color: #fff; cursor: pointer; font-size: 13px; font-weight: bold; padding: 10px 18px; position: fixed; right: 20px; }
+      @media (max-width: 640px) {
+        body { margin: 16px; }
+        .top { align-items: flex-start; flex-direction: column; }
+        .datos { grid-template-columns: 1fr 1fr; }
+      }
       @media print { body { margin: 10mm; } .print-btn { display: none; } }
     </style>
   </head>
