@@ -688,7 +688,7 @@ export default function ClientPortal({ view = 'inventory' }) {
       const lot = m.lots || {}
       return `<tr>
         <td class="c">${i + 1}</td>
-        <td class="c mono">${escapeHtml(productCodeLabel(lot) || '-')}</td>
+        <td class="c mono">${escapeHtml(productCode(lot) || '-')}</td>
         <td>${escapeHtml(cleanProductName(lot.product))}</td>
         <td class="c mono">${escapeHtml(displayLotCode(lot.lot_code, lot))}</td>
         <td class="r"><strong>${escapeHtml(movementEquivalentLabel(m))}</strong></td>
@@ -699,25 +699,25 @@ export default function ClientPortal({ view = 'inventory' }) {
     w.document.write(`<!doctype html><html><head><title>Comprobante ${escapeHtml(note.noteNumber || '')}</title>
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <style>
-  body { color: #0f172a; font-family: Arial, Helvetica, sans-serif; margin: 26px 30px; }
+  body { color: #0f172a; font-family: 'Segoe UI', 'Helvetica Neue', Helvetica, Arial, sans-serif; margin: 26px 30px; }
   .top { align-items: center; border-bottom: 3px solid #15803d; display: flex; gap: 16px; justify-content: space-between; padding-bottom: 14px; }
   .brand { align-items: center; display: flex; gap: 14px; }
   .brand img { height: 54px; width: auto; }
-  h1 { font-size: 19px; margin: 0; }
-  .sub { color: #475569; font-size: 10px; letter-spacing: 1.5px; margin: 3px 0 0; text-transform: uppercase; }
-  .guide { border: 2px solid #15803d; border-radius: 10px; color: #15803d; font-family: 'Courier New', monospace; font-size: 20px; font-weight: bold; padding: 8px 18px; text-align: center; white-space: nowrap; }
-  .guide small { color: #64748b; display: block; font-family: Arial; font-size: 9px; font-weight: bold; letter-spacing: 1.5px; }
+  h1 { font-size: 20px; font-weight: 600; letter-spacing: -0.2px; margin: 0; }
+  .sub { color: #475569; font-size: 10px; letter-spacing: 2px; margin: 3px 0 0; text-transform: uppercase; }
+  .guide { border: 2px solid #15803d; border-radius: 10px; color: #15803d; font-size: 19px; font-weight: 700; letter-spacing: 1px; padding: 8px 18px; text-align: center; white-space: nowrap; }
+  .guide small { color: #64748b; display: block; font-size: 9px; font-weight: 600; letter-spacing: 2px; }
   .datos { border: 1px solid #cbd5e1; border-radius: 10px; display: grid; gap: 12px 24px; grid-template-columns: repeat(3, 1fr); margin: 18px 0; padding: 14px 16px; }
   .datos p { margin: 0; }
   .datos .l { color: #64748b; font-size: 9px; font-weight: bold; letter-spacing: 1px; text-transform: uppercase; }
   .datos .v { font-size: 13px; font-weight: bold; margin-top: 2px; }
   .obs { grid-column: 1 / -1; }
   table { border-collapse: collapse; width: 100%; }
-  th, td { border-bottom: 1px solid #e2e8f0; font-size: 11.5px; padding: 8px 7px; text-align: left; vertical-align: top; }
-  th { background: #f1f5f9; color: #334155; font-size: 9.5px; letter-spacing: 0.8px; text-transform: uppercase; }
+  th, td { border-bottom: 1px solid #e2e8f0; font-size: 11.5px; font-variant-numeric: tabular-nums; padding: 8px 7px; text-align: left; vertical-align: top; }
+  th { background: #f1f5f9; color: #334155; font-size: 9.5px; font-weight: 600; letter-spacing: 1px; text-transform: uppercase; }
   td.c, th.c { text-align: center; }
   td.r, th.r { text-align: right; }
-  .mono { font-family: 'Courier New', monospace; font-size: 11px; }
+  .mono { color: #475569; font-size: 11px; letter-spacing: 0.3px; }
   .muted { color: #64748b; }
   tfoot td { background: #f0fdf4; border-bottom: none; border-top: 2px solid #15803d; color: #14532d; font-size: 12.5px; font-weight: bold; padding: 9px 7px; }
   .foot { color: #94a3b8; font-size: 9.5px; margin-top: 30px; text-align: center; }
