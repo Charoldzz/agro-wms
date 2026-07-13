@@ -692,7 +692,7 @@ export default function ClientPortal({ view = 'inventory' }) {
       </tr>`
     }).join('')
     const w = window.open('','_blank'); if(!w) return
-    w.document.write(`<!doctype html><html><head><title>Comprobante ${escapeHtml(note.noteNumber || '')}</title><style>body{color:#0f172a;font-family:Arial,sans-serif;margin:24px}h1{margin:0 0 4px}.box{border:1px solid #cbd5e1;border-radius:8px;margin-top:14px;padding:12px}.grid{display:grid;gap:10px;grid-template-columns:repeat(2,1fr)}strong{display:block}table{border-collapse:collapse;margin-top:14px;width:100%}th,td{border-bottom:1px solid #e2e8f0;font-size:13px;padding:6px 8px;text-align:left}th{background:#f1f5f9;font-size:11px;text-transform:uppercase}.r{text-align:right}tfoot td{font-weight:bold}@media print{body{margin:12mm}}</style></head><body><h1>Todo Agricola Boliviana Ltda</h1><p>Comprobante de ${escapeHtml(type)} para ${escapeHtml(clientName)}</p><div class="box grid"><div><strong>Nota</strong>${escapeHtml(note.noteNumber || '-')}</div><div><strong>Fecha</strong>${escapeHtml(formatDate(note.createdAt))}</div><div><strong>Movimiento</strong>${escapeHtml(movementLabel(note.type))}</div><div><strong>Transportista</strong>${escapeHtml(note.transporter || '-')}</div><div><strong>Placa</strong>${escapeHtml(note.plate || '-')}</div><div><strong>Productos</strong>${escapeHtml(String(note.movs.length))}</div></div><table><thead><tr><th>Producto</th><th>Lote</th><th class="r">Cantidad</th><th class="r">Unidades</th></tr></thead><tbody>${rows}</tbody><tfoot><tr><td colspan="2">Total</td><td class="r">${escapeHtml(note.equivalentLabel)}</td><td class="r">${escapeHtml(formatNumber(note.totalUds))} uds</td></tr></tfoot></table>${note.observations?`<div class="box"><strong>Observaciones</strong>${escapeHtml(note.observations)}</div>`:''}<script>window.addEventListener('load',()=>window.print())</script></body></html>`)
+    w.document.write(`<!doctype html><html><head><title>Comprobante ${escapeHtml(note.noteNumber || '')}</title><style>body{color:#0f172a;font-family:Arial,sans-serif;margin:24px}h1{margin:0 0 4px}.box{border:1px solid #cbd5e1;border-radius:8px;margin-top:14px;padding:12px}.grid{display:grid;gap:10px;grid-template-columns:repeat(2,1fr)}strong{display:block}table{border-collapse:collapse;margin-top:14px;width:100%}th,td{border-bottom:1px solid #e2e8f0;font-size:13px;padding:6px 8px;text-align:left}th{background:#f1f5f9;font-size:11px;text-transform:uppercase}.r{text-align:right}tfoot td{font-weight:bold}@media print{body{margin:12mm}}</style></head><body><h1>Todo Agricola Boliviana Ltda</h1><p>Comprobante de ${escapeHtml(type)} para ${escapeHtml(clientName)}</p><div class="box grid"><div><strong>Nota</strong>${escapeHtml(note.noteNumber || '-')}</div><div><strong>Fecha</strong>${escapeHtml(formatDate(note.createdAt))}</div><div><strong>Movimiento</strong>${escapeHtml(movementLabel(note.type))}</div><div><strong>Transportista</strong>${escapeHtml(note.transporter || '-')}</div><div><strong>Placa</strong>${escapeHtml(note.plate || '-')}</div><div><strong>Productos</strong>${escapeHtml(String(note.movs.length))}</div></div><table><thead><tr><th>Producto</th><th>Lote</th><th class="r">Cantidad</th><th class="r">Unidades</th></tr></thead><tbody>${rows}</tbody><tfoot><tr><td colspan="2">Total</td><td class="r">${escapeHtml(note.equivalentLabel)}</td><td></td></tr></tfoot></table>${note.observations?`<div class="box"><strong>Observaciones</strong>${escapeHtml(note.observations)}</div>`:''}<script>window.addEventListener('load',()=>window.print())</script></body></html>`)
     w.document.close()
   }
 
@@ -1101,7 +1101,9 @@ export default function ClientPortal({ view = 'inventory' }) {
                       </div>
                       <div className="shrink-0 text-right">
                         <p className="text-sm font-black text-campo-700">{n.equivalentLabel}</p>
-                        <p className="text-[11px] font-semibold text-slate-400">{formatNumber(n.totalUds)} uds</p>
+                        {n.movs.length === 1 ? (
+                          <p className="text-[11px] font-semibold text-slate-400">{formatNumber(n.totalUds)} uds</p>
+                        ) : null}
                       </div>
                     </button>
                   )
@@ -1609,7 +1611,9 @@ export default function ClientPortal({ view = 'inventory' }) {
                       </div>
                       <div className="shrink-0 text-right">
                         <p className="text-sm font-black leading-snug text-campo-700">{n.equivalentLabel}</p>
-                        <p className="text-xs font-semibold text-slate-400">{formatNumber(n.totalUds)} uds</p>
+                        {n.movs.length === 1 ? (
+                          <p className="text-xs font-semibold text-slate-400">{formatNumber(n.totalUds)} uds</p>
+                        ) : null}
                       </div>
                     </button>
                   )
@@ -1761,7 +1765,6 @@ function MovementModal({ movement: note, clientName, onClose, onPrint }) {
         <dl className="mt-3 grid gap-2 rounded-xl bg-slate-50 p-3 text-sm">
           {[
             ['Cantidad total', note.equivalentLabel],
-            ['Total unidades', `${formatNumber(note.totalUds)} uds`],
             note.transporter ? ['Transportista', note.transporter] : null,
             note.plate ? ['Placa', note.plate] : null,
             note.observations ? ['Observaciones', note.observations] : null,
