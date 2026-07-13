@@ -720,8 +720,8 @@ export default function ClientPortal({ view = 'inventory' }) {
   th { background: #f1f5f9; color: #334155; font-size: 9.5px; font-weight: 600; letter-spacing: 1px; text-transform: uppercase; }
   td.c, th.c { text-align: center; }
   td.r, th.r { text-align: right; }
-  .mono { color: #475569; font-size: 11px; letter-spacing: 0.3px; }
-  .muted { color: #64748b; }
+  .mono { font-size: 11px; letter-spacing: 0.3px; }
+  .muted { }
   tfoot td { background: #f0fdf4; border-bottom: none; border-top: 2px solid #15803d; color: #14532d; font-size: 12.5px; font-weight: bold; padding: 9px 7px; }
   .foot { color: #94a3b8; font-size: 9.5px; margin-top: 30px; text-align: center; }
   .print-btn { background: #15803d; border: none; border-radius: 8px; bottom: 20px; box-shadow: 0 4px 12px rgba(15, 23, 42, 0.25); color: #fff; cursor: pointer; font-size: 13px; font-weight: bold; padding: 10px 18px; position: fixed; right: 20px; }
