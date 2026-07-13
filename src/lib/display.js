@@ -8,6 +8,7 @@ export function cleanProductName(product) {
 }
 
 const VISIBLE_PRODUCT_CODE_FIELDS = [
+  'solucion_product_code',
   'stock_product_code',
   'catalog_product_code',
   'catalog_code',
