@@ -13,7 +13,14 @@ import MovimientosModal from '../components/MovimientosModal'
 
 const LOTS_CACHE_KEY = 'todo-agricola-lots-cache'
 const CLIENTS_CACHE_KEY = 'todo-agricola-clients-cache'
+const LOTS_FILTERS_KEY = 'todo-agricola-lots-filters'
 const PAGE_SIZE = 50
+
+// Filtros recordados durante la sesión: al volver de una ficha, la lista
+// queda en la misma empresa/búsqueda/página en vez de resetearse a Todos
+function readLotsFilters() {
+  try { return JSON.parse(sessionStorage.getItem(LOTS_FILTERS_KEY) || 'null') || {} } catch { return {} }
+}
 
 function expiryClass(dateStr) {
   if (!dateStr) return 'text-slate-400'
@@ -34,13 +41,18 @@ export default function Lots() {
   const [cacheNotice, setCacheNotice] = useState('')
   const [loading, setLoading] = useState(true)
 
-  const [search, setSearch] = useState('')
-  const [selectedClient, setSelectedClient] = useState('')
+  const savedFilters = useMemo(readLotsFilters, [])
+  const [search, setSearch] = useState(savedFilters.search || '')
+  const [selectedClient, setSelectedClient] = useState(savedFilters.selectedClient || '')
   const [clientSearch, setClientSearch] = useState('')
   const [groupByProduct, setGroupByProduct] = useState(false)
   const [showZeroStock, setShowZeroStock] = useState(false)
-  const [page, setPage] = useState(1)
+  const [page, setPage] = useState(savedFilters.page || 1)
   const [sidebarOpen, setSidebarOpen] = useState(false)
+
+  useEffect(() => {
+    sessionStorage.setItem(LOTS_FILTERS_KEY, JSON.stringify({ search, selectedClient, page }))
+  }, [search, selectedClient, page])
 
   const [showProductModal, setShowProductModal] = useState(false)
   const [showEmpresasModal, setShowEmpresasModal] = useState(false)
