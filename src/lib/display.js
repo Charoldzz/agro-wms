@@ -205,27 +205,14 @@ export function productTotalKey(lot) {
 }
 
 // Devuelve { size, unit } para calcular equivalentes.
-// Primero usa package_size/package_unit del registro.
-// Si no tiene (lotes viejos), extrae del nombre del producto con regex.
+// SOLO usa package_size/package_unit del registro — REGLA de Harold: la
+// presentación nunca se adivina del nombre (un "BIDON BLANCO HDPE 20 LTS."
+// de embalaje contado en unidades NO es un producto de 20 lts).
 export function lotSizeAndUnit(lotOrItem) {
   const size = Number(lotOrItem?.package_size || 0)
   const unit = String(lotOrItem?.package_unit || '').toLowerCase().trim()
   if (size > 0 && unit) return { size, unit: normalizeUnit(unit) }
-
-  // Fallback: extraer del nombre
-  const name = String(lotOrItem?.product || '')
-  const m =
-    // NxM UNIT (ej: 4x5Lt, 10X1 KG, 2x5LTR)
-    name.match(/\d+\s*[xX×]\s*(\d+(?:[.,]\d+)?)\s*(ltrs?|lts?|kgs?|gr|gm|ml|cc)/i) ||
-    // standalone N UNIT con char no-letra antes (ej: _5L_, 20L, 500 GM)
-    name.match(/[^a-zA-Z](\d+(?:[.,]\d+)?)\s*(ltrs?|lts?|kgs?|gr|gm|ml|cc)/i) ||
-    // bare L (ej: _5L_, 20L, 10 L_)
-    name.match(/[^a-zA-Z](\d+(?:[.,]\d+)?)\s*L(?:[^a-zA-Z]|$)/i)
-  if (!m) return { size: 0, unit: '' }
-
-  const rawSize = parseFloat(String(m[1]).replace(',', '.'))
-  const rawUnit = m[2] ? normalizeUnit(m[2].toLowerCase()) : 'lt'
-  return { size: rawSize || 0, unit: rawUnit }
+  return { size: 0, unit: '' }
 }
 
 // Extrae el número de unidades por caja del nombre del producto.

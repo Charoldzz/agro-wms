@@ -157,7 +157,11 @@ export default function Lots() {
       const qty = Number(lot.current_quantity || 0)
       if (qty <= 0) continue
       const { size, unit } = lotSizeAndUnit(lot)
-      if (!(size > 0) || !unit) continue
+      if (!(size > 0) || !unit) {
+        // Sin presentación: se cuenta en unidades sueltas, nunca se inventa lts/kgs
+        totals.set('uds', (totals.get('uds') || 0) + qty)
+        continue
+      }
       let value = qty * size
       let key = unit
       if (key === 'ml') { key = 'lts'; value /= 1000 }
@@ -487,7 +491,7 @@ export default function Lots() {
                               </>
                             ) : (
                               <p className="text-sm font-black text-campo-700 whitespace-nowrap">
-                                {formatNumber(lot.current_quantity)} <span className="text-xs font-semibold text-campo-500">env.</span>
+                                {formatNumber(lot.current_quantity)} <span className="text-xs font-semibold text-campo-500">uds</span>
                               </p>
                             )}
                           </td>
