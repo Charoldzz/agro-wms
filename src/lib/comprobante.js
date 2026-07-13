@@ -10,7 +10,7 @@ function escapeHtml(value) {
 
 // Total de la nota en equivalente, separado por unidad ("475 lts · 515 kgs").
 // Los items sin presentación no suman (regla: nunca mezclar uds con lts/kgs).
-function totalEquivalente(rows) {
+export function totalEquivalente(rows) {
   const totals = new Map()
   rows.forEach((row) => {
     const size = Number(row.package_size) || 0

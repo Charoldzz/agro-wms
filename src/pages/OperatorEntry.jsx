@@ -7,7 +7,8 @@ import { supabase } from '../lib/supabase'
 import { formatNumber } from '../lib/format'
 import { vibrateSuccess } from '../lib/haptics'
 import { desgloseEnvases } from '../lib/envases'
-import { openEntryReceipt } from '../lib/comprobante'
+import { openEntryReceipt, totalEquivalente } from '../lib/comprobante'
+import OperationSuccess from '../components/OperationSuccess'
 import { catalogClientIds } from '../lib/catalogo'
 import NewProductModal from '../components/NewProductModal'
 
@@ -389,6 +390,40 @@ export default function OperatorEntry() {
     }
   }
 
+  // Empezar otro ingreso desde cero, sin salir de la pantalla
+  function resetIngreso() {
+    clearDraft()
+    setSuccess(false)
+    setComprobante(null)
+    setError('')
+    setClientId('')
+    setContacto('')
+    setTransportista('')
+    setPlaca('')
+    setObservaciones('')
+    setRows([emptyRow()])
+    setSelectedIdx(0)
+    supabase.rpc('preview_next_warehouse_guide', { p_type: 'ing' })
+      .then(({ data }) => { if (data) setGuiaPreview(data) })
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+
+  if (success && comprobante) {
+    return (
+      <OperationSuccess
+        titulo="Ingreso guardado correctamente"
+        guide={comprobante.guide}
+        empresa={comprobante.empresa}
+        itemsCount={comprobante.rows.length}
+        totalLabel={totalEquivalente(comprobante.rows)}
+        onViewReceipt={() => openEntryReceipt(comprobante)}
+        onNew={resetIngreso}
+        newLabel="Nuevo ingreso"
+        onBack={() => navigate(-1)}
+      />
+    )
+  }
+
   return (
     <div>
       <PageHeader title="Ingreso" subtitle="Nota de ingreso de mercadería" />
@@ -676,32 +711,14 @@ export default function OperatorEntry() {
 
       {error ? <div className="mb-4 rounded-lg bg-red-50 p-3 text-sm font-bold text-red-700">{error}</div> : null}
 
-      {success ? (
-        <div className="mb-4 rounded-xl border border-campo-200 bg-campo-50 p-5 text-center">
-          <CheckCircle2 className="mx-auto mb-2 text-campo-700" size={38} />
-          <p className="text-base font-black text-campo-800">Ingreso guardado correctamente.</p>
-          {comprobante?.guide && (
-            <p className="mt-1 font-mono text-sm font-bold text-campo-700">{comprobante.guide}</p>
-          )}
-          <div className="mx-auto mt-4 flex max-w-md gap-3">
-            <button className="btn-primary flex-1" type="button" onClick={() => openEntryReceipt(comprobante)}>
-              <FileText size={20} /> Ver comprobante
-            </button>
-            <button className="btn-secondary flex-1" type="button" onClick={() => navigate(-1)}>
-              Volver
-            </button>
-          </div>
-        </div>
-      ) : (
-        <div className="flex gap-3">
-          <button className="btn-primary flex-1" type="button" onClick={save} disabled={saving}>
-            <PackagePlus size={20} /> {saving ? 'Guardando...' : 'Guardar'}
-          </button>
-          <button className="btn-secondary flex-1" type="button" onClick={() => { clearDraft(); navigate(-1) }} disabled={saving}>
-            Cancelar
-          </button>
-        </div>
-      )}
+      <div className="flex gap-3">
+        <button className="btn-primary flex-1" type="button" onClick={save} disabled={saving}>
+          <PackagePlus size={20} /> {saving ? 'Guardando...' : 'Guardar'}
+        </button>
+        <button className="btn-secondary flex-1" type="button" onClick={() => { clearDraft(); navigate(-1) }} disabled={saving}>
+          Cancelar
+        </button>
+      </div>
 
       {newProductRowId && (
         <NewProductModal
