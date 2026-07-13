@@ -79,6 +79,39 @@ function itemEquivalent(item) {
   return normalizeEquivalent({ quantity: Number(item.quantity || 0) * parsed.size, unit: parsed.unit })
 }
 
+// Equivalente de un movimiento (uds × tamaño del lote), normalizado a lts/kgs;
+// sin presentación conocida se queda en uds (nunca se inventa)
+function movementEquivalent(m) {
+  const lot = m.lots || {}
+  const s = Number(lot.package_size || 0)
+  if (s > 0 && lot.package_unit) {
+    const norm = normalizeEquivalent({ quantity: Number(m.quantity || 0) * s, unit: lot.package_unit })
+    let u = String(norm.unit || '').toLowerCase().trim()
+    let q = norm.quantity
+    if (u === 'ml') { u = 'lts'; q /= 1000 }
+    else if (/^l/.test(u)) u = 'lts'
+    else if (/^k/.test(u)) u = 'kgs'
+    else u = 'uds'
+    return { quantity: q, unit: u }
+  }
+  return { quantity: Number(m.quantity || 0), unit: 'uds' }
+}
+
+function movementEquivalentLabel(m) {
+  const eq = movementEquivalent(m)
+  return `${formatNumber(eq.quantity)} ${eq.unit}`
+}
+
+// Total de una nota separado por unidad: "315 lts · 5.038 kgs"
+function noteEquivalentLabel(movs) {
+  const totals = new Map()
+  movs.forEach((m) => {
+    const eq = movementEquivalent(m)
+    totals.set(eq.unit, (totals.get(eq.unit) || 0) + eq.quantity)
+  })
+  return [...totals.entries()].map(([u, q]) => `${formatNumber(q)} ${u}`).join(' · ')
+}
+
 function productIdentityKey(lot) {
   return [
     cleanProductName(lot?.product),
@@ -142,6 +175,7 @@ export default function ClientPortal({ view = 'inventory' }) {
   const [lots,       setLots]       = useState([])
   const [catalog,    setCatalog]    = useState([])
   const [movements,  setMovements]  = useState([])
+  const [opsById,    setOpsById]    = useState({})
   const [requests,   setRequests]   = useState([])
   const [loading,    setLoading]    = useState(true)
   const [search,     setSearch]     = useState('')
@@ -203,11 +237,23 @@ export default function ClientPortal({ view = 'inventory' }) {
     const lotIds = (lotsData||[]).map(l => l.id)
     const { data: movData } = lotIds.length
       ? await supabase.from('movements')
-          .select('id,type,quantity,previous_quantity,new_quantity,to_location,notes,created_at,lots(lot_code,product,solucion_product_code,package_size,package_unit,location)')
+          .select('id,type,quantity,previous_quantity,new_quantity,to_location,notes,created_at,operation_id,lots(lot_code,product,solucion_product_code,package_size,package_unit,location)')
           .in('lot_id', lotIds).in('type',['entrada','salida'])
           .order('created_at',{ ascending:false }).limit(80)
       : { data: [] }
     setMovements(movData || [])
+
+    // Notas de las operaciones (número de guía + transportista/placa)
+    const opIds = [...new Set((movData || []).map(m => m.operation_id).filter(Boolean))]
+    if (opIds.length) {
+      const { data: opsData } = await supabase
+        .from('warehouse_operations')
+        .select('id,guide_number,type,receiver_name,driver_name,vehicle_plate,notes')
+        .in('id', opIds)
+      setOpsById(Object.fromEntries((opsData || []).map(o => [o.id, o])))
+    } else {
+      setOpsById({})
+    }
 
     const { data: reqData } = await supabase
       .from('client_dispatch_requests')
@@ -226,6 +272,32 @@ export default function ClientPortal({ view = 'inventory' }) {
         .filter(Boolean).some(v => v.toLowerCase().includes(term))
     )
   }, [lots, search])
+
+  // Movimientos agrupados por nota (misma operación = misma nota SAL/ING)
+  const movementNotes = useMemo(() => {
+    const groups = new Map()
+    movements.forEach((m) => {
+      const key = m.operation_id || `mov-${m.id}`
+      if (!groups.has(key)) groups.set(key, [])
+      groups.get(key).push(m)
+    })
+    return [...groups.values()].map((movs) => {
+      const first = movs[0]
+      const op = first.operation_id ? opsById[first.operation_id] : null
+      return {
+        id: first.operation_id || `mov-${first.id}`,
+        type: first.type,
+        noteNumber: op?.guide_number || null,
+        createdAt: movs.reduce((max, m) => (m.created_at > max ? m.created_at : max), first.created_at),
+        transporter: op ? (first.type === 'entrada' ? op.driver_name : op.receiver_name) : null,
+        plate: op?.vehicle_plate || null,
+        observations: op?.notes || null,
+        movs,
+        totalUds: movs.reduce((s, m) => s + Number(m.quantity || 0), 0),
+        equivalentLabel: noteEquivalentLabel(movs),
+      }
+    }).sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+  }, [movements, opsById])
 
   const totalStock    = lots.reduce((s,l) => s + Number(l.current_quantity||0), 0)
   const productCount  = lots.length
@@ -608,11 +680,19 @@ export default function ClientPortal({ view = 'inventory' }) {
     w.document.close()
   }
 
-  function printReceipt(movement) {
-    const lot = movement.lots||{}; const eq = Number(movement.quantity||0)*Number(lot.package_size||0)
-    const type = movement.type==='salida'?'despacho':movementLabel(movement.type).toLowerCase()
+  function printReceipt(note) {
+    const type = note.type === 'salida' ? 'despacho' : movementLabel(note.type).toLowerCase()
+    const rows = note.movs.map(m => {
+      const lot = m.lots || {}
+      return `<tr>
+        <td>${escapeHtml(cleanProductName(lot.product))}</td>
+        <td>${escapeHtml(displayLotCode(lot.lot_code, lot))}</td>
+        <td class="r">${escapeHtml(movementEquivalentLabel(m))}</td>
+        <td class="r">${escapeHtml(formatNumber(m.quantity))} uds</td>
+      </tr>`
+    }).join('')
     const w = window.open('','_blank'); if(!w) return
-    w.document.write(`<!doctype html><html><head><title>Comprobante</title><style>body{color:#0f172a;font-family:Arial,sans-serif;margin:24px}h1{margin:0 0 4px}.box{border:1px solid #cbd5e1;border-radius:8px;margin-top:14px;padding:12px}.grid{display:grid;gap:10px;grid-template-columns:repeat(2,1fr)}strong{display:block}@media print{body{margin:12mm}}</style></head><body><h1>Todo Agricola Boliviana Ltda</h1><p>Comprobante de ${escapeHtml(type)} para ${escapeHtml(clientName)}</p><div class="box grid"><div><strong>Fecha</strong>${escapeHtml(formatDate(movement.created_at))}</div><div><strong>Movimiento</strong>${escapeHtml(movementLabel(movement.type))}</div><div><strong>Codigo</strong>${escapeHtml(productCodeLabel(lot)||'-')}</div><div><strong>Lote</strong>${escapeHtml(displayLotCode(lot.lot_code,lot))}</div><div><strong>Producto</strong>${escapeHtml(cleanProductName(lot.product))}</div><div><strong>Cantidad</strong>${escapeHtml(formatNumber(movement.quantity))} unidades</div><div><strong>Equivalente</strong>${escapeHtml(Number(lot.package_size)>0?`${formatNumber(eq)} ${lot.package_unit||''}`:'-')}</div><div><strong>Ubicacion</strong>${escapeHtml(lot.location||'-')}</div></div>${movement.notes?`<div class="box"><strong>Referencia</strong>${escapeHtml(movement.notes)}</div>`:''}<script>window.addEventListener('load',()=>window.print())</script></body></html>`)
+    w.document.write(`<!doctype html><html><head><title>Comprobante ${escapeHtml(note.noteNumber || '')}</title><style>body{color:#0f172a;font-family:Arial,sans-serif;margin:24px}h1{margin:0 0 4px}.box{border:1px solid #cbd5e1;border-radius:8px;margin-top:14px;padding:12px}.grid{display:grid;gap:10px;grid-template-columns:repeat(2,1fr)}strong{display:block}table{border-collapse:collapse;margin-top:14px;width:100%}th,td{border-bottom:1px solid #e2e8f0;font-size:13px;padding:6px 8px;text-align:left}th{background:#f1f5f9;font-size:11px;text-transform:uppercase}.r{text-align:right}tfoot td{font-weight:bold}@media print{body{margin:12mm}}</style></head><body><h1>Todo Agricola Boliviana Ltda</h1><p>Comprobante de ${escapeHtml(type)} para ${escapeHtml(clientName)}</p><div class="box grid"><div><strong>Nota</strong>${escapeHtml(note.noteNumber || '-')}</div><div><strong>Fecha</strong>${escapeHtml(formatDate(note.createdAt))}</div><div><strong>Movimiento</strong>${escapeHtml(movementLabel(note.type))}</div><div><strong>Transportista</strong>${escapeHtml(note.transporter || '-')}</div><div><strong>Placa</strong>${escapeHtml(note.plate || '-')}</div><div><strong>Productos</strong>${escapeHtml(String(note.movs.length))}</div></div><table><thead><tr><th>Producto</th><th>Lote</th><th class="r">Cantidad</th><th class="r">Unidades</th></tr></thead><tbody>${rows}</tbody><tfoot><tr><td colspan="2">Total</td><td class="r">${escapeHtml(note.equivalentLabel)}</td><td class="r">${escapeHtml(formatNumber(note.totalUds))} uds</td></tr></tfoot></table>${note.observations?`<div class="box"><strong>Observaciones</strong>${escapeHtml(note.observations)}</div>`:''}<script>window.addEventListener('load',()=>window.print())</script></body></html>`)
     w.document.close()
   }
 
@@ -999,19 +1079,31 @@ export default function ClientPortal({ view = 'inventory' }) {
                 <Link to="/historial" className="text-xs font-bold text-campo-700 hover:underline">Ver todos</Link>
               </div>
               <div className="divide-y divide-slate-100">
-                {movements.slice(0,4).map(m => {
-                  const lot = m.lots || {}
+                {movementNotes.slice(0,4).map(n => {
+                  const firstLot = n.movs[0]?.lots || {}
                   return (
-                    <div key={m.id} className="flex items-center gap-3 px-4 py-3">
-                      <span className={`shrink-0 rounded-lg px-2 py-1 text-[10px] font-black uppercase ${m.type === 'entrada' ? 'bg-campo-100 text-campo-800' : 'bg-red-50 text-red-700'}`}>
-                        {m.type === 'entrada' ? 'Ingreso' : 'Salida'}
+                    <button
+                      key={n.id}
+                      className="flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-slate-50"
+                      type="button"
+                      onClick={() => setSelectedMovement(n)}
+                    >
+                      <span className={`shrink-0 rounded-lg px-2 py-1 text-[10px] font-black uppercase ${n.type === 'entrada' ? 'bg-campo-100 text-campo-800' : 'bg-red-50 text-red-700'}`}>
+                        {n.type === 'entrada' ? 'Ingreso' : 'Salida'}
                       </span>
                       <div className="min-w-0 flex-1">
-                        <p className="text-sm font-bold text-slate-900 truncate">{cleanProductName(lot.product)}</p>
-                        <p className="text-xs font-semibold text-slate-400">{formatDate(m.created_at)}</p>
+                        <p className="truncate text-sm font-bold text-slate-900">
+                          {n.noteNumber ? <span className="font-mono text-campo-700">{n.noteNumber}</span> : cleanProductName(firstLot.product)}
+                        </p>
+                        <p className="text-xs font-semibold text-slate-400">
+                          {n.movs.length > 1 ? `${n.movs.length} productos · ` : ''}{formatDate(n.createdAt)}
+                        </p>
                       </div>
-                      <p className="shrink-0 text-sm font-black text-campo-700">{formatNumber(m.quantity)} uds</p>
-                    </div>
+                      <div className="shrink-0 text-right">
+                        <p className="text-sm font-black text-campo-700">{n.equivalentLabel}</p>
+                        <p className="text-[11px] font-semibold text-slate-400">{formatNumber(n.totalUds)} uds</p>
+                      </div>
+                    </button>
                   )
                 })}
               </div>
@@ -1491,33 +1583,35 @@ export default function ClientPortal({ view = 'inventory' }) {
           ) : (
             <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
               <div className="divide-y divide-slate-100">
-                {movements.map(m => {
-                  const lot = m.lots || {}
-                  const eq  = Number(m.quantity||0) * Number(lot.package_size||0)
+                {movementNotes.map(n => {
+                  const firstLot = n.movs[0]?.lots || {}
                   return (
-                    <div key={m.id} className="flex items-center gap-3 px-4 py-3.5">
-                      <span className={`shrink-0 rounded-lg px-2 py-1.5 text-[10px] font-black uppercase leading-none ${m.type === 'entrada' ? 'bg-campo-100 text-campo-800' : 'bg-red-50 text-red-700'}`}>
-                        {m.type === 'entrada' ? 'Ingreso' : 'Salida'}
+                    <button
+                      key={n.id}
+                      className="flex w-full items-center gap-3 px-4 py-3.5 text-left transition-colors hover:bg-slate-50"
+                      type="button"
+                      onClick={() => setSelectedMovement(n)}
+                    >
+                      <span className={`shrink-0 rounded-lg px-2 py-1.5 text-[10px] font-black uppercase leading-none ${n.type === 'entrada' ? 'bg-campo-100 text-campo-800' : 'bg-red-50 text-red-700'}`}>
+                        {n.type === 'entrada' ? 'Ingreso' : 'Salida'}
                       </span>
                       <div className="min-w-0 flex-1">
-                        <p className="text-sm font-black text-slate-900 [overflow-wrap:anywhere]">{cleanProductName(lot.product)}</p>
+                        <p className="text-sm font-black text-slate-900 [overflow-wrap:anywhere]">
+                          {n.noteNumber ? (
+                            <span className="font-mono text-campo-700">{n.noteNumber}</span>
+                          ) : (
+                            cleanProductName(firstLot.product)
+                          )}
+                        </p>
                         <p className="text-xs font-semibold text-slate-500">
-                          {lotLabel(lot.lot_code, lot)} · {formatDate(m.created_at)}
-                          {Number(lot.package_size) > 0 ? ` · ${formatNumber(eq)} ${lot.package_unit||''}` : ''}
+                          {n.movs.length > 1 ? `${n.movs.length} productos` : cleanProductName(firstLot.product)} · {formatDate(n.createdAt)}
                         </p>
                       </div>
-                      <div className="flex shrink-0 items-center gap-2">
-                        <span className="text-sm font-black text-campo-700">{formatNumber(m.quantity)} uds</span>
-                        <button
-                          className="rounded-lg border border-slate-200 p-1.5 text-slate-400 hover:text-campo-700"
-                          type="button"
-                          title="Imprimir comprobante"
-                          onClick={() => printReceipt(m)}
-                        >
-                          <Printer size={15} />
-                        </button>
+                      <div className="shrink-0 text-right">
+                        <p className="text-sm font-black leading-snug text-campo-700">{n.equivalentLabel}</p>
+                        <p className="text-xs font-semibold text-slate-400">{formatNumber(n.totalUds)} uds</p>
                       </div>
-                    </div>
+                    </button>
                   )
                 })}
               </div>
@@ -1632,27 +1726,46 @@ function RequestProgress({ status }) {
   )
 }
 
-function MovementModal({ movement, clientName, onClose, onPrint }) {
-  const lot = movement.lots || {}
-  const eq  = Number(movement.quantity||0) * Number(lot.package_size||0)
+function MovementModal({ movement: note, clientName, onClose, onPrint }) {
   return (
-    <div className="fixed inset-0 z-50 flex items-end bg-black/40 p-4 sm:items-center sm:justify-center" onClick={onClose}>
-      <section className="w-full max-w-md overflow-y-auto rounded-xl bg-white p-5 shadow-xl" onClick={e => e.stopPropagation()}>
+    <div className="fixed inset-0 z-50 flex items-end overflow-y-auto bg-black/40 p-4 sm:items-center sm:justify-center" onClick={onClose}>
+      <section className="max-h-[92dvh] w-full max-w-md overflow-y-auto rounded-xl bg-white p-5 shadow-xl" onClick={e => e.stopPropagation()}>
         <div className="flex items-start justify-between gap-3">
           <div>
-            <p className="text-xs font-black uppercase text-campo-700">Movimiento · {movementLabel(movement.type)}</p>
-            <h3 className="mt-1 text-lg font-black leading-snug text-slate-950 [overflow-wrap:anywhere]">{cleanProductName(lot.product)}</h3>
+            <p className="text-xs font-black uppercase text-campo-700">{movementLabel(note.type)}</p>
+            <h3 className="mt-1 font-mono text-lg font-black leading-snug text-slate-950">{note.noteNumber || 'Sin nota'}</h3>
+            <p className="text-xs font-semibold text-slate-500">{formatDate(note.createdAt)}</p>
           </div>
           <button className="btn-secondary !min-h-9 !px-2.5" onClick={onClose}><X size={16} /></button>
         </div>
-        <dl className="mt-4 grid gap-2 rounded-xl bg-slate-50 p-3 text-sm">
+
+        <div className="mt-4 space-y-1.5">
+          <p className="text-[10px] font-black uppercase tracking-wide text-slate-400">Productos ({note.movs.length})</p>
+          {note.movs.map(m => {
+            const lot = m.lots || {}
+            return (
+              <div key={m.id} className="flex items-start justify-between gap-3 rounded-lg bg-slate-50 px-3 py-2">
+                <div className="min-w-0">
+                  <p className="text-sm font-bold text-slate-900 [overflow-wrap:anywhere]">{cleanProductName(lot.product)}</p>
+                  <p className="text-[11px] font-semibold text-slate-400">Lote: {displayLotCode(lot.lot_code, lot)}</p>
+                </div>
+                <div className="shrink-0 text-right">
+                  <p className="text-sm font-black text-campo-700">{movementEquivalentLabel(m)}</p>
+                  <p className="text-[11px] font-semibold text-slate-400">{formatNumber(m.quantity)} uds</p>
+                </div>
+              </div>
+            )
+          })}
+        </div>
+
+        <dl className="mt-3 grid gap-2 rounded-xl bg-slate-50 p-3 text-sm">
           {[
-            ['Fecha',       formatDate(movement.created_at)],
-            ['Lote',        displayLotCode(lot.lot_code, lot)],
-            ['Unidades',     `${formatNumber(movement.quantity)} uds`],
-            ['Equivalente', Number(lot.package_size) > 0 ? `${formatNumber(eq)} ${lot.package_unit||''}` : 'Sin dato'],
-            ['Ubicación',   lot.location || '-'],
-          ].map(([label, val]) => (
+            ['Cantidad total', note.equivalentLabel],
+            ['Total unidades', `${formatNumber(note.totalUds)} uds`],
+            note.transporter ? ['Transportista', note.transporter] : null,
+            note.plate ? ['Placa', note.plate] : null,
+            note.observations ? ['Observaciones', note.observations] : null,
+          ].filter(Boolean).map(([label, val]) => (
             <div key={label} className="flex items-start justify-between gap-3">
               <dt className="font-semibold text-slate-500">{label}</dt>
               <dd className="font-black text-slate-900 text-right [overflow-wrap:anywhere]">{val}</dd>

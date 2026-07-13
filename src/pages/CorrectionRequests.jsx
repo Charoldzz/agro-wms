@@ -568,7 +568,7 @@ function operationMetadata(group) {
   const notes = group.items[0]?.notes || ''
   return {
     vehiclePlate: operation?.vehicle_plate || noteValue(notes, 'Placa'),
-    receiverName: operation?.receiver_name || noteValue(notes, 'Recibe'),
+    receiverName: operation?.receiver_name || noteValue(notes, 'Transportista') || noteValue(notes, 'Recibe'),
     receiverDocument: operation?.receiver_document || noteValue(notes, 'Documento'),
     driverName: operation?.driver_name || noteValue(notes, 'Chofer'),
     driverDocument: operation?.driver_document || noteValue(notes, 'CI chofer'),
@@ -589,7 +589,7 @@ function visibleMovementNotes(notes) {
   return String(notes || '')
     .split('|')
     .map((part) => part.trim())
-    .filter((part) => part && !part.startsWith('Placa:') && !part.startsWith('Recibe:') && !part.startsWith('Documento:') && !part.startsWith('Chofer:') && !part.startsWith('CI chofer:') && part !== 'Despacho por lista' && part !== 'Nuevo ingreso desde almacen.')
+    .filter((part) => part && !part.startsWith('Placa:') && !part.startsWith('Recibe:') && !part.startsWith('Transportista:') && !part.startsWith('Documento:') && !part.startsWith('Chofer:') && !part.startsWith('CI chofer:') && part !== 'Despacho por lista' && part !== 'Despacho manual (app)' && part !== 'Despacho de solicitud del cliente' && part !== 'Ingreso manual (app)' && part !== 'Nuevo ingreso desde almacen.')
     .join(' | ')
 }
 
