@@ -8,6 +8,7 @@ import { formatDate, formatNumber, movementLabel } from '../lib/format'
 import { createLotQrDataUrl } from '../lib/qr'
 import { supabase } from '../lib/supabase'
 import { cleanProductName, displayLotCode, productCodeLabel } from '../lib/display'
+import { desgloseEnvases } from '../lib/envases'
 import { isNetworkMovementError, queueMovement } from '../lib/offlineQueue'
 import { compressImageFile } from '../lib/image'
 import { vibrateError, vibrateSuccess } from '../lib/haptics'
@@ -15,6 +16,14 @@ import ConfirmChecks, { allConfirmChecksDone, emptyConfirmChecks } from '../comp
 import OperationalIssueModal from '../components/OperationalIssueModal'
 import { clearDraft, readDraft, writeDraft } from '../lib/drafts'
 import { internalLocations } from '../lib/locations'
+
+// Unidades disponibles con su tipo de envase ("30 bolsas", "53 bidones + 15 lt")
+function unidadesEnvaseLabel(lot) {
+  const size = Number(lot?.package_size) || 0
+  const qty = Number(lot?.current_quantity) || 0
+  const eqRaw = size > 0 ? qty * size : qty
+  return desgloseEnvases(eqRaw, size, lot?.package_unit, 0).unidadesLabel || `${formatNumber(qty)} uds`
+}
 
 const initialMovement = {
   type: 'entrada',
@@ -765,15 +774,15 @@ export default function LotDetail() {
 
           <div className="p-4">
             <div className="grid gap-3 sm:grid-cols-2">
-              <div className="rounded-lg bg-slate-50 p-4">
-                <p className="text-xs font-bold uppercase text-slate-500">Unidades disponibles</p>
-                <p className="mt-1 text-4xl font-black text-slate-950">{formatNumber(lot.current_quantity)}</p>
-              </div>
               <div className="rounded-lg bg-campo-50 p-4">
                 <p className="text-xs font-bold uppercase text-campo-700">Equivalente actual</p>
-                <p className="mt-1 text-3xl font-black text-campo-800">
+                <p className="mt-1 text-4xl font-black text-campo-800">
                   {Number(lot.package_size) > 0 ? `${formatNumber(currentEquivalent)} ${lot.package_unit || ''}` : 'Sin dato'}
                 </p>
+              </div>
+              <div className="rounded-lg bg-slate-50 p-4">
+                <p className="text-xs font-bold uppercase text-slate-500">Unidades disponibles</p>
+                <p className="mt-1 text-2xl font-black leading-snug text-slate-950 sm:text-3xl [overflow-wrap:anywhere]">{unidadesEnvaseLabel(lot)}</p>
               </div>
             </div>
 
@@ -817,15 +826,15 @@ export default function LotDetail() {
 
             <div className="p-4">
               <div className="grid gap-3 sm:grid-cols-2">
-                <div className="rounded-lg bg-slate-50 p-4">
-                  <p className="text-xs font-bold uppercase text-slate-500">Unidades disponibles</p>
-                  <p className="mt-1 text-4xl font-black text-slate-950">{formatNumber(lot.current_quantity)}</p>
-                </div>
                 <div className="rounded-lg bg-campo-50 p-4">
                   <p className="text-xs font-bold uppercase text-campo-700">Equivalente actual</p>
-                  <p className="mt-1 text-3xl font-black text-campo-800">
+                  <p className="mt-1 text-4xl font-black text-campo-800">
                     {Number(lot.package_size) > 0 ? `${formatNumber(currentEquivalent)} ${lot.package_unit || ''}` : 'Sin dato'}
                   </p>
+                </div>
+                <div className="rounded-lg bg-slate-50 p-4">
+                  <p className="text-xs font-bold uppercase text-slate-500">Unidades disponibles</p>
+                  <p className="mt-1 text-2xl font-black leading-snug text-slate-950 sm:text-3xl [overflow-wrap:anywhere]">{unidadesEnvaseLabel(lot)}</p>
                 </div>
               </div>
 
@@ -897,14 +906,14 @@ export default function LotDetail() {
           {/* Metrics */}
           <div className="grid grid-cols-2 divide-x divide-slate-100 border-b border-slate-100">
             <div className="px-4 py-4 sm:px-5">
-              <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">Unidades</p>
-              <p className="mt-1 text-2xl font-black text-slate-900 sm:text-3xl [overflow-wrap:anywhere]">{formatNumber(lot.current_quantity)}</p>
-            </div>
-            <div className="px-4 py-4 sm:px-5">
               <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">Equivalente</p>
               <p className="mt-1 text-2xl font-black text-campo-700 sm:text-3xl [overflow-wrap:anywhere]">
                 {Number(lot.package_size) > 0 ? `${formatNumber(currentEquivalent)} ${lot.package_unit || ''}` : '—'}
               </p>
+            </div>
+            <div className="px-4 py-4 sm:px-5">
+              <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">Unidades</p>
+              <p className="mt-1 text-xl font-black leading-snug text-slate-900 sm:text-2xl [overflow-wrap:anywhere]">{unidadesEnvaseLabel(lot)}</p>
             </div>
           </div>
 
