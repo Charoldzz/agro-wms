@@ -716,11 +716,12 @@ export default function ClientPortal({ view = 'inventory' }) {
   .datos .v { font-size: 13px; font-weight: bold; margin-top: 2px; }
   .obs { grid-column: 1 / -1; }
   table { border-collapse: collapse; width: 100%; }
-  th, td { border-bottom: 1px solid #e2e8f0; font-size: 11.5px; font-variant-numeric: tabular-nums; padding: 8px 7px; text-align: left; vertical-align: top; }
+  th, td { border-bottom: 1px solid #e2e8f0; font-size: 12px; font-variant-numeric: tabular-nums; padding: 8px 7px; text-align: left; vertical-align: top; }
+  td { color: #0f172a; font-weight: 500; }
   th { background: #f1f5f9; color: #334155; font-size: 9.5px; font-weight: 600; letter-spacing: 1px; text-transform: uppercase; }
   td.c, th.c { text-align: center; }
   td.r, th.r { text-align: right; }
-  .mono { font-size: 11px; letter-spacing: 0.3px; }
+  .mono { letter-spacing: 0.3px; }
   .muted { }
   tfoot td { background: #f0fdf4; border-bottom: none; border-top: 2px solid #15803d; color: #14532d; font-size: 12.5px; font-weight: bold; padding: 9px 7px; }
   .foot { color: #94a3b8; font-size: 9.5px; margin-top: 30px; text-align: center; }
