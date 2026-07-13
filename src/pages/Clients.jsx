@@ -3,7 +3,7 @@ import { Edit2, Save, UserPlus, X } from 'lucide-react'
 import EmptyState from '../components/EmptyState'
 import PageHeader from '../components/PageHeader'
 import { useAuth } from '../hooks/useAuth.jsx'
-import { supabase, createPortalUser } from '../lib/supabase'
+import { supabase, inviteUser } from '../lib/supabase'
 import { formatNumber } from '../lib/format'
 import { lotBillingPallets } from '../lib/pallets'
 
@@ -32,10 +32,15 @@ export default function Clients() {
   const [showForm, setShowForm] = useState(false)
   const [clientStats, setClientStats] = useState({})
   const [showPortalForm, setShowPortalForm] = useState(false)
-  const [portalForm, setPortalForm] = useState({ email: '', password: '' })
+  const [portalEmail, setPortalEmail] = useState('')
   const [portalMsg, setPortalMsg] = useState('')
   const [portalError, setPortalError] = useState('')
   const [creatingUser, setCreatingUser] = useState(false)
+  const [showOperForm, setShowOperForm] = useState(false)
+  const [operForm, setOperForm] = useState({ name: '', email: '' })
+  const [operMsg, setOperMsg] = useState('')
+  const [operError, setOperError] = useState('')
+  const [invitingOper, setInvitingOper] = useState(false)
 
   useEffect(() => {
     loadClients()
@@ -103,31 +108,52 @@ export default function Clients() {
   function openClientDetail(client) {
     setSelectedClient(client)
     setShowPortalForm(false)
-    setPortalForm({ email: '', password: '' })
+    setPortalEmail('')
     setPortalMsg('')
     setPortalError('')
   }
 
-  async function handleCreatePortalUser(event) {
+  async function handleInvitePortalUser(event) {
     event.preventDefault()
     if (!selectedClient) return
     setPortalError('')
     setCreatingUser(true)
     try {
-      const email = portalForm.email.trim().toLowerCase()
-      await createPortalUser({
+      const email = portalEmail.trim().toLowerCase()
+      await inviteUser({
         email,
-        password: portalForm.password,
+        role: 'cliente',
         clientId: selectedClient.id,
         fullName: selectedClient.name,
       })
-      setPortalMsg(`Cuenta creada: ${email} ya puede entrar al portal de ${selectedClient.name}.`)
+      setPortalMsg(`Invitación enviada a ${email}. Cuando cree su contraseña entrará directo al portal de ${selectedClient.name}.`)
       setShowPortalForm(false)
-      setPortalForm({ email: '', password: '' })
+      setPortalEmail('')
     } catch (err) {
       setPortalError(err.message)
     } finally {
       setCreatingUser(false)
+    }
+  }
+
+  async function handleInviteOperator(event) {
+    event.preventDefault()
+    setOperError('')
+    setInvitingOper(true)
+    try {
+      const email = operForm.email.trim().toLowerCase()
+      await inviteUser({
+        email,
+        role: 'operador',
+        fullName: operForm.name.trim() || null,
+      })
+      setOperMsg(`Invitación enviada a ${email}. Cuando cree su contraseña entrará como operador.`)
+      setShowOperForm(false)
+      setOperForm({ name: '', email: '' })
+    } catch (err) {
+      setOperError(err.message)
+    } finally {
+      setInvitingOper(false)
     }
   }
 
@@ -150,8 +176,55 @@ export default function Clients() {
       <PageHeader
         title="Clientes"
         subtitle="Lista compacta de clientes"
-        action={null}
+        action={isAdmin ? (
+          <button className="btn-secondary w-full sm:w-auto" type="button" onClick={() => { setShowOperForm(!showOperForm); setOperMsg(''); setOperError('') }}>
+            <UserPlus size={18} /> Invitar operador
+          </button>
+        ) : null}
       />
+
+      {operMsg ? (
+        <p className="mb-4 rounded-lg bg-campo-50 px-3 py-2 text-sm font-bold text-campo-800">{operMsg}</p>
+      ) : null}
+
+      {showOperForm && isAdmin ? (
+        <form className="panel mb-4 space-y-3" onSubmit={handleInviteOperator}>
+          <div className="flex items-center justify-between gap-3">
+            <h3 className="font-bold text-slate-900">Invitar operador</h3>
+            <button className="btn-secondary !min-h-10 !px-3" type="button" onClick={() => setShowOperForm(false)}>
+              <X size={18} />
+            </button>
+          </div>
+          <label className="block">
+            <span className="label">Nombre del operador</span>
+            <input
+              className="input mt-1"
+              required
+              placeholder="Ej: Juan Pérez"
+              value={operForm.name}
+              onChange={(event) => setOperForm({ ...operForm, name: event.target.value })}
+            />
+          </label>
+          <label className="block">
+            <span className="label">Correo</span>
+            <input
+              className="input mt-1"
+              type="email"
+              required
+              placeholder="correo@ejemplo.com"
+              value={operForm.email}
+              onChange={(event) => setOperForm({ ...operForm, email: event.target.value })}
+            />
+          </label>
+          <p className="text-xs font-semibold text-slate-400">
+            Le llegará un correo para crear su contraseña. Al entrar verá las pantallas de operador.
+          </p>
+          {operError ? <p className="text-xs font-bold text-red-600">{operError}</p> : null}
+          <button className="btn-primary w-full" type="submit" disabled={invitingOper}>
+            <UserPlus size={18} /> {invitingOper ? 'Enviando...' : 'Enviar invitación'}
+          </button>
+        </form>
+      ) : null}
 
       {showForm && isAdmin ? (
         <form className="panel mb-4 space-y-3" onSubmit={handleSubmit}>
@@ -249,7 +322,7 @@ export default function Clients() {
                   <p className="mt-2 rounded-lg bg-campo-50 px-3 py-2 text-sm font-bold text-campo-800">{portalMsg}</p>
                 ) : null}
                 {showPortalForm ? (
-                  <form className="mt-2 space-y-2" onSubmit={handleCreatePortalUser}>
+                  <form className="mt-2 space-y-2" onSubmit={handleInvitePortalUser}>
                     <label className="block">
                       <span className="label">Correo del cliente</span>
                       <input
@@ -257,26 +330,17 @@ export default function Clients() {
                         type="email"
                         required
                         placeholder="correo@empresa.com"
-                        value={portalForm.email}
-                        onChange={(event) => setPortalForm({ ...portalForm, email: event.target.value })}
+                        value={portalEmail}
+                        onChange={(event) => setPortalEmail(event.target.value)}
                       />
                     </label>
-                    <label className="block">
-                      <span className="label">Contraseña (mínimo 6)</span>
-                      <input
-                        className="input mt-1 w-full font-mono"
-                        type="text"
-                        required
-                        minLength={6}
-                        placeholder="Contraseña para entregarle"
-                        value={portalForm.password}
-                        onChange={(event) => setPortalForm({ ...portalForm, password: event.target.value })}
-                      />
-                    </label>
+                    <p className="text-xs font-semibold text-slate-400">
+                      Le llegará un correo para crear su contraseña. Al entrar verá solo el portal de {selectedClient.name}.
+                    </p>
                     {portalError ? <p className="text-xs font-bold text-red-600">{portalError}</p> : null}
                     <div className="flex gap-2">
                       <button className="btn-primary flex-1" type="submit" disabled={creatingUser}>
-                        <UserPlus size={18} /> {creatingUser ? 'Creando...' : 'Crear cuenta'}
+                        <UserPlus size={18} /> {creatingUser ? 'Enviando...' : 'Enviar invitación'}
                       </button>
                       <button className="btn-secondary !px-3" type="button" onClick={() => { setShowPortalForm(false); setPortalError('') }}>
                         Cancelar
@@ -285,7 +349,7 @@ export default function Clients() {
                   </form>
                 ) : (
                   <button className="btn-secondary mt-2 w-full" type="button" onClick={() => { setShowPortalForm(true); setPortalMsg('') }}>
-                    <UserPlus size={18} /> Crear usuario de portal
+                    <UserPlus size={18} /> Invitar usuario de portal
                   </button>
                 )}
               </div>

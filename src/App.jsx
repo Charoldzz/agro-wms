@@ -1,5 +1,7 @@
+import { useState } from 'react'
 import { Navigate, Route, Routes } from 'react-router-dom'
 import { AuthProvider, useAuth } from './hooks/useAuth.jsx'
+import SetPassword from './pages/SetPassword'
 import AppLayout from './components/AppLayout'
 import ConfigWarning from './components/ConfigWarning'
 import AppVersion from './components/AppVersion'
@@ -28,7 +30,7 @@ import CorrectionRequests from './pages/CorrectionRequests'
 import AdminExports from './pages/AdminExports'
 import Backups from './pages/Backups'
 import ProductCatalog from './pages/ProductCatalog'
-import { isSupabaseConfigured } from './lib/supabase'
+import { isSupabaseConfigured, SET_PASSWORD_FLAG } from './lib/supabase'
 
 function ProtectedRoute({ children }) {
   const { user, profile, loading, profileLoading } = useAuth()
@@ -50,8 +52,22 @@ function RoleRoute({ roles, children }) {
 }
 
 function AppRoutes() {
-  const { profile, profileLoading } = useAuth()
+  const { user, profile, profileLoading } = useAuth()
+  const [needsPassword, setNeedsPassword] = useState(() => sessionStorage.getItem(SET_PASSWORD_FLAG) === '1')
   if (profileLoading && !profile) return <LoadingScreen />
+
+  // Usuario que llegó por link de invitación o recuperación: primero su contraseña
+  if (needsPassword && user) {
+    return (
+      <SetPassword
+        onDone={() => {
+          sessionStorage.removeItem(SET_PASSWORD_FLAG)
+          setNeedsPassword(false)
+          window.location.hash = '#/'
+        }}
+      />
+    )
+  }
 
   const homeElement = profile?.role === 'cliente' ? <ClientPortal /> : <Navigate to="/lotes" replace />
 
