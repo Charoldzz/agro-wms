@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react'
-import { Edit2, Save, X } from 'lucide-react'
+import { Edit2, Save, UserPlus, X } from 'lucide-react'
 import EmptyState from '../components/EmptyState'
 import PageHeader from '../components/PageHeader'
 import { useAuth } from '../hooks/useAuth.jsx'
-import { supabase } from '../lib/supabase'
+import { supabase, createPortalUser } from '../lib/supabase'
 import { formatNumber } from '../lib/format'
 import { lotBillingPallets } from '../lib/pallets'
 
@@ -31,6 +31,11 @@ export default function Clients() {
   const [selectedClient, setSelectedClient] = useState(null)
   const [showForm, setShowForm] = useState(false)
   const [clientStats, setClientStats] = useState({})
+  const [showPortalForm, setShowPortalForm] = useState(false)
+  const [portalForm, setPortalForm] = useState({ email: '', password: '' })
+  const [portalMsg, setPortalMsg] = useState('')
+  const [portalError, setPortalError] = useState('')
+  const [creatingUser, setCreatingUser] = useState(false)
 
   useEffect(() => {
     loadClients()
@@ -93,6 +98,37 @@ export default function Clients() {
     setEditingId(null)
     setForm(initialForm)
     setShowForm(false)
+  }
+
+  function openClientDetail(client) {
+    setSelectedClient(client)
+    setShowPortalForm(false)
+    setPortalForm({ email: '', password: '' })
+    setPortalMsg('')
+    setPortalError('')
+  }
+
+  async function handleCreatePortalUser(event) {
+    event.preventDefault()
+    if (!selectedClient) return
+    setPortalError('')
+    setCreatingUser(true)
+    try {
+      const email = portalForm.email.trim().toLowerCase()
+      await createPortalUser({
+        email,
+        password: portalForm.password,
+        clientId: selectedClient.id,
+        fullName: selectedClient.name,
+      })
+      setPortalMsg(`Cuenta creada: ${email} ya puede entrar al portal de ${selectedClient.name}.`)
+      setShowPortalForm(false)
+      setPortalForm({ email: '', password: '' })
+    } catch (err) {
+      setPortalError(err.message)
+    } finally {
+      setCreatingUser(false)
+    }
   }
 
   async function handleSubmit(event) {
@@ -162,7 +198,7 @@ export default function Clients() {
           clients.map((client) => (
             <article key={client.id} className="rounded-lg border border-slate-200 bg-white/95 px-3 py-3 shadow-soft">
               <div className="flex items-center justify-between gap-3">
-                <button className="min-w-0 flex-1 text-left" type="button" onClick={() => setSelectedClient(client)}>
+                <button className="min-w-0 flex-1 text-left" type="button" onClick={() => openClientDetail(client)}>
                   <h3 className="truncate text-sm font-bold text-slate-900">{client.name}</h3>
                   <p className="truncate text-xs font-semibold text-campo-700">
                     {formatNumber(clientStats[client.id]?.quantity || 0)} unidades · — pallets
@@ -205,6 +241,55 @@ export default function Clients() {
                 <Info label="Observaciones" value={cleanClientNotes(selectedClient.notes)} />
               ) : null}
             </div>
+
+            {isAdmin ? (
+              <div className="mt-4 rounded-lg border border-slate-200 p-3">
+                <p className="text-xs font-semibold uppercase text-slate-400">Usuario del portal</p>
+                {portalMsg ? (
+                  <p className="mt-2 rounded-lg bg-campo-50 px-3 py-2 text-sm font-bold text-campo-800">{portalMsg}</p>
+                ) : null}
+                {showPortalForm ? (
+                  <form className="mt-2 space-y-2" onSubmit={handleCreatePortalUser}>
+                    <label className="block">
+                      <span className="label">Correo del cliente</span>
+                      <input
+                        className="input mt-1 w-full"
+                        type="email"
+                        required
+                        placeholder="correo@empresa.com"
+                        value={portalForm.email}
+                        onChange={(event) => setPortalForm({ ...portalForm, email: event.target.value })}
+                      />
+                    </label>
+                    <label className="block">
+                      <span className="label">Contraseña (mínimo 6)</span>
+                      <input
+                        className="input mt-1 w-full font-mono"
+                        type="text"
+                        required
+                        minLength={6}
+                        placeholder="Contraseña para entregarle"
+                        value={portalForm.password}
+                        onChange={(event) => setPortalForm({ ...portalForm, password: event.target.value })}
+                      />
+                    </label>
+                    {portalError ? <p className="text-xs font-bold text-red-600">{portalError}</p> : null}
+                    <div className="flex gap-2">
+                      <button className="btn-primary flex-1" type="submit" disabled={creatingUser}>
+                        <UserPlus size={18} /> {creatingUser ? 'Creando...' : 'Crear cuenta'}
+                      </button>
+                      <button className="btn-secondary !px-3" type="button" onClick={() => { setShowPortalForm(false); setPortalError('') }}>
+                        Cancelar
+                      </button>
+                    </div>
+                  </form>
+                ) : (
+                  <button className="btn-secondary mt-2 w-full" type="button" onClick={() => { setShowPortalForm(true); setPortalMsg('') }}>
+                    <UserPlus size={18} /> Crear usuario de portal
+                  </button>
+                )}
+              </div>
+            ) : null}
 
             {isAdmin ? (
               <button
