@@ -1,5 +1,5 @@
 import { Outlet, NavLink, useLocation, useNavigate } from 'react-router-dom'
-import { ArrowLeft, BarChart2, Boxes, ClipboardCheck, ClipboardList, LogOut, PackagePlus, RefreshCcw, ShieldAlert, Truck, Wifi, WifiOff } from 'lucide-react'
+import { ArrowLeft, Boxes, ClipboardCheck, ClipboardList, LogOut, PackagePlus, RefreshCcw, ShieldAlert, Truck, Wifi, WifiOff } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../hooks/useAuth.jsx'
@@ -18,9 +18,9 @@ const clienteNavItems = [
   { to: '/historial', label: 'Movimientos', icon: ClipboardList },
 ]
 
+// El Kardex se abre desde el botón "Ver Kardex" de Almacenes (la pestaña era redundante)
 const operadorNavItems = [
   { to: '/lotes',  label: 'Almacenes', icon: Boxes },
-  { to: '/kardex', label: 'Kardex',    icon: BarChart2 },
 ]
 
 export default function AppLayout() {
