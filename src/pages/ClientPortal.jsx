@@ -703,7 +703,6 @@ export default function ClientPortal({ view = 'inventory' }) {
     }).join('')
     const w = window.open('','_blank'); if(!w) return
     w.document.write(`<!doctype html><html><head><title>Comprobante ${escapeHtml(note.noteNumber || '')}</title>
-<meta name="viewport" content="width=device-width, initial-scale=1" />
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&display=swap" rel="stylesheet" />
@@ -732,11 +731,6 @@ export default function ClientPortal({ view = 'inventory' }) {
   tfoot td { background: #f0fdf4; border-bottom: none; border-top: 2px solid #15803d; color: #14532d; font-size: 12.5px; font-weight: bold; padding: 9px 7px; }
   .foot { color: #94a3b8; font-size: 9.5px; margin-top: 30px; text-align: center; }
   .print-btn { background: #15803d; border: none; border-radius: 8px; bottom: 20px; box-shadow: 0 4px 12px rgba(15, 23, 42, 0.25); color: #fff; cursor: pointer; font-size: 13px; font-weight: bold; padding: 10px 18px; position: fixed; right: 20px; }
-  @media (max-width: 640px) {
-    body { margin: 16px; }
-    .top { align-items: flex-start; flex-direction: column; }
-    .datos { grid-template-columns: 1fr 1fr; }
-  }
   @media print { body { margin: 10mm; } .print-btn { display: none; } }
 </style></head><body>
 <button class="print-btn" onclick="window.print()">Imprimir / Guardar PDF</button>
