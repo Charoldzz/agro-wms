@@ -8,6 +8,16 @@ function escapeHtml(value) {
     .replaceAll('"', '&quot;')
 }
 
+// Fuentes institucionales de los documentos (Bebas Neue + Inter), servidas
+// desde la propia app (public/fonts/) — siempre disponibles, sin depender de Google.
+export function docFontsCss() {
+  const base = `${window.location.origin}/fonts`
+  return `
+    @font-face { font-family: 'Bebas Neue'; font-style: normal; font-weight: 400; font-display: swap; src: url('${base}/bebas-neue-400.woff2') format('woff2'); }
+    @font-face { font-family: 'Inter'; font-style: normal; font-weight: 100 900; font-display: swap; src: url('${base}/inter-var.woff2') format('woff2'); }
+  `
+}
+
 // Total de la nota en equivalente, separado por unidad ("475 lts · 515 kgs").
 // Los items sin presentación no suman (regla: nunca mezclar uds con lts/kgs).
 export function totalEquivalente(rows) {
@@ -64,11 +74,9 @@ function openOperationNote({ tipo, guide, empresa, contacto, transportista, plac
 <html>
   <head>
     <title>${escapeHtml(titulo)} ${escapeHtml(guide)}</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&display=swap" rel="stylesheet" />
     <style>
-      body { color: #0f172a; font-family: 'Segoe UI', 'Helvetica Neue', Helvetica, Arial, sans-serif; margin: 26px 30px; }
+      ${docFontsCss()}
+      body { color: #0f172a; font-family: 'Inter', 'Segoe UI', 'Helvetica Neue', Helvetica, Arial, sans-serif; margin: 26px 30px; }
       .top { align-items: center; border-bottom: 3px solid #15803d; display: flex; gap: 16px; justify-content: space-between; padding-bottom: 14px; }
       .brand { align-items: center; display: flex; gap: 14px; }
       .brand img { height: 54px; width: auto; }
