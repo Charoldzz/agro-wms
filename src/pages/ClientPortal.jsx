@@ -216,8 +216,13 @@ function requestStepIndex(status) {
 
 /* ─── draft ────────────────────────────────────────────────────────── */
 const DRAFT_KEY = 'todo-agricola-client-dispatch-draft'
+const EMPTY_DRAFT = { lotId:'', quantity:'', notes:'', items:[], transporter: { name:'', ci:'', plate:'' } }
 function readDraft() {
-  try { const d = JSON.parse(localStorage.getItem(DRAFT_KEY) || 'null'); return d || { lotId:'', quantity:'', notes:'', items:[] } } catch { return { lotId:'', quantity:'', notes:'', items:[] } }
+  try {
+    const d = JSON.parse(localStorage.getItem(DRAFT_KEY) || 'null')
+    if (!d) return EMPTY_DRAFT
+    return { ...EMPTY_DRAFT, ...d, transporter: { ...EMPTY_DRAFT.transporter, ...(d.transporter || {}) } }
+  } catch { return EMPTY_DRAFT }
 }
 function writeDraft(d) { localStorage.setItem(DRAFT_KEY, JSON.stringify(d)) }
 function clearDraft()  { localStorage.removeItem(DRAFT_KEY) }
@@ -251,7 +256,7 @@ export default function ClientPortal({ view = 'inventory' }) {
   const [editingLotId,   setEditingLotId]    = useState('')
   const [reqMessage,     setReqMessage]      = useState('')
   const [reqSuccess,     setReqSuccess]      = useState(null)
-  const [reqTransporter, setReqTransporter]  = useState({ name: '', ci: '', plate: '' })
+  const [reqTransporter, setReqTransporter]  = useState(initialDraft.transporter)
   const [reqAttachFile,  setReqAttachFile]   = useState(null)
   const [reqUploading,   setReqUploading]    = useState(false)
   const [editingRequestId, setEditingRequestId] = useState(null)
@@ -259,7 +264,7 @@ export default function ClientPortal({ view = 'inventory' }) {
   const [cancelingId,    setCancelingId]     = useState(null)
 
   useEffect(() => { if (user?.id && profile) loadData() }, [user?.id, profile?.client_id])
-  useEffect(() => { writeDraft({ lotId: reqLotId, quantity: reqQuantity, notes: reqNotes, items: reqItems }) }, [reqLotId, reqQuantity, reqNotes, reqItems])
+  useEffect(() => { writeDraft({ lotId: reqLotId, quantity: reqQuantity, notes: reqNotes, items: reqItems, transporter: reqTransporter }) }, [reqLotId, reqQuantity, reqNotes, reqItems, reqTransporter])
 
   async function loadData() {
     setLoading(true)
