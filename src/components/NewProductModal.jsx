@@ -17,13 +17,18 @@ function parseCatalogCode(code) {
   return { prefix: match[1], number: parseInt(match[2], 10), width: match[2].length }
 }
 
-// Sufijo de presentación para sugerir en el nombre: "4x5 LT" o "X 20 LT"
+// Sufijo de presentación para sugerir en el nombre: "4x5 LTS" o "X 20 LTS"
+// (plural LTS/KGS cuando el tamaño es mayor a 1; LT/KG en singular)
 function buildNameSuffix(upb, size, unit) {
   const s = String(size || '').trim()
-  if (!s || !(Number(s.replace(',', '.')) > 0)) return ''
-  const u = String(unit || '').toUpperCase()
-  const n = Number(upb)
-  return n > 0 ? `${n}x${s} ${u}` : `X ${s} ${u}`
+  const value = Number(s.replace(',', '.'))
+  if (!s || !(value > 0)) return ''
+  let u = String(unit || '').toLowerCase()
+  if (u === 'lt') u = value === 1 ? 'LT' : 'LTS'
+  else if (u === 'kg') u = value === 1 ? 'KG' : 'KGS'
+  else u = u.toUpperCase()
+  const per = Number(upb)
+  return per > 0 ? `${per}x${s} ${u}` : `X ${s} ${u}`
 }
 
 function nextCodeForClient(existingCodes, fallbackPrefix = '') {
