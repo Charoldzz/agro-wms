@@ -1482,6 +1482,32 @@ export default function ClientPortal({ view = 'inventory' }) {
 
                   {transporterComplete && (<>
 
+                  {/* Nota adjunta — es de la OPERACIÓN, va junto a los datos del transportista */}
+                  <div className="space-y-1.5">
+                    <span className="text-xs font-black uppercase tracking-wide text-slate-500">Nota adjunta (opcional)</span>
+                    <p className="text-[10px] font-semibold text-slate-400">PDF, imagen o Excel — se imprime y entrega con el producto</p>
+                    <label className="flex cursor-pointer items-center gap-3 rounded-xl border border-dashed border-slate-300 bg-slate-50 px-4 py-3 transition hover:border-campo-400 hover:bg-campo-50">
+                      <Paperclip size={15} className="shrink-0 text-slate-400" />
+                      <span className="min-w-0 truncate text-sm font-semibold text-slate-500">
+                        {reqAttachFile ? reqAttachFile.name : 'Seleccionar archivo...'}
+                      </span>
+                      <input type="file" className="hidden" accept=".pdf,.xlsx,.xls,.jpg,.jpeg,.png" onChange={e => setReqAttachFile(e.target.files?.[0] || null)} />
+                    </label>
+                    {reqAttachFile && (
+                      <button type="button" className="text-xs font-bold text-red-500 hover:underline" onClick={() => setReqAttachFile(null)}>
+                        Quitar adjunto
+                      </button>
+                    )}
+                    {editingRequestId && existingAttachment && !reqAttachFile && (
+                      <p className="text-[10px] font-semibold text-slate-400">
+                        Ya hay una nota adjunta — se mantiene si no seleccionas otro archivo.
+                        <button type="button" className="ml-2 font-bold text-red-500 hover:underline" onClick={() => setExistingAttachment(null)}>
+                          Quitarla
+                        </button>
+                      </p>
+                    )}
+                  </div>
+
                   {/* Paso 1: producto y lote en una sola lista */}
                   <label className="block">
                     <span className="text-xs font-black uppercase tracking-wide text-slate-500">1 · Producto y lote</span>
@@ -1633,34 +1659,6 @@ export default function ClientPortal({ view = 'inventory' }) {
                         </div>
                         )
                       })}
-                    </div>
-                  )}
-
-                  {/* Nota adjunta */}
-                  {reqItems.length > 0 && (
-                    <div className="space-y-1.5">
-                      <span className="text-xs font-black uppercase tracking-wide text-slate-500">Nota adjunta (opcional)</span>
-                      <p className="text-[10px] font-semibold text-slate-400">PDF, imagen o Excel — se imprime y entrega con el producto</p>
-                      <label className="flex cursor-pointer items-center gap-3 rounded-xl border border-dashed border-slate-300 bg-slate-50 px-4 py-3 transition hover:border-campo-400 hover:bg-campo-50">
-                        <Paperclip size={15} className="shrink-0 text-slate-400" />
-                        <span className="min-w-0 truncate text-sm font-semibold text-slate-500">
-                          {reqAttachFile ? reqAttachFile.name : 'Seleccionar archivo...'}
-                        </span>
-                        <input type="file" className="hidden" accept=".pdf,.xlsx,.xls,.jpg,.jpeg,.png" onChange={e => setReqAttachFile(e.target.files?.[0] || null)} />
-                      </label>
-                      {reqAttachFile && (
-                        <button type="button" className="text-xs font-bold text-red-500 hover:underline" onClick={() => setReqAttachFile(null)}>
-                          Quitar adjunto
-                        </button>
-                      )}
-                      {editingRequestId && existingAttachment && !reqAttachFile && (
-                        <p className="text-[10px] font-semibold text-slate-400">
-                          Ya hay una nota adjunta — se mantiene si no seleccionas otro archivo.
-                          <button type="button" className="ml-2 font-bold text-red-500 hover:underline" onClick={() => setExistingAttachment(null)}>
-                            Quitarla
-                          </button>
-                        </p>
-                      )}
                     </div>
                   )}
 
