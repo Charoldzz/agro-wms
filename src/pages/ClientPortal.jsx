@@ -10,7 +10,7 @@ import {
 import EmptyState from '../components/EmptyState'
 import ListProductCard from '../components/ListProductCard'
 import { useAuth } from '../hooks/useAuth.jsx'
-import { cleanProductName, displayLotCode, lotLabel, packageLabel, productCode, productCodeLabel, unitsPerBoxFromName } from '../lib/display'
+import { cleanProductName, displayLotCode, lotLabel, packageLabel, productCode, productCodeLabel } from '../lib/display'
 import { desgloseEnvases } from '../lib/envases'
 import { normalizeDispatchRequests } from '../lib/dispatchRequests'
 import { formatDate, formatDateOnly, formatNumber, movementLabel } from '../lib/format'
@@ -321,7 +321,9 @@ export default function ClientPortal({ view = 'inventory' }) {
 
   function lotUnitsPerBox(lot) {
     const name = cleanProductName(lot.product).toUpperCase()
-    return catalogBoxMap.get(name) || unitsPerBoxFromName(lot.product)
+    // Solo del catálogo — REGLA: las cajas nunca se adivinan del nombre.
+    // Sin dato → 0 cajas (se muestra en unidades), jamás un número inventado.
+    return catalogBoxMap.get(name) || 0
   }
 
   function lotCajas(lot) {
