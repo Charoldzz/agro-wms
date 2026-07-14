@@ -104,6 +104,14 @@ function movementEquivalentLabel(m) {
   return `${formatNumber(eq.quantity)} ${eq.unit}`
 }
 
+// Unidades con su tipo de envase ("25 bidones + 17 lt"); sin presentación → uds
+function udsEnvaseLabel(qty, size, unit) {
+  const s = Number(size) || 0
+  const q = Number(qty) || 0
+  const eqRaw = s > 0 ? q * s : q
+  return desgloseEnvases(eqRaw, s, unit, 0).unidadesLabel || `${formatNumber(q)} uds`
+}
+
 // Total de una nota separado por unidad: "315 lts · 5.038 kgs"
 function noteEquivalentLabel(movs) {
   const totals = new Map()
@@ -1116,7 +1124,7 @@ export default function ClientPortal({ view = 'inventory' }) {
                           {Object.keys(group.equivalents).length > 0 ? (
                             <>
                               <p className="text-base font-black text-campo-700">{equivalentTotalsLabel(group.equivalents)}</p>
-                              <p className="text-[10px] font-semibold text-slate-400">{formatNumber(group.quantity)} unidades</p>
+                              <p className="text-[10px] font-semibold text-slate-400">{udsEnvaseLabel(group.quantity, group.lots[0]?.package_size, group.lots[0]?.package_unit)}</p>
                             </>
                           ) : (
                             <p className="text-base font-black text-campo-700">{formatNumber(group.quantity)} <span className="text-xs font-bold text-campo-500">uds</span></p>
@@ -1154,7 +1162,7 @@ export default function ClientPortal({ view = 'inventory' }) {
                                   {eq ? (
                                     <>
                                       <p className="text-sm font-black text-campo-700">{formatNumber(eq.quantity)} {eq.unit}</p>
-                                      <p className="text-[10px] font-semibold text-slate-400">{formatNumber(lot.current_quantity)} unidades</p>
+                                      <p className="text-[10px] font-semibold text-slate-400">{udsEnvaseLabel(lot.current_quantity, lot.package_size, lot.package_unit)}</p>
                                     </>
                                   ) : (
                                     <p className="text-sm font-black text-campo-700">{formatNumber(lot.current_quantity)} uds</p>
@@ -1220,10 +1228,6 @@ export default function ClientPortal({ view = 'inventory' }) {
                 </div>
               )}
               <div className="px-5 py-3.5 text-center">
-                <p className="text-lg font-black tabular-nums text-slate-900">{formatNumber(totalStock)}</p>
-                <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">unidades</p>
-              </div>
-              <div className="px-5 py-3.5 text-center">
                 <p className="text-lg font-black tabular-nums text-slate-900">{productCount}</p>
                 <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">productos activos</p>
               </div>
@@ -1264,7 +1268,7 @@ export default function ClientPortal({ view = 'inventory' }) {
                       <div className="shrink-0 text-right">
                         <p className="text-sm font-black text-campo-700">{n.equivalentLabel}</p>
                         {n.movs.length === 1 ? (
-                          <p className="text-[11px] font-semibold text-slate-400">{formatNumber(n.totalUds)} uds</p>
+                          <p className="text-[11px] font-semibold text-slate-400">{udsEnvaseLabel(n.totalUds, firstLot.package_size, firstLot.package_unit)}</p>
                         ) : null}
                       </div>
                     </button>
@@ -1773,7 +1777,7 @@ export default function ClientPortal({ view = 'inventory' }) {
                       <div className="shrink-0 text-right">
                         <p className="text-sm font-black leading-snug text-campo-700">{n.equivalentLabel}</p>
                         {n.movs.length === 1 ? (
-                          <p className="text-xs font-semibold text-slate-400">{formatNumber(n.totalUds)} uds</p>
+                          <p className="text-xs font-semibold text-slate-400">{udsEnvaseLabel(n.totalUds, firstLot.package_size, firstLot.package_unit)}</p>
                         ) : null}
                       </div>
                       <button
@@ -1924,7 +1928,7 @@ function MovementModal({ movement: note, clientName, onClose, onPrint }) {
                 </div>
                 <div className="shrink-0 text-right">
                   <p className="text-sm font-black text-campo-700">{movementEquivalentLabel(m)}</p>
-                  <p className="text-[11px] font-semibold text-slate-400">{formatNumber(m.quantity)} uds</p>
+                  <p className="text-[11px] font-semibold text-slate-400">{udsEnvaseLabel(m.quantity, lot.package_size, lot.package_unit)}</p>
                 </div>
               </div>
             )
