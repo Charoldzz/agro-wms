@@ -14,6 +14,8 @@ export default function Login() {
   const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const [resetMsg, setResetMsg] = useState('')
+  const [sendingReset, setSendingReset] = useState(false)
 
   if (!isSupabaseConfigured) return <ConfigWarning />
   if (user && profileLoading && !profile) {
@@ -45,6 +47,25 @@ export default function Login() {
       clearOperationalDrafts()
     }
     setLoading(false)
+  }
+
+  // Envía el correo de recuperación; el link vuelve a la app y abre
+  // la pantalla "Creá tu contraseña" (SetPassword vía SET_PASSWORD_FLAG)
+  async function handleForgotPassword() {
+    setError('')
+    setResetMsg('')
+    const target = email.trim().toLowerCase()
+    if (!target) {
+      setError('Escribí tu correo arriba y volvé a tocar "¿Olvidaste tu contraseña?".')
+      return
+    }
+    setSendingReset(true)
+    const { error: resetError } = await supabase.auth.resetPasswordForEmail(target, {
+      redirectTo: window.location.origin + window.location.pathname,
+    })
+    setSendingReset(false)
+    if (resetError) setError(resetError.message)
+    else setResetMsg(`Te enviamos un correo a ${target} con el link para crear una contraseña nueva. Revisá también spam.`)
   }
 
   return (
@@ -96,9 +117,19 @@ export default function Login() {
         </div>
 
         {error ? <p className="mt-4 rounded-lg bg-red-50 p-3 text-sm font-semibold text-red-700">{error}</p> : null}
+        {resetMsg ? <p className="mt-4 rounded-lg bg-campo-50 p-3 text-sm font-semibold text-campo-800">{resetMsg}</p> : null}
 
         <button className="btn-primary mt-6 w-full" disabled={loading}>
           {loading ? 'Ingresando...' : 'Ingresar'}
+        </button>
+
+        <button
+          type="button"
+          className="mt-4 w-full text-center text-sm font-bold text-campo-700 hover:underline disabled:opacity-50"
+          onClick={handleForgotPassword}
+          disabled={sendingReset}
+        >
+          {sendingReset ? 'Enviando correo...' : '¿Olvidaste tu contraseña?'}
         </button>
       </form>
     </div>

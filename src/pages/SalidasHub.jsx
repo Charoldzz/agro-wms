@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { ClipboardList, LogOut, Plus, X } from 'lucide-react'
+import { ClipboardList, LogOut, Plus, Search, X } from 'lucide-react'
 import PageHeader from '../components/PageHeader'
 import { useAuth } from '../hooks/useAuth.jsx'
 import { supabase } from '../lib/supabase'
@@ -24,6 +24,7 @@ export default function SalidasHub() {
   const { user } = useAuth()
   const [requests, setRequests] = useState([])
   const [loading, setLoading] = useState(true)
+  const [search, setSearch] = useState('')
   const [rejectingId, setRejectingId] = useState(null)
   const [rejectReason, setRejectReason] = useState('')
   const [rejectError, setRejectError] = useState('')
@@ -78,6 +79,22 @@ export default function SalidasHub() {
     load()
   }
 
+  const term = search.toLowerCase().trim()
+  const filteredRequests = requests.filter((req) => {
+    if (!term) return true
+    const items = Array.isArray(req.items) ? req.items : []
+    return [
+      req.clients?.name,
+      req.transporter_name,
+      req.transporter_plate,
+      req.notes,
+      STATUS_LABEL[req.status],
+      ...items.map((it) => it.product),
+      req.product,
+      req.lots?.product,
+    ].filter(Boolean).some((v) => String(v).toLowerCase().includes(term))
+  })
+
   return (
     <div>
       <PageHeader title="Salidas" subtitle="Solicitudes pendientes y despachos manuales" />
@@ -86,23 +103,37 @@ export default function SalidasHub() {
         <Plus size={20} /> Nueva salida manual
       </Link>
 
-      <div className="mb-3 flex items-center gap-2">
+      <div className="mb-3 flex flex-wrap items-center gap-2">
         <h2 className="text-sm font-black uppercase tracking-wide text-slate-500">Solicitudes pendientes</h2>
-        {requests.length > 0 && (
-          <span className="rounded-full bg-amber-500 px-2 py-0.5 text-xs font-black text-white">{requests.length}</span>
+        {filteredRequests.length > 0 && (
+          <span className="rounded-full bg-amber-500 px-2 py-0.5 text-xs font-black text-white">{filteredRequests.length}</span>
         )}
       </div>
 
+      {requests.length > 0 && (
+        <div className="relative mb-3">
+          <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+          <input
+            className="input w-full pl-9"
+            placeholder="Buscar empresa, producto, transportista..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+        </div>
+      )}
+
       {loading ? (
         <div className="rounded-xl border border-slate-100 bg-white p-6 text-center text-sm font-semibold text-slate-400">Cargando...</div>
-      ) : requests.length === 0 ? (
+      ) : filteredRequests.length === 0 ? (
         <div className="rounded-xl border border-slate-100 bg-white p-8 text-center">
           <ClipboardList size={36} className="mx-auto mb-2 text-slate-300" />
-          <p className="text-sm font-bold text-slate-500">No hay solicitudes pendientes.</p>
+          <p className="text-sm font-bold text-slate-500">
+            {requests.length === 0 ? 'No hay solicitudes pendientes.' : 'Sin resultados para la búsqueda.'}
+          </p>
         </div>
       ) : (
         <div className="space-y-3">
-          {requests.map((req) => {
+          {filteredRequests.map((req) => {
             const items = Array.isArray(req.items) && req.items.length > 0
               ? req.items
               : [{ product: req.product || req.lots?.product, quantity: req.quantity, lot_id: req.lot_id }]
