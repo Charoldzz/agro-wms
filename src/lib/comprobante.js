@@ -84,11 +84,17 @@ function openOperationNote({ tipo, guide, empresa, contacto, transportista, plac
       .sub { color: #475569; font-family: 'Bebas Neue', 'Segoe UI', Arial, sans-serif; font-size: 13px; letter-spacing: 3px; margin: 2px 0 0; text-transform: uppercase; }
       .guide { border: 2px solid #15803d; border-radius: 10px; color: #15803d; font-family: 'Bebas Neue', 'Segoe UI', Arial, sans-serif; font-size: 24px; font-weight: 400; letter-spacing: 2px; padding: 7px 18px; text-align: center; white-space: nowrap; }
       .guide small { color: #64748b; display: block; font-family: 'Segoe UI', Arial, sans-serif; font-size: 9px; font-weight: 600; letter-spacing: 2px; }
-      .datos { border: 1px solid #cbd5e1; border-radius: 10px; display: grid; gap: 12px 24px; grid-template-columns: repeat(3, 1fr); margin: 18px 0; padding: 14px 16px; }
-      .datos p { margin: 0; }
-      .datos .l { color: #64748b; font-size: 9px; font-weight: bold; letter-spacing: 1px; text-transform: uppercase; }
-      .datos .v { font-size: 13px; font-weight: bold; margin-top: 2px; }
-      .obs { grid-column: 1 / -1; }
+      .op { border-left: 4px solid #15803d; margin: 18px 0; padding: 4px 0 4px 16px; }
+      .op .chiprow { align-items: center; display: flex; gap: 10px; }
+      .op .chip { background: #dcfce7; border-radius: 999px; color: #14532d; font-size: 10px; font-weight: 600; letter-spacing: 1.5px; padding: 3px 12px; text-transform: uppercase; }
+      .op .chip.salida { background: #fee2e2; color: #7f1d1d; }
+      .op .fecha { color: #64748b; font-size: 12px; }
+      .op .empresa { font-size: 20px; font-weight: 600; margin: 6px 0 10px; }
+      .op .cols { display: flex; flex-wrap: wrap; gap: 12px 36px; }
+      .op .cols p { margin: 0; }
+      .op .cols .l { color: #64748b; font-size: 9px; font-weight: 600; letter-spacing: 1px; text-transform: uppercase; }
+      .op .cols .v { font-size: 13px; font-weight: 600; margin-top: 2px; }
+      .op .obs { border-top: 1px dotted #cbd5e1; color: #475569; font-size: 12px; font-style: italic; margin: 10px 0 0; padding-top: 7px; }
       table { border-collapse: collapse; width: 100%; }
       th, td { border-bottom: 1px solid #e2e8f0; font-size: 12px; font-variant-numeric: tabular-nums; padding: 8px 7px; text-align: left; vertical-align: top; }
       td { color: #0f172a; font-weight: 500; }
@@ -116,14 +122,18 @@ function openOperationNote({ tipo, guide, empresa, contacto, transportista, plac
       </div>
       <div class="guide"><small>N&deg; GU&Iacute;A</small>${escapeHtml(guide || '-')}</div>
     </div>
-    <div class="datos">
-      <div><p class="l">Empresa</p><p class="v">${escapeHtml(empresa || '-')}</p></div>
-      <div><p class="l">Fecha</p><p class="v">${escapeHtml(formatDateOnly(new Date().toISOString()))}</p></div>
-      <div><p class="l">Movimiento</p><p class="v">${esSalida ? 'Salida' : 'Ingreso'}</p></div>
-      <div><p class="l">Transportista</p><p class="v">${escapeHtml(transportista || '-')}</p></div>
-      <div><p class="l">Placa</p><p class="v">${escapeHtml(placa || '-')}</p></div>
-      <div><p class="l">Contacto</p><p class="v">${escapeHtml(contacto || '-')}</p></div>
-      ${observaciones ? `<div class="obs"><p class="l">Observaciones</p><p class="v">${escapeHtml(observaciones)}</p></div>` : ''}
+    <div class="op">
+      <div class="chiprow">
+        <span class="chip${esSalida ? ' salida' : ''}">${esSalida ? 'Salida' : 'Ingreso'}</span>
+        <span class="fecha">${escapeHtml(formatDateOnly(new Date().toISOString()))}</span>
+      </div>
+      <p class="empresa">${escapeHtml(empresa || '-')}</p>
+      <div class="cols">
+        <div><p class="l">Transportista</p><p class="v">${escapeHtml(transportista || '-')}</p></div>
+        <div><p class="l">Placa</p><p class="v">${escapeHtml(placa || '-')}</p></div>
+        <div><p class="l">Contacto</p><p class="v">${escapeHtml(contacto || '-')}</p></div>
+      </div>
+      ${observaciones ? `<p class="obs">Obs.: ${escapeHtml(observaciones)}</p>` : ''}
     </div>
     <table>
       <thead>
