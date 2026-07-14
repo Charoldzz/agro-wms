@@ -25,6 +25,21 @@ function unidadesEnvaseLabel(lot) {
   return desgloseEnvases(eqRaw, size, lot?.package_unit, 0).unidadesLabel || `${formatNumber(qty)} uds`
 }
 
+// Equivalente de una cantidad de movimiento según la presentación del lote
+function qtyEquivalentLabel(lot, qty) {
+  const size = Number(lot?.package_size) || 0
+  const q = Number(qty) || 0
+  if (size > 0 && lot?.package_unit) return `${formatNumber(q * size)} ${lot.package_unit}`
+  return `${formatNumber(q)} uds`
+}
+
+function qtyEnvaseLabel(lot, qty) {
+  const size = Number(lot?.package_size) || 0
+  const q = Number(qty) || 0
+  if (!(size > 0)) return ''
+  return desgloseEnvases(q * size, size, lot?.package_unit, 0).unidadesLabel || ''
+}
+
 const initialMovement = {
   type: 'entrada',
   quantity: '',
@@ -956,9 +971,14 @@ export default function LotDetail() {
                       <p className="text-sm font-bold text-slate-800">{movementLabel(item.type)}</p>
                       <p className="text-xs font-semibold text-slate-400">{formatDate(item.created_at)}</p>
                     </div>
-                    <p className={`text-base font-black ${item.type === 'salida' ? 'text-red-600' : 'text-campo-700'}`}>
-                      {item.type === 'salida' ? '−' : '+'}{formatNumber(item.quantity)}
-                    </p>
+                    <div className="text-right">
+                      <p className={`text-base font-black ${item.type === 'salida' ? 'text-red-600' : 'text-campo-700'}`}>
+                        {item.type === 'salida' ? '−' : '+'}{qtyEquivalentLabel(lot, item.quantity)}
+                      </p>
+                      {qtyEnvaseLabel(lot, item.quantity) ? (
+                        <p className="text-[10px] font-semibold text-slate-400">{qtyEnvaseLabel(lot, item.quantity)}</p>
+                      ) : null}
+                    </div>
                   </div>
                 ))}
               </div>
