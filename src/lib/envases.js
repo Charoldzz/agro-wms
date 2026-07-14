@@ -62,8 +62,12 @@ export function desgloseEnvases(qty, size, unit, upb) {
   const nombreUds = envase ? (uds === 1 ? envase.singular : envase.plural) : (uds === 1 ? 'unidad' : 'unidades')
   let unidadesLabel = uds > 0 ? `${formatNumber(uds)} ${nombreUds}` : ''
   if (resto > 0) unidadesLabel = `${unidadesLabel ? `${unidadesLabel} + ` : ''}${formatNumber(resto)} ${unit || ''}`.trim()
+  // El sobrante que no completa caja se nombra con su envase ("10 + 2 galones")
+  const nombreSueltos = envase
+    ? (sueltos === 1 ? envase.singular : envase.plural)
+    : (sueltos === 1 ? 'suelta' : 'sueltas')
   const cajasLabel = porCaja > 0 && uds > 0
-    ? `${formatNumber(cajas)}${sueltos > 0 ? ` + ${formatNumber(sueltos)} ${sueltos === 1 ? 'suelta' : 'sueltas'}` : ''}`
+    ? `${formatNumber(cajas)}${sueltos > 0 ? ` + ${formatNumber(sueltos)} ${nombreSueltos}` : ''}`
     : ''
 
   return { uds, cajas, sueltos, resto, unidadesLabel, cajasLabel }

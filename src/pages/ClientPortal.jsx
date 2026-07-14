@@ -582,7 +582,9 @@ export default function ClientPortal({ view = 'inventory' }) {
       const dataRows = lots.map((l) => {
         let eqStr = ''
         try { const eq = lotEquivalent(l); if (eq) eqStr = `${formatNumber(eq.quantity)} ${eq.unit}` } catch (_) {}
-        const cajas = lotCajas(l)
+        const size = Number(l.package_size) || 0
+        const eqRaw = size > 0 ? Number(l.current_quantity || 0) * size : Number(l.current_quantity || 0)
+        const desglose = desgloseEnvases(eqRaw, size, l.package_unit, lotUnitsPerBox(l))
         return [
           productCode(l) || '-',
           cleanProductName(l.product) || '',
@@ -590,7 +592,7 @@ export default function ClientPortal({ view = 'inventory' }) {
           l.expiry_date ? formatDate(l.expiry_date) : '-',
           eqStr || `${formatNumber(l.current_quantity)} uds`,
           Number(l.current_quantity || 0),
-          cajas > 0 ? cajas : '',
+          desglose.cajasLabel || '',
         ]
       })
 
@@ -686,9 +688,8 @@ export default function ClientPortal({ view = 'inventory' }) {
       try { const eq = lotEquivalent(l); if (eq) eqStr = `${formatNumber(eq.quantity)} ${eq.unit}` } catch (_) { /* sin dato */ }
       const size = Number(l.package_size) || 0
       const eqRaw = size > 0 ? Number(l.current_quantity || 0) * size : Number(l.current_quantity || 0)
-      const desglose = desgloseEnvases(eqRaw, size, l.package_unit, 0)
+      const desglose = desgloseEnvases(eqRaw, size, l.package_unit, lotUnitsPerBox(l))
       const unidadesLabel = desglose.unidadesLabel || `${formatNumber(l.current_quantity)} uds`
-      const cajas = lotCajas(l)
       return `<tr>
         <td class="c">${i + 1}</td>
         <td class="c mono">${escapeHtml(productCode(l) || '-')}</td>
@@ -697,7 +698,7 @@ export default function ClientPortal({ view = 'inventory' }) {
         <td class="c">${escapeHtml(l.expiry_date ? formatDate(l.expiry_date) : '-')}</td>
         <td class="r"><strong>${escapeHtml(eqStr || `${formatNumber(l.current_quantity)} uds`)}</strong></td>
         <td class="r">${escapeHtml(unidadesLabel)}</td>
-        <td class="r">${cajas > 0 ? escapeHtml(formatNumber(cajas)) : '-'}</td>
+        <td class="r">${escapeHtml(desglose.cajasLabel || '-')}</td>
       </tr>`
     }).join('')
 
