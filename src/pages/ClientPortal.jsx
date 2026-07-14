@@ -314,7 +314,12 @@ export default function ClientPortal({ view = 'inventory' }) {
         transporter: op ? (first.type === 'entrada' ? op.driver_name : op.receiver_name) : null,
         plate: op?.vehicle_plate || null,
         observations: op?.notes || null,
-        movs,
+        // Productos A→Z dentro de la nota (mismo criterio que el inventario)
+        movs: [...movs].sort((a, b) => {
+          const byName = cleanProductName(a.lots?.product).localeCompare(cleanProductName(b.lots?.product), 'es')
+          if (byName !== 0) return byName
+          return String(a.lots?.lot_code || '').localeCompare(String(b.lots?.lot_code || ''), 'es')
+        }),
         totalUds: movs.reduce((s, m) => s + Number(m.quantity || 0), 0),
         equivalentLabel: noteEquivalentLabel(movs),
       }

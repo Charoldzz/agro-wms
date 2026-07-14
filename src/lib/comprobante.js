@@ -50,7 +50,14 @@ function openOperationNote({ tipo, guide, empresa, contacto, transportista, plac
   const firmaDer = esSalida ? 'Recibido por (Transportista)' : 'Recibido por (Almacén)'
   const logoUrl = `${window.location.origin}/images/todo-logo.png`
 
-  const tableRows = rows
+  // Productos ordenados A→Z (y por lote si se repite) — mismo criterio que el inventario
+  const sortedRows = [...rows].sort((a, b) => {
+    const byName = String(a.product || '').localeCompare(String(b.product || ''), 'es')
+    if (byName !== 0) return byName
+    return String(a.lot_code || '').localeCompare(String(b.lot_code || ''), 'es')
+  })
+
+  const tableRows = sortedRows
     .map((row, i) => {
       const size = Number(row.package_size) || 0
       const cantidad = size > 0 && row.package_unit
