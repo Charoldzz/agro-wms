@@ -544,15 +544,15 @@ export default function ClientPortal({ view = 'inventory' }) {
       const wb = new ExcelJS.Workbook()
       const ws = wb.addWorksheet('Inventario')
 
-      // Column widths — 7 columnas (mismo orden que los documentos)
+      // Column widths — 7 columnas, anchas para que el texto siempre se lea completo
       ws.columns = [
-        { key: 'codigo',      width: 15 },
-        { key: 'producto',    width: 42 },
-        { key: 'lote',        width: 14 },
-        { key: 'vencimiento', width: 15 },
-        { key: 'equivalente', width: 16 },
-        { key: 'unidades',    width: 12 },
-        { key: 'cajas',       width: 10 },
+        { key: 'codigo',      width: 16 },
+        { key: 'producto',    width: 48 },
+        { key: 'lote',        width: 15 },
+        { key: 'vencimiento', width: 17 },
+        { key: 'equivalente', width: 17 },
+        { key: 'unidades',    width: 14 },
+        { key: 'cajas',       width: 12 },
       ]
 
       // Row 1: client name — green header
@@ -572,29 +572,15 @@ export default function ClientPortal({ view = 'inventory' }) {
       // Row 3: blank spacer
       ws.addRow([])
 
-      // Row 4: column headers
+      // Cabecera + datos como TABLA de Excel: al scrollear, el título desaparece
+      // y los nombres de columna se muestran en la barra de letras (A, B, C...).
+      // Sin botones de filtro (tapaban los nombres — pedido de Harold).
       const headerLabels = ['Código', 'Producto', 'Lote', 'Vencimiento', 'Cantidad', 'Unidades', 'Cajas']
-      const hdrRow = ws.addRow(headerLabels)
-      hdrRow.height = 18
-      hdrRow.eachCell(cell => {
-        cell.font      = { bold: true, size: 10, color: { argb: 'FFFFFFFF' } }
-        cell.fill      = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1F6F45' } }
-        cell.alignment = { vertical: 'middle', horizontal: 'right' }
-        cell.border    = { bottom: { style: 'thin', color: { argb: 'FF1D593A' } } }
-      })
-      hdrRow.getCell(1).alignment = { vertical: 'middle', horizontal: 'left', indent: 1 }
-      hdrRow.getCell(2).alignment = { vertical: 'middle', horizontal: 'left' }
-
-      // Encabezado congelado + filtros de Excel (ordenar/filtrar por columna)
-      ws.views = [{ state: 'frozen', ySplit: 4 }]
-      ws.autoFilter = { from: 'A4', to: 'G4' }
-
-      // Data rows
-      lots.forEach((l) => {
+      const dataRows = lots.map((l) => {
         let eqStr = ''
         try { const eq = lotEquivalent(l); if (eq) eqStr = `${formatNumber(eq.quantity)} ${eq.unit}` } catch (_) {}
         const cajas = lotCajas(l)
-        const row = ws.addRow([
+        return [
           productCode(l) || '-',
           cleanProductName(l.product) || '',
           displayLotCode(l.lot_code, l) || '',
@@ -602,14 +588,47 @@ export default function ClientPortal({ view = 'inventory' }) {
           eqStr || `${formatNumber(l.current_quantity)} uds`,
           Number(l.current_quantity || 0),
           cajas > 0 ? cajas : '',
-        ])
-        row.eachCell((cell, colNum) => {
-          cell.alignment = colNum <= 2
-            ? { vertical: 'middle', horizontal: 'left', wrapText: colNum === 2 }
-            : { vertical: 'middle', horizontal: 'right' }
-          cell.font   = { size: 10, bold: colNum === 5 }
-          cell.border = { top: { style: 'thin', color: { argb: 'FFCBD5E1' } } }
+        ]
+      })
+
+      if (dataRows.length > 0) {
+        ws.addTable({
+          name: 'TablaInventario',
+          ref: 'A4',
+          headerRow: true,
+          totalsRow: false,
+          style: { theme: null, showRowStripes: false },
+          columns: headerLabels.map((name) => ({ name, filterButton: false })),
+          rows: dataRows,
         })
+      } else {
+        ws.addRow(headerLabels)
+      }
+
+      // Estilo de la cabecera (fila 4)
+      const hdrRow = ws.getRow(4)
+      hdrRow.height = 18
+      for (let c = 1; c <= 7; c++) {
+        const cell = hdrRow.getCell(c)
+        cell.font      = { bold: true, size: 10, color: { argb: 'FFFFFFFF' } }
+        cell.fill      = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1F6F45' } }
+        cell.alignment = c <= 2
+          ? { vertical: 'middle', horizontal: 'left', indent: c === 1 ? 1 : 0 }
+          : { vertical: 'middle', horizontal: 'right' }
+        cell.border    = { bottom: { style: 'thin', color: { argb: 'FF1D593A' } } }
+      }
+
+      // Estilo de las filas de datos
+      dataRows.forEach((_, i) => {
+        const row = ws.getRow(5 + i)
+        for (let c = 1; c <= 7; c++) {
+          const cell = row.getCell(c)
+          cell.alignment = c <= 2
+            ? { vertical: 'middle', horizontal: 'left', wrapText: c === 2 }
+            : { vertical: 'middle', horizontal: 'right' }
+          cell.font   = { size: 10, bold: c === 5 }
+          cell.border = { top: { style: 'thin', color: { argb: 'FFCBD5E1' } } }
+        }
       })
 
       // Fila TOTAL — solo equivalente lts · kgs (nunca mezclar con uds)
@@ -628,15 +647,17 @@ export default function ClientPortal({ view = 'inventory' }) {
       })
       const totalStr = [...totalsMap.entries()].map(([u, v]) => `${formatNumber(v)} ${u}`).join(' · ')
       if (totalStr) {
-        const totalRow = ws.addRow(['TOTAL', '', '', '', totalStr, '', ''])
+        const totalRow = ws.getRow(5 + dataRows.length)
+        totalRow.getCell(1).value = 'TOTAL'
+        totalRow.getCell(5).value = totalStr
         totalRow.height = 20
-        totalRow.eachCell({ includeEmpty: true }, (cell, colNum) => {
-          if (colNum > 7) return
+        for (let c = 1; c <= 7; c++) {
+          const cell = totalRow.getCell(c)
           cell.font   = { bold: true, size: 11, color: { argb: 'FF14532D' } }
           cell.fill   = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF0FDF4' } }
           cell.border = { top: { style: 'medium', color: { argb: 'FF15803D' } } }
-          cell.alignment = { vertical: 'middle', horizontal: colNum === 1 ? 'left' : 'right' }
-        })
+          cell.alignment = { vertical: 'middle', horizontal: c === 1 ? 'left' : 'right' }
+        }
       }
 
       // Download
