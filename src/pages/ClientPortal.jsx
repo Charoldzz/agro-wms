@@ -258,6 +258,7 @@ export default function ClientPortal({ view = 'inventory' }) {
   const [reqSuccess,     setReqSuccess]      = useState(null)
   const [reqTransporter, setReqTransporter]  = useState(initialDraft.transporter)
   const [reqAttachFile,  setReqAttachFile]   = useState(null)
+  const [reqItemNote,    setReqItemNote]     = useState('')
   const [reqUploading,   setReqUploading]    = useState(false)
   const [editingRequestId, setEditingRequestId] = useState(null)
   const [existingAttachment, setExistingAttachment] = useState(null)
@@ -487,16 +488,17 @@ export default function ClientPortal({ view = 'inventory' }) {
     if (qty <= 0) { setReqMessage('Ingresa una cantidad mayor a 0.'); return }
     if (qty > Number(selectedLot.current_quantity||0)) { setReqMessage('La cantidad supera el stock disponible.'); return }
     if (['Retenido','Cerrado'].includes(lotStatus(selectedLot).label)) { setReqMessage('Este lote no está disponible para despacho.'); return }
+    const itemNote = reqItemNote.trim() || null
     setReqItems(cur => {
       const existing = cur.find(i => i.lot_id === selectedLot.id)
       if (existing) {
         const next = editingLotId === selectedLot.id ? qty : Number(existing.quantity||0) + qty
         if (next > Number(selectedLot.current_quantity||0)) { setReqMessage('Cantidad supera stock disponible.'); return cur }
-        return cur.map(i => i.lot_id === selectedLot.id ? { ...i, quantity: next, available: selectedLot.current_quantity } : i)
+        return cur.map(i => i.lot_id === selectedLot.id ? { ...i, quantity: next, available: selectedLot.current_quantity, note: itemNote || i.note || null } : i)
       }
-      return [...cur, { lot_id: selectedLot.id, client_id: selectedLot.client_id, client_name: selectedLot.clients?.name||clientName, lot_code: selectedLot.lot_code, product: selectedLot.product, solucion_product_code: selectedLot.solucion_product_code, quantity: qty, package_size: selectedLot.package_size, package_unit: selectedLot.package_unit, location: selectedLot.location, available: selectedLot.current_quantity, expiry_date: selectedLot.expiry_date }]
+      return [...cur, { lot_id: selectedLot.id, client_id: selectedLot.client_id, client_name: selectedLot.clients?.name||clientName, lot_code: selectedLot.lot_code, product: selectedLot.product, solucion_product_code: selectedLot.solucion_product_code, quantity: qty, package_size: selectedLot.package_size, package_unit: selectedLot.package_unit, location: selectedLot.location, available: selectedLot.current_quantity, expiry_date: selectedLot.expiry_date, note: itemNote }]
     })
-    setReqLotId(''); setReqQuantity(''); setEditingLotId(''); setReqProductName('')
+    setReqLotId(''); setReqQuantity(''); setEditingLotId(''); setReqProductName(''); setReqItemNote('')
   }
 
   function removeReqItem(lotId) {
@@ -509,12 +511,13 @@ export default function ClientPortal({ view = 'inventory' }) {
     const size = Number(item.package_size) || 0
     const eqValue = size > 0 ? Number(item.quantity || 0) * size : Number(item.quantity || 0)
     setEditingLotId(item.lot_id); setReqLotId(item.lot_id); setReqQuantity(String(eqValue || ''))
+    setReqItemNote(item.note || '')
     const lot = lots.find(l => l.id === item.lot_id) || item
     setReqProductName(productIdentityKey(lot)); setReqMessage('Editando item de la lista.')
   }
 
   function clearCart() {
-    setReqLotId(''); setReqQuantity(''); setReqItems([]); setReqNotes('')
+    setReqLotId(''); setReqQuantity(''); setReqItems([]); setReqNotes(''); setReqItemNote('')
     setEditingLotId(''); setReqMessage(''); setReqSuccess(null); setReqProductName('')
     setReqTransporter({ name: '', ci: '', plate: '' }); setReqAttachFile(null)
     clearDraft()
@@ -1609,11 +1612,24 @@ export default function ClientPortal({ view = 'inventory' }) {
                     </label>
                   )}
 
+                  {/* Observación del producto */}
+                  {reqLotId && (
+                    <label className="block">
+                      <span className="text-xs font-black uppercase tracking-wide text-slate-500">Observación del producto (opcional)</span>
+                      <input
+                        className="input mt-1.5 w-full"
+                        type="text"
+                        value={reqItemNote}
+                        onChange={e => setReqItemNote(e.target.value)}
+                      />
+                    </label>
+                  )}
+
                   {/* Add button */}
                   {reqLotId && (
                     <button className="btn-secondary w-full" type="button" onClick={addReqItem}>
                       <Plus size={18} />
-                      Agregar producto
+                      {editingLotId ? 'Guardar cambios' : 'Agregar producto'}
                     </button>
                   )}
 
@@ -1629,15 +1645,18 @@ export default function ClientPortal({ view = 'inventory' }) {
                         const itemDays = daysUntil(item.expiry_date)
                         const isExpired  = itemDays !== null && itemDays < 0
                         const isExpiring = itemDays !== null && itemDays >= 0 && itemDays <= 90
+                        const isEditing = editingLotId === item.lot_id
                         return (
-                        <div key={item.lot_id} className={`flex items-center gap-2 rounded-lg px-3 py-2.5 shadow-sm ${isExpired ? 'bg-red-50 ring-1 ring-red-200' : isExpiring ? 'bg-amber-50 ring-1 ring-amber-200' : 'bg-white'}`}>
+                        <div key={item.lot_id} className={`flex items-center gap-2 rounded-lg px-3 py-2.5 shadow-sm ${isEditing ? 'bg-blue-50 ring-2 ring-blue-300' : isExpired ? 'bg-red-50 ring-1 ring-red-200' : isExpiring ? 'bg-amber-50 ring-1 ring-amber-200' : 'bg-white'}`}>
                           <div className="min-w-0 flex-1">
                             <div className="flex flex-wrap items-center gap-1.5">
                               <p className="text-sm font-black text-slate-900 [overflow-wrap:anywhere]">{cleanProductName(item.product)}</p>
+                              {isEditing && <span className="rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-black text-blue-700">EDITANDO ARRIBA</span>}
                               {isExpired  && <span className="rounded-full bg-red-100 px-2 py-0.5 text-[10px] font-black text-red-700">VENCIDO</span>}
                               {isExpiring && <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-black text-amber-700">POR VENCER</span>}
                             </div>
                             <p className="text-xs font-semibold text-slate-500">{lotLabel(item.lot_code, item)}</p>
+                            {item.note && <p className="text-[10px] font-semibold italic text-slate-400">Obs.: {item.note}</p>}
                             <div className="mt-0.5 flex items-baseline gap-1.5">
                               {eq
                                 ? <>
@@ -1660,14 +1679,6 @@ export default function ClientPortal({ view = 'inventory' }) {
                         )
                       })}
                     </div>
-                  )}
-
-                  {/* Notes */}
-                  {reqItems.length > 0 && (
-                    <label className="block">
-                      <span className="text-xs font-black uppercase tracking-wide text-slate-500">Observación (opcional)</span>
-                      <textarea className="input mt-1.5" rows={2} placeholder="Instrucciones especiales para almacén..." value={reqNotes} onChange={e => setReqNotes(e.target.value)} />
-                    </label>
                   )}
 
                   {reqMessage && (
@@ -1722,6 +1733,9 @@ export default function ClientPortal({ view = 'inventory' }) {
                                       <p className="text-xs font-semibold text-slate-600 [overflow-wrap:anywhere]">· {cleanProductName(item.product)}</p>
                                       {item.lot_code && (
                                         <p className="text-[10px] font-semibold text-slate-400 [overflow-wrap:anywhere]">Lote: {displayLotCode(item.lot_code, item)}</p>
+                                      )}
+                                      {item.note && (
+                                        <p className="text-[10px] font-semibold italic text-slate-400 [overflow-wrap:anywhere]">Obs.: {item.note}</p>
                                       )}
                                     </div>
                                     <div className="shrink-0 text-right">

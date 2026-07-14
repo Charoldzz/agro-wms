@@ -184,6 +184,7 @@ export default function NuevaSalida() {
         ...emptyRow(),
         lot_id: lot.id,
         product,
+        note: item.note || '',
         solucion_code: lot.solucion_product_code || '',
         lot_code: displayLotCode(lot.lot_code),
         expiry_date: lot.expiry_date || '',
@@ -617,6 +618,9 @@ export default function NuevaSalida() {
                     <div className="flex min-w-0 items-center gap-1">
                       <div className="min-w-0 flex-1">
                         <div className="truncate text-sm font-semibold text-slate-900" title={row.product}>{row.product}</div>
+                        {row.note ? (
+                          <div className="text-[10px] font-semibold italic text-amber-700">Obs.: {row.note}</div>
+                        ) : null}
                         {rowInsufficient(row) ? (
                           <div className="text-[10px] font-black text-red-600">
                             Saldo insuficiente: hay {formatNumber(row.saldo)} uds y pide {formatNumber(row.uds)}
@@ -774,6 +778,9 @@ export default function NuevaSalida() {
                 <div className="mb-3 flex items-start justify-between gap-2">
                   <div className="min-w-0">
                     <p className="text-sm font-bold text-slate-900 [overflow-wrap:anywhere]">{row.product}</p>
+                    {row.note ? (
+                      <p className="text-[10px] font-semibold italic text-amber-700">Obs.: {row.note}</p>
+                    ) : null}
                     {rowInsufficient(row) ? (
                       <p className="text-[10px] font-black text-red-600">
                         Saldo insuficiente: hay {formatNumber(row.saldo)} uds y pide {formatNumber(row.uds)}

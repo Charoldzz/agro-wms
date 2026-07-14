@@ -109,6 +109,7 @@ export default function ClientRequestsAdmin() {
                         <div className="min-w-0">
                           <p className="text-xs font-black text-slate-900 [overflow-wrap:anywhere]">{cleanProductName(item.product)}</p>
                           <p className="text-[10px] font-semibold text-slate-400">{displayLotCode(item.lot_code)} · {packageLabel(item) || 'Sin presentación'}</p>
+                          {item.note && <p className="text-[10px] font-semibold italic text-amber-700">Obs.: {item.note}</p>}
                         </div>
                         <div className="shrink-0 text-right">
                           <p className="text-xs font-black text-campo-700">{itemEqLabel(item)}</p>

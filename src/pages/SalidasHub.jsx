@@ -7,6 +7,7 @@ import { supabase } from '../lib/supabase'
 import { formatDate, formatNumber } from '../lib/format'
 import { cleanProductName } from '../lib/display'
 import { normalizeDispatchRequests } from '../lib/dispatchRequests'
+import { itemEnvLabel } from '../lib/envases'
 
 const STATUS_LABEL = {
   pendiente: 'Pendiente',
@@ -158,10 +159,13 @@ export default function SalidasHub() {
                       : null
                     return (
                       <div key={item.lot_id || idx} className="flex items-center justify-between gap-2 rounded-lg bg-slate-50 px-3 py-1.5">
-                        <span className="min-w-0 truncate text-sm font-semibold text-slate-800">{cleanProductName(item.product) || '—'}</span>
+                        <span className="min-w-0">
+                          <span className="block truncate text-sm font-semibold text-slate-800">{cleanProductName(item.product) || '—'}</span>
+                          {item.note && <span className="block text-[10px] font-semibold italic text-slate-500">Obs.: {item.note}</span>}
+                        </span>
                         <span className="shrink-0 text-right">
                           <span className="block text-sm font-black text-campo-700">{equivalente || `${formatNumber(item.quantity)} uds`}</span>
-                          {equivalente && <span className="block text-[10px] font-semibold text-slate-400">{formatNumber(item.quantity)} uds</span>}
+                          {equivalente && <span className="block text-[10px] font-semibold text-slate-400">{itemEnvLabel(item)}</span>}
                         </span>
                       </div>
                     )
