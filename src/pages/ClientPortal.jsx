@@ -259,7 +259,7 @@ export default function ClientPortal({ view = 'inventory' }) {
     const lotIds = (lotsData||[]).map(l => l.id)
     const { data: movData } = lotIds.length
       ? await supabase.from('movements')
-          .select('id,type,quantity,previous_quantity,new_quantity,to_location,notes,created_at,operation_id,lots(lot_code,product,solucion_product_code,package_size,package_unit,location)')
+          .select('id,type,quantity,previous_quantity,new_quantity,to_location,notes,created_at,operation_id,lots(lot_code,product,solucion_product_code,package_size,package_unit,location,expiry_date)')
           .in('lot_id', lotIds).in('type',['entrada','salida'])
           .order('created_at',{ ascending:false }).limit(80)
       : { data: [] }
@@ -830,6 +830,7 @@ export default function ClientPortal({ view = 'inventory' }) {
         <td class="c mono">${escapeHtml(productCode(lot) || '-')}</td>
         <td>${escapeHtml(cleanProductName(lot.product))}</td>
         <td class="c mono">${escapeHtml(displayLotCode(lot.lot_code, lot))}</td>
+        <td class="c">${escapeHtml(lot.expiry_date ? formatDate(lot.expiry_date) : '-')}</td>
         <td class="r"><strong>${escapeHtml(movementEquivalentLabel(m))}</strong></td>
         <td class="r muted">${escapeHtml(unidadesLabel)}</td>
       </tr>`
@@ -896,11 +897,11 @@ export default function ClientPortal({ view = 'inventory' }) {
 </div>
 <table>
   <thead><tr>
-    <th class="c">N&deg;</th><th class="c">C&oacute;digo</th><th>Producto</th><th class="c">Lote</th>
+    <th class="c">N&deg;</th><th class="c">C&oacute;digo</th><th>Producto</th><th class="c">Lote</th><th class="c">Venc.</th>
     <th class="r">Cantidad</th><th class="r">Unidades</th>
   </tr></thead>
   <tbody>${rows}</tbody>
-  <tfoot><tr><td colspan="4">TOTAL</td><td class="r">${escapeHtml(note.equivalentLabel)}</td><td></td></tr></tfoot>
+  <tfoot><tr><td colspan="5">TOTAL</td><td class="r">${escapeHtml(note.equivalentLabel)}</td><td></td></tr></tfoot>
 </table>
 <p class="foot">Documento informativo generado desde el portal de clientes de Todo Agr&iacute;cola Boliviana Ltda &mdash; Emitido el ${escapeHtml(formatDateOnly(new Date().toISOString()))}. Informaci&oacute;n referencial sujeta a validaci&oacute;n operativa.</p>
 </body></html>`)
@@ -1965,7 +1966,9 @@ function MovementModal({ movement: note, clientName, onClose, onPrint }) {
               <div key={m.id} className="flex items-start justify-between gap-3 rounded-lg bg-slate-50 px-3 py-2">
                 <div className="min-w-0">
                   <p className="text-sm font-bold text-slate-900 [overflow-wrap:anywhere]">{cleanProductName(lot.product)}</p>
-                  <p className="text-[11px] font-semibold text-slate-400">Lote: {displayLotCode(lot.lot_code, lot)}</p>
+                  <p className="text-[11px] font-semibold text-slate-400">
+                    Lote: {displayLotCode(lot.lot_code, lot)}{lot.expiry_date ? ` · Vence: ${formatDate(lot.expiry_date)}` : ''}
+                  </p>
                 </div>
                 <div className="shrink-0 text-right">
                   <p className="text-sm font-black text-campo-700">{movementEquivalentLabel(m)}</p>
