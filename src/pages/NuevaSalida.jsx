@@ -466,7 +466,7 @@ export default function NuevaSalida() {
             <span className="shrink-0 rounded-full bg-amber-100 px-2.5 py-1 text-xs font-bold text-amber-800">Datos fijos del cliente</span>
           </div>
           <div className="mt-3 grid grid-cols-2 gap-x-6 gap-y-3 border-t border-slate-100 pt-3 sm:grid-cols-3">
-            <InfoField label="Contacto" value={contacto} />
+            <InfoField label="Teléfono" value={contacto} />
             <InfoField label="Transportista" value={transportista} />
             <InfoField label="Placa" value={placa} />
             {observaciones && <InfoField label="Observaciones" value={observaciones} className="col-span-2 sm:col-span-3" />}
@@ -492,7 +492,7 @@ export default function NuevaSalida() {
             <div className="input mt-1 cursor-not-allowed select-none bg-slate-100 font-mono font-bold text-campo-700">{guiaPreview || '...'}</div>
           </div>
           <label className="block">
-            <span className="label">Contacto</span>
+            <span className="label">Teléfono</span>
             <input className="input mt-1" value={contacto} onChange={(e) => setContacto(e.target.value)} />
           </label>
           <label className="block">

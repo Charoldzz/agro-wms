@@ -138,7 +138,7 @@ function openOperationNote({ tipo, guide, empresa, contacto, transportista, plac
       <div class="cols">
         <div><p class="l">Transportista</p><p class="v">${escapeHtml(transportista || '-')}</p></div>
         <div><p class="l">Placa</p><p class="v">${escapeHtml(placa || '-')}</p></div>
-        <div><p class="l">Contacto</p><p class="v">${escapeHtml(contacto || '-')}</p></div>
+        <div><p class="l">Tel&eacute;fono</p><p class="v">${escapeHtml(contacto || '-')}</p></div>
       </div>
       ${observaciones ? `<p class="obs">Obs.: ${escapeHtml(observaciones)}</p>` : ''}
     </div>

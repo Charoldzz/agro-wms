@@ -134,7 +134,7 @@ export default function ClientRequestsAdmin() {
                 <div className="mx-3 mb-2 flex flex-wrap items-center gap-x-3 gap-y-0.5 rounded-lg bg-white/60 px-2.5 py-1.5 text-[11px]">
                   <span className="font-black uppercase tracking-wide text-slate-400">Transp.</span>
                   {req.transporter_name && <span className="font-semibold text-slate-700">{req.transporter_name}</span>}
-                  {req.transporter_ci   && <span className="text-slate-500">CI {req.transporter_ci}</span>}
+                  {req.transporter_ci   && <span className="text-slate-500">Tel. {req.transporter_ci}</span>}
                   {req.transporter_plate && <span className="font-bold text-slate-700">{req.transporter_plate}</span>}
                   {req.attachment_url && (
                     <>

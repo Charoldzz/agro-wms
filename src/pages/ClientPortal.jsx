@@ -1443,11 +1443,12 @@ export default function ClientPortal({ view = 'inventory' }) {
                     </label>
                     <div className="grid grid-cols-2 gap-3">
                       <label className="block">
-                        <span className="text-[10px] font-bold uppercase tracking-wide text-slate-400">CI</span>
+                        <span className="text-[10px] font-bold uppercase tracking-wide text-slate-400">Teléfono</span>
                         <input
                           className="input mt-1"
                           type="text"
-                          placeholder="Ej: 3842873 SC"
+                          inputMode="tel"
+                          placeholder="Ej: 76543210"
                           value={reqTransporter.ci}
                           onChange={e => setReqTransporter(v => ({ ...v, ci: e.target.value }))}
                         />
