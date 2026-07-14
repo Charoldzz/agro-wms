@@ -543,7 +543,7 @@ export default function ClientPortal({ view = 'inventory' }) {
     try {
       const now = new Date()
       const date = now.toISOString().slice(0, 10)
-      const timestamp = formatDate(now.toISOString())
+      const timestamp = formatDateOnly(now.toISOString())
       const wb = new ExcelJS.Workbook()
       const ws = wb.addWorksheet('Inventario')
 
