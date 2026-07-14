@@ -466,12 +466,21 @@ export default function ClientPortal({ view = 'inventory' }) {
   const transporterComplete = Boolean(reqTransporter.name.trim() && reqTransporter.ci.trim() && reqTransporter.plate.trim())
 
   /* ─── request actions ─────────────────────────────────────────── */
+  // REGLA: la cantidad se pide SIEMPRE en equivalente (lts/kgs); las unidades
+  // se calculan de ahí. Sin presentación, la cantidad ES unidades.
+  function reqUnitsFromEquivalent(lot, eqValue) {
+    const size = Number(lot?.package_size) || 0
+    const eq = Number(eqValue) || 0
+    if (!(size > 0)) return eq
+    return Math.round((eq / size) * 1000) / 1000
+  }
+
   function addReqItem() {
     setReqMessage('')
-    const qty = Number(reqQuantity||0)
+    const qty = reqUnitsFromEquivalent(selectedLot, reqQuantity)
     if (!selectedLot) { setReqMessage('Selecciona un lote.'); return }
     if (qty <= 0) { setReqMessage('Ingresa una cantidad mayor a 0.'); return }
-    if (qty > Number(selectedLot.current_quantity||0)) { setReqMessage('La cantidad supera los unidades disponibles.'); return }
+    if (qty > Number(selectedLot.current_quantity||0)) { setReqMessage('La cantidad supera el stock disponible.'); return }
     if (['Retenido','Cerrado'].includes(lotStatus(selectedLot).label)) { setReqMessage('Este lote no está disponible para despacho.'); return }
     setReqItems(cur => {
       const existing = cur.find(i => i.lot_id === selectedLot.id)
@@ -491,7 +500,10 @@ export default function ClientPortal({ view = 'inventory' }) {
   }
 
   function editReqItem(item) {
-    setEditingLotId(item.lot_id); setReqLotId(item.lot_id); setReqQuantity(String(item.quantity||''))
+    // El campo trabaja en equivalente: unidades guardadas × presentación
+    const size = Number(item.package_size) || 0
+    const eqValue = size > 0 ? Number(item.quantity || 0) * size : Number(item.quantity || 0)
+    setEditingLotId(item.lot_id); setReqLotId(item.lot_id); setReqQuantity(String(eqValue || ''))
     const lot = lots.find(l => l.id === item.lot_id) || item
     setReqProductName(productIdentityKey(lot)); setReqMessage('Editando item de la lista.')
   }
@@ -1531,10 +1543,10 @@ export default function ClientPortal({ view = 'inventory' }) {
                     )
                   })()}
 
-                  {/* Step 3: cantidad */}
+                  {/* Paso 2: cantidad EN EQUIVALENTE — las unidades/cajas se calculan */}
                   {reqLotId && (
                     <label className="block">
-                      <span className="text-xs font-black uppercase tracking-wide text-slate-500">2 · Cantidad de unidades</span>
+                      <span className="text-xs font-black uppercase tracking-wide text-slate-500">2 · Cantidad</span>
                       <div className="flex items-center gap-2 mt-1.5">
                         <input
                           className="input flex-1"
@@ -1543,12 +1555,22 @@ export default function ClientPortal({ view = 'inventory' }) {
                           value={reqQuantity}
                           onChange={e => { const v = e.target.value.replace(',','.'); if(/^\d*\.?\d*$/.test(v)) setReqQuantity(v) }}
                         />
-                        {Number(reqQuantity) > 0 && Number(selectedLot?.package_size) > 0 && selectedLot?.package_unit && (
-                          <span className="shrink-0 rounded-lg bg-campo-50 px-3 py-2 text-sm font-black text-campo-700">
-                            {formatNumber(Number(reqQuantity) * Number(selectedLot.package_size))} {selectedLot.package_unit}
-                          </span>
-                        )}
+                        <span className="shrink-0 rounded-lg bg-slate-100 px-3 py-2 text-sm font-black text-slate-600">
+                          {Number(selectedLot?.package_size) > 0 && selectedLot?.package_unit ? selectedLot.package_unit : 'uds'}
+                        </span>
                       </div>
+                      {(() => {
+                        const eq = Number(reqQuantity) || 0
+                        const size = Number(selectedLot?.package_size) || 0
+                        if (!(eq > 0) || !(size > 0)) return null
+                        const d = desgloseEnvases(eq, size, selectedLot.package_unit, lotUnitsPerBox(selectedLot))
+                        const parts = [d.unidadesLabel, d.cajasLabel ? `Cajas: ${d.cajasLabel}` : ''].filter(Boolean)
+                        return parts.length ? (
+                          <p className="mt-1.5 rounded-lg bg-campo-50 px-3 py-2 text-xs font-bold text-campo-700">
+                            = {parts.join(' · ')}
+                          </p>
+                        ) : null
+                      })()}
                     </label>
                   )}
 
