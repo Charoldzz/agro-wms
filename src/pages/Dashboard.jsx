@@ -7,6 +7,7 @@ import { supabase } from '../lib/supabase'
 import { formatDate, formatNumber, movementLabel } from '../lib/format'
 import { cleanProductName, displayLotCode } from '../lib/display'
 import { normalizeDispatchRequests } from '../lib/dispatchRequests'
+import { itemEnvLabel, itemEqLabel } from '../lib/envases'
 
 export default function Dashboard() {
   const { user } = useAuth()
@@ -268,14 +269,16 @@ export default function Dashboard() {
                       <p className="text-xs font-bold text-amber-700">{request.status === 'en_preparacion' ? 'En preparación' : 'Despacho pendiente'}</p>
                     </div>
                     <span className="rounded-full bg-white px-2 py-1 text-xs font-black text-amber-800">
-                      {Array.isArray(request.items) && request.items.length > 1 ? `${request.items.length} items` : `${formatNumber(request.quantity)} uds`}
+                      {Array.isArray(request.items) && request.items.length > 1
+                        ? `${request.items.length} items`
+                        : itemEqLabel({ quantity: request.quantity, package_size: request.lots?.package_size, package_unit: request.lots?.package_unit })}
                     </span>
                   </div>
                   {Array.isArray(request.items) && request.items.length > 1 ? (
                     <div className="mt-2 space-y-1">
                       {request.items.slice(0, 2).map((item) => (
                         <p key={item.lot_id} className="rounded-lg bg-white/80 px-2 py-1 text-xs font-bold text-slate-600 [overflow-wrap:anywhere]">
-                          {cleanProductName(item.product)} - {formatNumber(item.quantity)} uds
+                          {cleanProductName(item.product)} — {itemEqLabel(item)}{itemEnvLabel(item) ? ` (${itemEnvLabel(item)})` : ''}
                         </p>
                       ))}
                       {request.items.length > 2 ? <p className="text-xs font-bold text-slate-600">+ {request.items.length - 2} producto{request.items.length - 2 === 1 ? '' : 's'} mas</p> : null}

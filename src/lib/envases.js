@@ -32,6 +32,23 @@ export function envaseTipo(size, unit) {
   return { singular: 'big bag', plural: 'big bags' }
 }
 
+// Equivalente de un item con {quantity, package_size, package_unit} (uds × presentación);
+// sin dato → uds, jamás se inventa
+export function itemEqLabel(item) {
+  const size = Number(item?.package_size) || 0
+  const qty = Number(item?.quantity) || 0
+  if (size > 0 && item?.package_unit) return `${formatNumber(qty * size)} ${item.package_unit}`
+  return `${formatNumber(qty)} uds`
+}
+
+// Envases del item ("25 bidones + 17 lt"); sin presentación → ''
+export function itemEnvLabel(item) {
+  const size = Number(item?.package_size) || 0
+  const qty = Number(item?.quantity) || 0
+  if (!(size > 0)) return ''
+  return desgloseEnvases(qty * size, size, item?.package_unit, 0).unidadesLabel || ''
+}
+
 // Desglose completo: cantidad equivalente → cajas + envases sueltos + resto
 // qty: cantidad total (lts/kgs), size/unit: presentación, upb: unidades por caja (0 = sin dato)
 export function desgloseEnvases(qty, size, unit, upb) {
