@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { X } from 'lucide-react'
 import { unitsPerBoxFromName } from '../lib/display'
 import { supabase } from '../lib/supabase'
@@ -15,6 +15,15 @@ function parseCatalogCode(code) {
   const match = String(code || '').trim().toUpperCase().match(/^([A-Z0-9]+)-(\d+)$/)
   if (!match) return null
   return { prefix: match[1], number: parseInt(match[2], 10), width: match[2].length }
+}
+
+// Sufijo de presentación para sugerir en el nombre: "4x5 LT" o "X 20 LT"
+function buildNameSuffix(upb, size, unit) {
+  const s = String(size || '').trim()
+  if (!s || !(Number(s.replace(',', '.')) > 0)) return ''
+  const u = String(unit || '').toUpperCase()
+  const n = Number(upb)
+  return n > 0 ? `${n}x${s} ${u}` : `X ${s} ${u}`
 }
 
 function nextCodeForClient(existingCodes, fallbackPrefix = '') {
@@ -44,13 +53,44 @@ export default function NewProductModal({ clients, onClose, onSaved, fixedClient
   const [loadingCode, setLoadingCode] = useState(false)
 
   const selectedClient = clients.find((c) => c.id === clientId)
-  const productLabel = name
-    ? SIZE_IN_NAME_RE.test(name)
-      ? name.toUpperCase()
-      : packageSize
-        ? `${name.toUpperCase()} X ${packageSize} ${packageUnit}`
-        : name.toUpperCase()
-    : ''
+  // Lo que se muestra acá es EXACTAMENTE lo que se guarda (el nombre completo)
+  const productLabel = name.trim().toUpperCase()
+
+  // Opción C (decisión Harold): al llenar presentación/uds por caja, el nombre se
+  // autocompleta con el sufijo ("PRUEBA2 4x5 LT") pero queda editable — la última
+  // palabra la tiene el humano. Si el usuario escribió su propia presentación en
+  // el nombre, no se toca.
+  const suffixRef = useRef('')
+  useEffect(() => {
+    const suffix = buildNameSuffix(unitsPerBox, packageSize, packageUnit)
+    if (suffix === suffixRef.current) return
+    setName((prev) => {
+      const prevTrim = prev.trimEnd()
+      let base = prevTrim
+      if (suffixRef.current && prevTrim.toUpperCase().endsWith(suffixRef.current.toUpperCase())) {
+        base = prevTrim.slice(0, prevTrim.length - suffixRef.current.length).trimEnd()
+      } else if (SIZE_IN_NAME_RE.test(prevTrim)) {
+        // El usuario ya puso su propia presentación en el nombre: respetarla
+        suffixRef.current = suffix
+        return prev
+      }
+      suffixRef.current = suffix
+      if (!base.trim()) return prev
+      return suffix ? `${base} ${suffix}` : base
+    })
+  }, [packageSize, packageUnit, unitsPerBox])
+
+  // Si el nombre se escribió DESPUÉS de la presentación, sugerir el sufijo al salir del campo
+  function applyNameSuggestion() {
+    const suffix = buildNameSuffix(unitsPerBox, packageSize, packageUnit)
+    if (!suffix) return
+    setName((prev) => {
+      const t = prev.trim()
+      if (!t || SIZE_IN_NAME_RE.test(t)) return prev
+      suffixRef.current = suffix
+      return `${t} ${suffix}`
+    })
+  }
 
   useEffect(() => {
     if (!clientId) { setNextCode(''); return }
@@ -155,8 +195,12 @@ export default function NewProductModal({ clients, onClose, onSaved, fixedClient
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
+              onBlur={applyNameSuggestion}
               placeholder="Ej: BONDER"
             />
+            <p className="mt-1 text-xs font-semibold text-slate-400">
+              Al llenar la presentación, el nombre se completa solo — podés corregirlo antes de guardar.
+            </p>
           </div>
 
           <div>
