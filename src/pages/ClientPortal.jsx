@@ -450,23 +450,17 @@ export default function ClientPortal({ view = 'inventory' }) {
 
   const visibleProducts = (showAllProducts || search.trim() || inventoryFilter !== 'all') ? displayedProducts : displayedProducts.slice(0, 8)
 
-  // request: unique product identities for step 1 select
-  const reqProductOptions = useMemo(() => {
-    const map = new Map()
-    lots.forEach(lot => {
-      const key = productIdentityKey(lot)
-      if (!map.has(key)) map.set(key, productIdentityLabel(lot))
+  // request: UNA sola lista producto+lote con el equivalente disponible como
+  // referencia — sin código (pedido Harold: texto corto y útil)
+  const reqLotOptions = useMemo(() => {
+    return sortInventoryLots(lots).map(l => {
+      const eq = lotEquivalent(l)
+      const disp = eq ? `${formatNumber(eq.quantity)} ${eq.unit}` : `${formatNumber(l.current_quantity)} uds`
+      const st = lotStatus(l)
+      const marca = st.label === 'Vencido' ? ' ⚠ VENCIDO' : st.label === 'Retenido' ? ' · Retenido' : ''
+      return { id: l.id, label: `${cleanProductName(l.product)} · Lote ${lotLabel(l.lot_code, l)} · ${disp}${marca}` }
     })
-    return [...map.entries()]
-      .map(([key, label]) => ({ key, label }))
-      .sort((a,b) => a.label.localeCompare(b.label,'es',{numeric:true}))
   }, [lots])
-
-  // request: lots for selected product
-  const reqProductLots = useMemo(() => {
-    if (!reqProductName) return []
-    return lots.filter(l => productIdentityKey(l) === reqProductName)
-  }, [lots, reqProductName])
 
   const selectedLot = lots.find(l => l.id === reqLotId)
   const transporterComplete = Boolean(reqTransporter.name.trim() && reqTransporter.ci.trim() && reqTransporter.plate.trim())
@@ -1436,7 +1430,6 @@ export default function ClientPortal({ view = 'inventory' }) {
                       <input
                         className="input mt-1"
                         type="text"
-                        placeholder="Ej: Roger Senas Guzmán"
                         value={reqTransporter.name}
                         onChange={e => setReqTransporter(v => ({ ...v, name: e.target.value }))}
                       />
@@ -1448,7 +1441,6 @@ export default function ClientPortal({ view = 'inventory' }) {
                           className="input mt-1"
                           type="text"
                           inputMode="tel"
-                          placeholder="Ej: 76543210"
                           value={reqTransporter.ci}
                           onChange={e => setReqTransporter(v => ({ ...v, ci: e.target.value }))}
                         />
@@ -1458,7 +1450,6 @@ export default function ClientPortal({ view = 'inventory' }) {
                         <input
                           className="input mt-1"
                           type="text"
-                          placeholder="Ej: 6274-FEG"
                           value={reqTransporter.plate}
                           onChange={e => setReqTransporter(v => ({ ...v, plate: e.target.value.toUpperCase() }))}
                         />
@@ -1474,39 +1465,25 @@ export default function ClientPortal({ view = 'inventory' }) {
 
                   {transporterComplete && (<>
 
-                  {/* Step 1: producto */}
+                  {/* Paso 1: producto y lote en una sola lista */}
                   <label className="block">
-                    <span className="text-xs font-black uppercase tracking-wide text-slate-500">1 · Producto</span>
+                    <span className="text-xs font-black uppercase tracking-wide text-slate-500">1 · Producto y lote</span>
                     <select
                       className="input mt-1.5"
-                      value={reqProductName}
-                      onChange={e => { setReqProductName(e.target.value); setReqLotId('') }}
+                      value={reqLotId}
+                      onChange={e => {
+                        const id = e.target.value
+                        setReqLotId(id)
+                        const l = lots.find(x => x.id === id)
+                        setReqProductName(l ? productIdentityKey(l) : '')
+                      }}
                     >
                       <option value="">Seleccionar producto...</option>
-                      {reqProductOptions.map(option => (
-                        <option key={option.key} value={option.key}>{option.label}</option>
+                      {reqLotOptions.map(o => (
+                        <option key={o.id} value={o.id}>{o.label}</option>
                       ))}
                     </select>
                   </label>
-
-                  {/* Step 2: lote */}
-                  {reqProductName && (
-                    <label className="block">
-                      <span className="text-xs font-black uppercase tracking-wide text-slate-500">2 · Lote</span>
-                      <select className="input mt-1.5" value={reqLotId} onChange={e => setReqLotId(e.target.value)}>
-                        <option value="">Seleccionar lote...</option>
-                        {reqProductLots.map(l => {
-                          const st = lotStatus(l)
-                          const statusText = st.label === 'Vencido' ? ' ⚠ VENCIDO' : st.label === 'Por vencer' ? ' · Por vencer' : st.label === 'Retenido' ? ' · Retenido' : ''
-                          return (
-                            <option key={l.id} value={l.id}>
-                              {lotLabel(l.lot_code, l)} · {formatNumber(l.current_quantity)} uds {l.expiry_date ? `· Vence ${formatDate(l.expiry_date)}` : ''}{statusText}
-                            </option>
-                          )
-                        })}
-                      </select>
-                    </label>
-                  )}
 
                   {/* Selected lot info */}
                   {selectedLot && (() => {
@@ -1557,13 +1534,12 @@ export default function ClientPortal({ view = 'inventory' }) {
                   {/* Step 3: cantidad */}
                   {reqLotId && (
                     <label className="block">
-                      <span className="text-xs font-black uppercase tracking-wide text-slate-500">3 · Cantidad de unidades</span>
+                      <span className="text-xs font-black uppercase tracking-wide text-slate-500">2 · Cantidad de unidades</span>
                       <div className="flex items-center gap-2 mt-1.5">
                         <input
                           className="input flex-1"
                           inputMode="decimal"
                           type="text"
-                          placeholder="Ej: 50"
                           value={reqQuantity}
                           onChange={e => { const v = e.target.value.replace(',','.'); if(/^\d*\.?\d*$/.test(v)) setReqQuantity(v) }}
                         />
