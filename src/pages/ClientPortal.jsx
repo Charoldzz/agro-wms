@@ -112,6 +112,19 @@ function udsEnvaseLabel(qty, size, unit) {
   return desgloseEnvases(eqRaw, s, unit, 0).unidadesLabel || `${formatNumber(q)} uds`
 }
 
+// Orden profesional de inventario: producto A→Z y, dentro del mismo producto,
+// vencimiento más próximo primero (FEFO); sin vencimiento al final
+function sortInventoryLots(lots) {
+  return [...lots].sort((a, b) => {
+    const byName = cleanProductName(a.product).localeCompare(cleanProductName(b.product), 'es')
+    if (byName !== 0) return byName
+    if (!a.expiry_date && !b.expiry_date) return 0
+    if (!a.expiry_date) return 1
+    if (!b.expiry_date) return -1
+    return a.expiry_date < b.expiry_date ? -1 : a.expiry_date > b.expiry_date ? 1 : 0
+  })
+}
+
 // Total de una nota separado por unidad: "315 lts · 5.038 kgs"
 function noteEquivalentLabel(movs) {
   const totals = new Map()
@@ -587,7 +600,7 @@ export default function ClientPortal({ view = 'inventory' }) {
       // y los nombres de columna se muestran en la barra de letras (A, B, C...).
       // Sin botones de filtro (tapaban los nombres — pedido de Harold).
       const headerLabels = ['Código', 'Producto', 'Lote', 'Vencimiento', 'Cantidad', 'Unidades', 'Cajas']
-      const dataRows = lots.map((l) => {
+      const dataRows = sortInventoryLots(lots).map((l) => {
         let eqStr = ''
         try { const eq = lotEquivalent(l); if (eq) eqStr = `${formatNumber(eq.quantity)} ${eq.unit}` } catch (_) {}
         const size = Number(l.package_size) || 0
@@ -691,7 +704,7 @@ export default function ClientPortal({ view = 'inventory' }) {
   // el cliente decide si imprime con el botón — sin impresión automática
   function printPdf() {
     const logoUrl = `${window.location.origin}/images/todo-logo.png`
-    const rows = lots.map((l, i) => {
+    const rows = sortInventoryLots(lots).map((l, i) => {
       let eqStr = ''
       try { const eq = lotEquivalent(l); if (eq) eqStr = `${formatNumber(eq.quantity)} ${eq.unit}` } catch (_) { /* sin dato */ }
       const size = Number(l.package_size) || 0
