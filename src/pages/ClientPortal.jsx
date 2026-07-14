@@ -11,7 +11,7 @@ import EmptyState from '../components/EmptyState'
 import ListProductCard from '../components/ListProductCard'
 import { useAuth } from '../hooks/useAuth.jsx'
 import { cleanProductName, displayLotCode, lotLabel, packageLabel, productCode, productCodeLabel } from '../lib/display'
-import { desgloseEnvases } from '../lib/envases'
+import { desgloseEnvases, envaseTipo } from '../lib/envases'
 import { docFontsCss } from '../lib/comprobante'
 import { normalizeDispatchRequests } from '../lib/dispatchRequests'
 import { formatDate, formatDateOnly, formatNumber, movementLabel } from '../lib/format'
@@ -110,6 +110,39 @@ function udsEnvaseLabel(qty, size, unit) {
   const q = Number(qty) || 0
   const eqRaw = s > 0 ? q * s : q
   return desgloseEnvases(eqRaw, s, unit, 0).unidadesLabel || `${formatNumber(q)} uds`
+}
+
+// Envases de una nota completa, sumados por TIPO de envase — físico y sin
+// mezclar unidades: "12 tambores + 65 sobres + 15 lt"
+function noteEnvasesLabel(movs) {
+  const tipos = new Map()
+  const restos = new Map()
+  for (const m of movs) {
+    const lot = m.lots || {}
+    const size = Number(lot.package_size) || 0
+    const qty = Number(m.quantity || 0)
+    if (qty <= 0) continue
+    if (!(size > 0)) {
+      const t = tipos.get('unidades') || { singular: 'unidad', plural: 'unidades', count: 0 }
+      t.count += qty
+      tipos.set('unidades', t)
+      continue
+    }
+    const d = desgloseEnvases(qty * size, size, lot.package_unit, 0)
+    const tipo = envaseTipo(size, lot.package_unit) || { singular: 'unidad', plural: 'unidades' }
+    if (d.uds > 0) {
+      const t = tipos.get(tipo.plural) || { ...tipo, count: 0 }
+      t.count += d.uds
+      tipos.set(tipo.plural, t)
+    }
+    if (d.resto > 0) {
+      const u = String(lot.package_unit || '').toLowerCase()
+      restos.set(u, (restos.get(u) || 0) + d.resto)
+    }
+  }
+  const parts = [...tipos.values()].map((t) => `${formatNumber(t.count)} ${t.count === 1 ? t.singular : t.plural}`)
+  restos.forEach((v, u) => parts.push(`${formatNumber(v)} ${u}`))
+  return parts.join(' + ')
 }
 
 // Orden profesional de inventario: producto A→Z y, dentro del mismo producto,
@@ -1309,8 +1342,8 @@ export default function ClientPortal({ view = 'inventory' }) {
                       </div>
                       <div className="shrink-0 text-right">
                         <p className="text-sm font-black text-campo-700">{n.equivalentLabel}</p>
-                        {n.movs.length === 1 ? (
-                          <p className="text-[11px] font-semibold text-slate-400">{udsEnvaseLabel(n.totalUds, firstLot.package_size, firstLot.package_unit)}</p>
+                        {noteEnvasesLabel(n.movs) ? (
+                          <p className="text-[11px] font-semibold text-slate-400">{noteEnvasesLabel(n.movs)}</p>
                         ) : null}
                       </div>
                     </button>
@@ -1818,8 +1851,8 @@ export default function ClientPortal({ view = 'inventory' }) {
                       </div>
                       <div className="shrink-0 text-right">
                         <p className="text-sm font-black leading-snug text-campo-700">{n.equivalentLabel}</p>
-                        {n.movs.length === 1 ? (
-                          <p className="text-xs font-semibold text-slate-400">{udsEnvaseLabel(n.totalUds, firstLot.package_size, firstLot.package_unit)}</p>
+                        {noteEnvasesLabel(n.movs) ? (
+                          <p className="text-xs font-semibold text-slate-400">{noteEnvasesLabel(n.movs)}</p>
                         ) : null}
                       </div>
                       <button
