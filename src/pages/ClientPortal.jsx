@@ -230,8 +230,7 @@ export default function ClientPortal({ view = 'inventory' }) {
       supabase
         .from('product_catalog')
         .select('code,name,units_per_box')
-        .eq('client_id', clientId)
-        .not('units_per_box', 'is', null),
+        .eq('client_id', clientId),
     ])
     setLots(lotsData || [])
     setCatalog(catalogData || [])
@@ -311,20 +310,24 @@ export default function ClientPortal({ view = 'inventory' }) {
   const dispatchedRequests = requests.filter(r => r.status === 'despachado')
   const clientName    = lots[0]?.clients?.name || profile?.full_name || 'Cliente'
 
-  // Mapa nombre→units_per_box del catálogo para calcular cajas
+  // Mapa código→units_per_box del catálogo (REGLA: la relación lote↔ficha es
+  // por CÓDIGO); el nombre queda solo como respaldo para lotes viejos sin código
   const catalogBoxMap = useMemo(() => {
     const m = new Map()
     catalog.forEach(p => {
-      if (p.units_per_box > 0) m.set(p.name.toUpperCase(), p.units_per_box)
+      if (!(p.units_per_box > 0)) return
+      if (p.code) m.set(`code:${String(p.code).toUpperCase()}`, p.units_per_box)
+      if (p.name) m.set(`name:${p.name.toUpperCase()}`, p.units_per_box)
     })
     return m
   }, [catalog])
 
   function lotUnitsPerBox(lot) {
-    const name = cleanProductName(lot.product).toUpperCase()
-    // Solo del catálogo — REGLA: las cajas nunca se adivinan del nombre.
+    // Solo del catálogo — las cajas nunca se adivinan del nombre.
     // Sin dato → 0 cajas (se muestra en unidades), jamás un número inventado.
-    return catalogBoxMap.get(name) || 0
+    const code = String(lot.solucion_product_code || '').toUpperCase()
+    if (code && catalogBoxMap.has(`code:${code}`)) return catalogBoxMap.get(`code:${code}`)
+    return catalogBoxMap.get(`name:${cleanProductName(lot.product).toUpperCase()}`) || 0
   }
 
   function lotCajas(lot) {
