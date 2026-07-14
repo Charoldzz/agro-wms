@@ -1513,7 +1513,7 @@ export default function ClientPortal({ view = 'inventory' }) {
                             return eq ? (
                               <>
                                 <p className="text-lg font-black text-campo-700">{formatNumber(eq.quantity)} <span className="text-sm font-bold text-campo-500">{eq.unit}</span></p>
-                                <p className="text-[10px] font-semibold text-slate-400">{formatNumber(selectedLot.current_quantity)} uds disp.</p>
+                                <p className="text-[10px] font-semibold text-slate-400">{udsEnvaseLabel(selectedLot.current_quantity, selectedLot.package_size, selectedLot.package_unit)} disp.</p>
                               </>
                             ) : (
                               <>
