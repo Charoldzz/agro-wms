@@ -94,7 +94,9 @@ function AppRoutes() {
         <Route path="operacion/correcciones" element={<RoleRoute roles={['administrador', 'operador']}><CorrectionRequests /></RoleRoute>} />
         <Route path="clientes" element={<RoleRoute roles={['administrador']}><Clients /></RoleRoute>} />
         <Route path="lotes" element={<RoleRoute roles={['administrador', 'operador']}><Lots /></RoleRoute>} />
-        <Route path="lotes/:id" element={<RoleRoute roles={['administrador', 'operador']}><LotDetail /></RoleRoute>} />
+        {/* La ficha del lote SÍ permite cliente: LotDetail tiene vista propia de consulta
+            (clientLotConsultation) y RLS limita a sus lotes. La LISTA /lotes sigue cerrada. */}
+        <Route path="lotes/:id" element={<RoleRoute roles={['administrador', 'operador', 'cliente']}><LotDetail /></RoleRoute>} />
         <Route path="productos/:name" element={<RoleRoute roles={['administrador', 'operador']}><ProductLots /></RoleRoute>} />
         <Route path="vencimientos" element={<RoleRoute roles={['administrador', 'operador']}><ExpiringLots /></RoleRoute>} />
         <Route path="scanner" element={<Scanner />} />
