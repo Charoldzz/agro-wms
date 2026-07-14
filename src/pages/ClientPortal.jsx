@@ -1552,9 +1552,9 @@ export default function ClientPortal({ view = 'inventory' }) {
                   {reqLotId && (
                     <label className="block">
                       <span className="text-xs font-black uppercase tracking-wide text-slate-500">2 · Cantidad</span>
-                      <div className="flex items-center gap-2 mt-1.5">
+                      <div className="mt-1.5 flex items-center gap-2">
                         <input
-                          className="input flex-1"
+                          className="input w-28 text-right font-bold sm:w-32"
                           inputMode="decimal"
                           type="text"
                           value={reqQuantity}
@@ -1563,19 +1563,23 @@ export default function ClientPortal({ view = 'inventory' }) {
                         <span className="shrink-0 rounded-lg bg-slate-100 px-3 py-2 text-sm font-black text-slate-600">
                           {Number(selectedLot?.package_size) > 0 && selectedLot?.package_unit ? selectedLot.package_unit : 'uds'}
                         </span>
+                        {(() => {
+                          const eq = Number(reqQuantity) || 0
+                          const size = Number(selectedLot?.package_size) || 0
+                          if (!(eq > 0) || !(size > 0)) return null
+                          const d = desgloseEnvases(eq, size, selectedLot.package_unit, lotUnitsPerBox(selectedLot))
+                          const tipo = envaseTipo(size, selectedLot.package_unit)
+                          const cajasStr = d.cajas > 0
+                            ? `${formatNumber(d.cajas)} ${d.cajas === 1 ? 'caja' : 'cajas'}${d.sueltos > 0 ? ` + ${formatNumber(d.sueltos)} ${tipo ? (d.sueltos === 1 ? tipo.singular : tipo.plural) : 'sueltas'}` : ''}`
+                            : ''
+                          const parts = [d.unidadesLabel, cajasStr].filter(Boolean)
+                          return parts.length ? (
+                            <div className="min-w-0 flex-1 rounded-lg bg-campo-50 px-3 py-2 text-right text-xs font-bold leading-snug text-campo-700">
+                              {parts.join(' · ')}
+                            </div>
+                          ) : null
+                        })()}
                       </div>
-                      {(() => {
-                        const eq = Number(reqQuantity) || 0
-                        const size = Number(selectedLot?.package_size) || 0
-                        if (!(eq > 0) || !(size > 0)) return null
-                        const d = desgloseEnvases(eq, size, selectedLot.package_unit, lotUnitsPerBox(selectedLot))
-                        const parts = [d.unidadesLabel, d.cajasLabel ? `Cajas: ${d.cajasLabel}` : ''].filter(Boolean)
-                        return parts.length ? (
-                          <p className="mt-1.5 rounded-lg bg-campo-50 px-3 py-2 text-xs font-bold text-campo-700">
-                            = {parts.join(' · ')}
-                          </p>
-                        ) : null
-                      })()}
                     </label>
                   )}
 
