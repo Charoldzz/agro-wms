@@ -544,19 +544,20 @@ export default function ClientPortal({ view = 'inventory' }) {
       const wb = new ExcelJS.Workbook()
       const ws = wb.addWorksheet('Inventario')
 
-      // Column widths — 6 columns
+      // Column widths — 7 columnas (mismo orden que los documentos)
       ws.columns = [
-        { key: 'producto',    width: 40 },
-        { key: 'lote',        width: 22 },
-        { key: 'vencimiento', width: 16 },
-        { key: 'equivalente', width: 18 },
-        { key: 'unidades',     width: 14 },
-        { key: 'cajas',       width: 12 },
+        { key: 'codigo',      width: 15 },
+        { key: 'producto',    width: 42 },
+        { key: 'lote',        width: 14 },
+        { key: 'vencimiento', width: 15 },
+        { key: 'equivalente', width: 16 },
+        { key: 'unidades',    width: 12 },
+        { key: 'cajas',       width: 10 },
       ]
 
       // Row 1: client name — green header
       const titleRow = ws.addRow([clientName])
-      ws.mergeCells('A1:F1')
+      ws.mergeCells('A1:G1')
       titleRow.height = 28
       titleRow.getCell(1).font  = { bold: true, size: 14, color: { argb: 'FFFFFFFF' } }
       titleRow.getCell(1).fill  = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1D593A' } }
@@ -564,7 +565,7 @@ export default function ClientPortal({ view = 'inventory' }) {
 
       // Row 2: timestamp
       const subRow = ws.addRow([`Inventario al ${timestamp}`])
-      ws.mergeCells('A2:F2')
+      ws.mergeCells('A2:G2')
       subRow.getCell(1).font      = { italic: true, size: 10, color: { argb: 'FF475569' } }
       subRow.getCell(1).alignment = { horizontal: 'left', indent: 1 }
 
@@ -572,7 +573,7 @@ export default function ClientPortal({ view = 'inventory' }) {
       ws.addRow([])
 
       // Row 4: column headers
-      const headerLabels = ['Producto', 'Lote', 'Vencimiento', 'Cantidad Lts/Kgs', 'Cantidad Unidades', 'Cajas']
+      const headerLabels = ['Código', 'Producto', 'Lote', 'Vencimiento', 'Cantidad', 'Unidades', 'Cajas']
       const hdrRow = ws.addRow(headerLabels)
       hdrRow.height = 18
       hdrRow.eachCell(cell => {
@@ -582,6 +583,11 @@ export default function ClientPortal({ view = 'inventory' }) {
         cell.border    = { bottom: { style: 'thin', color: { argb: 'FF1D593A' } } }
       })
       hdrRow.getCell(1).alignment = { vertical: 'middle', horizontal: 'left', indent: 1 }
+      hdrRow.getCell(2).alignment = { vertical: 'middle', horizontal: 'left' }
+
+      // Encabezado congelado + filtros de Excel (ordenar/filtrar por columna)
+      ws.views = [{ state: 'frozen', ySplit: 4 }]
+      ws.autoFilter = { from: 'A4', to: 'G4' }
 
       // Data rows
       lots.forEach((l) => {
@@ -589,21 +595,49 @@ export default function ClientPortal({ view = 'inventory' }) {
         try { const eq = lotEquivalent(l); if (eq) eqStr = `${formatNumber(eq.quantity)} ${eq.unit}` } catch (_) {}
         const cajas = lotCajas(l)
         const row = ws.addRow([
+          productCode(l) || '-',
           cleanProductName(l.product) || '',
           displayLotCode(l.lot_code, l) || '',
           l.expiry_date ? formatDate(l.expiry_date) : '-',
-          eqStr || '-',
+          eqStr || `${formatNumber(l.current_quantity)} uds`,
           Number(l.current_quantity || 0),
           cajas > 0 ? cajas : '',
         ])
         row.eachCell((cell, colNum) => {
-          cell.alignment = colNum === 1
-            ? { vertical: 'middle', horizontal: 'left', wrapText: true }
+          cell.alignment = colNum <= 2
+            ? { vertical: 'middle', horizontal: 'left', wrapText: colNum === 2 }
             : { vertical: 'middle', horizontal: 'right' }
-          cell.font   = { size: 10 }
+          cell.font   = { size: 10, bold: colNum === 5 }
           cell.border = { top: { style: 'thin', color: { argb: 'FFCBD5E1' } } }
         })
       })
+
+      // Fila TOTAL — solo equivalente lts · kgs (nunca mezclar con uds)
+      const totalsMap = new Map()
+      lots.forEach((l) => {
+        let eq = null
+        try { eq = lotEquivalent(l) } catch (_) { /* sin dato */ }
+        if (!eq) return
+        let u = String(eq.unit || '').toLowerCase()
+        let v = eq.quantity
+        if (u === 'ml') { u = 'lts'; v /= 1000 }
+        else if (/^l/.test(u)) u = 'lts'
+        else if (/^k/.test(u)) u = 'kgs'
+        else return
+        totalsMap.set(u, (totalsMap.get(u) || 0) + v)
+      })
+      const totalStr = [...totalsMap.entries()].map(([u, v]) => `${formatNumber(v)} ${u}`).join(' · ')
+      if (totalStr) {
+        const totalRow = ws.addRow(['TOTAL', '', '', '', totalStr, '', ''])
+        totalRow.height = 20
+        totalRow.eachCell({ includeEmpty: true }, (cell, colNum) => {
+          if (colNum > 7) return
+          cell.font   = { bold: true, size: 11, color: { argb: 'FF14532D' } }
+          cell.fill   = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF0FDF4' } }
+          cell.border = { top: { style: 'medium', color: { argb: 'FF15803D' } } }
+          cell.alignment = { vertical: 'middle', horizontal: colNum === 1 ? 'left' : 'right' }
+        })
+      }
 
       // Download
       const buf = await wb.xlsx.writeBuffer()
