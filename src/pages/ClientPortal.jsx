@@ -618,67 +618,101 @@ export default function ClientPortal({ view = 'inventory' }) {
     }
   }
 
+  // Abre el inventario como documento (misma estética que los comprobantes);
+  // el cliente decide si imprime con el botón — sin impresión automática
   function printPdf() {
-    const timestamp = formatDate(new Date().toISOString())
-    const rows = lots.map(l => {
-      let eqStr = '-'
-      try { const eq = lotEquivalent(l); if (eq) eqStr = `${formatNumber(eq.quantity)} ${eq.unit}` } catch (_) {}
+    const logoUrl = `${window.location.origin}/images/todo-logo.png`
+    const rows = lots.map((l, i) => {
+      let eqStr = ''
+      try { const eq = lotEquivalent(l); if (eq) eqStr = `${formatNumber(eq.quantity)} ${eq.unit}` } catch (_) { /* sin dato */ }
+      const size = Number(l.package_size) || 0
+      const eqRaw = size > 0 ? Number(l.current_quantity || 0) * size : Number(l.current_quantity || 0)
+      const desglose = desgloseEnvases(eqRaw, size, l.package_unit, 0)
+      const unidadesLabel = desglose.unidadesLabel || `${formatNumber(l.current_quantity)} uds`
       const cajas = lotCajas(l)
       return `<tr>
+        <td class="c">${i + 1}</td>
+        <td class="c mono">${escapeHtml(productCode(l) || '-')}</td>
         <td>${escapeHtml(cleanProductName(l.product))}</td>
-        <td>${escapeHtml(displayLotCode(l.lot_code, l))}</td>
-        <td style="text-align:right">${escapeHtml(l.expiry_date ? formatDate(l.expiry_date) : '-')}</td>
-        <td style="text-align:right">${escapeHtml(eqStr)}</td>
-        <td style="text-align:right">${escapeHtml(formatNumber(l.current_quantity))}</td>
-        <td style="text-align:right">${cajas > 0 ? escapeHtml(String(cajas)) : '-'}</td>
+        <td class="c mono">${escapeHtml(displayLotCode(l.lot_code, l))}</td>
+        <td class="c">${escapeHtml(l.expiry_date ? formatDate(l.expiry_date) : '-')}</td>
+        <td class="r"><strong>${escapeHtml(eqStr || `${formatNumber(l.current_quantity)} uds`)}</strong></td>
+        <td class="r">${escapeHtml(unidadesLabel)}</td>
+        <td class="r">${cajas > 0 ? escapeHtml(formatNumber(cajas)) : '-'}</td>
       </tr>`
     }).join('')
 
+    // Total solo en equivalente (lts · kgs) — nunca mezclar con uds
+    const totals = new Map()
+    lots.forEach((l) => {
+      let eq = null
+      try { eq = lotEquivalent(l) } catch (_) { /* sin dato */ }
+      if (!eq) return
+      let u = String(eq.unit || '').toLowerCase()
+      let v = eq.quantity
+      if (u === 'ml') { u = 'lts'; v /= 1000 }
+      else if (/^l/.test(u)) u = 'lts'
+      else if (/^k/.test(u)) u = 'kgs'
+      else return
+      totals.set(u, (totals.get(u) || 0) + v)
+    })
+    const totalLabel = [...totals.entries()].map(([u, v]) => `${formatNumber(v)} ${u}`).join(' · ')
+
     const w = window.open('', '_blank'); if (!w) return
-    w.document.write(`<!doctype html><html><head>
-<title>Inventario ${escapeHtml(clientName)}</title>
-<meta name="viewport" content="width=device-width,initial-scale=1"/>
+    w.document.write(`<!doctype html><html><head><title>Inventario ${escapeHtml(clientName)}</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&display=swap" rel="stylesheet" />
 <style>
-  * { box-sizing: border-box; margin: 0; padding: 0 }
-  body { color: #0f172a; font-family: Arial, sans-serif }
-  .header { background: #1d593a; color: #fff; padding: 18px 24px 14px }
-  .header h1 { font-size: 20px; font-weight: 800; letter-spacing: .01em }
-  .header p  { font-size: 11px; margin-top: 2px; opacity: .75 }
-  .meta { padding: 10px 24px 0; display: flex; justify-content: space-between; align-items: baseline }
-  .meta .client { font-size: 15px; font-weight: 700; color: #1d593a }
-  .meta .date   { font-size: 10px; color: #64748b }
-  .divider { border: none; border-top: 2px solid #1d593a; margin: 8px 24px 0 }
-  table  { border-collapse: collapse; width: calc(100% - 48px); margin: 12px 24px 0; font-size: 11px }
-  thead tr { background: #1f6f45; color: #fff }
-  th { padding: 7px 8px; text-align: left; font-weight: 700; font-size: 10px; letter-spacing: .04em; text-transform: uppercase }
-  th.r { text-align: right }
-  td { padding: 6px 8px; border-top: 1px solid #e2e8f0; vertical-align: top }
-  .terms { font-size: 9px; color: #94a3b8; margin: 14px 24px 0 }
-  @media print {
-    body { -webkit-print-color-adjust: exact; print-color-adjust: exact }
-    @page { margin: 12mm }
-    .header, thead tr { background: #1d593a !important; color: #fff !important }
-  }
-</style>
-</head><body>
-<div class="header">
-  <h1>Todo Agricola Boliviana Ltda</h1>
-  <p>Portal de almacén</p>
+  body { color: #0f172a; font-family: 'Segoe UI', 'Helvetica Neue', Helvetica, Arial, sans-serif; margin: 26px 30px; }
+  .top { align-items: center; border-bottom: 3px solid #15803d; display: flex; gap: 16px; justify-content: space-between; padding-bottom: 14px; }
+  .brand { align-items: center; display: flex; gap: 14px; }
+  .brand img { height: 54px; width: auto; }
+  h1 { font-family: 'Bebas Neue', 'Segoe UI', Arial, sans-serif; font-size: 27px; font-weight: 400; letter-spacing: 1.5px; margin: 0; }
+  .sub { color: #475569; font-family: 'Bebas Neue', 'Segoe UI', Arial, sans-serif; font-size: 13px; letter-spacing: 3px; margin: 2px 0 0; text-transform: uppercase; }
+  .guide { border: 2px solid #15803d; border-radius: 10px; color: #15803d; font-family: 'Bebas Neue', 'Segoe UI', Arial, sans-serif; font-size: 20px; font-weight: 400; letter-spacing: 2px; padding: 7px 18px; text-align: center; white-space: nowrap; }
+  .guide small { color: #64748b; display: block; font-family: 'Segoe UI', Arial, sans-serif; font-size: 9px; font-weight: 600; letter-spacing: 2px; }
+  .datos { border: 1px solid #cbd5e1; border-radius: 10px; display: grid; gap: 12px 24px; grid-template-columns: repeat(3, 1fr); margin: 18px 0; padding: 14px 16px; }
+  .datos p { margin: 0; }
+  .datos .l { color: #64748b; font-size: 9px; font-weight: bold; letter-spacing: 1px; text-transform: uppercase; }
+  .datos .v { font-size: 13px; font-weight: bold; margin-top: 2px; }
+  table { border-collapse: collapse; width: 100%; }
+  th, td { border-bottom: 1px solid #e2e8f0; font-size: 12px; font-variant-numeric: tabular-nums; padding: 8px 7px; text-align: left; vertical-align: top; }
+  td { color: #0f172a; font-weight: 500; }
+  th { background: #f1f5f9; color: #334155; font-size: 9.5px; font-weight: 600; letter-spacing: 1px; text-transform: uppercase; }
+  td.c, th.c { text-align: center; }
+  td.r, th.r { text-align: right; }
+  .mono { letter-spacing: 0.3px; }
+  tfoot td { background: #f0fdf4; border-bottom: none; border-top: 2px solid #15803d; color: #14532d; font-size: 12.5px; font-weight: bold; padding: 9px 7px; }
+  .foot { color: #94a3b8; font-size: 9.5px; margin-top: 30px; text-align: center; }
+  .print-btn { background: #15803d; border: none; border-radius: 8px; bottom: 20px; box-shadow: 0 4px 12px rgba(15, 23, 42, 0.25); color: #fff; cursor: pointer; font-size: 13px; font-weight: bold; padding: 10px 18px; position: fixed; right: 20px; }
+  @media print { body { margin: 10mm; } .print-btn { display: none; } }
+</style></head><body>
+<button class="print-btn" onclick="window.print()">Imprimir / Guardar PDF</button>
+<div class="top">
+  <div class="brand">
+    <img src="${escapeHtml(logoUrl)}" alt="Todo Agricola" />
+    <div>
+      <h1>Todo Agr&iacute;cola Boliviana Ltda</h1>
+      <p class="sub">Inventario de mercader&iacute;a</p>
+    </div>
+  </div>
+  <div class="guide"><small>INVENTARIO AL</small>${escapeHtml(formatDateOnly(new Date().toISOString()))}</div>
 </div>
-<div class="meta">
-  <span class="client">${escapeHtml(clientName)}</span>
-  <span class="date">Inventario al ${escapeHtml(timestamp)}</span>
+<div class="datos">
+  <div><p class="l">Empresa</p><p class="v">${escapeHtml(clientName)}</p></div>
+  <div><p class="l">Productos</p><p class="v">${escapeHtml(String(new Set(lots.map(l => cleanProductName(l.product))).size))}</p></div>
+  <div><p class="l">Lotes activos</p><p class="v">${escapeHtml(String(lots.length))}</p></div>
 </div>
-<hr class="divider"/>
 <table>
   <thead><tr>
-    <th>Producto</th><th>Lote</th>
-    <th class="r">Vencimiento</th><th class="r">Cantidad Lts/Kgs</th><th class="r">Cantidad Unidades</th><th class="r">Cajas</th>
+    <th class="c">N&deg;</th><th class="c">C&oacute;digo</th><th>Producto</th><th class="c">Lote</th><th class="c">Venc.</th>
+    <th class="r">Cantidad</th><th class="r">Unidades</th><th class="r">Cajas</th>
   </tr></thead>
   <tbody>${rows}</tbody>
+  ${totalLabel ? `<tfoot><tr><td colspan="5">TOTAL</td><td class="r">${escapeHtml(totalLabel)}</td><td></td><td></td></tr></tfoot>` : ''}
 </table>
-<p class="terms">Informacion referencial sujeta a validacion operativa de Todo Agricola Boliviana Ltda.</p>
-<script>window.addEventListener('load',()=>window.print())</script>
+<p class="foot">Documento informativo generado desde el portal de clientes de Todo Agr&iacute;cola Boliviana Ltda &mdash; Emitido el ${escapeHtml(formatDateOnly(new Date().toISOString()))}. Informaci&oacute;n referencial sujeta a validaci&oacute;n operativa.</p>
 </body></html>`)
     w.document.close()
   }
@@ -809,7 +843,7 @@ export default function ClientPortal({ view = 'inventory' }) {
       <button onClick={exportExcel} title="Descargar Excel" className={`flex ${cls} items-center justify-center rounded-lg border border-white/20 bg-white/10 transition hover:bg-white/25`}>
         <Download size={size} />
       </button>
-      <button onClick={printPdf} title="Imprimir PDF" className={`flex ${cls} items-center justify-center rounded-lg border border-white/20 bg-white/10 transition hover:bg-white/25`}>
+      <button onClick={printPdf} title="Ver inventario (PDF)" className={`flex ${cls} items-center justify-center rounded-lg border border-white/20 bg-white/10 transition hover:bg-white/25`}>
         <FileText size={size} />
       </button>
       <button onClick={handleSignOut} title="Cerrar sesión" className={`flex ${cls} items-center justify-center rounded-lg border border-white/20 bg-white/10 transition hover:bg-white/25`}>
