@@ -1408,7 +1408,7 @@ export default function ClientPortal({ view = 'inventory' }) {
                               {eq
                                 ? <>
                                     <span className="text-sm font-black text-campo-700">{formatNumber(eq.quantity)} {eq.unit}</span>
-                                    <span className="text-[10px] font-semibold text-slate-400">({formatNumber(item.quantity)} uds)</span>
+                                    <span className="text-[10px] font-semibold text-slate-400">({udsEnvaseLabel(item.quantity, item.package_size, item.package_unit)})</span>
                                   </>
                                 : <span className="text-xs font-semibold text-slate-600">{formatNumber(item.quantity)} uds</span>
                               }
@@ -1616,7 +1616,7 @@ export default function ClientPortal({ view = 'inventory' }) {
                               {eq
                                 ? <>
                                     <span className="text-sm font-black text-campo-700">{formatNumber(eq.quantity)} {eq.unit}</span>
-                                    <span className="text-[10px] font-semibold text-slate-400">({formatNumber(item.quantity)} uds)</span>
+                                    <span className="text-[10px] font-semibold text-slate-400">({udsEnvaseLabel(item.quantity, item.package_size, item.package_unit)})</span>
                                   </>
                                 : <span className="text-xs font-black text-slate-700">{formatNumber(item.quantity)} uds</span>
                               }
@@ -1730,7 +1730,7 @@ export default function ClientPortal({ view = 'inventory' }) {
                                       {eq
                                         ? <>
                                             <span className="text-xs font-black text-campo-700">{formatNumber(eq.quantity)} {eq.unit}</span>
-                                            <span className="ml-1 text-[10px] font-semibold text-slate-400">({formatNumber(item.quantity)} uds)</span>
+                                            <span className="ml-1 text-[10px] font-semibold text-slate-400">({udsEnvaseLabel(item.quantity, item.package_size, item.package_unit)})</span>
                                           </>
                                         : <span className="text-xs font-black text-slate-700">{formatNumber(item.quantity)} uds</span>
                                       }
@@ -1750,7 +1750,7 @@ export default function ClientPortal({ view = 'inventory' }) {
                                   {eq
                                     ? <>
                                         <span className="text-xs font-black text-campo-700">{formatNumber(eq.quantity)} {eq.unit}</span>
-                                        <span className="ml-1 text-[10px] font-semibold text-slate-400">({formatNumber(req.quantity)} uds)</span>
+                                        <span className="ml-1 text-[10px] font-semibold text-slate-400">({udsEnvaseLabel(req.quantity, req.lots?.package_size, req.lots?.package_unit)})</span>
                                       </>
                                     : <span className="text-xs font-black text-slate-700">{formatNumber(req.quantity)} uds</span>
                                   }
