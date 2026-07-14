@@ -6,7 +6,7 @@ export default function ListProductCard({
   title,
   boxes,
   unidades,
-  unidadesLabel = 'env.',
+  unidadesLabel = 'uds',
   unidadesVariant = 'neutral',
   equivalent,
   equivalentUnit,

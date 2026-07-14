@@ -1029,7 +1029,7 @@ export default function ClientPortal({ view = 'inventory' }) {
                               <p className="text-[10px] font-semibold text-slate-400">{formatNumber(group.quantity)} unidades</p>
                             </>
                           ) : (
-                            <p className="text-base font-black text-campo-700">{formatNumber(group.quantity)} <span className="text-xs font-bold text-campo-500">env.</span></p>
+                            <p className="text-base font-black text-campo-700">{formatNumber(group.quantity)} <span className="text-xs font-bold text-campo-500">uds</span></p>
                           )}
                         </div>
                         <ChevronDown size={18} className={`text-slate-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
@@ -1371,7 +1371,7 @@ export default function ClientPortal({ view = 'inventory' }) {
                             ) : (
                               <>
                                 <p className="text-lg font-black text-campo-700">{formatNumber(selectedLot.current_quantity)}</p>
-                                <p className="text-[10px] font-bold text-slate-500">env. disp.</p>
+                                <p className="text-[10px] font-bold text-slate-500">uds disp.</p>
                               </>
                             )
                           })()}

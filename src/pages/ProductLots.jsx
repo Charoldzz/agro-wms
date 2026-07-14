@@ -114,7 +114,7 @@ export default function ProductLots() {
                   ) : (
                     <div className="inline-flex items-baseline gap-1">
                       <span className="text-base font-black sm:text-xl">{formatNumber(qty)}</span>
-                      <span className="text-xs font-bold text-campo-700">env.</span>
+                      <span className="text-xs font-bold text-campo-700">uds</span>
                     </div>
                   )}
                   <p className="text-[10px] font-bold uppercase text-slate-500">

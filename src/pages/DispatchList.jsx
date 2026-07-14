@@ -1000,7 +1000,7 @@ export default function DispatchList() {
                 <ListProductCard
                   title={cleanProductName(item.lot.product)}
                   unidades={item.lot.current_quantity || 0}
-                  unidadesLabel="env. disponibles"
+                  unidadesLabel="uds disponibles"
                   unidadesVariant="available"
                   equivalent={Number(item.lot.package_size) > 0 ? availableEquivalent : null}
                   equivalentUnit={item.lot.package_unit}
