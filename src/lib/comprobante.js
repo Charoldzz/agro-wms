@@ -65,7 +65,7 @@ function openOperationNote({ tipo, guide, empresa, contacto, transportista, plac
         : `${formatNumber(Number(row.cantidad || 0))} uds`
       return `<tr>
         <td class="c">${i + 1}</td>
-        <td>${escapeHtml(row.product)}</td>
+        <td>${escapeHtml(row.product)}${row.note ? `<br/><em style="color:#92400e;font-size:10.5px;font-weight:500">Obs.: ${escapeHtml(row.note)}</em>` : ''}</td>
         <td class="c mono">${escapeHtml(row.lot_code)}</td>
         <td class="c">${row.expiry_date ? escapeHtml(formatDate(row.expiry_date)) : '-'}</td>
         <td class="r"><strong>${escapeHtml(cantidad)}</strong></td>
