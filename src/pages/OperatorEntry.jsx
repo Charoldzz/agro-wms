@@ -4,7 +4,7 @@ import { CheckCircle2, FileText, PackagePlus, Plus, Trash2 } from 'lucide-react'
 import PageHeader from '../components/PageHeader'
 import { useAuth } from '../hooks/useAuth.jsx'
 import { supabase } from '../lib/supabase'
-import { formatNumber } from '../lib/format'
+import { formatDateShort, formatNumber } from '../lib/format'
 import { vibrateSuccess } from '../lib/haptics'
 import { desgloseEnvases } from '../lib/envases'
 import { openEntryReceipt, totalEquivalente } from '../lib/comprobante'
@@ -429,25 +429,40 @@ export default function OperatorEntry() {
       <PageHeader title="Ingreso" subtitle="Nota de ingreso de mercadería" />
 
       <section className="panel mb-4 grid gap-3 sm:grid-cols-2">
-        <div className="flex items-start justify-between gap-3 sm:col-span-2">
-          <div>
-            <span className="label">Fecha</span>
-            <p className="mt-1 text-sm font-bold text-slate-700">{today}</p>
+        <div className="flex items-start justify-between gap-3 border-b border-slate-100 pb-3 sm:col-span-2">
+          <div className="min-w-0">
+            {clientId ? (
+              <div className="flex flex-wrap items-baseline gap-2">
+                <p className="text-base font-black text-slate-950 [overflow-wrap:anywhere]">
+                  {displayClientName(clients.find((c) => c.id === clientId)?.name || '')}
+                </p>
+                <button type="button" className="text-xs font-bold text-blue-700 hover:underline" onClick={() => setClientId('')}>
+                  Cambiar
+                </button>
+              </div>
+            ) : (
+              <p className="text-base font-black text-slate-950">Ingreso</p>
+            )}
+            <p className="mt-0.5 text-xs font-semibold text-slate-500">
+              {clientId ? 'Ingreso · ' : ''}{formatDateShort(today)}
+            </p>
           </div>
           <div className="shrink-0 rounded-lg border-2 border-campo-600 px-4 py-1.5 text-center">
             <p className="text-[9px] font-bold uppercase tracking-[2px] text-slate-400">N° Guía</p>
             <p className="font-mono text-lg font-black leading-tight text-campo-700">{guiaPreview || '...'}</p>
           </div>
         </div>
-        <label className="block">
-          <span className="label">Empresa</span>
-          <select className="input mt-1" value={clientId} onChange={(e) => setClientId(e.target.value)} required>
-            <option value="">Seleccionar empresa</option>
-            {clients.map((c) => (
-              <option key={c.id} value={c.id}>{displayClientName(c.name)}</option>
-            ))}
-          </select>
-        </label>
+        {!clientId && (
+          <label className="block">
+            <span className="label">Empresa</span>
+            <select className="input mt-1" value={clientId} onChange={(e) => setClientId(e.target.value)} required>
+              <option value="">Seleccionar empresa</option>
+              {clients.map((c) => (
+                <option key={c.id} value={c.id}>{displayClientName(c.name)}</option>
+              ))}
+            </select>
+          </label>
+        )}
         <label className="block">
           <span className="label">Transportista</span>
           <input className="input mt-1" value={transportista} onChange={(e) => setTransportista(e.target.value)} />

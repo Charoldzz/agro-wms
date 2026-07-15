@@ -5,7 +5,7 @@ import { attachmentViewerUrl } from '../lib/dispatchRequests'
 import PageHeader from '../components/PageHeader'
 import { useAuth } from '../hooks/useAuth.jsx'
 import { supabase } from '../lib/supabase'
-import { formatNumber } from '../lib/format'
+import { formatDateShort, formatNumber } from '../lib/format'
 import { cleanProductName, displayLotCode } from '../lib/display'
 import { vibrateSuccess } from '../lib/haptics'
 import { openDispatchReceipt, totalEquivalente } from '../lib/comprobante'
@@ -474,7 +474,7 @@ export default function NuevaSalida() {
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
               <p className="text-base font-black text-slate-950">{solicitud.clients?.name || '—'}</p>
-              <p className="mt-0.5 text-xs font-semibold text-slate-500">Solicitud de cliente · {today}</p>
+              <p className="mt-0.5 text-xs font-semibold text-slate-500">Solicitud de cliente · {formatDateShort(today)}</p>
               <span className="mt-1.5 inline-block rounded-full bg-amber-100 px-2.5 py-1 text-xs font-bold text-amber-800">Datos fijos del cliente</span>
             </div>
             <div className="shrink-0 rounded-lg border-2 border-campo-600 px-4 py-1.5 text-center">
@@ -501,25 +501,40 @@ export default function NuevaSalida() {
         </div>
       ) : (
         <section className="panel mb-4 grid gap-3 sm:grid-cols-2">
-          <div className="flex items-start justify-between gap-3 sm:col-span-2">
-            <div>
-              <span className="label">Fecha</span>
-              <p className="mt-1 text-sm font-bold text-slate-700">{today}</p>
+          <div className="flex items-start justify-between gap-3 border-b border-slate-100 pb-3 sm:col-span-2">
+            <div className="min-w-0">
+              {clientId ? (
+                <div className="flex flex-wrap items-baseline gap-2">
+                  <p className="text-base font-black text-slate-950 [overflow-wrap:anywhere]">
+                    {displayClientName(clients.find((c) => c.id === clientId)?.name || '')}
+                  </p>
+                  <button type="button" className="text-xs font-bold text-blue-700 hover:underline" onClick={() => setClientId('')}>
+                    Cambiar
+                  </button>
+                </div>
+              ) : (
+                <p className="text-base font-black text-slate-950">Salida manual</p>
+              )}
+              <p className="mt-0.5 text-xs font-semibold text-slate-500">
+                {clientId ? 'Salida manual · ' : ''}{formatDateShort(today)}
+              </p>
             </div>
             <div className="shrink-0 rounded-lg border-2 border-campo-600 px-4 py-1.5 text-center">
               <p className="text-[9px] font-bold uppercase tracking-[2px] text-slate-400">N° Guía</p>
               <p className="font-mono text-lg font-black leading-tight text-campo-700">{guiaPreview || '...'}</p>
             </div>
           </div>
-          <label className="block">
-            <span className="label">Empresa</span>
-            <select className="input mt-1" value={clientId} onChange={(e) => setClientId(e.target.value)} required>
-              <option value="">Seleccionar empresa</option>
-              {clients.map((c) => (
-                <option key={c.id} value={c.id}>{displayClientName(c.name)}</option>
-              ))}
-            </select>
-          </label>
+          {!clientId && (
+            <label className="block">
+              <span className="label">Empresa</span>
+              <select className="input mt-1" value={clientId} onChange={(e) => setClientId(e.target.value)} required>
+                <option value="">Seleccionar empresa</option>
+                {clients.map((c) => (
+                  <option key={c.id} value={c.id}>{displayClientName(c.name)}</option>
+                ))}
+              </select>
+            </label>
+          )}
           <label className="block">
             <span className="label">Transportista</span>
             <input className="input mt-1" value={transportista} onChange={(e) => setTransportista(e.target.value)} />
