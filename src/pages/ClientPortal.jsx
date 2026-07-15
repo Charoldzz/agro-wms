@@ -1459,6 +1459,15 @@ export default function ClientPortal({ view = 'inventory' }) {
                     </label>
                     <div className="grid grid-cols-2 gap-3">
                       <label className="block">
+                        <span className="text-[10px] font-bold uppercase tracking-wide text-slate-400">Placa</span>
+                        <input
+                          className="input mt-1"
+                          type="text"
+                          value={reqTransporter.plate}
+                          onChange={e => setReqTransporter(v => ({ ...v, plate: e.target.value.toUpperCase() }))}
+                        />
+                      </label>
+                      <label className="block">
                         <span className="text-[10px] font-bold uppercase tracking-wide text-slate-400">Teléfono</span>
                         <input
                           className="input mt-1"
@@ -1466,15 +1475,6 @@ export default function ClientPortal({ view = 'inventory' }) {
                           inputMode="tel"
                           value={reqTransporter.ci}
                           onChange={e => setReqTransporter(v => ({ ...v, ci: e.target.value }))}
-                        />
-                      </label>
-                      <label className="block">
-                        <span className="text-[10px] font-bold uppercase tracking-wide text-slate-400">Placa</span>
-                        <input
-                          className="input mt-1"
-                          type="text"
-                          value={reqTransporter.plate}
-                          onChange={e => setReqTransporter(v => ({ ...v, plate: e.target.value.toUpperCase() }))}
                         />
                       </label>
                     </div>
@@ -1777,7 +1777,7 @@ export default function ClientPortal({ view = 'inventory' }) {
                           {(req.transporter_name || req.transporter_ci || req.transporter_plate) && (
                             <div className="mt-2 rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-600">
                               <span className="font-bold">Transportista: </span>
-                              {[req.transporter_name, req.transporter_ci, req.transporter_plate].filter(Boolean).join(' · ')}
+                              {[req.transporter_name, req.transporter_plate, req.transporter_ci].filter(Boolean).join(' · ')}
                             </div>
                           )}
                           {req.attachment_url && (

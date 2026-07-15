@@ -447,16 +447,16 @@ export default function OperatorEntry() {
           <div className="input mt-1 cursor-not-allowed select-none bg-slate-100 font-mono font-bold text-campo-700">{guiaPreview || '...'}</div>
         </div>
         <label className="block">
-          <span className="label">Teléfono</span>
-          <input className="input mt-1" value={contacto} onChange={(e) => setContacto(e.target.value)} />
-        </label>
-        <label className="block">
           <span className="label">Transportista</span>
           <input className="input mt-1" value={transportista} onChange={(e) => setTransportista(e.target.value)} />
         </label>
         <label className="block">
           <span className="label">Placa</span>
           <input className="input mt-1 uppercase" value={placa} onChange={(e) => setPlaca(e.target.value.toUpperCase())} />
+        </label>
+        <label className="block">
+          <span className="label">Teléfono</span>
+          <input className="input mt-1" value={contacto} onChange={(e) => setContacto(e.target.value)} />
         </label>
         <label className="block sm:col-span-2">
           <span className="label">Observaciones</span>
