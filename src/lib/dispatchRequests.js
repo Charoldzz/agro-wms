@@ -80,6 +80,15 @@ function matchLot(item, request, lots) {
   }) || null
 }
 
+// URL para VER un adjunto: los office (xlsx/docx) van al visor de Office online
+export function attachmentViewerUrl(url) {
+  if (!url) return url
+  const ext = url.split('?')[0].split('.').pop().toLowerCase()
+  if (['xlsx', 'xls', 'docx', 'doc'].includes(ext))
+    return `https://view.officeapps.live.com/op/view.aspx?src=${encodeURIComponent(url)}`
+  return url
+}
+
 function itemFromLot(lot, item = {}, request = {}) {
   if (!lot) return item
   const quantity = item.quantity ?? request.quantity ?? ''

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
-import { CheckCircle2, FileText, LogOut, Plus, Trash2, X } from 'lucide-react'
+import { CheckCircle2, FileText, LogOut, Paperclip, Plus, Trash2, X } from 'lucide-react'
+import { attachmentViewerUrl } from '../lib/dispatchRequests'
 import PageHeader from '../components/PageHeader'
 import { useAuth } from '../hooks/useAuth.jsx'
 import { supabase } from '../lib/supabase'
@@ -471,6 +472,16 @@ export default function NuevaSalida() {
             <InfoField label="Transportista" value={transportista} />
             <InfoField label="Placa" value={placa} />
             {observaciones && <InfoField label="Observaciones" value={observaciones} className="col-span-2 sm:col-span-3" />}
+            {solicitud.attachment_url && (
+              <a
+                href={attachmentViewerUrl(solicitud.attachment_url)}
+                target="_blank"
+                rel="noreferrer"
+                className="col-span-2 inline-flex items-center gap-1.5 text-xs font-bold text-campo-700 hover:underline sm:col-span-3"
+              >
+                <Paperclip size={13} /> Ver nota adjunta del cliente
+              </a>
+            )}
           </div>
         </div>
       ) : (

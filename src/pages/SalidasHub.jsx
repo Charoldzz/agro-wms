@@ -1,12 +1,12 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { ClipboardList, LogOut, Plus, Search, X } from 'lucide-react'
+import { ClipboardList, LogOut, Paperclip, Plus, Search, X } from 'lucide-react'
 import PageHeader from '../components/PageHeader'
 import { useAuth } from '../hooks/useAuth.jsx'
 import { supabase } from '../lib/supabase'
 import { formatDate, formatNumber } from '../lib/format'
 import { cleanProductName } from '../lib/display'
-import { normalizeDispatchRequests } from '../lib/dispatchRequests'
+import { attachmentViewerUrl, normalizeDispatchRequests } from '../lib/dispatchRequests'
 import { itemEnvLabel } from '../lib/envases'
 
 const STATUS_LABEL = {
@@ -173,10 +173,21 @@ export default function SalidasHub() {
                 </div>
 
                 {(req.transporter_name || req.transporter_plate) && (
-                  <p className="mb-3 text-xs text-slate-500">
+                  <p className="mb-1 text-xs text-slate-500">
                     {req.transporter_name && <span>Transportista: <span className="font-semibold">{req.transporter_name}</span></span>}
                     {req.transporter_plate && <span className="ml-2">· Placa: <span className="font-semibold">{req.transporter_plate}</span></span>}
                   </p>
+                )}
+
+                {req.attachment_url && (
+                  <a
+                    href={attachmentViewerUrl(req.attachment_url)}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="mb-3 inline-flex items-center gap-1.5 text-xs font-bold text-campo-700 hover:underline"
+                  >
+                    <Paperclip size={12} /> Ver nota adjunta
+                  </a>
                 )}
 
                 {rejectingId === req.id ? (
