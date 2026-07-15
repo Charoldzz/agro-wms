@@ -429,13 +429,15 @@ export default function OperatorEntry() {
       <PageHeader title="Ingreso" subtitle="Nota de ingreso de mercadería" />
 
       <section className="panel mb-4 grid gap-3 sm:grid-cols-2">
-        <div>
-          <span className="label">N° Guía</span>
-          <div className="input mt-1 cursor-not-allowed select-none bg-slate-100 font-mono font-bold text-campo-700">{guiaPreview || '...'}</div>
-        </div>
-        <div>
-          <span className="label">Fecha</span>
-          <div className="input mt-1 cursor-not-allowed select-none bg-slate-100 font-semibold text-slate-600">{today}</div>
+        <div className="flex items-start justify-between gap-3 sm:col-span-2">
+          <div>
+            <span className="label">Fecha</span>
+            <p className="mt-1 text-sm font-bold text-slate-700">{today}</p>
+          </div>
+          <div className="shrink-0 rounded-lg border-2 border-campo-600 px-4 py-1.5 text-center">
+            <p className="text-[9px] font-bold uppercase tracking-[2px] text-slate-400">N° Guía</p>
+            <p className="font-mono text-lg font-black leading-tight text-campo-700">{guiaPreview || '...'}</p>
+          </div>
         </div>
         <label className="block">
           <span className="label">Empresa</span>
