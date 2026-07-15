@@ -1451,10 +1451,10 @@ export default function ClientPortal({ view = 'inventory' }) {
                     <label className="block">
                       <span className="text-[10px] font-bold uppercase tracking-wide text-slate-400">Nombre completo</span>
                       <input
-                        className="input mt-1"
+                        className="input mt-1 uppercase"
                         type="text"
                         value={reqTransporter.name}
-                        onChange={e => setReqTransporter(v => ({ ...v, name: e.target.value }))}
+                        onChange={e => setReqTransporter(v => ({ ...v, name: e.target.value.toUpperCase() }))}
                       />
                     </label>
                     <div className="grid grid-cols-2 gap-3">

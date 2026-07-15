@@ -465,7 +465,7 @@ export default function OperatorEntry() {
         )}
         <label className="block">
           <span className="label">Transportista</span>
-          <input className="input mt-1" value={transportista} onChange={(e) => setTransportista(e.target.value)} />
+          <input className="input mt-1 uppercase" value={transportista} onChange={(e) => setTransportista(e.target.value.toUpperCase())} />
         </label>
         <label className="block">
           <span className="label">Placa</span>
