@@ -1417,6 +1417,9 @@ export default function ClientPortal({ view = 'inventory' }) {
                               }
                               <span className="text-[10px] font-semibold text-slate-400">· {lotLabel(item.lot_code, item)}</span>
                             </div>
+                            {item.note && (
+                              <p className="mt-0.5 text-[10px] font-semibold italic text-slate-500 [overflow-wrap:anywhere]">Obs.: {item.note}</p>
+                            )}
                           </div>
                         </div>
                       )
