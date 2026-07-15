@@ -62,7 +62,7 @@ function PackageChips({ chips }) {
   )
 }
 
-export default function MovimientosModal({ onClose }) {
+export default function MovimientosModal({ onClose, canEdit = true }) {
   const [movements, setMovements] = useState([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
@@ -506,13 +506,15 @@ export default function MovimientosModal({ onClose }) {
                       <p className="text-xs font-semibold text-slate-400">Concepto</p>
                       <p className="mt-0.5 text-sm font-semibold text-slate-700">{selected.notes || 'Sin concepto'}</p>
                     </div>
-                    <button
-                      className="btn-secondary mt-3 w-full !min-h-9 !py-1.5 text-sm"
-                      type="button"
-                      onClick={startEdit}
-                    >
-                      Editar concepto
-                    </button>
+                    {canEdit && (
+                      <button
+                        className="btn-secondary mt-3 w-full !min-h-9 !py-1.5 text-sm"
+                        type="button"
+                        onClick={startEdit}
+                      >
+                        Editar concepto
+                      </button>
+                    )}
                   </div>
                 )}
                 </>

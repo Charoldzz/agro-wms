@@ -385,6 +385,12 @@ export default function Lots() {
                 <Building2 size={14} />
                 Empresas
               </button>
+            </div>
+          )}
+
+          {/* Historial: admin edita conceptos, operador solo lectura */}
+          {canOperate && (
+            <div className="flex flex-wrap gap-2">
               <button
                 className="btn-secondary !min-h-8 !px-3 !py-1.5 text-xs"
                 onClick={() => setShowMovimientosModal(true)}
@@ -576,6 +582,7 @@ export default function Lots() {
 
       {showMovimientosModal && (
         <MovimientosModal
+          canEdit={isAdmin}
           onClose={() => setShowMovimientosModal(false)}
         />
       )}
