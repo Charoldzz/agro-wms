@@ -474,7 +474,7 @@ export default function NuevaSalida() {
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
               <p className="text-base font-black text-slate-950">{solicitud.clients?.name || '—'}</p>
-              <p className="mt-0.5 text-xs font-semibold text-slate-500">Solicitud de cliente · {formatDateShort(today)}</p>
+              <p className="mt-0.5 text-[10px] font-bold uppercase tracking-wide text-slate-500">Solicitud de cliente · {formatDateShort(today)}</p>
               <span className="mt-1.5 inline-block rounded-full bg-amber-100 px-2.5 py-1 text-xs font-bold text-amber-800">Datos fijos del cliente</span>
             </div>
             <div className="shrink-0 rounded-lg border-2 border-campo-600 px-4 py-1.5 text-center">
@@ -515,7 +515,7 @@ export default function NuevaSalida() {
               ) : (
                 <p className="text-base font-black text-slate-950">Salida manual</p>
               )}
-              <p className="mt-0.5 text-xs font-semibold text-slate-500">
+              <p className="mt-0.5 text-[10px] font-bold uppercase tracking-wide text-slate-500">
                 {clientId ? 'Salida manual · ' : ''}{formatDateShort(today)}
               </p>
             </div>

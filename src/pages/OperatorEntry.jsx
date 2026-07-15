@@ -443,7 +443,7 @@ export default function OperatorEntry() {
             ) : (
               <p className="text-base font-black text-slate-950">Ingreso</p>
             )}
-            <p className="mt-0.5 text-xs font-semibold text-slate-500">
+            <p className="mt-0.5 text-[10px] font-bold uppercase tracking-wide text-slate-500">
               {clientId ? 'Ingreso · ' : ''}{formatDateShort(today)}
             </p>
           </div>
