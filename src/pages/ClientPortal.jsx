@@ -12,7 +12,7 @@ import ListProductCard from '../components/ListProductCard'
 import { useAuth } from '../hooks/useAuth.jsx'
 import { cleanProductName, displayLotCode, lotLabel, packageLabel, productCode, productCodeLabel } from '../lib/display'
 import { desgloseEnvases, envaseTipo } from '../lib/envases'
-import { docFontsCss } from '../lib/comprobante'
+import { docFontsCss, openDispatchReceipt, openEntryReceipt } from '../lib/comprobante'
 import { normalizeDispatchRequests } from '../lib/dispatchRequests'
 import { formatDate, formatDateOnly, formatNumber, movementLabel } from '../lib/format'
 import { supabase } from '../lib/supabase'
@@ -309,7 +309,7 @@ export default function ClientPortal({ view = 'inventory' }) {
     if (opIds.length) {
       const { data: opsData } = await supabase
         .from('warehouse_operations')
-        .select('id,guide_number,type,receiver_name,driver_name,vehicle_plate,notes')
+        .select('id,guide_number,type,receiver_name,receiver_document,driver_name,driver_document,vehicle_plate,notes')
         .in('id', opIds)
       setOpsById(Object.fromEntries((opsData || []).map(o => [o.id, o])))
     } else {
@@ -351,6 +351,7 @@ export default function ClientPortal({ view = 'inventory' }) {
         noteNumber: op?.guide_number || null,
         createdAt: movs.reduce((max, m) => (m.created_at > max ? m.created_at : max), first.created_at),
         transporter: op ? (first.type === 'entrada' ? op.driver_name : op.receiver_name) : null,
+        contacto: op ? (first.type === 'entrada' ? op.driver_document : op.receiver_document) : null,
         plate: op?.vehicle_plate || null,
         observations: op?.notes || null,
         // Productos A→Z dentro de la nota (mismo criterio que el inventario)
@@ -861,98 +862,38 @@ export default function ClientPortal({ view = 'inventory' }) {
     w.document.close()
   }
 
-  // Abre la nota completa en pestaña nueva (con botón Imprimir / Guardar PDF adentro)
+  // Abre la nota completa: usa el MISMO generador que las notas del operador
+  // (un solo diseño para todos — pedido Harold)
   function openNotePdf(note) {
-    const type = note.type === 'salida' ? 'despacho' : 'ingreso'
-    const logoUrl = `${window.location.origin}/images/todo-logo.png`
-    const rows = note.movs.map((m, i) => {
+    const rows = note.movs.map((m) => {
       const lot = m.lots || {}
-      // Unidades con su tipo de envase real ("53 bidones + 15 lt"); sin presentación → uds
       const size = Number(lot.package_size) || 0
       const eqRaw = size > 0 ? Number(m.quantity || 0) * size : Number(m.quantity || 0)
-      const desglose = desgloseEnvases(eqRaw, size, lot.package_unit, 0)
-      const unidadesLabel = desglose.unidadesLabel || `${formatNumber(m.quantity)} uds`
-      return `<tr>
-        <td class="c">${i + 1}</td>
-        <td class="c mono">${escapeHtml(productCode(lot) || '-')}</td>
-        <td>${escapeHtml(cleanProductName(lot.product))}</td>
-        <td class="c mono">${escapeHtml(displayLotCode(lot.lot_code, lot))}</td>
-        <td class="c">${escapeHtml(lot.expiry_date ? formatDate(lot.expiry_date) : '-')}</td>
-        <td class="r"><strong>${escapeHtml(movementEquivalentLabel(m))}</strong></td>
-        <td class="r muted">${escapeHtml(unidadesLabel)}</td>
-      </tr>`
-    }).join('')
-    const w = window.open('','_blank'); if(!w) return
-    w.document.write(`<!doctype html><html><head><title>Comprobante ${escapeHtml(note.noteNumber || '')}</title>
-<style>
-  ${docFontsCss()}
-  body { color: #0f172a; font-family: 'Inter', 'Segoe UI', 'Helvetica Neue', Helvetica, Arial, sans-serif; margin: 26px 30px; }
-  .top { align-items: center; border-bottom: 3px solid #15803d; display: flex; gap: 16px; justify-content: space-between; padding-bottom: 14px; }
-  .brand { align-items: center; display: flex; gap: 14px; }
-  .brand img { height: 54px; width: auto; }
-  h1 { font-family: 'Bebas Neue', 'Segoe UI', Arial, sans-serif; font-size: 27px; font-weight: 400; letter-spacing: 1.5px; margin: 0; }
-  .sub { color: #475569; font-family: 'Bebas Neue', 'Segoe UI', Arial, sans-serif; font-size: 13px; letter-spacing: 3px; margin: 2px 0 0; text-transform: uppercase; }
-  .guide { border: 2px solid #15803d; border-radius: 10px; color: #15803d; font-family: 'Bebas Neue', 'Segoe UI', Arial, sans-serif; font-size: 24px; font-weight: 400; letter-spacing: 2px; padding: 7px 18px; text-align: center; white-space: nowrap; }
-  .guide small { color: #64748b; display: block; font-family: 'Segoe UI', Arial, sans-serif; font-size: 9px; font-weight: 600; letter-spacing: 2px; }
-  .op { border-left: 4px solid #15803d; margin: 18px 0; padding: 4px 0 4px 16px; }
-  .op .chiprow { align-items: center; display: flex; gap: 10px; }
-  .op .chip { background: #dcfce7; border-radius: 999px; color: #14532d; font-size: 10px; font-weight: 600; letter-spacing: 1.5px; padding: 3px 12px; text-transform: uppercase; }
-  .op .chip.salida { background: #fee2e2; color: #7f1d1d; }
-  .op .fecha { color: #64748b; font-size: 12px; }
-  .op .empresa { font-size: 20px; font-weight: 600; margin: 6px 0 10px; }
-  .op .cols { display: flex; flex-wrap: wrap; gap: 12px 36px; }
-  .op .cols p { margin: 0; }
-  .op .cols .l { color: #64748b; font-size: 9px; font-weight: 600; letter-spacing: 1px; text-transform: uppercase; }
-  .op .cols .v { font-size: 13px; font-weight: 600; margin-top: 2px; }
-  .op .obs { border-top: 1px dotted #cbd5e1; color: #475569; font-size: 12px; font-style: italic; margin: 10px 0 0; padding-top: 7px; }
-  table { border-collapse: collapse; width: 100%; }
-  th, td { border-bottom: 1px solid #e2e8f0; font-size: 12px; font-variant-numeric: tabular-nums; padding: 8px 7px; text-align: left; vertical-align: top; }
-  td { color: #0f172a; font-weight: 500; }
-  th { background: #f1f5f9; color: #334155; font-size: 9.5px; font-weight: 600; letter-spacing: 1px; text-transform: uppercase; }
-  td.c, th.c { text-align: center; }
-  td.r, th.r { text-align: right; }
-  .mono { letter-spacing: 0.3px; }
-  .muted { }
-  tfoot td { background: #f0fdf4; border-bottom: none; border-top: 2px solid #15803d; color: #14532d; font-size: 12.5px; font-weight: bold; padding: 9px 7px; }
-  .foot { color: #94a3b8; font-size: 9.5px; margin-top: 30px; text-align: center; }
-  .print-btn { background: #15803d; border: none; border-radius: 8px; bottom: 20px; box-shadow: 0 4px 12px rgba(15, 23, 42, 0.25); color: #fff; cursor: pointer; font-size: 13px; font-weight: bold; padding: 10px 18px; position: fixed; right: 20px; }
-  @media print { body { margin: 10mm; } .print-btn { display: none; } }
-</style></head><body>
-<button class="print-btn" onclick="window.print()">Imprimir / Guardar PDF</button>
-<div class="top">
-  <div class="brand">
-    <img src="${escapeHtml(logoUrl)}" alt="Todo Agricola" />
-    <div>
-      <h1>Todo Agr&iacute;cola Boliviana Ltda</h1>
-      <p class="sub">Comprobante de ${escapeHtml(type)} de mercader&iacute;a</p>
-    </div>
-  </div>
-  <div class="guide"><small>N&deg; NOTA</small>${escapeHtml(note.noteNumber || '-')}</div>
-</div>
-<div class="op">
-  <div class="chiprow">
-    <span class="chip${note.type === 'salida' ? ' salida' : ''}">${escapeHtml(movementLabel(note.type))}</span>
-    <span class="fecha">${escapeHtml(formatDateOnly(note.createdAt))}</span>
-  </div>
-  <p class="empresa">${escapeHtml(clientName)}</p>
-  <div class="cols">
-    <div><p class="l">Transportista</p><p class="v">${escapeHtml(note.transporter || '-')}</p></div>
-    <div><p class="l">Placa</p><p class="v">${escapeHtml(note.plate || '-')}</p></div>
-    <div><p class="l">Productos</p><p class="v">${escapeHtml(String(note.movs.length))}</p></div>
-  </div>
-  ${note.observations ? `<p class="obs">Obs.: ${escapeHtml(note.observations)}</p>` : ''}
-</div>
-<table>
-  <thead><tr>
-    <th class="c">N&deg;</th><th class="c">C&oacute;digo</th><th>Producto</th><th class="c">Lote</th><th class="c">Venc.</th>
-    <th class="r">Cantidad</th><th class="r">Unidades</th>
-  </tr></thead>
-  <tbody>${rows}</tbody>
-  <tfoot><tr><td colspan="5">TOTAL</td><td class="r">${escapeHtml(note.equivalentLabel)}</td><td></td></tr></tfoot>
-</table>
-<p class="foot">Documento informativo generado desde el portal de clientes de Todo Agr&iacute;cola Boliviana Ltda &mdash; Emitido el ${escapeHtml(formatDateOnly(new Date().toISOString()))}. Informaci&oacute;n referencial sujeta a validaci&oacute;n operativa.</p>
-</body></html>`)
-    w.document.close()
+      const d = desgloseEnvases(eqRaw, size, lot.package_unit, lotUnitsPerBox(lot))
+      return {
+        code: productCode(lot) || '',
+        product: cleanProductName(lot.product),
+        lot_code: displayLotCode(lot.lot_code, lot),
+        expiry_date: lot.expiry_date || null,
+        cantidad: eqRaw,
+        package_size: size,
+        package_unit: lot.package_unit || '',
+        unidades_label: d.unidadesLabel || `${formatNumber(m.quantity)} uds`,
+        cajas_label: d.cajasLabel,
+      }
+    })
+    const opts = {
+      guide: note.noteNumber || '',
+      empresa: clientName,
+      contacto: note.contacto || '',
+      transportista: note.transporter || '',
+      placa: note.plate || '',
+      observaciones: note.observations || '',
+      fecha: note.createdAt,
+      rows,
+    }
+    if (note.type === 'salida') openDispatchReceipt(opts)
+    else openEntryReceipt(opts)
   }
 
   async function handleSignOut() {

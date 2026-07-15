@@ -356,10 +356,11 @@ export default function OperatorEntry() {
 
       // Comprobante con la misma estética que la nota de salida
       const receiptRows = validRows.map((r, i) => {
-        const { size, unit, upb } = productInfo(r.product)
+        const { size, unit, upb, code } = productInfo(r.product)
         const totalEq = Number(r.cantidad || 0)
         const desglose = desgloseEnvases(totalEq, size, unit, upb)
         return {
+          code: code || '',
           product: r.product.trim(),
           lot_code: r.lot_code?.trim() || createLotCode(i),
           expiry_date: r.expiry_date || null,

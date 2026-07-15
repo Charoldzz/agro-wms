@@ -40,7 +40,7 @@ export function totalEquivalente(rows) {
 // Nota de operación (ingreso o salida) con la estética institucional:
 // logo + línea verde, N° de nota destacado, datos, tabla y firmas.
 // Debe llamarse desde un click directo del usuario (popup blocker).
-function openOperationNote({ tipo, guide, empresa, contacto, transportista, placa, observaciones, rows }) {
+function openOperationNote({ tipo, guide, empresa, contacto, transportista, placa, observaciones, rows, fecha }) {
   const win = window.open('', '_blank')
   if (!win) return false
 
@@ -65,6 +65,7 @@ function openOperationNote({ tipo, guide, empresa, contacto, transportista, plac
         : `${formatNumber(Number(row.cantidad || 0))} uds`
       return `<tr>
         <td class="c">${i + 1}</td>
+        <td class="c mono">${escapeHtml(row.code || '-')}</td>
         <td>${escapeHtml(row.product)}${row.note ? `<br/><em style="color:#92400e;font-size:10.5px;font-weight:500">Obs.: ${escapeHtml(row.note)}</em>` : ''}</td>
         <td class="c mono">${escapeHtml(row.lot_code)}</td>
         <td class="c">${row.expiry_date ? escapeHtml(formatDate(row.expiry_date)) : '-'}</td>
@@ -132,7 +133,7 @@ function openOperationNote({ tipo, guide, empresa, contacto, transportista, plac
     <div class="op">
       <div class="chiprow">
         <span class="chip${esSalida ? ' salida' : ''}">${esSalida ? 'Salida' : 'Ingreso'}</span>
-        <span class="fecha">${escapeHtml(formatDateOnly(new Date().toISOString()))}</span>
+        <span class="fecha">${escapeHtml(formatDateOnly(fecha || new Date().toISOString()))}</span>
       </div>
       <p class="empresa">${escapeHtml(empresa || '-')}</p>
       <div class="cols">
@@ -145,12 +146,12 @@ function openOperationNote({ tipo, guide, empresa, contacto, transportista, plac
     <table>
       <thead>
         <tr>
-          <th class="c">N&deg;</th><th>Producto</th><th class="c">Lote</th><th class="c">Venc.</th>
+          <th class="c">N&deg;</th><th class="c">C&oacute;digo</th><th>Producto</th><th class="c">Lote</th><th class="c">Venc.</th>
           <th class="r">Cantidad</th><th class="r">Unidades</th><th class="r">Cajas</th>
         </tr>
       </thead>
       <tbody>${tableRows}</tbody>
-      ${total ? `<tfoot><tr><td colspan="4">TOTAL</td><td class="r">${escapeHtml(total)}</td><td></td><td></td></tr></tfoot>` : ''}
+      ${total ? `<tfoot><tr><td colspan="5">TOTAL</td><td class="r">${escapeHtml(total)}</td><td></td><td></td></tr></tfoot>` : ''}
     </table>
     <div class="firmas">
       <div class="firma">${escapeHtml(firmaIzq)}</div>

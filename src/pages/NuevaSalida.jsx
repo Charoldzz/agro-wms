@@ -416,7 +416,7 @@ export default function NuevaSalida() {
         observaciones: observaciones.trim(),
         rows: validRows.map((r) => {
           const d = desgloseEnvases(r.cantidad, r.package_size, r.package_unit, upbForRow(r))
-          return { ...r, unidades_label: d.unidadesLabel, cajas_label: d.cajasLabel }
+          return { ...r, code: r.solucion_code || '', unidades_label: d.unidadesLabel, cajas_label: d.cajasLabel }
         }),
       })
 
