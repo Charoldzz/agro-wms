@@ -3,6 +3,38 @@ import { ArrowDown, ArrowLeftRight, ArrowUp, RotateCcw, Save, Search, X } from '
 import { supabase } from '../lib/supabase'
 import { formatNumber } from '../lib/format'
 import { cleanProductName, displayLotCode } from '../lib/display'
+import { desgloseEnvases } from '../lib/envases'
+
+// Etiquetas técnicas del concepto que NO son observación del usuario
+const CONCEPT_TAGS = [
+  'Despacho manual (app)', 'Despacho de solicitud del cliente', 'Despacho por lista',
+  'Ingreso manual (app)', 'Nuevo ingreso desde almacen.', 'Nuevo ingreso desde almacen',
+]
+
+// Separa el concepto crudo ("Placa: X | Transportista: Y | Documento: Z | ... | FRAGIL")
+// en campos ordenados; lo que no es campo ni etiqueta técnica es la observación
+function parseConcepto(notes) {
+  const out = { placa: '', transportista: '', documento: '', obs: '' }
+  const obsParts = []
+  String(notes || '').split('|').map((p) => p.trim()).filter(Boolean).forEach((part) => {
+    if (/^placa:/i.test(part)) out.placa = part.replace(/^placa:\s*/i, '')
+    else if (/^transportista:/i.test(part)) out.transportista = part.replace(/^transportista:\s*/i, '')
+    else if (/^recibe:/i.test(part)) out.transportista = part.replace(/^recibe:\s*/i, '')
+    else if (/^documento:/i.test(part)) out.documento = part.replace(/^documento:\s*/i, '')
+    else if (CONCEPT_TAGS.includes(part)) { /* etiqueta técnica: se omite */ }
+    else obsParts.push(part)
+  })
+  out.obs = obsParts.join(' · ')
+  return out
+}
+
+// Cantidad de unidades → texto con su envase ("6 bolsas", "53 bidones + 15 lt")
+function stockEnvaseLabel(uds, lot) {
+  const size = Number(lot?.package_size) || 0
+  const q = Number(uds) || 0
+  const eqRaw = size > 0 ? q * size : q
+  return desgloseEnvases(eqRaw, size, lot?.package_unit, 0).unidadesLabel || `${formatNumber(q)} uds`
+}
 
 const TYPE_LABELS = { entrada: 'INGRESO', salida: 'SALIDA', traslado: 'TRASLADO', ajuste: 'AJUSTE' }
 const TYPE_COLORS = {
@@ -453,33 +485,90 @@ export default function MovimientosModal({ onClose, canEdit = true }) {
                     )}
                     <InfoRow label="Cantidad total" value={selected.cantidadLabel || formatNumber(selected.quantity)} bold />
                     {selected.items?.length === 1 && <PackageChips chips={selected.items[0].chips} />}
-                    {selected.transporter ? <InfoRow label="Transportista" value={selected.transporter} /> : null}
-                    {selected.plate ? <InfoRow label="Placa" value={selected.plate} /> : null}
-                    {selected.contact_person ? <InfoRow label="Contacto" value={selected.contact_person} /> : null}
-                    {selected.observations ? <InfoRow label="Observaciones" value={selected.observations} /> : null}
-                    {selected.profiles?.full_name ? <InfoRow label="Usuario" value={selected.profiles.full_name} /> : null}
-                    <div className="rounded-lg bg-slate-50 px-3 py-2">
-                      <p className="text-xs font-semibold text-slate-400">Concepto</p>
-                      <p className="mt-0.5 text-sm font-semibold text-slate-700">{selected.notes || 'Sin concepto'}</p>
-                    </div>
+                    {(() => {
+                      const c = parseConcepto(selected.notes)
+                      const transp = selected.transporter || c.transportista
+                      const placa = selected.plate || c.placa
+                      const tel = selected.contact_person || c.documento
+                      const obs = selected.observations || c.obs
+                      return (
+                        <div className="border-t border-slate-100 pt-3">
+                          <p className="mb-2 text-[10px] font-black uppercase tracking-wide text-slate-400">Datos de la operación</p>
+                          <div className="grid grid-cols-2 gap-x-3 gap-y-2">
+                            {transp && <MiniField label="Transportista" value={transp} />}
+                            {placa && <MiniField label="Placa" value={placa} />}
+                            {tel && <MiniField label="Teléfono" value={tel} />}
+                            {selected.profiles?.full_name && <MiniField label="Usuario" value={selected.profiles.full_name} />}
+                          </div>
+                          {obs && (
+                            <div className="mt-2 rounded-lg bg-amber-50 px-3 py-2">
+                              <span className="text-xs font-semibold italic text-amber-800">Obs.: {obs}</span>
+                            </div>
+                          )}
+                        </div>
+                      )
+                    })()}
                     {selected.source === 'desktop' ? (
                       <p className="inline-flex rounded-full bg-slate-100 px-2 py-0.5 text-xs font-bold text-slate-500">Registrado en el programa</p>
                     ) : null}
                   </>
-                ) : (
+                ) : (() => {
+                  const c = parseConcepto(selected.notes)
+                  const isSalida = selected.type === 'salida'
+                  return (
                 <>
-                <InfoRow label="Empresa" value={lot.clients?.name || '-'} />
-                <InfoRow label="Producto" value={cleanProductName(lot.product) || '-'} />
-                <InfoRow label="Lote" value={displayLotCode(lot.lot_code, lot) || '-'} />
-                <InfoRow label="Vencimiento" value={lot.expiry_date ? fmtDate(lot.expiry_date + 'T00:00:00') : 'Sin venc.'} />
-                <InfoRow label="Ubicación" value={lot.location || '-'} />
-                <InfoRow label="Cantidad" value={selected.cantidadLabel || formatNumber(selected.quantity)} bold />
-                <InfoRow label="Stock anterior" value={formatNumber(selected.previous_quantity)} />
-                <InfoRow label="Stock nuevo" value={formatNumber(selected.new_quantity)} />
-                <InfoRow label="Usuario" value={selected.profiles?.full_name || '-'} />
+                {/* Producto */}
+                <div>
+                  <p className="text-sm font-black text-slate-950 [overflow-wrap:anywhere]">{cleanProductName(lot.product) || '-'}</p>
+                  <p className="mt-0.5 text-xs font-semibold text-slate-500">
+                    {lot.clients?.name || '-'} · Lote {displayLotCode(lot.lot_code, lot) || '-'}
+                  </p>
+                </div>
+
+                {/* Cantidad destacada */}
+                <div className={`rounded-xl px-3 py-3 text-center ${isSalida ? 'bg-red-50' : 'bg-campo-50'}`}>
+                  <p className={`text-2xl font-black ${isSalida ? 'text-red-700' : 'text-campo-800'}`}>
+                    {selected.cantidadLabel || formatNumber(selected.quantity)}
+                  </p>
+                  <p className={`mt-0.5 text-xs font-bold ${isSalida ? 'text-red-500' : 'text-campo-600'}`}>
+                    {stockEnvaseLabel(selected.quantity, lot)} {isSalida ? 'despachadas' : 'ingresadas'}
+                  </p>
+                </div>
+
+                {/* Stock antes/después en envases */}
+                <div className="flex items-start justify-between gap-2">
+                  <div>
+                    <p className="text-[10px] font-black uppercase tracking-wide text-slate-400">Stock antes</p>
+                    <p className="mt-0.5 text-sm font-bold text-slate-700">{stockEnvaseLabel(selected.previous_quantity, lot)}</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-[10px] font-black uppercase tracking-wide text-slate-400">Stock después</p>
+                    <p className="mt-0.5 text-sm font-bold text-slate-700">{stockEnvaseLabel(selected.new_quantity, lot)}</p>
+                  </div>
+                </div>
+
+                {/* Datos del despacho/ingreso */}
+                <div className="border-t border-slate-100 pt-3">
+                  <p className="mb-2 text-[10px] font-black uppercase tracking-wide text-slate-400">
+                    Datos de {isSalida ? 'la salida' : 'el ingreso'}
+                  </p>
+                  <div className="grid grid-cols-2 gap-x-3 gap-y-2">
+                    {c.transportista && <MiniField label="Transportista" value={c.transportista} />}
+                    {c.placa && <MiniField label="Placa" value={c.placa} />}
+                    {c.documento && <MiniField label="Teléfono" value={c.documento} />}
+                    <MiniField label="Vencimiento" value={lot.expiry_date ? fmtDate(lot.expiry_date + 'T00:00:00') : 'Sin venc.'} />
+                    <MiniField label="Ubicación" value={lot.location || '-'} />
+                    <MiniField label="Usuario" value={selected.profiles?.full_name || '-'} />
+                  </div>
+                  {c.obs && (
+                    <div className="mt-2 rounded-lg bg-amber-50 px-3 py-2">
+                      <span className="text-xs font-semibold italic text-amber-800">Obs.: {c.obs}</span>
+                    </div>
+                  )}
+                </div>
 
                 {editing ? (
-                  <form onSubmit={saveEdit} className="space-y-2 pt-1">
+                  <form onSubmit={saveEdit} className="space-y-2 border-t border-slate-100 pt-3">
                     <label className="block">
                       <span className="text-xs font-bold text-slate-700">Concepto</span>
                       <textarea
@@ -500,25 +589,18 @@ export default function MovimientosModal({ onClose, canEdit = true }) {
                       </button>
                     </div>
                   </form>
-                ) : (
-                  <div className="pt-1">
-                    <div className="rounded-lg bg-slate-50 px-3 py-2">
-                      <p className="text-xs font-semibold text-slate-400">Concepto</p>
-                      <p className="mt-0.5 text-sm font-semibold text-slate-700">{selected.notes || 'Sin concepto'}</p>
-                    </div>
-                    {canEdit && (
-                      <button
-                        className="btn-secondary mt-3 w-full !min-h-9 !py-1.5 text-sm"
-                        type="button"
-                        onClick={startEdit}
-                      >
-                        Editar concepto
-                      </button>
-                    )}
-                  </div>
-                )}
+                ) : canEdit ? (
+                  <button
+                    className="btn-secondary w-full !min-h-9 !py-1.5 text-sm"
+                    type="button"
+                    onClick={startEdit}
+                  >
+                    Editar concepto
+                  </button>
+                ) : null}
                 </>
-                )}
+                  )
+                })()}
               </div>
             </div>
           )}
@@ -534,6 +616,15 @@ function InfoRow({ label, value, bold }) {
     <div>
       <p className="text-[10px] font-black uppercase tracking-wide text-slate-400">{label}</p>
       <p className={`mt-0.5 text-sm ${bold ? 'font-black text-campo-700' : 'font-semibold text-slate-700'} [overflow-wrap:anywhere]`}>{value}</p>
+    </div>
+  )
+}
+
+function MiniField({ label, value }) {
+  return (
+    <div className="min-w-0">
+      <p className="text-[10px] font-semibold uppercase text-slate-400">{label}</p>
+      <p className="text-xs font-bold text-slate-700 [overflow-wrap:anywhere]">{value}</p>
     </div>
   )
 }
