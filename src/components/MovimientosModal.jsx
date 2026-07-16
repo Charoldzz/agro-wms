@@ -219,6 +219,8 @@ export default function MovimientosModal({ onClose, canEdit = true }) {
               size > 0 ? m.lots?.package_unit : null,
             ),
             envaseLabel: stockEnvaseLabel(m.quantity, m.lots),
+            expiry_date: m.lots?.expiry_date || null,
+            location: m.lots?.location || '',
           }
         }),
         lots: {
@@ -471,6 +473,7 @@ export default function MovimientosModal({ onClose, canEdit = true }) {
                         cantidadLabel: selected.cantidadLabel || formatNumber(selected.quantity),
                         envaseLabel: isSingleLot ? stockEnvaseLabel(selected.quantity, lot) : '',
                         expiry_date: lot.expiry_date || null,
+                        location: lot.location || '',
                       }]
                   // Datos de la operación: campos directos o parseados del concepto
                   const c = parseConcepto(selected.notes)
@@ -497,9 +500,12 @@ export default function MovimientosModal({ onClose, canEdit = true }) {
                                 <p className="shrink-0 text-sm font-black text-campo-700">{item.cantidadLabel || formatNumber(item.quantity)}</p>
                               </div>
                               <div className="flex items-center justify-between gap-2">
-                                {item.lot ? <p className="text-[10px] font-semibold text-slate-400">Lote: {item.lot}</p> : <span />}
-                                {item.envaseLabel ? <p className="text-[10px] font-semibold text-slate-400">{item.envaseLabel}</p> : null}
+                                <p className="text-[10px] font-semibold text-slate-400">
+                                  {item.lot ? `Lote ${item.lot}` : ''}{item.expiry_date ? ` · Vence ${fmtDate(item.expiry_date + 'T00:00:00')}` : ''}
+                                </p>
+                                {item.envaseLabel ? <p className="shrink-0 text-[10px] font-semibold text-slate-400">{item.envaseLabel}</p> : null}
                               </div>
+                              {item.location ? <p className="text-[10px] font-semibold text-slate-400">{item.location}</p> : null}
                               <PackageChips chips={item.chips} />
                             </div>
                           ))}
@@ -537,8 +543,6 @@ export default function MovimientosModal({ onClose, canEdit = true }) {
                           {transp && <MiniField label="Transportista" value={transp} />}
                           {placa && <MiniField label="Placa" value={placa} />}
                           {tel && <MiniField label="Teléfono" value={tel} />}
-                          {isSingleLot && <MiniField label="Vencimiento" value={lot.expiry_date ? fmtDate(lot.expiry_date + 'T00:00:00') : 'Sin venc.'} />}
-                          {isSingleLot && <MiniField label="Ubicación" value={lot.location || '-'} />}
                           {selected.profiles?.full_name && <MiniField label="Usuario" value={selected.profiles.full_name} />}
                         </div>
                         {obs && (
