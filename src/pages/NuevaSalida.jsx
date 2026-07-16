@@ -169,9 +169,7 @@ export default function NuevaSalida() {
         // lo ve en su stepper y ya no puede modificarla ni cancelarla
         if (['pendiente', 'aprobado'].includes(data.status)) {
           supabase
-            .from('client_dispatch_requests')
-            .update({ status: 'en_preparacion' })
-            .eq('id', requestId)
+            .rpc('mark_dispatch_in_progress', { p_request_id: requestId })
             .then(({ error }) => {
               if (!error) setSolicitud((prev) => (prev ? { ...prev, status: 'en_preparacion' } : prev))
             })

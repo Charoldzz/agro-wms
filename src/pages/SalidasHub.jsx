@@ -62,15 +62,10 @@ export default function SalidasHub() {
       setRejectError('Escribe el motivo del rechazo para que el cliente lo vea.')
       return
     }
-    const { error } = await supabase
-      .from('client_dispatch_requests')
-      .update({
-        status: 'rechazado',
-        admin_notes: rejectReason.trim(),
-        reviewed_by: user.id,
-        reviewed_at: new Date().toISOString(),
-      })
-      .eq('id', id)
+    const { error } = await supabase.rpc('reject_dispatch_request', {
+      p_request_id: id,
+      p_reason: rejectReason.trim(),
+    })
     if (error) {
       setRejectError(`No se pudo rechazar: ${error.message}`)
       return
