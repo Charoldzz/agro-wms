@@ -218,6 +218,7 @@ export default function MovimientosModal({ onClose, canEdit = true }) {
               size > 0 ? Number(m.quantity || 0) * size : Number(m.quantity || 0),
               size > 0 ? m.lots?.package_unit : null,
             ),
+            envaseLabel: stockEnvaseLabel(m.quantity, m.lots),
           }
         }),
         lots: {
@@ -458,8 +459,12 @@ export default function MovimientosModal({ onClose, canEdit = true }) {
               <div className="flex-1 overflow-y-auto p-4 space-y-3">
                 {selected.source === 'desktop' || selected.grouped ? (
                   <>
-                    <InfoRow label="Nota" value={selected.note_number || '-'} bold />
-                    <InfoRow label="Empresa" value={lot.clients?.name || '-'} />
+                    {/* Nota + empresa */}
+                    <div>
+                      <p className="font-mono text-sm font-black text-campo-700">{selected.note_number || '-'}</p>
+                      <p className="mt-0.5 text-xs font-semibold text-slate-500">{lot.clients?.name || '-'}</p>
+                    </div>
+
                     {selected.items && selected.items.length > 1 ? (
                       <div>
                         <p className="text-[10px] font-black uppercase tracking-wide text-slate-400">Productos ({selected.items.length})</p>
@@ -470,7 +475,10 @@ export default function MovimientosModal({ onClose, canEdit = true }) {
                                 <p className="min-w-0 text-xs font-bold text-slate-800 [overflow-wrap:anywhere]">{cleanProductName(item.product)}</p>
                                 <p className="shrink-0 text-sm font-black text-campo-700">{item.cantidadLabel || formatNumber(item.quantity)}</p>
                               </div>
-                              {item.lot ? <p className="text-[10px] font-semibold text-slate-400">Lote: {item.lot}</p> : null}
+                              <div className="flex items-center justify-between gap-2">
+                                {item.lot ? <p className="text-[10px] font-semibold text-slate-400">Lote: {item.lot}</p> : <span />}
+                                {item.envaseLabel ? <p className="text-[10px] font-semibold text-slate-400">{item.envaseLabel}</p> : null}
+                              </div>
                               <PackageChips chips={item.chips} />
                             </div>
                           ))}
@@ -483,7 +491,14 @@ export default function MovimientosModal({ onClose, canEdit = true }) {
                         <InfoRow label="Vencimiento" value={lot.expiry_date ? fmtDate(lot.expiry_date + 'T00:00:00') : 'Sin venc.'} />
                       </>
                     )}
-                    <InfoRow label="Cantidad total" value={selected.cantidadLabel || formatNumber(selected.quantity)} bold />
+
+                    {/* Cantidad total destacada */}
+                    <div className={`rounded-xl px-3 py-3 text-center ${selected.type === 'salida' ? 'bg-red-50' : 'bg-campo-50'}`}>
+                      <p className="text-[10px] font-black uppercase tracking-wide text-slate-400">Cantidad total</p>
+                      <p className={`mt-0.5 text-xl font-black ${selected.type === 'salida' ? 'text-red-700' : 'text-campo-800'}`}>
+                        {selected.cantidadLabel || formatNumber(selected.quantity)}
+                      </p>
+                    </div>
                     {selected.items?.length === 1 && <PackageChips chips={selected.items[0].chips} />}
                     {(() => {
                       const c = parseConcepto(selected.notes)
