@@ -1372,7 +1372,7 @@ export default function ClientPortal({ view = 'inventory' }) {
                                   </>
                                 : <span className="text-xs font-semibold text-slate-600">{formatNumber(item.quantity)} uds</span>
                               }
-                              <span className="text-[10px] font-semibold text-slate-400">· {lotLabel(item.lot_code, item)}</span>
+                              <span className="text-[10px] font-semibold text-slate-400">· {lotLabel(item.lot_code, item)}{item.expiry_date ? ` · Vence ${formatDate(item.expiry_date)}` : ''}</span>
                             </div>
                             {item.note && (
                               <p className="mt-0.5 text-[10px] font-semibold italic text-slate-500 [overflow-wrap:anywhere]">Obs.: {item.note}</p>
@@ -1692,7 +1692,9 @@ export default function ClientPortal({ view = 'inventory' }) {
                                     <div className="min-w-0">
                                       <p className="text-xs font-semibold text-slate-600 [overflow-wrap:anywhere]">· {cleanProductName(item.product)}</p>
                                       {item.lot_code && (
-                                        <p className="text-[10px] font-semibold text-slate-400 [overflow-wrap:anywhere]">Lote: {displayLotCode(item.lot_code, item)}</p>
+                                        <p className="text-[10px] font-semibold text-slate-400 [overflow-wrap:anywhere]">
+                                          Lote {displayLotCode(item.lot_code, item)}{item.expiry_date ? ` · Vence ${formatDate(item.expiry_date)}` : ''}
+                                        </p>
                                       )}
                                       {item.note && (
                                         <p className="text-[10px] font-semibold italic text-slate-400 [overflow-wrap:anywhere]">Obs.: {item.note}</p>
