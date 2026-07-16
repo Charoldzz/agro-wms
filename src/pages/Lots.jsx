@@ -343,6 +343,16 @@ export default function Lots() {
                   <ClipboardList size={14} />
                   <span className="hidden sm:inline">Ver Kardex</span>
                 </button>
+                {canOperate && (
+                  <button
+                    className="btn-secondary !min-h-8 !px-2.5 !py-1.5 text-xs font-bold"
+                    onClick={() => setShowMovimientosModal(true)}
+                    title="Historial de movimientos"
+                  >
+                    <History size={14} />
+                    <span className="hidden sm:inline">Movimientos</span>
+                  </button>
+                )}
               </div>
             </div>
             {/* Empresa activa en móvil */}
@@ -384,19 +394,6 @@ export default function Lots() {
               >
                 <Building2 size={14} />
                 Empresas
-              </button>
-            </div>
-          )}
-
-          {/* Historial: admin edita conceptos, operador solo lectura */}
-          {canOperate && (
-            <div className="flex flex-wrap gap-2">
-              <button
-                className="btn-secondary !min-h-8 !px-3 !py-1.5 text-xs"
-                onClick={() => setShowMovimientosModal(true)}
-              >
-                <History size={14} />
-                Movimientos
               </button>
             </div>
           )}
