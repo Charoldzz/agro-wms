@@ -72,7 +72,7 @@ export default function SalidasHub() {
       })
       .eq('id', id)
     if (error) {
-      setRejectError('No se pudo rechazar la solicitud. Intenta nuevamente.')
+      setRejectError(`No se pudo rechazar: ${error.message}`)
       return
     }
     setRejectingId(null)
