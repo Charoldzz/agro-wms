@@ -457,19 +457,40 @@ export default function MovimientosModal({ onClose, canEdit = true }) {
               </div>
 
               <div className="flex-1 overflow-y-auto p-4 space-y-3">
-                {selected.source === 'desktop' || selected.grouped ? (
-                  <>
-                    {/* Nota + empresa */}
-                    <div>
-                      <p className="font-mono text-sm font-black text-campo-700">{selected.note_number || '-'}</p>
-                      <p className="mt-0.5 text-xs font-semibold text-slate-500">{lot.clients?.name || '-'}</p>
-                    </div>
-
-                    {selected.items && selected.items.length > 1 ? (
+                {(() => {
+                  const isSalida = selected.type === 'salida'
+                  const isDesktop = selected.source === 'desktop'
+                  const isMulti = Array.isArray(selected.items) && selected.items.length > 1
+                  const isSingleLot = !isMulti && !isDesktop && !selected.grouped
+                  // Lista de productos unificada: individual = 1 item; multi/desktop = su lista
+                  const displayItems = isMulti
+                    ? selected.items
+                    : [{
+                        product: cleanProductName(lot.product),
+                        lot: displayLotCode(lot.lot_code, lot),
+                        cantidadLabel: selected.cantidadLabel || formatNumber(selected.quantity),
+                        envaseLabel: isSingleLot ? stockEnvaseLabel(selected.quantity, lot) : '',
+                        expiry_date: lot.expiry_date || null,
+                      }]
+                  // Datos de la operación: campos directos o parseados del concepto
+                  const c = parseConcepto(selected.notes)
+                  const transp = selected.transporter || c.transportista
+                  const placa = selected.plate || c.placa
+                  const tel = selected.contact_person || c.documento
+                  const obs = selected.observations || c.obs
+                  return (
+                    <>
+                      {/* Nota + empresa */}
                       <div>
-                        <p className="text-[10px] font-black uppercase tracking-wide text-slate-400">Productos ({selected.items.length})</p>
+                        <p className="font-mono text-sm font-black text-campo-700">{selected.note_number || '-'}</p>
+                        <p className="mt-0.5 text-xs font-semibold text-slate-500">{lot.clients?.name || '-'}</p>
+                      </div>
+
+                      {/* Productos (1 o N, mismo formato) */}
+                      <div>
+                        <p className="text-[10px] font-black uppercase tracking-wide text-slate-400">Productos ({displayItems.length})</p>
                         <div className="mt-1 space-y-1">
-                          {selected.items.map((item, idx) => (
+                          {displayItems.map((item, idx) => (
                             <div key={idx} className="rounded-lg bg-slate-50 px-2.5 py-1.5">
                               <div className="flex items-start justify-between gap-2">
                                 <p className="min-w-0 text-xs font-bold text-slate-800 [overflow-wrap:anywhere]">{cleanProductName(item.product)}</p>
@@ -484,136 +505,86 @@ export default function MovimientosModal({ onClose, canEdit = true }) {
                           ))}
                         </div>
                       </div>
-                    ) : (
-                      <>
-                        <InfoRow label="Producto" value={cleanProductName(lot.product) || '-'} />
-                        <InfoRow label="Lote" value={lot.lot_code || '-'} />
-                        <InfoRow label="Vencimiento" value={lot.expiry_date ? fmtDate(lot.expiry_date + 'T00:00:00') : 'Sin venc.'} />
-                      </>
-                    )}
 
-                    {/* Cantidad total destacada */}
-                    <div className={`rounded-xl px-3 py-3 text-center ${selected.type === 'salida' ? 'bg-red-50' : 'bg-campo-50'}`}>
-                      <p className="text-[10px] font-black uppercase tracking-wide text-slate-400">Cantidad total</p>
-                      <p className={`mt-0.5 text-xl font-black ${selected.type === 'salida' ? 'text-red-700' : 'text-campo-800'}`}>
-                        {selected.cantidadLabel || formatNumber(selected.quantity)}
-                      </p>
-                    </div>
-                    {selected.items?.length === 1 && <PackageChips chips={selected.items[0].chips} />}
-                    {(() => {
-                      const c = parseConcepto(selected.notes)
-                      const transp = selected.transporter || c.transportista
-                      const placa = selected.plate || c.placa
-                      const tel = selected.contact_person || c.documento
-                      const obs = selected.observations || c.obs
-                      return (
-                        <div className="border-t border-slate-100 pt-3">
-                          <p className="mb-2 text-[10px] font-black uppercase tracking-wide text-slate-400">Datos de la operación</p>
-                          <div className="grid grid-cols-2 gap-x-3 gap-y-2">
-                            {transp && <MiniField label="Transportista" value={transp} />}
-                            {placa && <MiniField label="Placa" value={placa} />}
-                            {tel && <MiniField label="Teléfono" value={tel} />}
-                            {selected.profiles?.full_name && <MiniField label="Usuario" value={selected.profiles.full_name} />}
+                      {/* Cantidad total destacada */}
+                      <div className={`rounded-xl px-3 py-3 text-center ${isSalida ? 'bg-red-50' : 'bg-campo-50'}`}>
+                        <p className="text-[10px] font-black uppercase tracking-wide text-slate-400">Cantidad total</p>
+                        <p className={`mt-0.5 text-xl font-black ${isSalida ? 'text-red-700' : 'text-campo-800'}`}>
+                          {selected.cantidadLabel || formatNumber(selected.quantity)}
+                        </p>
+                      </div>
+
+                      {/* Stock antes/después: solo en movimiento de un lote */}
+                      {isSingleLot && (
+                        <div className="flex items-start justify-between gap-2">
+                          <div>
+                            <p className="text-[10px] font-black uppercase tracking-wide text-slate-400">Stock antes</p>
+                            <p className="mt-0.5 text-sm font-bold text-slate-700">{stockEnvaseLabel(selected.previous_quantity, lot)}</p>
                           </div>
-                          {obs && (
-                            <div className="mt-2 rounded-lg bg-amber-50 px-3 py-2">
-                              <span className="text-xs font-semibold italic text-amber-800">Obs.: {obs}</span>
-                            </div>
-                          )}
+                          <div className="text-right">
+                            <p className="text-[10px] font-black uppercase tracking-wide text-slate-400">Stock después</p>
+                            <p className="mt-0.5 text-sm font-bold text-slate-700">{stockEnvaseLabel(selected.new_quantity, lot)}</p>
+                          </div>
                         </div>
-                      )
-                    })()}
-                    {selected.source === 'desktop' ? (
-                      <p className="inline-flex rounded-full bg-slate-100 px-2 py-0.5 text-xs font-bold text-slate-500">Registrado en el programa</p>
-                    ) : null}
-                  </>
-                ) : (() => {
-                  const c = parseConcepto(selected.notes)
-                  const isSalida = selected.type === 'salida'
-                  return (
-                <>
-                {/* Producto */}
-                <div>
-                  <p className="text-sm font-black text-slate-950 [overflow-wrap:anywhere]">{cleanProductName(lot.product) || '-'}</p>
-                  <p className="mt-0.5 text-xs font-semibold text-slate-500">
-                    {lot.clients?.name || '-'} · Lote {displayLotCode(lot.lot_code, lot) || '-'}
-                  </p>
-                </div>
+                      )}
 
-                {/* Cantidad destacada */}
-                <div className={`rounded-xl px-3 py-3 text-center ${isSalida ? 'bg-red-50' : 'bg-campo-50'}`}>
-                  <p className={`text-2xl font-black ${isSalida ? 'text-red-700' : 'text-campo-800'}`}>
-                    {selected.cantidadLabel || formatNumber(selected.quantity)}
-                  </p>
-                  <p className={`mt-0.5 text-xs font-bold ${isSalida ? 'text-red-500' : 'text-campo-600'}`}>
-                    {stockEnvaseLabel(selected.quantity, lot)} {isSalida ? 'despachadas' : 'ingresadas'}
-                  </p>
-                </div>
+                      {/* Datos de la operación */}
+                      <div className="border-t border-slate-100 pt-3">
+                        <p className="mb-2 text-[10px] font-black uppercase tracking-wide text-slate-400">
+                          Datos de {isSalida ? 'la salida' : 'el ingreso'}
+                        </p>
+                        <div className="grid grid-cols-2 gap-x-3 gap-y-2">
+                          {transp && <MiniField label="Transportista" value={transp} />}
+                          {placa && <MiniField label="Placa" value={placa} />}
+                          {tel && <MiniField label="Teléfono" value={tel} />}
+                          {isSingleLot && <MiniField label="Vencimiento" value={lot.expiry_date ? fmtDate(lot.expiry_date + 'T00:00:00') : 'Sin venc.'} />}
+                          {isSingleLot && <MiniField label="Ubicación" value={lot.location || '-'} />}
+                          {selected.profiles?.full_name && <MiniField label="Usuario" value={selected.profiles.full_name} />}
+                        </div>
+                        {obs && (
+                          <div className="mt-2 rounded-lg bg-amber-50 px-3 py-2">
+                            <span className="text-xs font-semibold italic text-amber-800">Obs.: {obs}</span>
+                          </div>
+                        )}
+                      </div>
 
-                {/* Stock antes/después en envases */}
-                <div className="flex items-start justify-between gap-2">
-                  <div>
-                    <p className="text-[10px] font-black uppercase tracking-wide text-slate-400">Stock antes</p>
-                    <p className="mt-0.5 text-sm font-bold text-slate-700">{stockEnvaseLabel(selected.previous_quantity, lot)}</p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-[10px] font-black uppercase tracking-wide text-slate-400">Stock después</p>
-                    <p className="mt-0.5 text-sm font-bold text-slate-700">{stockEnvaseLabel(selected.new_quantity, lot)}</p>
-                  </div>
-                </div>
+                      {isDesktop && (
+                        <p className="inline-flex rounded-full bg-slate-100 px-2 py-0.5 text-xs font-bold text-slate-500">Registrado en el programa</p>
+                      )}
 
-                {/* Datos del despacho/ingreso */}
-                <div className="border-t border-slate-100 pt-3">
-                  <p className="mb-2 text-[10px] font-black uppercase tracking-wide text-slate-400">
-                    Datos de {isSalida ? 'la salida' : 'el ingreso'}
-                  </p>
-                  <div className="grid grid-cols-2 gap-x-3 gap-y-2">
-                    {c.transportista && <MiniField label="Transportista" value={c.transportista} />}
-                    {c.placa && <MiniField label="Placa" value={c.placa} />}
-                    {c.documento && <MiniField label="Teléfono" value={c.documento} />}
-                    <MiniField label="Vencimiento" value={lot.expiry_date ? fmtDate(lot.expiry_date + 'T00:00:00') : 'Sin venc.'} />
-                    <MiniField label="Ubicación" value={lot.location || '-'} />
-                    <MiniField label="Usuario" value={selected.profiles?.full_name || '-'} />
-                  </div>
-                  {c.obs && (
-                    <div className="mt-2 rounded-lg bg-amber-50 px-3 py-2">
-                      <span className="text-xs font-semibold italic text-amber-800">Obs.: {c.obs}</span>
-                    </div>
-                  )}
-                </div>
-
-                {editing ? (
-                  <form onSubmit={saveEdit} className="space-y-2 border-t border-slate-100 pt-3">
-                    <label className="block">
-                      <span className="text-xs font-bold text-slate-700">Concepto</span>
-                      <textarea
-                        className="input mt-1 w-full text-sm"
-                        rows={3}
-                        value={editNotes}
-                        onChange={(e) => setEditNotes(e.target.value)}
-                        placeholder="Observaciones..."
-                      />
-                    </label>
-                    {error && <p className="text-xs font-bold text-red-600">{error}</p>}
-                    <div className="flex gap-2">
-                      <button className="btn-primary flex-1 !min-h-9 !py-1.5 text-sm" type="submit" disabled={saving}>
-                        <Save size={14} />{saving ? 'Guardando...' : 'Guardar'}
-                      </button>
-                      <button className="btn-secondary !min-h-9 !px-3 !py-1.5 text-sm" type="button" onClick={() => setEditing(false)}>
-                        Cancelar
-                      </button>
-                    </div>
-                  </form>
-                ) : canEdit ? (
-                  <button
-                    className="btn-secondary w-full !min-h-9 !py-1.5 text-sm"
-                    type="button"
-                    onClick={startEdit}
-                  >
-                    Editar concepto
-                  </button>
-                ) : null}
-                </>
+                      {/* Editar concepto: solo movimientos web y con permiso */}
+                      {!isDesktop && editing ? (
+                        <form onSubmit={saveEdit} className="space-y-2 border-t border-slate-100 pt-3">
+                          <label className="block">
+                            <span className="text-xs font-bold text-slate-700">Concepto</span>
+                            <textarea
+                              className="input mt-1 w-full text-sm"
+                              rows={3}
+                              value={editNotes}
+                              onChange={(e) => setEditNotes(e.target.value)}
+                              placeholder="Observaciones..."
+                            />
+                          </label>
+                          {error && <p className="text-xs font-bold text-red-600">{error}</p>}
+                          <div className="flex gap-2">
+                            <button className="btn-primary flex-1 !min-h-9 !py-1.5 text-sm" type="submit" disabled={saving}>
+                              <Save size={14} />{saving ? 'Guardando...' : 'Guardar'}
+                            </button>
+                            <button className="btn-secondary !min-h-9 !px-3 !py-1.5 text-sm" type="button" onClick={() => setEditing(false)}>
+                              Cancelar
+                            </button>
+                          </div>
+                        </form>
+                      ) : !isDesktop && canEdit && !selected.grouped ? (
+                        <button
+                          className="btn-secondary w-full !min-h-9 !py-1.5 text-sm"
+                          type="button"
+                          onClick={startEdit}
+                        >
+                          Editar concepto
+                        </button>
+                      ) : null}
+                    </>
                   )
                 })()}
               </div>
