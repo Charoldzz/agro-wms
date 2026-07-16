@@ -246,6 +246,8 @@ export default function ClientPortal({ view = 'inventory' }) {
   const [inventoryFilter, setInventoryFilter] = useState('all')
   const [inventorySort,   setInventorySort]   = useState('name')
   const [selectedMovement, setSelectedMovement] = useState(null)
+  const [histSearch, setHistSearch] = useState('')
+  const [histFilter, setHistFilter] = useState('')
 
   // request form
   const [reqProductName, setReqProductName] = useState('')
@@ -365,6 +367,20 @@ export default function ClientPortal({ view = 'inventory' }) {
       }
     }).sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
   }, [movements, opsById])
+
+  // Filtrado del historial (buscador + tipo) para la pestaña Movimientos
+  const filteredNotes = useMemo(() => {
+    const term = histSearch.toLowerCase().trim()
+    return movementNotes.filter((n) => {
+      if (histFilter && n.type !== histFilter) return false
+      if (!term) return true
+      return [
+        n.noteNumber, n.transporter, n.plate, n.observations,
+        ...n.movs.map((m) => cleanProductName(m.lots?.product)),
+        ...n.movs.map((m) => displayLotCode(m.lots?.lot_code, m.lots)),
+      ].filter(Boolean).some((v) => String(v).toLowerCase().includes(term))
+    })
+  }, [movementNotes, histSearch, histFilter])
 
   const totalStock    = lots.reduce((s,l) => s + Number(l.current_quantity||0), 0)
   const productCount  = lots.length
@@ -1781,63 +1797,93 @@ export default function ClientPortal({ view = 'inventory' }) {
 
       {/* ── MOVIMIENTOS ───────────────────────────────────────────── */}
       {isMovements && (
-        <div className="space-y-4">
-
-          {loading ? (
-            <p className="py-10 text-center text-sm font-bold text-slate-400">Cargando movimientos...</p>
-          ) : movements.length === 0 ? (
-            <EmptyState title="Sin movimientos" text="No hay movimientos registrados para tus productos." />
-          ) : (
-            <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-              <div className="divide-y divide-slate-100">
-                {movementNotes.map(n => {
-                  const firstLot = n.movs[0]?.lots || {}
-                  return (
-                    <div
-                      key={n.id}
-                      className="flex cursor-pointer items-center gap-3 px-4 py-3.5 transition-colors hover:bg-slate-50"
-                      onClick={() => setSelectedMovement(n)}
-                    >
-                      <span className={`shrink-0 rounded-lg px-2 py-1.5 text-[10px] font-black uppercase leading-none ${n.type === 'entrada' ? 'bg-campo-100 text-campo-800' : 'bg-red-50 text-red-700'}`}>
-                        {n.type === 'entrada' ? 'Ingreso' : 'Salida'}
-                      </span>
-                      <div className="min-w-0 flex-1">
-                        <p className="text-sm font-black text-slate-900 [overflow-wrap:anywhere]">
-                          {n.noteNumber ? (
-                            <span className="font-mono text-campo-700">{n.noteNumber}</span>
-                          ) : (
-                            cleanProductName(firstLot.product)
-                          )}
-                        </p>
-                        <p className="text-xs font-semibold text-slate-500">
-                          {n.movs.length > 1 ? `${n.movs.length} productos` : cleanProductName(firstLot.product)} · {formatDate(n.createdAt)}
-                        </p>
-                      </div>
-                      <div className="shrink-0 text-right">
-                        <p className="text-sm font-black leading-snug text-campo-700">{n.equivalentLabel}</p>
-                        {noteEnvasesLabel(n.movs) ? (
-                          <p className="text-xs font-semibold text-slate-400">{noteEnvasesLabel(n.movs)}</p>
-                        ) : null}
-                      </div>
-                      <button
-                        className="shrink-0 rounded-lg border border-slate-200 p-1.5 text-slate-400 transition-colors hover:border-campo-300 hover:text-campo-700"
-                        type="button"
-                        title="Ver nota (PDF)"
-                        onClick={(e) => { e.stopPropagation(); openNotePdf(n) }}
-                      >
-                        <FileText size={15} />
-                      </button>
-                    </div>
-                  )
-                })}
+        loading ? (
+          <p className="py-10 text-center text-sm font-bold text-slate-400">Cargando movimientos...</p>
+        ) : movements.length === 0 ? (
+          <EmptyState title="Sin movimientos" text="No hay movimientos registrados para tus productos." />
+        ) : (
+          <div className="flex h-[75dvh] max-h-[720px] flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+            {/* Toolbar: buscador + filtro */}
+            <div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-slate-100 px-3 py-2.5">
+              <div className="relative min-w-[160px] flex-1">
+                <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                <input
+                  className="input w-full pl-8 text-sm"
+                  placeholder="Buscar nota, producto, lote..."
+                  value={histSearch}
+                  onChange={(e) => setHistSearch(e.target.value)}
+                />
               </div>
+              <select className="input text-sm sm:w-36" value={histFilter} onChange={(e) => setHistFilter(e.target.value)}>
+                <option value="">Todos</option>
+                <option value="entrada">Ingresos</option>
+                <option value="salida">Salidas</option>
+              </select>
             </div>
-          )}
-        </div>
+
+            {/* Body: lista + panel de detalle */}
+            <div className="flex min-h-0 flex-1">
+              {/* Lista */}
+              <div className={`flex flex-col overflow-y-auto ${selectedMovement ? 'hidden lg:flex lg:w-1/2 xl:w-3/5' : 'w-full'}`}>
+                {filteredNotes.length === 0 ? (
+                  <p className="py-12 text-center text-sm font-bold text-slate-400">Sin resultados.</p>
+                ) : (
+                  <div className="divide-y divide-slate-100">
+                    {filteredNotes.map(n => {
+                      const firstLot = n.movs[0]?.lots || {}
+                      const isSel = selectedMovement?.id === n.id
+                      return (
+                        <div
+                          key={n.id}
+                          className={`flex cursor-pointer items-center gap-3 px-4 py-3 transition-colors ${isSel ? 'bg-campo-50' : 'hover:bg-slate-50'}`}
+                          onClick={() => setSelectedMovement(n)}
+                        >
+                          <span className={`shrink-0 rounded-lg px-2 py-1.5 text-[10px] font-black uppercase leading-none ${n.type === 'entrada' ? 'bg-campo-100 text-campo-800' : 'bg-red-50 text-red-700'}`}>
+                            {n.type === 'entrada' ? 'Ingreso' : 'Salida'}
+                          </span>
+                          <div className="min-w-0 flex-1">
+                            <p className="font-mono text-sm font-black text-campo-700 [overflow-wrap:anywhere]">
+                              {n.noteNumber || cleanProductName(firstLot.product)}
+                            </p>
+                            <p className="text-xs font-semibold text-slate-500">
+                              {n.movs.length > 1 ? `${n.movs.length} productos` : cleanProductName(firstLot.product)} · {formatDate(n.createdAt)}
+                            </p>
+                          </div>
+                          <div className="shrink-0 text-right">
+                            <p className="text-sm font-black leading-snug text-campo-700">{n.equivalentLabel}</p>
+                            {noteEnvasesLabel(n.movs) ? (
+                              <p className="text-xs font-semibold text-slate-400">{noteEnvasesLabel(n.movs)}</p>
+                            ) : null}
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
+              </div>
+
+              {/* Panel de detalle */}
+              {selectedMovement && (
+                <div className="flex w-full flex-col overflow-y-auto border-l border-slate-200 lg:w-1/2 xl:w-2/5">
+                  <div className="flex shrink-0 items-center justify-between border-b border-slate-100 px-4 py-3">
+                    <div className="flex items-center gap-2">
+                      <span className={`inline-block rounded px-2 py-0.5 text-xs font-black uppercase ${selectedMovement.type === 'salida' ? 'bg-red-100 text-red-800' : 'bg-campo-100 text-campo-800'}`}>
+                        {movementLabel(selectedMovement.type)}
+                      </span>
+                      <span className="text-xs font-semibold text-slate-400">{formatDate(selectedMovement.createdAt)}</span>
+                    </div>
+                    <button className="rounded p-1 text-slate-400 hover:text-slate-700" onClick={() => setSelectedMovement(null)}><X size={16} /></button>
+                  </div>
+                  <MovementDetailBody note={selectedMovement} clientName={clientName} onPrint={() => openNotePdf(selectedMovement)} />
+                </div>
+              )}
+            </div>
+          </div>
+        )
       )}
 
-      {/* Movement detail modal */}
-      {selectedMovement && (
+      {/* Ficha modal — solo para "Últimos movimientos" de la portada */}
+      {selectedMovement && !isMovements && (
         <MovementModal
           movement={selectedMovement}
           clientName={clientName}
@@ -1942,12 +1988,77 @@ function RequestProgress({ status }) {
   )
 }
 
+// Cuerpo de la ficha de movimiento (reusado en el panel derecho del historial)
+function MovementDetailBody({ note, clientName, onPrint }) {
+  const isSalida = note.type === 'salida'
+  return (
+    <div className="space-y-3 p-5">
+      {/* Nota + empresa */}
+      <div>
+        <p className="font-mono text-sm font-black text-campo-700">{note.noteNumber || 'Sin nota'}</p>
+        <p className="mt-0.5 text-xs font-semibold text-slate-500">{clientName}</p>
+      </div>
+
+      {/* Productos */}
+      <div>
+        <p className="text-[10px] font-black uppercase tracking-wide text-slate-400">Productos ({note.movs.length})</p>
+        <div className="mt-1 space-y-1">
+          {note.movs.map(m => {
+            const lot = m.lots || {}
+            return (
+              <div key={m.id} className="rounded-lg bg-slate-50 px-2.5 py-1.5">
+                <div className="flex items-start justify-between gap-2">
+                  <p className="min-w-0 text-xs font-bold text-slate-800 [overflow-wrap:anywhere]">{cleanProductName(lot.product)}</p>
+                  <p className="shrink-0 text-sm font-black text-campo-700">{movementEquivalentLabel(m)}</p>
+                </div>
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-[10px] font-semibold text-slate-400">
+                    Lote {displayLotCode(lot.lot_code, lot)}{lot.expiry_date ? ` · Vence ${formatDate(lot.expiry_date)}` : ''}
+                  </p>
+                  <p className="shrink-0 text-[10px] font-semibold text-slate-400">{udsEnvaseLabel(m.quantity, lot.package_size, lot.package_unit)}</p>
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      </div>
+
+      {/* Cantidad total destacada */}
+      <div className={`rounded-xl px-3 py-3 text-center ${isSalida ? 'bg-red-50' : 'bg-campo-50'}`}>
+        <p className="text-[10px] font-black uppercase tracking-wide text-slate-400">Cantidad total</p>
+        <p className={`mt-0.5 text-xl font-black ${isSalida ? 'text-red-700' : 'text-campo-800'}`}>{note.equivalentLabel}</p>
+      </div>
+
+      {/* Datos de la operación */}
+      {(note.transporter || note.plate || note.contacto) && (
+        <div className="border-t border-slate-100 pt-3">
+          <p className="mb-2 text-[10px] font-black uppercase tracking-wide text-slate-400">
+            Datos de {isSalida ? 'la salida' : 'el ingreso'}
+          </p>
+          <div className="grid grid-cols-2 gap-x-3 gap-y-2">
+            {note.transporter && <ClientMiniField label="Transportista" value={note.transporter} />}
+            {note.plate && <ClientMiniField label="Placa" value={note.plate} />}
+            {note.contacto && <ClientMiniField label="Teléfono" value={note.contacto} />}
+          </div>
+        </div>
+      )}
+      {note.observations && (
+        <div className="rounded-lg bg-amber-50 px-3 py-2">
+          <span className="text-xs font-semibold italic text-amber-800">Obs.: {note.observations}</span>
+        </div>
+      )}
+
+      <button className="btn-primary w-full" onClick={onPrint}><FileText size={16} /> Ver nota (PDF)</button>
+    </div>
+  )
+}
+
+// Modal (usado en la portada "Últimos movimientos"); el historial usa panel inline
 function MovementModal({ movement: note, clientName, onClose, onPrint }) {
   const isSalida = note.type === 'salida'
   return (
     <div className="fixed inset-0 z-50 flex items-end overflow-y-auto bg-black/40 p-4 sm:items-center sm:justify-center" onClick={onClose}>
       <section className="max-h-[92dvh] w-full max-w-md overflow-y-auto rounded-xl bg-white shadow-xl" onClick={e => e.stopPropagation()}>
-        {/* Header: chip + fecha */}
         <div className="flex shrink-0 items-center justify-between border-b border-slate-100 px-5 py-3">
           <div className="flex items-center gap-2">
             <span className={`inline-block rounded px-2 py-0.5 text-xs font-black uppercase ${isSalida ? 'bg-red-100 text-red-800' : 'bg-campo-100 text-campo-800'}`}>
@@ -1957,65 +2068,7 @@ function MovementModal({ movement: note, clientName, onClose, onPrint }) {
           </div>
           <button className="rounded p-1 text-slate-400 hover:text-slate-700" onClick={onClose}><X size={16} /></button>
         </div>
-
-        <div className="space-y-3 p-5">
-          {/* Nota + empresa */}
-          <div>
-            <p className="font-mono text-sm font-black text-campo-700">{note.noteNumber || 'Sin nota'}</p>
-            <p className="mt-0.5 text-xs font-semibold text-slate-500">{clientName}</p>
-          </div>
-
-          {/* Productos */}
-          <div>
-            <p className="text-[10px] font-black uppercase tracking-wide text-slate-400">Productos ({note.movs.length})</p>
-            <div className="mt-1 space-y-1">
-              {note.movs.map(m => {
-                const lot = m.lots || {}
-                return (
-                  <div key={m.id} className="rounded-lg bg-slate-50 px-2.5 py-1.5">
-                    <div className="flex items-start justify-between gap-2">
-                      <p className="min-w-0 text-xs font-bold text-slate-800 [overflow-wrap:anywhere]">{cleanProductName(lot.product)}</p>
-                      <p className="shrink-0 text-sm font-black text-campo-700">{movementEquivalentLabel(m)}</p>
-                    </div>
-                    <div className="flex items-center justify-between gap-2">
-                      <p className="text-[10px] font-semibold text-slate-400">
-                        Lote {displayLotCode(lot.lot_code, lot)}{lot.expiry_date ? ` · Vence ${formatDate(lot.expiry_date)}` : ''}
-                      </p>
-                      <p className="shrink-0 text-[10px] font-semibold text-slate-400">{udsEnvaseLabel(m.quantity, lot.package_size, lot.package_unit)}</p>
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
-          </div>
-
-          {/* Cantidad total destacada */}
-          <div className={`rounded-xl px-3 py-3 text-center ${isSalida ? 'bg-red-50' : 'bg-campo-50'}`}>
-            <p className="text-[10px] font-black uppercase tracking-wide text-slate-400">Cantidad total</p>
-            <p className={`mt-0.5 text-xl font-black ${isSalida ? 'text-red-700' : 'text-campo-800'}`}>{note.equivalentLabel}</p>
-          </div>
-
-          {/* Datos de la operación */}
-          {(note.transporter || note.plate || note.contacto) && (
-            <div className="border-t border-slate-100 pt-3">
-              <p className="mb-2 text-[10px] font-black uppercase tracking-wide text-slate-400">
-                Datos de {isSalida ? 'la salida' : 'el ingreso'}
-              </p>
-              <div className="grid grid-cols-2 gap-x-3 gap-y-2">
-                {note.transporter && <ClientMiniField label="Transportista" value={note.transporter} />}
-                {note.plate && <ClientMiniField label="Placa" value={note.plate} />}
-                {note.contacto && <ClientMiniField label="Teléfono" value={note.contacto} />}
-              </div>
-            </div>
-          )}
-          {note.observations && (
-            <div className="rounded-lg bg-amber-50 px-3 py-2">
-              <span className="text-xs font-semibold italic text-amber-800">Obs.: {note.observations}</span>
-            </div>
-          )}
-
-          <button className="btn-primary w-full" onClick={onPrint}><FileText size={16} /> Ver nota (PDF)</button>
-        </div>
+        <MovementDetailBody note={note} clientName={clientName} onPrint={onPrint} />
       </section>
     </div>
   )
