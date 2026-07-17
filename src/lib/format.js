@@ -35,6 +35,37 @@ export function formatNumber(value) {
   )
 }
 
+// ── Equivalente (lts / kgs) ────────────────────────────────────────────
+// Unidad canónica para acumular y comparar: ml→lt, gr→kg, l*→lt, k*→kg;
+// cualquier otra (incl. vacía) → uds. El valor de ml/gr se convierte a lt/kg.
+// Usar SIEMPRE la misma unidad canónica como clave de los totales.
+export function normalizeEquivalent(value, unit) {
+  let u = String(unit || '').toLowerCase().trim()
+  let v = Number(value || 0)
+  if (u === 'gr' || u === 'grs' || u === 'g') { u = 'kg'; v /= 1000 }
+  else if (u === 'ml' || u === 'cc') { u = 'lt'; v /= 1000 }
+  else if (/^l/.test(u)) u = 'lt'
+  else if (/^k/.test(u)) u = 'kg'
+  else u = 'uds'
+  return { value: v, unit: u }
+}
+
+// Pluraliza la unidad canónica según la cantidad: singular SOLO cuando es
+// exactamente 1 ("1 lt" / "1 kg"), plural en todo lo demás ("560 kgs"). uds no cambia.
+export function pluralUnit(unit, value) {
+  if (unit === 'uds') return 'uds'
+  return Math.round(Number(value || 0) * 100) / 100 === 1 ? unit : `${unit}s`
+}
+
+// Etiqueta de cantidad en equivalente lista para mostrar ("560 kgs", "1 lt",
+// "8 uds"). Fuente ÚNICA de la verdad para que la misma cantidad se vea igual
+// en toda la app. Acepta unidad cruda (kg/lt/ml/gr) o ya canónica (kgs/lts):
+// solo ml/gr se dividen, así que es seguro pasarle un valor ya normalizado.
+export function equivalentLabel(value, unit) {
+  const eq = normalizeEquivalent(value, unit)
+  return `${formatNumber(eq.value)} ${pluralUnit(eq.unit, eq.value)}`
+}
+
 export function movementLabel(type) {
   const labels = {
     entrada: 'Entrada',

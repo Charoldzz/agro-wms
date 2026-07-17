@@ -14,7 +14,7 @@ import { cleanProductName, displayLotCode, lotLabel, packageLabel, productCode, 
 import { desgloseEnvases, envaseTipo } from '../lib/envases'
 import { docFontsCss, openDispatchReceipt, openEntryReceipt } from '../lib/comprobante'
 import { normalizeDispatchRequests } from '../lib/dispatchRequests'
-import { formatDate, formatDateOnly, formatNumber, movementLabel } from '../lib/format'
+import { formatDate, formatDateOnly, formatNumber, movementLabel, equivalentLabel, pluralUnit, normalizeEquivalent as toCanonicalEq } from '../lib/format'
 import { supabase } from '../lib/supabase'
 
 /* ─── helpers ─────────────────────────────────────────────────────── */
@@ -65,6 +65,12 @@ function normalizeEquivalent({ quantity, unit }) {
   return { quantity, unit }
 }
 
+// Número y unidad de display para un equivalente ya calculado ({quantity, unit}),
+// pasados por el helper canónico (plural salvo cuando es 1) — así la misma cantidad
+// se ve idéntica en tarjetas, totales y comprobantes de toda la app.
+function eqNum(eq) { return formatNumber(toCanonicalEq(eq.quantity, eq.unit).value) }
+function eqUnit(eq) { const n = toCanonicalEq(eq.quantity, eq.unit); return pluralUnit(n.unit, n.value) }
+
 function lotEquivalent(lot) {
   const s = Number(lot?.package_size || 0)
   if (s > 0 && lot?.package_unit) return normalizeEquivalent({ quantity: Number(lot.current_quantity || 0) * s, unit: lot.package_unit })
@@ -101,7 +107,7 @@ function movementEquivalent(m) {
 
 function movementEquivalentLabel(m) {
   const eq = movementEquivalent(m)
-  return `${formatNumber(eq.quantity)} ${eq.unit}`
+  return equivalentLabel(eq.quantity, eq.unit)
 }
 
 // Unidades con su tipo de envase ("25 bidones + 17 lt"); sin presentación → uds
@@ -163,9 +169,10 @@ function noteEquivalentLabel(movs) {
   const totals = new Map()
   movs.forEach((m) => {
     const eq = movementEquivalent(m)
-    totals.set(eq.unit, (totals.get(eq.unit) || 0) + eq.quantity)
+    const ne = toCanonicalEq(eq.quantity, eq.unit)
+    totals.set(ne.unit, (totals.get(ne.unit) || 0) + ne.value)
   })
-  return [...totals.entries()].map(([u, q]) => `${formatNumber(q)} ${u}`).join(' · ')
+  return [...totals.entries()].map(([u, q]) => `${formatNumber(q)} ${pluralUnit(u, q)}`).join(' · ')
 }
 
 function productIdentityKey(lot) {
@@ -189,7 +196,7 @@ function equivalentTotalsLabel(equivalents = {}) {
     .filter(([, q]) => Number(q || 0) > 0)
     .sort(([a],[b]) => a.localeCompare(b,'es'))
   if (totals.length === 0) return null
-  return totals.map(([unit, qty]) => `${formatNumber(qty)} ${unit}`).join(' / ')
+  return totals.map(([unit, qty]) => `${formatNumber(qty)} ${pluralUnit(unit, qty)}`).join(' / ')
 }
 
 const STATUS_MAP = {
@@ -444,7 +451,7 @@ export default function ClientPortal({ view = 'inventory' }) {
       map[key].quantity += Number(lot.current_quantity||0)
       map[key].lots.push(lot)
       const eq = lotEquivalent(lot)
-      if (eq) map[key].equivalents[eq.unit] = Number(map[key].equivalents[eq.unit]||0) + eq.quantity
+      if (eq) { const ne = toCanonicalEq(eq.quantity, eq.unit); map[key].equivalents[ne.unit] = Number(map[key].equivalents[ne.unit]||0) + ne.value }
       const st = lotStatus(lot).label
       if (st === 'Por vencer') map[key].expiring++
       if (st === 'Vencido')    map[key].expired++
@@ -479,7 +486,7 @@ export default function ClientPortal({ view = 'inventory' }) {
   const reqLotOptions = useMemo(() => {
     return sortInventoryLots(lots).map(l => {
       const eq = lotEquivalent(l)
-      const disp = eq ? `${formatNumber(eq.quantity)} ${eq.unit}` : `${formatNumber(l.current_quantity)} uds`
+      const disp = eq ? equivalentLabel(eq.quantity, eq.unit) : `${formatNumber(l.current_quantity)} uds`
       const st = lotStatus(l)
       const marca = st.label === 'Vencido' ? ' ⚠ VENCIDO' : st.label === 'Retenido' ? ' · Retenido' : ''
       return { id: l.id, label: `${cleanProductName(l.product)} · Lote ${lotLabel(l.lot_code, l)} · ${disp}${marca}` }
@@ -672,7 +679,7 @@ export default function ClientPortal({ view = 'inventory' }) {
       const headerLabels = ['Código', 'Producto', 'Lote', 'Vencimiento', 'Cantidad', 'Unidades', 'Cajas']
       const dataRows = sortInventoryLots(lots).map((l) => {
         let eqStr = ''
-        try { const eq = lotEquivalent(l); if (eq) eqStr = `${formatNumber(eq.quantity)} ${eq.unit}` } catch (_) {}
+        try { const eq = lotEquivalent(l); if (eq) eqStr = equivalentLabel(eq.quantity, eq.unit) } catch (_) {}
         const size = Number(l.package_size) || 0
         const eqRaw = size > 0 ? Number(l.current_quantity || 0) * size : Number(l.current_quantity || 0)
         const desglose = desgloseEnvases(eqRaw, size, l.package_unit, lotUnitsPerBox(l))
@@ -776,7 +783,7 @@ export default function ClientPortal({ view = 'inventory' }) {
     const logoUrl = `${window.location.origin}/images/todo-logo.png`
     const rows = sortInventoryLots(lots).map((l, i) => {
       let eqStr = ''
-      try { const eq = lotEquivalent(l); if (eq) eqStr = `${formatNumber(eq.quantity)} ${eq.unit}` } catch (_) { /* sin dato */ }
+      try { const eq = lotEquivalent(l); if (eq) eqStr = equivalentLabel(eq.quantity, eq.unit) } catch (_) { /* sin dato */ }
       const size = Number(l.package_size) || 0
       const eqRaw = size > 0 ? Number(l.current_quantity || 0) * size : Number(l.current_quantity || 0)
       const desglose = desgloseEnvases(eqRaw, size, l.package_unit, lotUnitsPerBox(l))
@@ -1208,7 +1215,7 @@ export default function ClientPortal({ view = 'inventory' }) {
                                 <div className="shrink-0 text-right">
                                   {eq ? (
                                     <>
-                                      <p className="text-sm font-black text-campo-700">{formatNumber(eq.quantity)} {eq.unit}</p>
+                                      <p className="text-sm font-black text-campo-700">{eqNum(eq)} {eqUnit(eq)}</p>
                                       <p className="text-[10px] font-semibold text-slate-400">{udsEnvaseLabel(lot.current_quantity, lot.package_size, lot.package_unit)}</p>
                                     </>
                                   ) : (
@@ -1368,7 +1375,7 @@ export default function ClientPortal({ view = 'inventory' }) {
                             <div className="mt-0.5 flex flex-wrap items-baseline gap-x-1.5 gap-y-0">
                               {eq
                                 ? <>
-                                    <span className="text-sm font-black text-campo-700">{formatNumber(eq.quantity)} {eq.unit}</span>
+                                    <span className="text-sm font-black text-campo-700">{eqNum(eq)} {eqUnit(eq)}</span>
                                     <span className="text-[10px] font-semibold text-slate-400">({udsEnvaseLabel(item.quantity, item.package_size, item.package_unit)})</span>
                                   </>
                                 : <span className="text-xs font-semibold text-slate-600">{formatNumber(item.quantity)} uds</span>
@@ -1519,7 +1526,7 @@ export default function ClientPortal({ view = 'inventory' }) {
                             const eq = lotEquivalent(selectedLot)
                             return eq ? (
                               <>
-                                <p className="text-lg font-black text-campo-700">{formatNumber(eq.quantity)} <span className="text-sm font-bold text-campo-500">{eq.unit}</span></p>
+                                <p className="text-lg font-black text-campo-700">{eqNum(eq)} <span className="text-sm font-bold text-campo-500">{eqUnit(eq)}</span></p>
                                 <p className="text-[10px] font-semibold text-slate-400">{udsEnvaseLabel(selectedLot.current_quantity, selectedLot.package_size, selectedLot.package_unit)} disp.</p>
                               </>
                             ) : (
@@ -1621,7 +1628,7 @@ export default function ClientPortal({ view = 'inventory' }) {
                             <div className="mt-0.5 flex items-baseline gap-1.5">
                               {eq
                                 ? <>
-                                    <span className="text-sm font-black text-campo-700">{formatNumber(eq.quantity)} {eq.unit}</span>
+                                    <span className="text-sm font-black text-campo-700">{eqNum(eq)} {eqUnit(eq)}</span>
                                     <span className="text-[10px] font-semibold text-slate-400">({udsEnvaseLabel(item.quantity, item.package_size, item.package_unit)})</span>
                                   </>
                                 : <span className="text-xs font-black text-slate-700">{formatNumber(item.quantity)} uds</span>
@@ -1732,7 +1739,7 @@ export default function ClientPortal({ view = 'inventory' }) {
                                     <div className="shrink-0 text-right">
                                       {eq
                                         ? <>
-                                            <span className="text-xs font-black text-campo-700">{formatNumber(eq.quantity)} {eq.unit}</span>
+                                            <span className="text-xs font-black text-campo-700">{eqNum(eq)} {eqUnit(eq)}</span>
                                             <span className="ml-1 text-[10px] font-semibold text-slate-400">({udsEnvaseLabel(item.quantity, item.package_size, item.package_unit)})</span>
                                           </>
                                         : <span className="text-xs font-black text-slate-700">{formatNumber(item.quantity)} uds</span>
@@ -1752,7 +1759,7 @@ export default function ClientPortal({ view = 'inventory' }) {
                                 <div className="shrink-0 text-right">
                                   {eq
                                     ? <>
-                                        <span className="text-xs font-black text-campo-700">{formatNumber(eq.quantity)} {eq.unit}</span>
+                                        <span className="text-xs font-black text-campo-700">{eqNum(eq)} {eqUnit(eq)}</span>
                                         <span className="ml-1 text-[10px] font-semibold text-slate-400">({udsEnvaseLabel(req.quantity, req.lots?.package_size, req.lots?.package_unit)})</span>
                                       </>
                                     : <span className="text-xs font-black text-slate-700">{formatNumber(req.quantity)} uds</span>

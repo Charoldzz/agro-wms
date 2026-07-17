@@ -3,7 +3,7 @@ import { Search } from 'lucide-react'
 import PageHeader from '../components/PageHeader'
 import EmptyState from '../components/EmptyState'
 import { supabase } from '../lib/supabase'
-import { formatDate, formatNumber, movementLabel } from '../lib/format'
+import { formatDate, formatNumber, movementLabel, normalizeEquivalent, pluralUnit, equivalentLabel } from '../lib/format'
 import { cleanProductName, displayLotCode } from '../lib/display'
 
 const TYPE_COLORS = {
@@ -176,13 +176,10 @@ export default function Kardex() {
   function totalsByUnit(rows) {
     const totals = new Map()
     for (const m of rows) {
-      let unit = String(m.unit || 'uds').toLowerCase()
-      let value = Number(m.eqQuantity || 0)
-      if (unit === 'gr' || unit === 'grs') { unit = 'kg'; value /= 1000 }
-      if (unit === 'ml') { unit = 'lt'; value /= 1000 }
-      totals.set(unit, (totals.get(unit) || 0) + value)
+      const eq = normalizeEquivalent(m.eqQuantity, m.unit)
+      totals.set(eq.unit, (totals.get(eq.unit) || 0) + eq.value)
     }
-    return [...totals.entries()].map(([unit, value]) => `${formatNumber(value)} ${unit}`).join(' · ') || '0'
+    return [...totals.entries()].map(([unit, value]) => `${formatNumber(value)} ${pluralUnit(unit, value)}`).join(' · ') || '0'
   }
 
   const totalEntradas = useMemo(
@@ -295,7 +292,6 @@ export default function Kardex() {
                   const isEntry = m.type === 'entrada'
                   const isSalida = m.type === 'salida'
                   const qty = Number(m.eqQuantity || 0)
-                  const unit = m.unit ? ` ${m.unit}` : ''
                   const saldo = m.saldo != null ? Number(m.saldo) : null
 
                   return (
@@ -321,13 +317,13 @@ export default function Kardex() {
                         </p>
                       </td>
                       <td className="px-3 py-2 text-right text-sm font-black text-campo-700">
-                        {isEntry ? `${formatNumber(qty)}${unit}` : <span className="text-slate-200">—</span>}
+                        {isEntry ? equivalentLabel(qty, m.unit) : <span className="text-slate-200">—</span>}
                       </td>
                       <td className="px-3 py-2 text-right text-sm font-black text-red-700">
-                        {isSalida ? `${formatNumber(qty)}${unit}` : <span className="text-slate-200">—</span>}
+                        {isSalida ? equivalentLabel(qty, m.unit) : <span className="text-slate-200">—</span>}
                       </td>
                       <td className="px-3 py-2 text-right text-sm font-bold text-slate-700">
-                        {saldo != null ? `${formatNumber(saldo)}${unit}` : <span className="text-slate-300">—</span>}
+                        {saldo != null ? equivalentLabel(saldo, m.unit) : <span className="text-slate-300">—</span>}
                       </td>
                     </tr>
                   )

@@ -4,7 +4,7 @@ import { ArrowLeft, Camera, CheckCircle2, Download, Printer, QrCode, Save } from
 import PageHeader from '../components/PageHeader'
 import ListProductCard from '../components/ListProductCard'
 import { useAuth } from '../hooks/useAuth.jsx'
-import { formatDate, formatNumber, movementLabel } from '../lib/format'
+import { formatDate, formatNumber, movementLabel, equivalentLabel } from '../lib/format'
 import { createLotQrDataUrl } from '../lib/qr'
 import { supabase } from '../lib/supabase'
 import { cleanProductName, displayLotCode, productCodeLabel } from '../lib/display'
@@ -29,7 +29,7 @@ function unidadesEnvaseLabel(lot) {
 function qtyEquivalentLabel(lot, qty) {
   const size = Number(lot?.package_size) || 0
   const q = Number(qty) || 0
-  if (size > 0 && lot?.package_unit) return `${formatNumber(q * size)} ${lot.package_unit}`
+  if (size > 0 && lot?.package_unit) return equivalentLabel(q * size, lot.package_unit)
   return `${formatNumber(q)} uds`
 }
 
@@ -792,7 +792,7 @@ export default function LotDetail() {
               <div className="rounded-lg bg-campo-50 p-4">
                 <p className="text-xs font-bold uppercase text-campo-700">Equivalente actual</p>
                 <p className="mt-1 text-4xl font-black text-campo-800">
-                  {Number(lot.package_size) > 0 ? `${formatNumber(currentEquivalent)} ${lot.package_unit || ''}` : 'Sin dato'}
+                  {Number(lot.package_size) > 0 ? equivalentLabel(currentEquivalent, lot.package_unit) : 'Sin dato'}
                 </p>
               </div>
               <div className="rounded-lg bg-slate-50 p-4">
@@ -844,7 +844,7 @@ export default function LotDetail() {
                 <div className="rounded-lg bg-campo-50 p-4">
                   <p className="text-xs font-bold uppercase text-campo-700">Equivalente actual</p>
                   <p className="mt-1 text-4xl font-black text-campo-800">
-                    {Number(lot.package_size) > 0 ? `${formatNumber(currentEquivalent)} ${lot.package_unit || ''}` : 'Sin dato'}
+                    {Number(lot.package_size) > 0 ? equivalentLabel(currentEquivalent, lot.package_unit) : 'Sin dato'}
                   </p>
                 </div>
                 <div className="rounded-lg bg-slate-50 p-4">
@@ -923,7 +923,7 @@ export default function LotDetail() {
             <div className="px-4 py-4 sm:px-5">
               <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">Equivalente</p>
               <p className="mt-1 text-2xl font-black text-campo-700 sm:text-3xl [overflow-wrap:anywhere]">
-                {Number(lot.package_size) > 0 ? `${formatNumber(currentEquivalent)} ${lot.package_unit || ''}` : '—'}
+                {Number(lot.package_size) > 0 ? equivalentLabel(currentEquivalent, lot.package_unit) : '—'}
               </p>
             </div>
             <div className="px-4 py-4 sm:px-5">
@@ -1033,7 +1033,7 @@ export default function LotDetail() {
               { label: 'Codigo', value: productCodeLabel(lot) || '-' },
               { label: 'Lote', value: visibleLotCode },
               { label: 'Disponible', value: `${formatNumber(lot.current_quantity)} uds` },
-              { label: 'Equivalente', value: Number(lot.package_size) > 0 ? `${formatNumber(currentEquivalent)} ${lot.package_unit || ''}` : 'Sin dato' },
+              { label: 'Equivalente', value: Number(lot.package_size) > 0 ? equivalentLabel(currentEquivalent, lot.package_unit) : 'Sin dato' },
               { label: 'Presentacion', value: lot.package_size ? `${formatNumber(lot.package_size)} ${lot.package_unit || ''}` : 'Sin dato' },
               { label: 'Ubicacion', value: lot.location || '-' },
               { label: 'Vencimiento', value: lot.expiry_date ? formatDate(lot.expiry_date) : 'Sin dato' },
@@ -1057,7 +1057,7 @@ export default function LotDetail() {
           <div className="rounded-lg bg-campo-50 p-3">
             <p className="text-xs font-semibold uppercase text-campo-700">Equivalente actual</p>
             <p className="mt-1 text-2xl font-black text-campo-800">
-              {Number(lot.package_size) > 0 ? `${formatNumber(currentEquivalent)} ${lot.package_unit || ''}` : 'Sin dato'}
+              {Number(lot.package_size) > 0 ? equivalentLabel(currentEquivalent, lot.package_unit) : 'Sin dato'}
             </p>
           </div>
         </div>
@@ -1139,7 +1139,7 @@ export default function LotDetail() {
               <div>
                 <span className="label">Cantidad calculada</span>
                 <div className="mt-1 flex min-h-12 items-center rounded-lg border border-slate-200 bg-slate-50 px-3 py-3 text-base font-bold text-slate-950">
-                  {formatNumber(calculatedPresentationQuantity)} {lot.package_unit || ''}
+                  {equivalentLabel(calculatedPresentationQuantity, lot.package_unit)}
                 </div>
               </div>
             </>
@@ -1294,7 +1294,7 @@ export default function LotDetail() {
           {Number(lot.package_size) > 0 ? (
             <div className="mt-1 flex justify-between gap-3 text-campo-800">
               <span>Equivalente despues</span>
-              <span>{formatNumber(nextQuantity * Number(lot.package_size))} {lot.package_unit || ''}</span>
+              <span>{equivalentLabel(nextQuantity * Number(lot.package_size), lot.package_unit)}</span>
             </div>
           ) : null}
         </div>
@@ -1380,13 +1380,13 @@ export default function LotDetail() {
               {pendingMovement.calculatedQuantity ? (
                 <div className="flex justify-between gap-3">
                   <span>Equivalente actual</span>
-                  <span>{formatNumber(pendingMovement.previousQuantity * Number(lot.package_size || 0))} {lot.package_unit || ''}</span>
+                  <span>{equivalentLabel(pendingMovement.previousQuantity * Number(lot.package_size || 0), lot.package_unit)}</span>
                 </div>
               ) : null}
               {Number(lot.package_size) > 0 ? (
                 <div className="flex justify-between gap-3">
                   <span>Equivalente despues</span>
-                  <span>{formatNumber(pendingMovement.newQuantity * Number(lot.package_size))} {lot.package_unit || ''}</span>
+                  <span>{equivalentLabel(pendingMovement.newQuantity * Number(lot.package_size), lot.package_unit)}</span>
                 </div>
               ) : null}
               {pendingMovement.to_location ? (
@@ -1484,7 +1484,7 @@ export default function LotDetail() {
               </div>
               {Number(lot.package_size) > 0 ? (
                 <p className="mt-1 text-sm font-semibold text-slate-600">
-                  Equivalente nuevo: {formatNumber(Number(item.new_quantity || 0) * Number(lot.package_size))} {lot.package_unit || ''}
+                  Equivalente nuevo: {equivalentLabel(Number(item.new_quantity || 0) * Number(lot.package_size), lot.package_unit)}
                 </p>
               ) : null}
               {item.notes ? <p className="mt-1 text-sm text-slate-600">{item.notes}</p> : null}

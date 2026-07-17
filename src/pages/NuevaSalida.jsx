@@ -5,7 +5,7 @@ import { attachmentViewerUrl } from '../lib/dispatchRequests'
 import PageHeader from '../components/PageHeader'
 import { useAuth } from '../hooks/useAuth.jsx'
 import { supabase } from '../lib/supabase'
-import { formatDateShort, formatNumber } from '../lib/format'
+import { formatDateShort, formatNumber, equivalentLabel } from '../lib/format'
 import { cleanProductName, displayLotCode } from '../lib/display'
 import { vibrateSuccess } from '../lib/haptics'
 import { openDispatchReceipt, totalEquivalente } from '../lib/comprobante'
@@ -58,7 +58,7 @@ function lotOptionLabel(lot) {
   const pkgSize = Number(lot.package_size) || 1
   const total = lot.current_quantity * pkgSize
   const unit = lot.package_unit || ''
-  const saldo = unit ? `${formatNumber(total)} ${unit}` : formatNumber(lot.current_quantity)
+  const saldo = unit ? equivalentLabel(total, unit) : formatNumber(lot.current_quantity)
   return `${cleanProductName(lot.product)}   [Lote: ${lote}]   ${saldo}`
 }
 
@@ -670,7 +670,7 @@ export default function NuevaSalida() {
                           </div>
                         ) : row.package_unit ? (
                           <div className="text-[10px] font-semibold text-slate-400">
-                            {formatNumber(row.saldo * (Number(row.package_size) || 1))} {row.package_unit} disponibles
+                            {equivalentLabel(row.saldo * (Number(row.package_size) || 1), row.package_unit)} disponibles
                           </div>
                         ) : null}
                       </div>

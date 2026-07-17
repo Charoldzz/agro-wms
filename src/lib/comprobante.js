@@ -1,4 +1,4 @@
-import { formatDate, formatDateOnly, formatNumber } from './format'
+import { formatDate, formatDateOnly, formatNumber, normalizeEquivalent, pluralUnit, equivalentLabel } from './format'
 
 function escapeHtml(value) {
   return String(value || '')
@@ -24,17 +24,12 @@ export function totalEquivalente(rows) {
   const totals = new Map()
   rows.forEach((row) => {
     const size = Number(row.package_size) || 0
-    let unit = String(row.package_unit || '').toLowerCase().trim()
-    let value = Number(row.cantidad || 0)
-    if (!(size > 0) || !unit) return
-    if (unit === 'ml') { unit = 'lts'; value /= 1000 }
-    else if (unit === 'gr' || unit === 'grs') { unit = 'kgs'; value /= 1000 }
-    else if (/^l/.test(unit)) unit = 'lts'
-    else if (/^k/.test(unit)) unit = 'kgs'
-    else return
-    totals.set(unit, (totals.get(unit) || 0) + value)
+    if (!(size > 0) || !row.package_unit) return
+    const eq = normalizeEquivalent(Number(row.cantidad || 0), row.package_unit)
+    if (eq.unit === 'uds') return
+    totals.set(eq.unit, (totals.get(eq.unit) || 0) + eq.value)
   })
-  return [...totals.entries()].map(([u, v]) => `${formatNumber(v)} ${u}`).join(' · ')
+  return [...totals.entries()].map(([u, v]) => `${formatNumber(v)} ${pluralUnit(u, v)}`).join(' · ')
 }
 
 // Nota de operación (ingreso o salida) con la estética institucional:
@@ -61,7 +56,7 @@ function openOperationNote({ tipo, guide, empresa, contacto, transportista, plac
     .map((row, i) => {
       const size = Number(row.package_size) || 0
       const cantidad = size > 0 && row.package_unit
-        ? `${formatNumber(Number(row.cantidad || 0))} ${row.package_unit}`
+        ? equivalentLabel(Number(row.cantidad || 0), row.package_unit)
         : `${formatNumber(Number(row.cantidad || 0))} uds`
       return `<tr>
         <td class="c">${i + 1}</td>

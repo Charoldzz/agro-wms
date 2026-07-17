@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { ArrowDown, ArrowLeftRight, ArrowUp, RotateCcw, Save, Search, X } from 'lucide-react'
 import { supabase } from '../lib/supabase'
-import { formatNumber } from '../lib/format'
+import { formatNumber, normalizeEquivalent, pluralUnit, equivalentLabel } from '../lib/format'
 import { cleanProductName, displayLotCode } from '../lib/display'
 import { desgloseEnvases } from '../lib/envases'
 
@@ -64,22 +64,11 @@ function packageChips(row) {
     .filter((p) => p.value > 0)
 }
 
-// Normaliza una cantidad a lts/kgs (ml→lts, gr→kgs); sin unidad conocida → uds
-function normalizaUnidad(value, unit) {
-  let u = String(unit || '').toLowerCase()
-  let v = Number(value || 0)
-  if (u === 'gr' || u === 'grs') { u = 'kgs'; v /= 1000 }
-  else if (u === 'ml') { u = 'lts'; v /= 1000 }
-  else if (/^l/.test(u)) u = 'lts'
-  else if (/^k/.test(u)) u = 'kgs'
-  else u = 'uds'
-  return { value: v, unit: u }
-}
+// Normaliza una cantidad a lts/kgs (ml→lt, gr→kg); sin unidad conocida → uds.
+// Unidad canónica singular ('lt'/'kg'/'uds') como clave de los totales.
+const normalizaUnidad = normalizeEquivalent
 
-function equivalenteLabel(value, unit) {
-  const n = normalizaUnidad(value, unit)
-  return `${formatNumber(n.value)} ${n.unit}`
-}
+const equivalenteLabel = equivalentLabel
 
 function PackageChips({ chips }) {
   if (!chips || chips.length === 0) return null
@@ -164,7 +153,7 @@ export default function MovimientosModal({ onClose, canEdit = true }) {
         const n = normalizaUnidad(par.value, par.unit)
         totals.set(n.unit, (totals.get(n.unit) || 0) + n.value)
       }
-      return [...totals.entries()].map(([u, v]) => `${formatNumber(v)} ${u}`).join(' · ')
+      return [...totals.entries()].map(([u, v]) => `${formatNumber(v)} ${pluralUnit(u, v)}`).join(' · ')
     }
 
     // Web: la cantidad está en unidades → equivalente = unidades × tamaño del lote

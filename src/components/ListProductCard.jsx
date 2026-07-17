@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Edit2, Trash2, X } from 'lucide-react'
-import { formatNumber } from '../lib/format'
+import { formatNumber, equivalentLabel } from '../lib/format'
 
 export default function ListProductCard({
   title,
@@ -54,7 +54,7 @@ export default function ListProductCard({
             ) : null}
             {equivalent !== undefined && equivalent !== null && Number.isFinite(Number(equivalent)) ? (
               <strong className="rounded-lg bg-maiz/25 px-2 py-1 text-sm font-black text-slate-900">
-                {formatNumber(equivalent)} {equivalentUnit || ''}
+                {equivalentUnit ? equivalentLabel(equivalent, equivalentUnit) : formatNumber(equivalent)}
               </strong>
             ) : null}
           </div>

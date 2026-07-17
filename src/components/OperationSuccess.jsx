@@ -1,11 +1,11 @@
 import { CheckCircle2, FileText, RotateCcw } from 'lucide-react'
-import { formatNumber, formatDate } from '../lib/format'
+import { formatNumber, formatDate, equivalentLabel } from '../lib/format'
 import { desgloseEnvases } from '../lib/envases'
 
 function cantidadTexto(row) {
   const size = Number(row.package_size) || 0
   return size > 0 && row.package_unit
-    ? `${formatNumber(Number(row.cantidad || 0))} ${row.package_unit}`
+    ? equivalentLabel(Number(row.cantidad || 0), row.package_unit)
     : `${formatNumber(Number(row.cantidad || 0))} uds`
 }
 

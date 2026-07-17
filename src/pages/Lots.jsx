@@ -3,7 +3,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { Building2, CalendarClock, ChevronLeft, ChevronRight, ClipboardList, History, LayoutList, LogOut, Menu, PackagePlus, Plus, X } from 'lucide-react'
 import { useAuth } from '../hooks/useAuth.jsx'
 import { supabase } from '../lib/supabase'
-import { formatDate, formatNumber } from '../lib/format'
+import { formatDate, formatNumber, normalizeEquivalent, pluralUnit, equivalentLabel } from '../lib/format'
 import { cleanProductName, displayLotCode, lotLabel, lotSizeAndUnit, productCodeLabel } from '../lib/display'
 import { sumBillingPallets } from '../lib/pallets'
 import NewProductModal from '../components/NewProductModal'
@@ -172,15 +172,11 @@ export default function Lots() {
       // Sin presentación no se inventa equivalente, y las uds no van al total
       // (mezclar uds con lts/kgs confunde — decisión Harold)
       if (!(size > 0) || !unit) continue
-      let value = qty * size
-      let key = unit
-      if (key === 'ml') { key = 'lts'; value /= 1000 }
-      else if (key === 'gr') { key = 'kgs'; value /= 1000 }
-      else if (/^l/.test(key)) key = 'lts'
-      else if (/^k/.test(key)) key = 'kgs'
-      totals.set(key, (totals.get(key) || 0) + value)
+      const eq = normalizeEquivalent(qty * size, unit)
+      if (eq.unit === 'uds') continue
+      totals.set(eq.unit, (totals.get(eq.unit) || 0) + eq.value)
     }
-    return [...totals.entries()].map(([unit, value]) => `${formatNumber(value)} ${unit}`).join(' · ') || '0'
+    return [...totals.entries()].map(([unit, value]) => `${formatNumber(value)} ${pluralUnit(unit, value)}`).join(' · ') || '0'
   }, [filteredLots])
   const totalPallets = sumBillingPallets(filteredLots)
 
@@ -470,8 +466,9 @@ export default function Lots() {
                       const isZero = Number(lot.current_quantity || 0) < 1
                       const { size, unit } = lotSizeAndUnit(lot)
                       const eqTotal = size > 0 ? Number(lot.current_quantity || 0) * size : 0
-                      const eqUnit = unit === 'ml' ? 'lts' : unit === 'gr' ? 'kgs' : unit ? `${unit}s`.replace('lts','lts').replace('kgs','kgs') : ''
-                      const eqNorm = unit === 'ml' ? eqTotal / 1000 : unit === 'gr' ? eqTotal / 1000 : eqTotal
+                      const eqN = eqTotal > 0 && unit ? normalizeEquivalent(eqTotal, unit) : null
+                      const eqNorm = eqN ? eqN.value : eqTotal
+                      const eqUnit = eqN && eqN.unit !== 'uds' ? pluralUnit(eqN.unit, eqN.value) : ''
                       return (
                         <tr
                           key={lot.id}

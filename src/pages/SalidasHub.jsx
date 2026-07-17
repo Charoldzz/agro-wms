@@ -4,7 +4,7 @@ import { ClipboardList, LogOut, Paperclip, Plus, Search, X } from 'lucide-react'
 import PageHeader from '../components/PageHeader'
 import { useAuth } from '../hooks/useAuth.jsx'
 import { supabase } from '../lib/supabase'
-import { formatDate, formatNumber } from '../lib/format'
+import { formatDate, formatNumber, equivalentLabel } from '../lib/format'
 import { cleanProductName } from '../lib/display'
 import { attachmentViewerUrl, normalizeDispatchRequests } from '../lib/dispatchRequests'
 import { itemEnvLabel } from '../lib/envases'
@@ -177,7 +177,7 @@ export default function SalidasHub() {
                   {items.map((item, idx) => {
                     const size = Number(item.package_size) || 0
                     const equivalente = size > 0 && item.package_unit
-                      ? `${formatNumber(Number(item.quantity || 0) * size)} ${item.package_unit}`
+                      ? equivalentLabel(Number(item.quantity || 0) * size, item.package_unit)
                       : null
                     return (
                       <div key={item.lot_id || idx} className="flex items-center justify-between gap-2 rounded-lg bg-slate-50 px-3 py-1.5">

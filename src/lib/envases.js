@@ -1,4 +1,4 @@
-import { formatNumber } from './format'
+import { formatNumber, equivalentLabel } from './format'
 
 // Reglas de tipo de envase por presentación (conteo de Harold, 2026-07-10)
 // Líquidos: hasta 1 lt = frasco · 3 lts = bolsa (STARFIX) · hasta 5 = galón ·
@@ -37,7 +37,7 @@ export function envaseTipo(size, unit) {
 export function itemEqLabel(item) {
   const size = Number(item?.package_size) || 0
   const qty = Number(item?.quantity) || 0
-  if (size > 0 && item?.package_unit) return `${formatNumber(qty * size)} ${item.package_unit}`
+  if (size > 0 && item?.package_unit) return equivalentLabel(qty * size, item.package_unit)
   return `${formatNumber(qty)} uds`
 }
 
