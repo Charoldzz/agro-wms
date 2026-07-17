@@ -313,7 +313,7 @@ export default function Kardex() {
                         </p>
                         <p className="text-xs font-semibold text-slate-500">
                           {displayLotCode(m.lots?.lot_code)}
-                          {m.notes ? ` · ${m.notes}` : ''}
+                          {m.notes ? ` · ${m.notes.replace(/Documento:/gi, 'Teléfono:')}` : ''}
                         </p>
                       </td>
                       <td className="px-3 py-2 text-right text-sm font-black text-campo-700">
