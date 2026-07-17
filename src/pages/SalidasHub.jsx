@@ -26,6 +26,7 @@ export default function SalidasHub() {
   const [requests, setRequests] = useState([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
+  const [statusFilter, setStatusFilter] = useState('all')
   const [rejectingId, setRejectingId] = useState(null)
   const [rejectReason, setRejectReason] = useState('')
   const [rejectError, setRejectError] = useState('')
@@ -76,7 +77,11 @@ export default function SalidasHub() {
   }
 
   const term = search.toLowerCase().trim()
+  // "pendiente" y "aprobado" (fantasma) se cuentan juntos como pendiente
+  const isPend = (s) => s === 'pendiente' || s === 'aprobado'
   const filteredRequests = requests.filter((req) => {
+    if (statusFilter === 'pendiente' && !isPend(req.status)) return false
+    if (statusFilter === 'en_preparacion' && req.status !== 'en_preparacion') return false
     if (!term) return true
     const items = Array.isArray(req.items) ? req.items : []
     return [
@@ -105,6 +110,28 @@ export default function SalidasHub() {
           <span className="rounded-full bg-amber-500 px-2 py-0.5 text-xs font-black text-white">{filteredRequests.length}</span>
         )}
       </div>
+
+      {requests.length > 0 && (
+        <div className="mb-3 flex flex-wrap gap-1.5">
+          {[
+            { key: 'all', label: 'Todas', match: () => true },
+            { key: 'pendiente', label: 'Pendientes', match: (s) => isPend(s) },
+            { key: 'en_preparacion', label: 'En preparación', match: (s) => s === 'en_preparacion' },
+          ].map((f) => {
+            const count = requests.filter((r) => f.match(r.status)).length
+            return (
+              <button
+                key={f.key}
+                type="button"
+                onClick={() => setStatusFilter(f.key)}
+                className={`rounded-full px-3 py-1 text-xs font-bold transition ${statusFilter === f.key ? 'bg-campo-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
+              >
+                {f.label} {count > 0 ? `(${count})` : ''}
+              </button>
+            )
+          })}
+        </div>
+      )}
 
       {requests.length > 0 && (
         <div className="relative mb-3">
