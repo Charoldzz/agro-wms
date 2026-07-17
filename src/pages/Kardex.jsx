@@ -13,6 +13,28 @@ const TYPE_COLORS = {
   ajuste: 'text-orange-700',
 }
 
+const CONCEPT_TAGS = [
+  'Despacho manual (app)', 'Despacho de solicitud del cliente', 'Despacho por lista',
+  'Ingreso manual (app)', 'Nuevo ingreso desde almacen.', 'Nuevo ingreso desde almacen',
+]
+
+// Separa el concepto crudo en datos de operación ordenados (Transportista, Placa,
+// Teléfono) + observación; omite etiquetas técnicas. "Documento" = el teléfono.
+function parseConcepto(notes) {
+  const out = { transportista: '', placa: '', telefono: '', obs: '' }
+  const obsParts = []
+  String(notes || '').split('|').map((p) => p.trim()).filter(Boolean).forEach((part) => {
+    if (/^placa:/i.test(part)) out.placa = part.replace(/^placa:\s*/i, '')
+    else if (/^transportista:/i.test(part)) out.transportista = part.replace(/^transportista:\s*/i, '')
+    else if (/^recibe:/i.test(part)) out.transportista = part.replace(/^recibe:\s*/i, '')
+    else if (/^(documento|tel[eé]fono):/i.test(part)) out.telefono = part.replace(/^(documento|tel[eé]fono):\s*/i, '')
+    else if (CONCEPT_TAGS.includes(part)) { /* etiqueta técnica: se omite */ }
+    else obsParts.push(part)
+  })
+  out.obs = obsParts.join(' · ')
+  return out
+}
+
 function displayClientName(name) {
   return String(name || '').replaceAll('"', '').replace(/\s+/g, ' ').trim()
 }
@@ -311,10 +333,19 @@ export default function Kardex() {
                         <p className="text-sm font-semibold text-slate-900 [overflow-wrap:anywhere]">
                           {cleanProductName(m.lots?.product || '—')}
                         </p>
-                        <p className="text-xs font-semibold text-slate-500">
-                          {displayLotCode(m.lots?.lot_code)}
-                          {m.notes ? ` · ${m.notes.replace(/Documento:/gi, 'Teléfono:')}` : ''}
-                        </p>
+                        {m.lots?.lot_code ? (
+                          <p className="text-xs font-bold text-slate-600">Lote {displayLotCode(m.lots.lot_code)}</p>
+                        ) : null}
+                        {(() => {
+                          const c = parseConcepto(m.notes)
+                          const datos = [
+                            c.transportista && `Transportista: ${c.transportista}`,
+                            c.placa && `Placa: ${c.placa}`,
+                            c.telefono && `Teléfono: ${c.telefono}`,
+                          ].filter(Boolean).join(' · ')
+                          const linea = [datos, c.obs].filter(Boolean).join(' · ')
+                          return linea ? <p className="mt-0.5 text-[11px] font-semibold text-slate-400 [overflow-wrap:anywhere]">{linea}</p> : null
+                        })()}
                       </td>
                       <td className="px-3 py-2 text-right text-sm font-black text-campo-700">
                         {isEntry ? equivalentLabel(qty, m.unit) : <span className="text-slate-200">—</span>}
