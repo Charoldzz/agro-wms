@@ -6,6 +6,7 @@ import { supabase } from '../lib/supabase'
 import { formatDate, formatNumber, normalizeEquivalent, pluralUnit, equivalentLabel } from '../lib/format'
 import { cleanProductName, displayLotCode, lotLabel, lotSizeAndUnit, productCodeLabel } from '../lib/display'
 import { sumBillingPallets } from '../lib/pallets'
+import { desgloseEnvases } from '../lib/envases'
 import NewProductModal from '../components/NewProductModal'
 import EmpresasModal from '../components/EmpresasModal'
 import CatalogoModal from '../components/CatalogoModal'
@@ -469,6 +470,8 @@ export default function Lots() {
                       const eqN = eqTotal > 0 && unit ? normalizeEquivalent(eqTotal, unit) : null
                       const eqNorm = eqN ? eqN.value : eqTotal
                       const eqUnit = eqN && eqN.unit !== 'uds' ? pluralUnit(eqN.unit, eqN.value) : ''
+                      // Unidades con su tipo de envase ("400 bidones"); sin presentación → uds
+                      const eqEnv = eqTotal > 0 ? desgloseEnvases(eqTotal, size, unit, 0).unidadesLabel : ''
                       return (
                         <tr
                           key={lot.id}
@@ -497,7 +500,7 @@ export default function Lots() {
                                 <p className="text-sm font-black text-campo-700 whitespace-nowrap">
                                   {formatNumber(eqNorm)} <span className="text-xs font-semibold text-campo-500">{eqUnit}</span>
                                 </p>
-                                <p className="text-[10px] font-semibold text-slate-400">{formatNumber(lot.current_quantity)} uds</p>
+                                <p className="text-[10px] font-semibold text-slate-400">{eqEnv || `${formatNumber(lot.current_quantity)} uds`}</p>
                               </>
                             ) : (
                               <p className="text-sm font-black text-campo-700 whitespace-nowrap">
