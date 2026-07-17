@@ -5,6 +5,7 @@ import EmptyState from '../components/EmptyState'
 import { supabase } from '../lib/supabase'
 import { formatDate, formatNumber } from '../lib/format'
 import { cleanProductName, displayLotCode, lotSizeAndUnit, packageLabel } from '../lib/display'
+import { desgloseEnvases } from '../lib/envases'
 
 function safeProductParam(value) {
   try {
@@ -109,7 +110,7 @@ export default function ProductLots() {
                         <span className="text-base font-black sm:text-xl">{formatNumber(lotEq)}</span>
                         <span className="text-xs font-bold text-campo-700">{lotEqUnit}</span>
                       </div>
-                      <p className="text-[10px] font-semibold text-slate-400">{formatNumber(qty)} uds</p>
+                      <p className="text-[10px] font-semibold text-slate-400">{desgloseEnvases(rawEq, size, unit, 0).unidadesLabel || `${formatNumber(qty)} uds`}</p>
                     </>
                   ) : (
                     <div className="inline-flex items-baseline gap-1">

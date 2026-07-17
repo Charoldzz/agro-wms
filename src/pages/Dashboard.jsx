@@ -365,7 +365,7 @@ export default function Dashboard() {
                     </div>
                     <div className="text-right">
                       <p className="text-lg font-bold text-amber-700">{lot.daysLeft < 0 ? 'Vencido' : `${lot.daysLeft} d`}</p>
-                      <p className="text-xs font-semibold text-slate-500">{formatNumber(lot.current_quantity)} uds</p>
+                      <p className="text-xs font-semibold text-slate-500">{itemEnvLabel({ quantity: lot.current_quantity, package_size: lot.package_size, package_unit: lot.package_unit }) || `${formatNumber(lot.current_quantity)} uds`}</p>
                     </div>
                   </div>
                 </Link>
