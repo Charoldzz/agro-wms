@@ -65,7 +65,7 @@ function lotOptionLabel(lot) {
 export default function NuevaSalida() {
   const navigate = useNavigate()
   const location = useLocation()
-  const { user } = useAuth()
+  const { user, profile } = useAuth()
   const restoringRef = useRef(false)
   const params = new URLSearchParams(location.search)
   const requestId = params.get('request')
@@ -414,7 +414,10 @@ export default function NuevaSalida() {
         observaciones: observaciones.trim(),
         rows: validRows.map((r) => {
           const d = desgloseEnvases(r.cantidad, r.package_size, r.package_unit, upbForRow(r))
-          return { ...r, code: r.solucion_code || '', unidades_label: d.unidadesLabel, cajas_label: d.cajasLabel }
+          // Saldo del lote DESPUÉS de la salida (uds restantes × presentación)
+          const restoUds = Math.max(Number(r.saldo || 0) - Number(r.uds || 0), 0)
+          const restoEq = (Number(r.package_size) || 0) > 0 ? restoUds * Number(r.package_size) : restoUds
+          return { ...r, code: r.solucion_code || '', unidades_label: d.unidadesLabel, cajas_label: d.cajasLabel, resto_eq: restoEq }
         }),
       })
 
@@ -457,6 +460,7 @@ export default function NuevaSalida() {
         totalLabel={totalEquivalente(comprobante.rows)}
         rows={comprobante.rows}
         isSalida={true}
+        userName={profile?.full_name}
         onViewReceipt={() => openDispatchReceipt(comprobante)}
         onNew={isRequestMode ? null : resetSalida}
         newLabel="Nueva salida"

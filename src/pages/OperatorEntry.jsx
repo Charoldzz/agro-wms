@@ -98,7 +98,7 @@ function DateInput({ value, onChange, onFocus, className }) {
 export default function OperatorEntry() {
   const navigate = useNavigate()
   const location = useLocation()
-  const { user, isAdmin } = useAuth()
+  const { user, isAdmin, profile } = useAuth()
   const tableRef = useRef(null)
 
   const [clients, setClients] = useState([])
@@ -419,6 +419,7 @@ export default function OperatorEntry() {
         totalLabel={totalEquivalente(comprobante.rows)}
         rows={comprobante.rows}
         isSalida={false}
+        userName={profile?.full_name}
         onViewReceipt={() => openEntryReceipt(comprobante)}
         onNew={resetIngreso}
         newLabel="Nuevo ingreso"

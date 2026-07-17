@@ -1,4 +1,4 @@
-import { CheckCircle2, FileText, RotateCcw } from 'lucide-react'
+import { CheckCircle2, FileText, RotateCcw, Clock, ArrowDownRight } from 'lucide-react'
 import { formatNumber, formatDate, equivalentLabel } from '../lib/format'
 import { desgloseEnvases } from '../lib/envases'
 
@@ -15,6 +15,22 @@ function envaseTexto(row) {
   return desgloseEnvases(Number(row.cantidad || 0), size, row.package_unit, 0).unidadesLabel || ''
 }
 
+// Saldo que queda en el lote DESPUÉS de una salida (equivalente + envases).
+// Solo aplica a salidas: en un ingreso el lote nace, su stock = lo ingresado.
+function restoLabel(row) {
+  const eq = Number(row.resto_eq)
+  if (!Number.isFinite(eq)) return null
+  const size = Number(row.package_size) || 0
+  const base = size > 0 && row.package_unit ? equivalentLabel(eq, row.package_unit) : `${formatNumber(eq)} uds`
+  const env = size > 0 ? desgloseEnvases(eq, size, row.package_unit, 0).unidadesLabel : ''
+  return env ? `${base} · ${env}` : base
+}
+
+// Hora local corta del registro (se guarda ahora → "hoy HH:MM")
+function horaRegistro() {
+  return new Date().toLocaleTimeString('es-BO', { hour: '2-digit', minute: '2-digit' })
+}
+
 // Pantalla completa de éxito tras guardar una operación (ingreso o salida):
 // reemplaza al formulario para no dejar la lista vieja a la vista.
 export default function OperationSuccess({
@@ -25,6 +41,7 @@ export default function OperationSuccess({
   totalLabel,
   rows,
   isSalida,
+  userName,
   onViewReceipt,
   onNew,
   newLabel,
@@ -43,6 +60,9 @@ export default function OperationSuccess({
               {guide}
             </p>
           ) : null}
+          <p className="mt-2 flex items-center justify-center gap-1 text-xs font-semibold text-campo-700/80">
+            <Clock size={13} /> Registrado hoy {horaRegistro()}{userName ? ` · ${userName}` : ''}
+          </p>
         </div>
 
         <div className="divide-y divide-slate-100 px-6">
@@ -63,11 +83,17 @@ export default function OperationSuccess({
                     <p className={`shrink-0 text-sm font-black ${isSalida ? 'text-red-700' : 'text-campo-700'}`}>{cantidadTexto(row)}</p>
                   </div>
                   <div className="flex items-center justify-between gap-2">
-                    <p className="text-[10px] font-semibold text-slate-400">
-                      Lote {row.lot_code}{row.expiry_date ? ` · Vence ${formatDate(row.expiry_date)}` : ''}
+                    <p className="flex min-w-0 items-center gap-1.5 text-[10px] font-semibold text-slate-400">
+                      <span className="truncate">Lote {row.lot_code}{row.expiry_date ? ` · Vence ${formatDate(row.expiry_date)}` : ''}</span>
+                      {!isSalida ? <span className="shrink-0 rounded-full bg-campo-100 px-1.5 py-px text-[8.5px] font-black uppercase tracking-wide text-campo-800">Lote nuevo</span> : null}
                     </p>
                     {envaseTexto(row) ? <p className="shrink-0 text-[10px] font-semibold text-slate-400">{envaseTexto(row)}</p> : null}
                   </div>
+                  {isSalida && restoLabel(row) ? (
+                    <p className="mt-1 flex items-center gap-1 text-[10px] font-bold text-slate-500">
+                      <ArrowDownRight size={12} className="text-amber-600" /> Quedan <span className="text-slate-900">{restoLabel(row)}</span> en el lote
+                    </p>
+                  ) : null}
                   {row.note ? <p className="text-[10px] font-semibold italic text-amber-700">Obs.: {row.note}</p> : null}
                 </div>
               ))}
@@ -75,7 +101,7 @@ export default function OperationSuccess({
           </div>
         )}
 
-        <div className="grid gap-2 px-6 py-6">
+        <div className="grid gap-2 px-6 pt-6 pb-2">
           <button className="btn-primary w-full" type="button" onClick={onViewReceipt}>
             <FileText size={18} /> Ver comprobante
           </button>
@@ -84,8 +110,10 @@ export default function OperationSuccess({
               <RotateCcw size={18} /> {newLabel}
             </button>
           ) : null}
-          <button className="btn-secondary w-full" type="button" onClick={onBack}>
-            Volver
+        </div>
+        <div className="px-6 pb-6 pt-1 text-center">
+          <button type="button" onClick={onBack} className="text-sm font-semibold text-slate-400 transition hover:text-slate-600">
+            Volver al inicio
           </button>
         </div>
       </div>
