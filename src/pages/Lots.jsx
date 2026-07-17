@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
-import { Building2, CalendarClock, ChevronLeft, ChevronRight, ClipboardList, History, LayoutList, LogOut, Menu, PackagePlus, Plus, Wrench, X } from 'lucide-react'
+import { Building2, CalendarClock, ChevronLeft, ChevronRight, ClipboardCheck, ClipboardList, History, LayoutList, LogOut, Menu, PackagePlus, Plus, X } from 'lucide-react'
 import { useAuth } from '../hooks/useAuth.jsx'
 import { supabase } from '../lib/supabase'
 import { formatDate, formatNumber, normalizeEquivalent, pluralUnit, equivalentLabel } from '../lib/format'
@@ -377,15 +377,15 @@ export default function Lots() {
                   <button
                     className="btn-secondary relative !min-h-8 !px-2.5 !py-1.5 text-xs font-bold"
                     onClick={() => navigate('/pendientes')}
-                    title="Reparaciones y ajustes por aprobar"
+                    title="Ajustes, traslados, salidas offline y reportes por aprobar"
                   >
                     {pendingRepairs > 0 && (
                       <span className="absolute -right-1.5 -top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-black text-white">
                         {pendingRepairs > 99 ? '99+' : pendingRepairs}
                       </span>
                     )}
-                    <Wrench size={14} />
-                    <span className="hidden sm:inline">Reparaciones</span>
+                    <ClipboardCheck size={14} />
+                    <span className="hidden sm:inline">Por aprobar</span>
                   </button>
                 )}
               </div>

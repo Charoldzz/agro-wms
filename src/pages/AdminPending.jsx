@@ -132,12 +132,12 @@ export default function AdminPending() {
 
   return (
     <div>
-      <PageHeader title="Pendientes" subtitle={`${total} pendiente${total === 1 ? '' : 's'} por revisar`} />
+      <PageHeader title="Por aprobar" subtitle={`${total} por aprobar`} />
 
       {error ? <div className="mb-4 rounded-lg bg-red-50 p-3 text-sm font-bold text-red-700">{error}</div> : null}
 
       {total === 0 ? (
-        <EmptyState title="Sin pendientes" text="No hay reparaciones, traslados, salidas offline ni reportes por revisar." />
+        <EmptyState title="Nada por aprobar" text="No hay reparaciones, traslados, salidas offline ni reportes por revisar." />
       ) : (
         <div className="space-y-4">
           {movements.map((movement) => (
