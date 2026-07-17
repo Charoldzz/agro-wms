@@ -1,2 +1,2 @@
-export const APP_VERSION = 'v2026.07.16.14'
+export const APP_VERSION = 'v2026.07.17.1'
 export const APP_VERSION_LABEL = `${APP_VERSION}`

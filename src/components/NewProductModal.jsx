@@ -196,10 +196,10 @@ export default function NewProductModal({ clients, onClose, onSaved, fixedClient
           <div>
             <label className="block text-sm font-bold text-slate-700">Nombre</label>
             <input
-              className="input mt-1 w-full"
+              className="input mt-1 w-full uppercase"
               type="text"
               value={name}
-              onChange={(e) => setName(e.target.value)}
+              onChange={(e) => setName(e.target.value.toUpperCase())}
               onBlur={applyNameSuggestion}
               placeholder="Ej: BONDER"
             />
