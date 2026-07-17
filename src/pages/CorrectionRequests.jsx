@@ -80,7 +80,7 @@ export default function CorrectionRequests() {
   useEffect(() => {
     if (!success) return undefined
 
-    const redirect = window.setTimeout(() => navigate('/operacion', { replace: true }), 1400)
+    const redirect = window.setTimeout(() => navigate('/lotes', { replace: true }), 1400)
     return () => window.clearTimeout(redirect)
   }, [navigate, success])
 

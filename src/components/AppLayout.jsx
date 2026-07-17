@@ -1,5 +1,5 @@
 import { Outlet, NavLink, useLocation, useNavigate } from 'react-router-dom'
-import { ArrowLeft, Boxes, ClipboardCheck, ClipboardList, LogOut, PackagePlus, RefreshCcw, ShieldAlert, Truck, Wifi, WifiOff } from 'lucide-react'
+import { ArrowLeft, Boxes, ClipboardList, LogOut, PackagePlus, RefreshCcw, ShieldAlert, Truck, Wifi, WifiOff } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../hooks/useAuth.jsx'
@@ -8,7 +8,6 @@ import { clearOperationalDrafts } from '../lib/drafts'
 
 const adminNavItems = [
   { to: '/lotes', label: 'Almacenes', icon: Boxes },
-  { to: '/operacion', label: 'Pendientes', icon: ClipboardCheck },
   { to: '/offline', label: 'Offline', icon: ShieldAlert },
 ]
 
@@ -38,7 +37,7 @@ export default function AppLayout() {
       : profile?.role === 'cliente'
         ? clienteNavItems
         : adminNavItems
-  const mainTabPaths = new Set(['/', '/operacion', '/lotes', '/offline', '/despachos', '/historial', '/operacion/salidas'])
+  const mainTabPaths = new Set(['/', '/lotes', '/offline', '/despachos', '/historial', '/operacion/salidas'])
   const showBackButton = !mainTabPaths.has(location.pathname)
 
   async function signOut() {
@@ -107,7 +106,7 @@ export default function AppLayout() {
   }
 
   const hasSyncRisk = !online || queuedMovements > 0
-  const isOperatorRoot = profile?.role === 'operador' && (location.pathname === '/' || location.pathname === '/operacion')
+  const isOperatorRoot = profile?.role === 'operador' && (location.pathname === '/' || location.pathname === '/lotes')
 
   useEffect(() => {
     if (!isOperatorRoot) return undefined

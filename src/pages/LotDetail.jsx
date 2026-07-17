@@ -506,7 +506,7 @@ export default function LotDetail() {
             text: pendingMovement.type === 'traslado' ? 'Quedo pendiente de revision al volver la senal.' : 'Quedo pendiente de revision al volver la senal.',
           })
         } else {
-          setTimeout(() => navigate(isOperator ? '/operacion' : '/'), 1200)
+          setTimeout(() => navigate(isOperator ? '/lotes' : '/'), 1200)
         }
       } else if (rpcError.message.includes('inventario')) {
         setError('No hay inventario suficiente.')
@@ -540,7 +540,7 @@ export default function LotDetail() {
             : `${pendingMovement.type === 'traslado' ? 'Traslado' : 'Reparacion'} aplicada.`,
         })
       } else if (canRegisterMovement) {
-        setTimeout(() => navigate(isOperator ? '/operacion' : '/'), 900)
+        setTimeout(() => navigate(isOperator ? '/lotes' : '/'), 900)
       }
     }
 
@@ -1442,7 +1442,7 @@ export default function LotDetail() {
             </span>
             <h2 className="mt-5 text-3xl font-black">{movementSuccess.title}</h2>
             <p className="mt-2 text-base font-semibold text-campo-50">{movementSuccess.text}</p>
-            <button className="mt-6 inline-flex min-h-12 w-full items-center justify-center rounded-lg border border-white/20 bg-white/10 px-4 py-3 font-black text-white transition active:scale-[0.99]" type="button" onClick={() => navigate(isOperator ? '/operacion' : '/')}>
+            <button className="mt-6 inline-flex min-h-12 w-full items-center justify-center rounded-lg border border-white/20 bg-white/10 px-4 py-3 font-black text-white transition active:scale-[0.99]" type="button" onClick={() => navigate(isOperator ? '/lotes' : '/')}>
               Volver a operar
             </button>
           </section>

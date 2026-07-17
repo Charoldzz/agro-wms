@@ -12,7 +12,6 @@ import Lots from './pages/Lots'
 import LotDetail from './pages/LotDetail'
 import Scanner from './pages/Scanner'
 import ProductLots from './pages/ProductLots'
-import Operation from './pages/Operation'
 import ExpiringLots from './pages/ExpiringLots'
 import OperatorEntry from './pages/OperatorEntry'
 import NuevaSalida from './pages/NuevaSalida'
@@ -80,7 +79,6 @@ function AppRoutes() {
         }
       >
         <Route index element={homeElement} />
-        <Route path="operacion" element={<Operation />} />
         <Route path="qr/:token" element={<QrGate />} />
         <Route path="operacion/nuevo-ingreso" element={<RoleRoute roles={['administrador', 'operador']}><OperatorEntry /></RoleRoute>} />
         <Route path="nueva-salida" element={<RoleRoute roles={['administrador', 'operador']}><NuevaSalida /></RoleRoute>} />
