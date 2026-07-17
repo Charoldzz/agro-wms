@@ -2,8 +2,8 @@ import { useEffect, useMemo, useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { X } from 'lucide-react'
 import PageHeader from '../components/PageHeader'
-import { cleanProductName, displayLotCode, packageLabel } from '../lib/display'
-import { normalizeDispatchRequests } from '../lib/dispatchRequests'
+import { cleanProductName, displayLotCode } from '../lib/display'
+import { itemEnvLabel } from '../lib/envases'
 import { formatDate, formatNumber, movementLabel } from '../lib/format'
 import { supabase } from '../lib/supabase'
 
@@ -11,7 +11,6 @@ export default function Operation() {
   const location = useLocation()
   const [lots, setLots] = useState([])
   const [expiryAlerts, setExpiryAlerts] = useState([])
-  const [dispatchRequests, setDispatchRequests] = useState([])
   const [pendingMovements, setPendingMovements] = useState([])
   const [workModal, setWorkModal] = useState('')
 
@@ -22,7 +21,6 @@ export default function Operation() {
       .channel('operator-work')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'lots' }, loadWork)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'movements' }, loadWork)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'client_dispatch_requests' }, loadWork)
       .subscribe()
 
     return () => {
@@ -54,7 +52,7 @@ export default function Operation() {
   }, [])
 
   async function loadWork() {
-    const [{ data: lotData }, { data: expiryData }, { data: requestData }, { data: movementData }] = await Promise.all([
+    const [{ data: lotData }, { data: expiryData }, { data: movementData }] = await Promise.all([
       supabase
         .from('lots')
         .select('id, lot_code, product, current_quantity, location, expiry_date, status, clients(name)')
@@ -65,21 +63,15 @@ export default function Operation() {
         .limit(200),
       supabase
         .from('lots')
-        .select('id, lot_code, product, current_quantity, location, expiry_date, status, clients(name)')
+        .select('id, lot_code, product, current_quantity, package_size, package_unit, location, expiry_date, status, clients(name)')
         .eq('inventory_source', 'stock_independiente')
         .gt('current_quantity', 0)
         .not('expiry_date', 'is', null)
         .order('expiry_date', { ascending: true })
         .limit(100),
       supabase
-        .from('client_dispatch_requests')
-        .select('*, clients(name), lots(id, lot_code, client_id, product, current_quantity, package_size, package_unit, location, expiry_date, status)')
-        .in('status', ['pendiente', 'aprobado', 'en_preparacion'])
-        .order('created_at', { ascending: false })
-        .limit(40),
-      supabase
         .from('movements')
-        .select('*, lots(lot_code, product, location, clients(name))')
+        .select('*, lots(lot_code, product, package_size, package_unit, location, clients(name))')
         .in('type', ['ajuste', 'traslado', 'salida'])
         .eq('approval_status', 'pendiente')
         .order('created_at', { ascending: false })
@@ -88,7 +80,6 @@ export default function Operation() {
 
     setLots(lotData || [])
     setExpiryAlerts(expiryData || [])
-    setDispatchRequests(await normalizeDispatchRequests(requestData || []))
     setPendingMovements(movementData || [])
   }
 
@@ -105,47 +96,13 @@ export default function Operation() {
       .sort((a, b) => a.daysLeft - b.daysLeft)
   }, [expiryAlerts])
 
-  function renderDispatchRequests(requests, fullDetails = false) {
-    if (requests.length === 0) return <p className="rounded-lg bg-slate-50 p-3 text-sm font-bold text-slate-500">Sin despachos solicitados.</p>
-    return requests.map((request) => (
-      <article key={request.id} className="rounded-lg bg-amber-50 p-3">
-        <p className="font-bold text-slate-950">{request.clients?.name || 'Cliente'}</p>
-        {Array.isArray(request.items) && request.items.length > 1 ? (
-          <div className="mt-2 space-y-2">
-            {(fullDetails ? request.items : request.items.slice(0, 3)).map((item) => (
-              <div key={item.lot_id} className="rounded-lg bg-white/80 p-2">
-                <div className="flex flex-wrap items-start justify-between gap-2">
-                  <p className="min-w-0 flex-1 text-sm font-black text-slate-950 [overflow-wrap:anywhere]">{cleanProductName(item.product)}</p>
-                  <span className="rounded-lg bg-campo-50 px-2 py-1 text-xs font-black text-campo-800">{formatNumber(item.quantity)} uds</span>
-                </div>
-                <p className="text-xs font-semibold text-slate-500">{displayLotCode(item.lot_code)} - Presentacion: {packageLabel(item) || 'Sin dato'}</p>
-              </div>
-            ))}
-            {!fullDetails && request.items.length > 3 ? <p className="text-xs font-bold text-slate-600">+ {request.items.length - 3} producto{request.items.length - 3 === 1 ? '' : 's'} mas</p> : null}
-          </div>
-        ) : (
-          <div className="mt-2 rounded-lg bg-white/80 p-2">
-            <div className="flex flex-wrap items-start justify-between gap-2">
-              <p className="min-w-0 flex-1 text-sm font-black text-slate-950 [overflow-wrap:anywhere]">{cleanProductName(request.product || request.lots?.product)}</p>
-              <span className="rounded-lg bg-campo-50 px-2 py-1 text-xs font-black text-campo-800">{formatNumber(request.quantity)} uds</span>
-            </div>
-            <p className="text-xs font-semibold text-slate-500">
-              {displayLotCode(request.lots?.lot_code)} - Presentacion: {packageLabel(request.lots) || 'Sin dato'} - {request.lots?.location || '-'} - disponible {formatNumber(request.lots?.current_quantity)} uds
-            </p>
-          </div>
-        )}
-        <Link className="btn-primary mt-3 w-full !min-h-11 !py-2" to={`/nueva-salida?request=${request.id}`}>Iniciar despacho</Link>
-      </article>
-    ))
-  }
-
   function renderPendingMovements(movements) {
     if (movements.length === 0) return <p className="rounded-lg bg-slate-50 p-3 text-sm font-bold text-slate-500">Sin reparaciones, traslados o salidas pendientes.</p>
     return movements.map((movement) => (
       <article key={movement.id} className="rounded-lg bg-orange-50 p-3">
         <div className="flex flex-wrap items-start justify-between gap-2">
           <p className="font-bold text-slate-950">{movementLabel(movement.type)} - {displayLotCode(movement.lots?.lot_code)}</p>
-          <span className="rounded-lg bg-white px-2 py-1 text-xs font-black text-orange-800">{formatNumber(movement.quantity)} uds</span>
+          <span className="rounded-lg bg-white px-2 py-1 text-xs font-black text-orange-800">{itemEnvLabel({ quantity: movement.quantity, package_size: movement.lots?.package_size, package_unit: movement.lots?.package_unit }) || `${formatNumber(movement.quantity)} uds`}</span>
         </div>
         <p className="text-sm font-semibold text-slate-700 [overflow-wrap:anywhere]">{cleanProductName(movement.lots?.product)}</p>
         <p className="text-xs font-semibold text-slate-500 [overflow-wrap:anywhere]">{movement.lots?.clients?.name || '-'} - {movement.lots?.location || '-'}</p>
@@ -165,7 +122,7 @@ export default function Operation() {
       >
         <div className="flex flex-wrap items-start justify-between gap-2">
           <p className="min-w-0 flex-1 font-bold text-slate-950 [overflow-wrap:anywhere]">{cleanProductName(lot.product)}</p>
-          <span className={`rounded-lg bg-white px-2 py-1 text-xs font-black ${lot.daysLeft < 0 ? 'text-red-700' : 'text-amber-800'}`}>{formatNumber(lot.current_quantity)} uds</span>
+          <span className={`rounded-lg bg-white px-2 py-1 text-xs font-black ${lot.daysLeft < 0 ? 'text-red-700' : 'text-amber-800'}`}>{itemEnvLabel({ quantity: lot.current_quantity, package_size: lot.package_size, package_unit: lot.package_unit }) || `${formatNumber(lot.current_quantity)} uds`}</span>
         </div>
         <p className="text-sm font-semibold text-slate-600 [overflow-wrap:anywhere]">{displayLotCode(lot.lot_code)} - {lot.clients?.name || '-'}</p>
         <p className="text-xs font-semibold text-slate-500 [overflow-wrap:anywhere]">{lot.location || '-'} - {lot.expiry_date ? formatDate(lot.expiry_date) : 'Sin fecha'}</p>
@@ -176,20 +133,16 @@ export default function Operation() {
 
   return (
     <div>
-      <PageHeader title="Pendientes" subtitle="Despachos, revisiones y alertas de vencimiento" />
+      <PageHeader title="Pendientes" subtitle="Revisiones y alertas de vencimiento" />
 
       <section className="mt-0">
         <div className="mb-3 flex items-center justify-between gap-3">
           <h3 className="text-sm font-bold uppercase text-slate-500">Trabajo del dia</h3>
           <span className="rounded-full bg-campo-50 px-3 py-1 text-xs font-bold text-campo-700">
-            {dispatchRequests.length + pendingMovements.length + expiringLots.length} avisos
+            {pendingMovements.length + expiringLots.length} avisos
           </span>
         </div>
-        <div className="grid gap-3 lg:grid-cols-3">
-          <WorkPanel title="Despachos pendientes" count={dispatchRequests.length} onViewAll={() => setWorkModal('despachos')}>
-            {renderDispatchRequests(dispatchRequests.slice(0, 3))}
-          </WorkPanel>
-
+        <div className="grid gap-3 lg:grid-cols-2">
           <WorkPanel title="Revisiones pendientes" count={pendingMovements.length} onViewAll={() => setWorkModal('revisiones')}>
             {renderPendingMovements(pendingMovements.slice(0, 3))}
           </WorkPanel>
@@ -201,8 +154,7 @@ export default function Operation() {
       </section>
 
       {workModal ? (
-        <WorkModal title={workModal === 'despachos' ? 'Despachos pendientes' : workModal === 'revisiones' ? 'Revisiones pendientes' : 'Alertas de vencimiento'} onClose={() => setWorkModal('')}>
-          {workModal === 'despachos' ? renderDispatchRequests(dispatchRequests, true) : null}
+        <WorkModal title={workModal === 'revisiones' ? 'Revisiones pendientes' : 'Alertas de vencimiento'} onClose={() => setWorkModal('')}>
           {workModal === 'revisiones' ? renderPendingMovements(pendingMovements) : null}
           {workModal === 'vencimientos' ? renderExpiringLots(expiringLots) : null}
         </WorkModal>
