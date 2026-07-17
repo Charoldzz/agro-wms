@@ -193,12 +193,12 @@ function equivalentTotalsLabel(equivalents = {}) {
 }
 
 const STATUS_MAP = {
-  pendiente:       { label: 'Despacho pendiente', cls: 'bg-amber-50 text-amber-800',   accent: 'bg-amber-400' },
-  aprobado:        { label: 'Despacho pendiente', cls: 'bg-amber-50 text-amber-800',   accent: 'bg-amber-400' },
-  en_preparacion:  { label: 'En preparación',     cls: 'bg-campo-100 text-campo-800',  accent: 'bg-campo-500' },
-  despachado:      { label: 'Despachado',          cls: 'bg-slate-100 text-slate-600',  accent: 'bg-slate-400' },
-  rechazado:       { label: 'Rechazado',           cls: 'bg-red-50 text-red-700',       accent: 'bg-red-400' },
-  cancelado:       { label: 'Cancelada',           cls: 'bg-slate-100 text-slate-500',  accent: 'bg-slate-300' },
+  pendiente:       { label: 'Despacho pendiente', cls: 'bg-amber-50 text-amber-800',   accent: 'bg-amber-400',  faded: false },
+  aprobado:        { label: 'Despacho pendiente', cls: 'bg-amber-50 text-amber-800',   accent: 'bg-amber-400',  faded: false },
+  en_preparacion:  { label: 'En preparación',     cls: 'bg-sky-100 text-sky-800',      accent: 'bg-sky-500',    faded: false },
+  despachado:      { label: 'Despachado',          cls: 'bg-campo-100 text-campo-800',  accent: 'bg-campo-600',  faded: false },
+  rechazado:       { label: 'Rechazado',           cls: 'bg-red-50 text-red-700',       accent: 'bg-red-400',    faded: false },
+  cancelado:       { label: 'Cancelada',           cls: 'bg-slate-100 text-slate-500',  accent: 'bg-slate-300',  faded: true },
 }
 function requestStatus(s) { return STATUS_MAP[s] || { label: 'Recibido', cls: 'bg-amber-50 text-amber-800', accent: 'bg-amber-400' } }
 
@@ -1703,14 +1703,14 @@ export default function ClientPortal({ view = 'inventory' }) {
                     const st = requestStatus(req.status)
                     const items = Array.isArray(req.items) && req.items.length > 0 ? req.items : null
                     return (
-                      <div key={req.id} className="flex overflow-hidden rounded-xl border border-slate-100 bg-white shadow-sm">
+                      <div key={req.id} className={`flex overflow-hidden rounded-xl border border-slate-100 bg-white shadow-sm ${st.faded ? 'opacity-60' : ''}`}>
                         <div className={`w-1.5 shrink-0 ${st.accent}`} />
                         <div className="min-w-0 flex-1 px-3 py-3">
                           <div className="flex items-start justify-between gap-2">
                             <p className="min-w-0 text-sm font-black text-slate-900 [overflow-wrap:anywhere]">
                               {items ? `${items.length} producto${items.length > 1 ? 's' : ''}` : cleanProductName(req.product || req.lots?.product)}
                             </p>
-                            <span className={`shrink-0 rounded-full px-2.5 py-1 text-[10px] font-black ${st.cls}`}>{st.label}</span>
+                            <span className={`shrink-0 rounded-full px-2.5 py-1 text-[10px] font-black ${st.cls}`}>{req.status === 'despachado' ? '✓ ' : ''}{st.label}</span>
                           </div>
                           {items && (
                             <div className="mt-1.5 space-y-1">

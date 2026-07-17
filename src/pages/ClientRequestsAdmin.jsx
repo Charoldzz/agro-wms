@@ -21,8 +21,8 @@ function attachmentViewerUrl(url) {
 const STATUS_STYLES = {
   pendiente:      { border: 'border-l-amber-400',  bg: 'bg-amber-50',   badge: 'bg-amber-100 text-amber-800',   label: 'Pendiente' },
   aprobado:       { border: 'border-l-amber-400',  bg: 'bg-amber-50',   badge: 'bg-amber-100 text-amber-800',   label: 'Pendiente' },
-  en_preparacion: { border: 'border-l-campo-500',  bg: 'bg-campo-50',   badge: 'bg-campo-100 text-campo-800',   label: 'En preparación' },
-  despachado:     { border: 'border-l-slate-300',  bg: 'bg-white',      badge: 'bg-slate-100 text-slate-600',   label: 'Despachado' },
+  en_preparacion: { border: 'border-l-sky-500',    bg: 'bg-sky-50',     badge: 'bg-sky-100 text-sky-800',       label: 'En preparación' },
+  despachado:     { border: 'border-l-campo-600',  bg: 'bg-campo-50',   badge: 'bg-campo-100 text-campo-800',   label: '✓ Despachado' },
   rechazado:      { border: 'border-l-red-400',    bg: 'bg-red-50',     badge: 'bg-red-100 text-red-700',       label: 'Rechazado' },
   cancelado:      { border: 'border-l-slate-300',  bg: 'bg-white',      badge: 'bg-slate-100 text-slate-500',   label: 'Cancelada por el cliente' },
 }
