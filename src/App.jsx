@@ -6,7 +6,6 @@ import AppLayout from './components/AppLayout'
 import ConfigWarning from './components/ConfigWarning'
 import AppVersion from './components/AppVersion'
 import InteractionGuard from './components/InteractionGuard'
-import Dashboard from './pages/Dashboard'
 import Login from './pages/Login'
 import Clients from './pages/Clients'
 import Lots from './pages/Lots'
@@ -20,11 +19,9 @@ import NuevaSalida from './pages/NuevaSalida'
 import SalidasHub from './pages/SalidasHub'
 import Kardex from './pages/Kardex'
 import OperatorService from './pages/OperatorService'
-import DispatchList from './pages/DispatchList'
 import OfflineAudit from './pages/OfflineAudit'
 import QrGate from './pages/QrGate'
 import ClientPortal from './pages/ClientPortal'
-import ClientRequestsAdmin from './pages/ClientRequestsAdmin'
 import AdminPending from './pages/AdminPending'
 import CorrectionRequests from './pages/CorrectionRequests'
 import AdminExports from './pages/AdminExports'
@@ -89,7 +86,6 @@ function AppRoutes() {
         <Route path="nueva-salida" element={<RoleRoute roles={['administrador', 'operador']}><NuevaSalida /></RoleRoute>} />
         <Route path="kardex" element={<RoleRoute roles={['administrador', 'operador']}><Kardex /></RoleRoute>} />
         <Route path="operacion/salidas" element={<RoleRoute roles={['administrador', 'operador']}><SalidasHub /></RoleRoute>} />
-        <Route path="operacion/despacho-lista" element={<RoleRoute roles={['administrador', 'operador']}><DispatchList /></RoleRoute>} />
         <Route path="operacion/reparacion-traslado" element={<RoleRoute roles={['administrador', 'operador']}><OperatorService /></RoleRoute>} />
         <Route path="operacion/correcciones" element={<RoleRoute roles={['administrador', 'operador']}><CorrectionRequests /></RoleRoute>} />
         <Route path="clientes" element={<RoleRoute roles={['administrador']}><Clients /></RoleRoute>} />
@@ -101,7 +97,6 @@ function AppRoutes() {
         <Route path="vencimientos" element={<RoleRoute roles={['administrador', 'operador']}><ExpiringLots /></RoleRoute>} />
         <Route path="scanner" element={<Scanner />} />
         <Route path="offline" element={<RoleRoute roles={['administrador']}><OfflineAudit /></RoleRoute>} />
-        <Route path="solicitudes" element={<RoleRoute roles={['administrador', 'operador']}><ClientRequestsAdmin /></RoleRoute>} />
         <Route path="despachos" element={<RoleRoute roles={['cliente']}><ClientPortal view="requests" /></RoleRoute>} />
         <Route path="historial" element={<RoleRoute roles={['cliente']}><ClientPortal view="movements" /></RoleRoute>} />
         <Route path="pendientes" element={<RoleRoute roles={['administrador']}><AdminPending /></RoleRoute>} />
