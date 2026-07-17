@@ -455,6 +455,8 @@ export default function NuevaSalida() {
         empresa={comprobante.empresa}
         itemsCount={comprobante.rows.length}
         totalLabel={totalEquivalente(comprobante.rows)}
+        rows={comprobante.rows}
+        isSalida={true}
         onViewReceipt={() => openDispatchReceipt(comprobante)}
         onNew={isRequestMode ? null : resetSalida}
         newLabel="Nueva salida"

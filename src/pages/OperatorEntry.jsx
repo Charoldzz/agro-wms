@@ -417,6 +417,8 @@ export default function OperatorEntry() {
         empresa={comprobante.empresa}
         itemsCount={comprobante.rows.length}
         totalLabel={totalEquivalente(comprobante.rows)}
+        rows={comprobante.rows}
+        isSalida={false}
         onViewReceipt={() => openEntryReceipt(comprobante)}
         onNew={resetIngreso}
         newLabel="Nuevo ingreso"
