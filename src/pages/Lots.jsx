@@ -78,8 +78,14 @@ export default function Lots() {
     return () => supabase.removeChannel(ch)
   }, [canOperate])
 
-  // Contador de reparaciones/ajustes/traslados/reportes por aprobar (solo admin)
+  // Contadores para los badges de admin: cosas por aprobar y fichas del catálogo pendientes de revisión
   const [pendingRepairs, setPendingRepairs] = useState(0)
+  const [pendingCatalog, setPendingCatalog] = useState(0)
+
+  async function loadCatalogBadge() {
+    const { count } = await supabase.from('product_catalog').select('id', { count: 'exact', head: true }).eq('pending_review', true)
+    setPendingCatalog(count || 0)
+  }
 
   useEffect(() => {
     if (!isAdmin) return
@@ -92,11 +98,13 @@ export default function Lots() {
       setPendingRepairs((m.count || 0) + (c.count || 0) + (i.count || 0))
     }
     loadRepairs()
+    loadCatalogBadge()
     const ch = supabase
-      .channel('lots-repairs-badge')
+      .channel('lots-admin-badges')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'movements' }, loadRepairs)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'movement_correction_requests' }, loadRepairs)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'operational_issue_reports' }, loadRepairs)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'product_catalog' }, loadCatalogBadge)
       .subscribe()
     return () => supabase.removeChannel(ch)
   }, [isAdmin])
@@ -417,9 +425,14 @@ export default function Lots() {
                 Producto
               </button>
               <button
-                className="btn-secondary !min-h-8 !px-3 !py-1.5 text-xs"
+                className="btn-secondary relative !min-h-8 !px-3 !py-1.5 text-xs"
                 onClick={() => setShowCatalogoModal(true)}
               >
+                {pendingCatalog > 0 && (
+                  <span className="absolute -right-1.5 -top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-amber-500 px-1 text-[10px] font-black text-white">
+                    {pendingCatalog > 99 ? '99+' : pendingCatalog}
+                  </span>
+                )}
                 <LayoutList size={14} />
                 Catálogo
               </button>
@@ -611,7 +624,7 @@ export default function Lots() {
       {showCatalogoModal && (
         <CatalogoModal
           clients={clients}
-          onClose={() => setShowCatalogoModal(false)}
+          onClose={() => { setShowCatalogoModal(false); loadCatalogBadge() }}
         />
       )}
 
