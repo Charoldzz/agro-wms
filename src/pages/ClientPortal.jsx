@@ -248,6 +248,7 @@ export default function ClientPortal({ view = 'inventory' }) {
   const [selectedMovement, setSelectedMovement] = useState(null)
   const [histSearch, setHistSearch] = useState('')
   const [histFilter, setHistFilter] = useState('')
+  const [reqStatusFilter, setReqStatusFilter] = useState('activas')
 
   // request form
   const [reqProductName, setReqProductName] = useState('')
@@ -1661,16 +1662,44 @@ export default function ClientPortal({ view = 'inventory' }) {
             </div>
 
             {/* Request history */}
+            {(() => {
+              const REQ_FILTERS = [
+                { key: 'activas', label: 'Activas', match: (s) => ['pendiente', 'aprobado', 'en_preparacion'].includes(s) },
+                { key: 'despachado', label: 'Despachadas', match: (s) => s === 'despachado' },
+                { key: 'rechazado', label: 'Rechazadas', match: (s) => s === 'rechazado' },
+                { key: 'cancelado', label: 'Canceladas', match: (s) => s === 'cancelado' },
+                { key: 'all', label: 'Todas', match: () => true },
+              ]
+              const activeFilter = REQ_FILTERS.find((f) => f.key === reqStatusFilter) || REQ_FILTERS[0]
+              const shownRequests = requests.filter((r) => activeFilter.match(r.status))
+              return (
             <div className="rounded-xl border border-slate-200 bg-white shadow-sm">
               <div className="border-b border-slate-100 px-4 py-3">
                 <p className="font-black text-slate-950">Mis solicitudes</p>
                 <p className="text-xs font-semibold text-slate-500">{requests.length} solicitud{requests.length !== 1 ? 'es' : ''} en total</p>
+                <div className="mt-2 flex flex-wrap gap-1.5">
+                  {REQ_FILTERS.map((f) => {
+                    const count = requests.filter((r) => f.match(r.status)).length
+                    return (
+                      <button
+                        key={f.key}
+                        type="button"
+                        onClick={() => setReqStatusFilter(f.key)}
+                        className={`rounded-full px-2.5 py-1 text-[11px] font-bold transition ${reqStatusFilter === f.key ? 'bg-campo-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
+                      >
+                        {f.label} {count > 0 ? `(${count})` : ''}
+                      </button>
+                    )
+                  })}
+                </div>
               </div>
               <div className="space-y-2 overflow-y-auto p-3" style={{maxHeight:'520px'}}>
-                {requests.length === 0 ? (
-                  <p className="px-4 py-8 text-center text-sm font-bold text-slate-400">Todavía no hay solicitudes.</p>
+                {shownRequests.length === 0 ? (
+                  <p className="px-4 py-8 text-center text-sm font-bold text-slate-400">
+                    {requests.length === 0 ? 'Todavía no hay solicitudes.' : 'No hay solicitudes en esta categoría.'}
+                  </p>
                 ) : (
-                  requests.map(req => {
+                  shownRequests.map(req => {
                     const st = requestStatus(req.status)
                     const items = Array.isArray(req.items) && req.items.length > 0 ? req.items : null
                     return (
@@ -1793,6 +1822,8 @@ export default function ClientPortal({ view = 'inventory' }) {
                 )}
               </div>
             </div>
+              )
+            })()}
           </div>
         </div>
       )}

@@ -11,7 +11,7 @@ import { itemEnvLabel } from '../lib/envases'
 
 const STATUS_LABEL = {
   pendiente: 'Pendiente',
-  aprobado: 'Aprobado',
+  aprobado: 'Pendiente',
   en_preparacion: 'En preparación',
 }
 
