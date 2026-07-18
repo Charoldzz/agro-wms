@@ -1009,10 +1009,28 @@ export default function LotDetail() {
 
       <LotStateNotice state={lotState} saleBlocked={blocksSale || isExpired} />
 
-      {isOperator ? (
-        <button className="btn-secondary mb-4 w-full sm:w-auto" type="button" onClick={() => setShowIssueReport(true)}>
-          Reportar problema
-        </button>
+      {(isAdmin || isOperator) && !canRegisterMovement ? (
+        <div className="mb-4 flex flex-wrap gap-2">
+          <button
+            className="btn-secondary"
+            type="button"
+            onClick={() => navigate(`/lotes/${lot.id}`, { state: { movementMode: 'reparo', scanned: true } })}
+          >
+            Reparación / Ajuste
+          </button>
+          <button
+            className="btn-secondary"
+            type="button"
+            onClick={() => navigate(`/lotes/${lot.id}`, { state: { movementMode: 'traslado', scanned: true } })}
+          >
+            Traslado
+          </button>
+          {isOperator ? (
+            <button className="btn-secondary" type="button" onClick={() => setShowIssueReport(true)}>
+              Reportar problema
+            </button>
+          ) : null}
+        </div>
       ) : null}
 
       {compactServiceView ? (
