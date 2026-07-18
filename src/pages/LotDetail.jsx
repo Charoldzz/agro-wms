@@ -807,9 +807,25 @@ export default function LotDetail() {
               <ConsultInfo label="Vencimiento" value={lot.expiry_date ? formatDate(lot.expiry_date) : 'Sin dato'} />
               <ConsultInfo label="Fecha ingreso" value={lot.entry_date ? formatDate(lot.entry_date) : 'Sin dato'} />
             </div>
-            <button className="btn-secondary mt-4 w-full" type="button" onClick={() => setShowIssueReport(true)}>
-              Reportar problema
-            </button>
+            <div className="mt-4 flex flex-wrap gap-2">
+              <button
+                className="btn-secondary flex-1"
+                type="button"
+                onClick={() => navigate(`/lotes/${lot.id}`, { state: { movementMode: 'reparo', scanned: true } })}
+              >
+                Reparación / Ajuste
+              </button>
+              <button
+                className="btn-secondary flex-1"
+                type="button"
+                onClick={() => navigate(`/lotes/${lot.id}`, { state: { movementMode: 'traslado', scanned: true } })}
+              >
+                Traslado
+              </button>
+              <button className="btn-secondary flex-1" type="button" onClick={() => setShowIssueReport(true)}>
+                Reportar problema
+              </button>
+            </div>
           </div>
         </section>
         {showIssueReport ? <OperationalIssueModal lot={lot} userId={user.id} onClose={() => setShowIssueReport(false)} /> : null}
