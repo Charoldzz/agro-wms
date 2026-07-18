@@ -20,6 +20,7 @@ function parseCatalogCode(code) {
 // Sufijo de presentación para sugerir en el nombre: "4x5 LTS" o "X 20 LTS"
 // (plural LTS/KGS cuando el tamaño es mayor a 1; LT/KG en singular)
 function buildNameSuffix(upb, size, unit) {
+  if (String(unit || '').toLowerCase() === 'sin') return ''
   const s = String(size || '').trim()
   const value = Number(s.replace(',', '.'))
   if (!s || !(value > 0)) return ''
@@ -134,8 +135,8 @@ export default function NewProductModal({ clients, onClose, onSaved, fixedClient
       client_id: clientId,
       code: nextCode,
       name: name.trim().toUpperCase(),
-      package_size: packageSize ? Number(packageSize) : null,
-      package_unit: packageSize ? packageUnit : null,
+      package_size: (packageUnit === 'sin' || !packageSize) ? null : Number(packageSize),
+      package_unit: (packageUnit === 'sin' || !packageSize) ? null : packageUnit,
       units_per_box: unitsPerBox ? Number(unitsPerBox) : null,
       pending_review: Boolean(pendingReview),
     }).select().single()
@@ -212,21 +213,26 @@ export default function NewProductModal({ clients, onClose, onSaved, fixedClient
             <label className="block text-sm font-bold text-slate-700">Tamaño de presentación</label>
             <div className="mt-1 flex gap-2">
               <input
-                className="input w-32"
+                className={`input w-32 ${packageUnit === 'sin' ? 'cursor-not-allowed bg-slate-100 text-slate-400' : ''}`}
                 type="text"
                 inputMode="decimal"
-                value={packageSize}
+                value={packageUnit === 'sin' ? '' : packageSize}
                 onChange={(e) => setPackageSize(e.target.value)}
-                placeholder="Ej: 20"
+                placeholder={packageUnit === 'sin' ? '—' : 'Ej: 20'}
+                disabled={packageUnit === 'sin'}
               />
               <select
                 className="input flex-1"
                 value={packageUnit}
-                onChange={(e) => setPackageUnit(e.target.value)}
+                onChange={(e) => { const v = e.target.value; setPackageUnit(v); if (v === 'sin') setPackageSize('') }}
               >
+                <option value="sin">Sin presentación (uds)</option>
                 {UNITS.map((u) => <option key={u} value={u}>{u}</option>)}
               </select>
             </div>
+            {packageUnit === 'sin' ? (
+              <p className="mt-1 text-xs font-semibold text-slate-400">Se contará en unidades sueltas, sin equivalente en lts/kgs.</p>
+            ) : null}
           </div>
 
           <div>

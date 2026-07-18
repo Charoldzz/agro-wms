@@ -12,6 +12,7 @@ const TRAILING_PRES_RE = /\s+(?:\d+(?:[.,]\d+)?\s*[xX×]\s*|[xX×]\s*)?\d+(?:[.,
 // Sufijo de presentación para el nombre: "20x500 ML" (con uds/caja) o "X 500 ML" (sin)
 // Plural LTS/KGS si el tamaño es mayor a 1; LT/KG en singular; ml/gr en mayúscula.
 function buildNameSuffix(upb, size, unit) {
+  if (String(unit || '').toLowerCase() === 'sin') return ''
   const s = String(size || '').trim()
   const value = Number(s.replace(',', '.'))
   if (!s || !(value > 0)) return ''
@@ -100,7 +101,7 @@ export default function CatalogoModal({ clients, onClose }) {
     }
     const p = products.find((x) => x.id === selectedId)
     if (!p) return
-    setEditForm({ code: p.code || '', name: p.name || '', package_size: p.package_size || '', package_unit: p.package_unit || 'lt', units_per_box: p.units_per_box || '' })
+    setEditForm({ code: p.code || '', name: p.name || '', package_size: p.package_size || '', package_unit: p.package_size ? (p.package_unit || 'lt') : 'sin', units_per_box: p.units_per_box || '' })
     editReady.current = false
     setError('')
     setMode('edit')
@@ -138,8 +139,8 @@ export default function CatalogoModal({ clients, onClose }) {
     const updated = {
       code: editForm.code.trim().toUpperCase(),
       name: editForm.name.trim().toUpperCase(),
-      package_size: editForm.package_size ? Number(editForm.package_size) : null,
-      package_unit: editForm.package_size ? editForm.package_unit : null,
+      package_size: (editForm.package_unit === 'sin' || !editForm.package_size) ? null : Number(editForm.package_size),
+      package_unit: (editForm.package_unit === 'sin' || !editForm.package_size) ? null : editForm.package_unit,
       units_per_box: editForm.units_per_box ? Number(editForm.units_per_box) : null,
       pending_review: false,
     }
@@ -383,21 +384,26 @@ export default function CatalogoModal({ clients, onClose }) {
               <span className="text-sm font-bold text-slate-700">Tamaño de presentación</span>
               <div className="mt-1 flex gap-2">
                 <input
-                  className="input w-28"
+                  className={`input w-28 ${editForm.package_unit === 'sin' ? 'cursor-not-allowed bg-slate-100 text-slate-400' : ''}`}
                   type="text"
                   inputMode="decimal"
-                  value={editForm.package_size}
+                  value={editForm.package_unit === 'sin' ? '' : editForm.package_size}
                   onChange={(e) => setEditForm((f) => ({ ...f, package_size: e.target.value }))}
-                  placeholder="Ej: 20"
+                  placeholder={editForm.package_unit === 'sin' ? '—' : 'Ej: 20'}
+                  disabled={editForm.package_unit === 'sin'}
                 />
                 <select
                   className="input flex-1"
                   value={editForm.package_unit}
-                  onChange={(e) => setEditForm((f) => ({ ...f, package_unit: e.target.value }))}
+                  onChange={(e) => { const v = e.target.value; setEditForm((f) => ({ ...f, package_unit: v, package_size: v === 'sin' ? '' : f.package_size })) }}
                 >
+                  <option value="sin">Sin presentación (uds)</option>
                   {UNITS.map((u) => <option key={u} value={u}>{u}</option>)}
                 </select>
               </div>
+              {editForm.package_unit === 'sin' ? (
+                <p className="mt-1 text-xs font-semibold text-slate-400">Se contará en unidades sueltas, sin equivalente en lts/kgs.</p>
+              ) : null}
             </div>
             <div>
               <span className="text-sm font-bold text-slate-700">Unidades por caja</span>
