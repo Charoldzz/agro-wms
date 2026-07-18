@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { ArrowLeft, CheckCircle2, Edit2, Filter, Save, Search, Trash2, X } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { catalogClientIds } from '../lib/catalogo'
@@ -6,6 +6,23 @@ import { catalogClientIds } from '../lib/catalogo'
 const UNITS = ['lt', 'ml', 'kg', 'gr']
 
 const SIZE_IN_NAME_RE = /[^a-zA-Z](\d+(?:[.,]\d+)?)\s*(ltrs?|lts?|kgs?|gr|gm|ml|cc|l(?:[^a-zA-Z]|$))|\s[xX×]\s*\d+/i
+
+// Presentación al final del nombre ("40X500 ML", "X 20 LTS", "500 ML"): para reemplazarla al reeditar
+const TRAILING_PRES_RE = /\s+(?:\d+(?:[.,]\d+)?\s*[xX×]\s*|[xX×]\s*)?\d+(?:[.,]\d+)?\s*(?:ltrs?|lts?|kgs?|grs?|gr|gm|ml|cc)\.?$/i
+
+// Sufijo de presentación para el nombre: "20x500 ML" (con uds/caja) o "X 500 ML" (sin)
+// Plural LTS/KGS si el tamaño es mayor a 1; LT/KG en singular; ml/gr en mayúscula.
+function buildNameSuffix(upb, size, unit) {
+  const s = String(size || '').trim()
+  const value = Number(s.replace(',', '.'))
+  if (!s || !(value > 0)) return ''
+  let u = String(unit || '').toLowerCase()
+  if (u === 'lt') u = value === 1 ? 'LT' : 'LTS'
+  else if (u === 'kg') u = value === 1 ? 'KG' : 'KGS'
+  else u = u.toUpperCase()
+  const per = Number(upb)
+  return per > 0 ? `${per}x${s} ${u}` : `X ${s} ${u}`
+}
 
 function productDisplayName(p) {
   if (!p.name) return ''
@@ -23,6 +40,7 @@ export default function CatalogoModal({ clients, onClose }) {
   const [selectedId, setSelectedId] = useState(null)
   const [mode, setMode] = useState(null) // null | 'edit'
   const [editForm, setEditForm] = useState({ code: '', name: '', package_size: '', package_unit: 'lt', units_per_box: '' })
+  const editReady = useRef(false) // evita reescribir el nombre en la primera pasada al abrir Modificar
   const [saving, setSaving] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [error, setError] = useState('')
@@ -56,6 +74,21 @@ export default function CatalogoModal({ clients, onClose }) {
     })
   }, [products, search, filterClient, showPendingOnly])
 
+  // Al cambiar tamaño de presentación o uds por caja en Modificar, reconstruye el
+  // nombre con esos valores ("PRUEBA6 20x500 ML"): saca la presentación vieja del
+  // final y agrega el sufijo nuevo. La primera pasada (al abrir) se salta.
+  useEffect(() => {
+    if (mode !== 'edit') { editReady.current = false; return }
+    if (!editReady.current) { editReady.current = true; return }
+    const suffix = buildNameSuffix(editForm.units_per_box, editForm.package_size, editForm.package_unit)
+    setEditForm((f) => {
+      const base = String(f.name || '').replace(TRAILING_PRES_RE, '').trimEnd()
+      if (!base) return f
+      const next = suffix ? `${base} ${suffix}` : base
+      return next === f.name ? f : { ...f, name: next }
+    })
+  }, [editForm.package_size, editForm.package_unit, editForm.units_per_box, mode])
+
   async function marcarRevisada() {
     if (!selectedId) return
     const { error: err } = await supabase
@@ -76,6 +109,7 @@ export default function CatalogoModal({ clients, onClose }) {
     const p = products.find((x) => x.id === selectedId)
     if (!p) return
     setEditForm({ code: p.code || '', name: p.name || '', package_size: p.package_size || '', package_unit: p.package_unit || 'lt', units_per_box: p.units_per_box || '' })
+    editReady.current = false
     setError('')
     setMode('edit')
   }
@@ -147,13 +181,9 @@ export default function CatalogoModal({ clients, onClose }) {
   }
 
   const selectedProduct = products.find((p) => p.id === selectedId)
-  const editLabel = editForm.name
-    ? SIZE_IN_NAME_RE.test(editForm.name)
-      ? editForm.name.toUpperCase()
-      : editForm.package_size
-        ? `${editForm.name.toUpperCase()} X ${editForm.package_size} ${editForm.package_unit}`
-        : editForm.name.toUpperCase()
-    : ''
+  // El nombre ya lleva su presentación al día (efecto de arriba), así que la vista
+  // previa = exactamente lo que se guarda.
+  const editLabel = editForm.name.trim().toUpperCase()
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
