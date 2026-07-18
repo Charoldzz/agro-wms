@@ -1,11 +1,39 @@
 import { useEffect, useState } from 'react'
-import { Check, X } from 'lucide-react'
+import { Check, X, Camera } from 'lucide-react'
 import PageHeader from '../components/PageHeader'
 import EmptyState from '../components/EmptyState'
 import { useAuth } from '../hooks/useAuth.jsx'
 import { cleanProductName, displayLotCode } from '../lib/display'
-import { formatDate, formatNumber, movementLabel } from '../lib/format'
+import { formatDate, formatNumber, movementLabel, equivalentLabel } from '../lib/format'
+import { desgloseEnvases } from '../lib/envases'
 import { supabase } from '../lib/supabase'
+
+// Separa el concepto crudo del movimiento en campos (Motivo, Foto) + observación
+function parseMovementNotes(notes) {
+  const out = { motivo: '', foto: '', obs: [] }
+  String(notes || '').split('|').map((p) => p.trim()).filter(Boolean).forEach((part) => {
+    if (/^motivo:/i.test(part)) out.motivo = part.replace(/^motivo:\s*/i, '')
+    else if (/^incidencia:/i.test(part)) out.motivo = out.motivo || part.replace(/^incidencia:\s*/i, '')
+    else if (/^foto:/i.test(part)) out.foto = part.replace(/^foto:\s*/i, '')
+    else if (/^afectado:/i.test(part)) { /* se calcula del stock, no se muestra el crudo */ }
+    else out.obs.push(part)
+  })
+  return { motivo: out.motivo, foto: out.foto, obs: out.obs.join(' · ') }
+}
+
+// Fila: dato PRINCIPAL en equivalente + envase secundario en gris
+function StockLine({ label, eq, env, tone }) {
+  const color = tone === 'red' ? 'text-red-700' : tone === 'green' ? 'text-campo-700' : 'text-slate-900'
+  return (
+    <div className="flex items-center justify-between gap-3 rounded-lg bg-white px-3 py-2">
+      <span className="shrink-0 text-xs font-bold uppercase tracking-wide text-slate-400">{label}</span>
+      <div className="min-w-0 text-right">
+        <p className={`text-sm font-black [overflow-wrap:anywhere] ${color}`}>{eq}</p>
+        {env ? <p className="text-[11px] font-semibold text-slate-400">{env}</p> : null}
+      </div>
+    </div>
+  )
+}
 
 export default function AdminPending() {
   const { user } = useAuth()
@@ -32,7 +60,7 @@ export default function AdminPending() {
     const [movementResult, correctionResult, issueResult, clientResult] = await Promise.all([
       supabase
         .from('movements')
-        .select('*, lots(product, lot_code, current_quantity, location, clients(name)), profiles!movements_user_id_fkey(full_name)')
+        .select('*, lots(product, lot_code, current_quantity, package_size, package_unit, location, clients(name)), profiles!movements_user_id_fkey(full_name)')
         .in('type', ['ajuste', 'traslado', 'salida'])
         .eq('approval_status', 'pendiente')
         .order('created_at', { ascending: false }),
@@ -91,7 +119,7 @@ export default function AdminPending() {
     const userIds = [...new Set(rows.map((row) => row.user_id).filter(Boolean))]
     const [{ data: lotRows }, { data: profileRows }] = await Promise.all([
       lotIds.length
-        ? supabase.from('lots').select('id, lot_code, product, current_quantity, location, clients(name)').eq('inventory_source', 'stock_independiente').in('id', lotIds)
+        ? supabase.from('lots').select('id, lot_code, product, current_quantity, package_size, package_unit, location, clients(name)').eq('inventory_source', 'stock_independiente').in('id', lotIds)
         : Promise.resolve({ data: [] }),
       userIds.length ? supabase.from('profiles').select('id, full_name').in('id', userIds) : Promise.resolve({ data: [] }),
     ])
@@ -140,38 +168,74 @@ export default function AdminPending() {
         <EmptyState title="Nada por aprobar" text="No hay reparaciones, traslados, salidas offline ni reportes por revisar." />
       ) : (
         <div className="space-y-4">
-          {movements.map((movement) => (
-            <article key={movement.id} className="panel border-orange-200 bg-orange-50">
-              <div className="flex flex-wrap items-start justify-between gap-3">
-                <div>
-                  <p className="font-black text-slate-950">{movementLabel(movement.type)}</p>
-                  <div className="mt-1 flex flex-wrap items-start gap-2">
-                    <p className="text-sm font-black text-slate-950 [overflow-wrap:anywhere]">{cleanProductName(movement.lots?.product)}</p>
-                    <span className="rounded-lg bg-white px-2 py-1 text-xs font-black text-orange-800">{formatNumber(movement.quantity)} uds</span>
+          {movements.map((movement) => {
+            const size = Number(movement.lots?.package_size) || 0
+            const unit = movement.lots?.package_unit
+            const currentUds = Number(movement.previous_quantity != null ? movement.previous_quantity : movement.lots?.current_quantity) || 0
+            const newUds = Number(movement.new_quantity != null ? movement.new_quantity : movement.quantity) || 0
+            const isAjuste = movement.type === 'ajuste'
+            const afectadoUds = isAjuste ? Math.max(currentUds - newUds, 0) : newUds
+            const note = parseMovementNotes(movement.notes)
+            const eqOf = (uds) => (size > 0 ? equivalentLabel(uds * size, unit) : `${formatNumber(uds)} uds`)
+            const envOf = (uds) => (size > 0 ? desgloseEnvases(uds * size, size, unit, 0).unidadesLabel : '')
+            const tipoLabel = isAjuste ? 'Reparación' : movement.type === 'traslado' ? 'Traslado' : movementLabel(movement.type)
+            return (
+              <article key={movement.id} className="panel border-orange-200 bg-orange-50">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="text-base font-black text-slate-950 [overflow-wrap:anywhere]">{cleanProductName(movement.lots?.product)}</p>
+                    <p className="mt-0.5 text-[11px] font-semibold text-slate-500">Lote {displayLotCode(movement.lots?.lot_code)} · {movement.lots?.clients?.name || '-'}</p>
                   </div>
-                  <p className="mt-1 text-xs font-semibold text-slate-500">
-                    {displayLotCode(movement.lots?.lot_code)} - {movement.profiles?.full_name || 'Usuario'} - {movement.lots?.clients?.name || '-'} - {formatDate(movement.created_at)}
-                  </p>
+                  <span className="shrink-0 rounded-full bg-white px-3 py-1 text-xs font-black text-orange-700">{tipoLabel}</span>
                 </div>
-                <span className="rounded-full bg-white px-3 py-1 text-xs font-bold text-orange-700">{movementLabel(movement.type)}</span>
-              </div>
 
-              <div className="mt-3 grid gap-2 text-sm font-bold text-slate-600 sm:grid-cols-2">
-                <div className="rounded-lg bg-white p-3">Stock actual: {formatNumber(movement.lots?.current_quantity)} uds</div>
-                <div className="rounded-lg bg-white p-3">Ubicacion: {movement.lots?.location || '-'}</div>
-              </div>
-              {movement.notes ? <p className="mt-3 rounded-lg bg-white p-3 text-sm font-semibold text-slate-600">{movement.notes}</p> : null}
+                {note.motivo ? (
+                  <span className="mt-2 inline-flex rounded-full bg-white px-3 py-1 text-xs font-bold text-orange-800">{note.motivo}</span>
+                ) : null}
 
-              <div className="mt-3 grid grid-cols-2 gap-2">
-                <button className="btn-secondary w-full" type="button" onClick={() => reviewMovement(movement.id, 'reject')}>
-                  <X size={18} /> Rechazar
-                </button>
-                <button className="btn-primary w-full" type="button" onClick={() => reviewMovement(movement.id, 'approve')}>
-                  <Check size={18} /> Aprobar
-                </button>
-              </div>
-            </article>
-          ))}
+                <div className="mt-3 space-y-1.5">
+                  {isAjuste ? (
+                    <>
+                      <StockLine label="Cantidad afectada" tone="red" eq={eqOf(afectadoUds)} env={envOf(afectadoUds)} />
+                      <StockLine label="Stock actual" eq={eqOf(currentUds)} env={envOf(currentUds)} />
+                      <StockLine label="Stock si se aprueba" tone="green" eq={eqOf(newUds)} env={envOf(newUds)} />
+                    </>
+                  ) : movement.type === 'traslado' ? (
+                    <>
+                      <StockLine label="Nueva ubicación" eq={movement.to_location || '-'} />
+                      <StockLine label="Cantidad" eq={eqOf(currentUds)} env={envOf(currentUds)} />
+                    </>
+                  ) : (
+                    <>
+                      <StockLine label="Cantidad" eq={eqOf(newUds)} env={envOf(newUds)} />
+                      <StockLine label="Stock actual" eq={eqOf(currentUds)} env={envOf(currentUds)} />
+                    </>
+                  )}
+                  <StockLine label="Ubicación" eq={movement.lots?.location || '-'} />
+                </div>
+
+                {note.obs ? <p className="mt-2 rounded-lg bg-white px-3 py-2 text-sm font-semibold italic text-slate-600 [overflow-wrap:anywhere]">{note.obs}</p> : null}
+
+                <div className="mt-2 flex items-center justify-between gap-3">
+                  <p className="min-w-0 truncate text-[11px] font-semibold text-slate-400">{movement.profiles?.full_name || 'Operador'} · {formatDate(movement.created_at)}</p>
+                  {note.foto ? (
+                    <a className="inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-white px-3 py-1.5 text-xs font-bold text-campo-700 shadow-sm" href={note.foto} target="_blank" rel="noreferrer">
+                      <Camera size={14} /> Ver foto
+                    </a>
+                  ) : null}
+                </div>
+
+                <div className="mt-3 grid grid-cols-2 gap-2">
+                  <button className="btn-secondary w-full" type="button" onClick={() => reviewMovement(movement.id, 'reject')}>
+                    <X size={18} /> Rechazar
+                  </button>
+                  <button className="btn-primary w-full" type="button" onClick={() => reviewMovement(movement.id, 'approve')}>
+                    <Check size={18} /> Aprobar
+                  </button>
+                </div>
+              </article>
+            )
+          })}
 
           {corrections.map((correction) => (
             <article key={correction.id} className="panel border-red-200 bg-red-50">
