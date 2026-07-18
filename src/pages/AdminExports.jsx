@@ -4,7 +4,7 @@ import PageHeader from '../components/PageHeader'
 import EmptyState from '../components/EmptyState'
 import SimpleDateSelect from '../components/SimpleDateSelect'
 import { cleanProductName, displayLotCode, packageLabel } from '../lib/display'
-import { formatDate, formatNumber, movementLabel } from '../lib/format'
+import { formatDate, formatNumber, movementLabel, equivalentLabel as fmtEquivalent } from '../lib/format'
 import { supabase } from '../lib/supabase'
 
 function escapeHtml(value) {
@@ -18,7 +18,7 @@ function escapeHtml(value) {
 function equivalentLabel(item) {
   const size = Number(item?.package_size || 0)
   if (size <= 0) return ''
-  return `${formatNumber(Number(item.current_quantity || item.quantity || 0) * size)} ${item.package_unit || ''}`.trim()
+  return fmtEquivalent(Number(item.current_quantity || item.quantity || 0) * size, item.package_unit)
 }
 
 function rowsToExcel(name, headers, rows) {
@@ -327,7 +327,7 @@ export default function AdminExports() {
           onPdf={() => printReport('Inventario actual', inventoryHeaders, inventoryRows)}
         >
           {inventoryRows.length === 0 ? <EmptyState title="Sin inventario" text="Ajusta los filtros para ver resultados." /> : inventoryRows.slice(0, 8).map((row) => (
-            <PreviewRow key={`${row[0]}-${row[2]}-${row[3]}`} title={row[1]} meta={`${row[0]} - ${row[2]} - vence ${row[8] || '-'}`} value={`${row[3]} uds`} />
+            <PreviewRow key={`${row[0]}-${row[2]}-${row[3]}`} title={row[1]} meta={`${row[0]} - ${row[2]} - vence ${row[8] || '-'}`} value={row[5] || `${row[3]} uds`} />
           ))}
         </ExportPanel>
 
@@ -338,7 +338,7 @@ export default function AdminExports() {
           onPdf={() => printReport('Movimientos de inventario', movementHeaders, movementRows)}
         >
           {movementRows.length === 0 ? <EmptyState title="Sin movimientos" text="Ajusta los filtros para ver resultados." /> : movementRows.slice(0, 8).map((row) => (
-            <PreviewRow key={`${row[0]}-${row[2]}-${row[4]}-${row[5]}`} title={row[3]} meta={`${row[1]} - ${row[2]} - ${row[0]}`} value={`${row[5]} uds`} />
+            <PreviewRow key={`${row[0]}-${row[2]}-${row[4]}-${row[5]}`} title={row[3]} meta={`${row[1]} - ${row[2]} - ${row[0]}`} value={row[6] || `${row[5]} uds`} />
           ))}
         </ExportPanel>
       </section>

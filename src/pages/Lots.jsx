@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
-import { Building2, CalendarClock, ChevronLeft, ChevronRight, ClipboardCheck, ClipboardList, History, LayoutList, LogOut, Menu, PackagePlus, Plus, X } from 'lucide-react'
+import { Building2, CalendarClock, ChevronLeft, ChevronRight, ClipboardCheck, ClipboardList, Download, History, LayoutList, LogOut, Menu, PackagePlus, Plus, X } from 'lucide-react'
 import { useAuth } from '../hooks/useAuth.jsx'
 import { supabase } from '../lib/supabase'
 import { formatDate, formatNumber, normalizeEquivalent, pluralUnit, equivalentLabel } from '../lib/format'
@@ -442,6 +442,14 @@ export default function Lots() {
               >
                 <Building2 size={14} />
                 Empresas
+              </button>
+              <button
+                className="btn-secondary !min-h-8 !px-3 !py-1.5 text-xs"
+                onClick={() => navigate('/exportes')}
+                title="Descargar inventario y movimientos (Excel/PDF)"
+              >
+                <Download size={14} />
+                Exportes
               </button>
             </div>
           )}
