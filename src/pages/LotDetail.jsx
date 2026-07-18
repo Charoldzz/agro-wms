@@ -1349,7 +1349,7 @@ export default function LotDetail() {
 
       {pendingMovement ? (
         <div data-modal-backdrop="true" className="fixed inset-0 z-40 flex items-end overflow-y-auto bg-slate-950/45 p-3 sm:items-center sm:justify-center">
-          <div className="flex max-h-[92dvh] w-full max-w-md flex-col overflow-hidden rounded-xl bg-white shadow-xl">
+          <div data-overlay-panel="true" role="dialog" className="flex max-h-[92dvh] w-full max-w-md flex-col overflow-hidden rounded-xl bg-white shadow-xl">
             <div className="shrink-0 border-b border-slate-100 p-4">
               <h3 className="text-xl font-bold text-slate-950">Confirmar movimiento</h3>
               <p className="mt-2 text-sm font-semibold text-slate-500">
@@ -1360,68 +1360,48 @@ export default function LotDetail() {
             </div>
             <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-3">
 
-            <div className="mt-4 space-y-2 rounded-lg bg-slate-50 p-3 text-sm font-bold text-slate-700">
-              <div className="rounded-lg bg-white p-2">
+            <div className="mt-4 space-y-2">
+              <div className="rounded-lg bg-slate-50 p-3">
                 <p className="font-black leading-snug text-slate-950 [overflow-wrap:anywhere]">{cleanProductName(lot.product)}</p>
                 <p className="text-xs font-semibold text-slate-500">Cliente: {lot.clients?.name || '-'}</p>
-                <p className="text-xs font-semibold text-slate-500">{visibleLotCode}</p>
+                <p className="text-xs font-semibold text-slate-500">Lote {visibleLotCode} · {lot.location || '-'}</p>
               </div>
-              <div className="grid grid-cols-2 gap-2">
-                <div className="rounded-lg bg-white p-2">
-                  <span className="block text-xs uppercase text-slate-400">Cantidad</span>
-                  <span className="text-slate-950">{formatNumber(pendingMovement.quantity)} uds</span>
-                </div>
-                <div className={`rounded-lg p-2 ${lotState.panel}`}>
-                  <span className="block text-xs uppercase opacity-70">Estado</span>
-                  <span>{lotState.label}</span>
-                </div>
-              </div>
-              {pendingMovement.type === 'ajuste' && pendingMovement.affected_packages ? (
-                <div className="flex justify-between gap-3">
-                  <span>Unidades afectados</span>
-                  <span>{formatNumber(pendingMovement.affected_packages)}</span>
-                </div>
-              ) : null}
-              <div className="flex justify-between gap-3">
-                <span>Stock actual</span>
-                <span>{formatNumber(pendingMovement.previousQuantity)} unidades</span>
-              </div>
-              {pendingMovement.type !== 'ajuste' || getIncidentConfig(pendingMovement.incident_type)?.needsPhysicalCount ? (
-                <div className="flex justify-between gap-3">
-                  <span>{pendingMovement.type === 'ajuste' ? 'Stock propuesto' : 'Stock despues'}</span>
-                  <span>{formatNumber(pendingMovement.newQuantity)} unidades</span>
-                </div>
-              ) : null}
-              {pendingMovement.calculatedQuantity ? (
-                <div className="flex justify-between gap-3">
-                  <span>Equivalente actual</span>
-                  <span>{equivalentLabel(pendingMovement.previousQuantity * Number(lot.package_size || 0), lot.package_unit)}</span>
-                </div>
-              ) : null}
-              {Number(lot.package_size) > 0 ? (
-                <div className="flex justify-between gap-3">
-                  <span>Equivalente despues</span>
-                  <span>{equivalentLabel(pendingMovement.newQuantity * Number(lot.package_size), lot.package_unit)}</span>
-                </div>
-              ) : null}
-              {pendingMovement.to_location ? (
-                <div className="flex justify-between gap-3">
-                  <span>{pendingMovement.type === 'salida' ? 'Placa' : 'Nueva ubicacion'}</span>
-                  <span>{pendingMovement.to_location}</span>
-                </div>
-              ) : null}
-              {pendingMovement.receiver_name ? (
-                <div className="flex justify-between gap-3">
-                  <span>Recibe</span>
-                  <span>{pendingMovement.receiver_name}</span>
-                </div>
-              ) : null}
-              {pendingMovement.receiver_document ? (
-                <div className="flex justify-between gap-3">
-                  <span>Documento</span>
-                  <span>{pendingMovement.receiver_document}</span>
-                </div>
-              ) : null}
+              {pendingMovement.type === 'ajuste' ? (
+                <>
+                  <StockLine label="Motivo" eq={getIncidentConfig(pendingMovement.incident_type)?.label || '-'} />
+                  <StockLine
+                    label="Cantidad afectada"
+                    tone="red"
+                    eq={Number(lot.package_size) > 0 ? equivalentLabel(Number(pendingMovement.affected_packages || 0), lot.package_unit) : `${formatNumber(pendingMovement.affected_packages)} uds`}
+                    env={Number(lot.package_size) > 0 ? desgloseEnvases(Number(pendingMovement.affected_packages || 0), Number(lot.package_size), lot.package_unit, 0).unidadesLabel : ''}
+                  />
+                  <StockLine
+                    label="Stock después"
+                    tone="green"
+                    eq={Number(lot.package_size) > 0 ? equivalentLabel(pendingMovement.newQuantity * Number(lot.package_size), lot.package_unit) : `${formatNumber(pendingMovement.newQuantity)} uds`}
+                    env={Number(lot.package_size) > 0 ? unidadesEnvaseLabel({ ...lot, current_quantity: pendingMovement.newQuantity }) : ''}
+                  />
+                </>
+              ) : (
+                <>
+                  <StockLine
+                    label="Cantidad"
+                    eq={Number(lot.package_size) > 0 ? equivalentLabel((pendingMovement.calculatedQuantity || pendingMovement.quantity * Number(lot.package_size)), lot.package_unit) : `${formatNumber(pendingMovement.quantity)} uds`}
+                    env={Number(lot.package_size) > 0 ? desgloseEnvases((pendingMovement.calculatedQuantity || pendingMovement.quantity * Number(lot.package_size)), Number(lot.package_size), lot.package_unit, 0).unidadesLabel : ''}
+                  />
+                  {pendingMovement.type !== 'traslado' ? (
+                    <StockLine
+                      label="Stock después"
+                      tone="green"
+                      eq={Number(lot.package_size) > 0 ? equivalentLabel(pendingMovement.newQuantity * Number(lot.package_size), lot.package_unit) : `${formatNumber(pendingMovement.newQuantity)} uds`}
+                      env={Number(lot.package_size) > 0 ? unidadesEnvaseLabel({ ...lot, current_quantity: pendingMovement.newQuantity }) : ''}
+                    />
+                  ) : null}
+                  {pendingMovement.to_location ? <StockLine label={pendingMovement.type === 'salida' ? 'Placa' : 'Nueva ubicación'} eq={pendingMovement.to_location} /> : null}
+                  {pendingMovement.receiver_name ? <StockLine label="Recibe" eq={pendingMovement.receiver_name} /> : null}
+                  {pendingMovement.receiver_document ? <StockLine label="Teléfono" eq={pendingMovement.receiver_document} /> : null}
+                </>
+              )}
             </div>
 
             {pendingMovement.isLargeSale ? (
@@ -1517,6 +1497,20 @@ function Info({ label, value, strong }) {
     <div className="rounded-lg bg-slate-50 p-3">
       <p className="text-xs font-semibold uppercase text-slate-400">{label}</p>
       <p className={`${strong ? 'text-2xl' : 'text-base'} mt-1 font-bold text-slate-950`}>{value}</p>
+    </div>
+  )
+}
+
+// Fila del modal de confirmación: dato PRINCIPAL en equivalente + envase secundario en gris
+function StockLine({ label, eq, env, tone }) {
+  const color = tone === 'red' ? 'text-red-700' : tone === 'green' ? 'text-campo-700' : 'text-slate-900'
+  return (
+    <div className="flex items-center justify-between gap-3 rounded-lg border border-slate-100 bg-white px-3 py-2">
+      <span className="shrink-0 text-xs font-bold uppercase tracking-wide text-slate-400">{label}</span>
+      <div className="min-w-0 text-right">
+        <p className={`text-sm font-black [overflow-wrap:anywhere] ${color}`}>{eq}</p>
+        {env ? <p className="text-[11px] font-semibold text-slate-400">{env}</p> : null}
+      </div>
     </div>
   )
 }
