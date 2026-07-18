@@ -191,6 +191,17 @@ export default function AdminExports() {
     setDateTo('')
   }
 
+  // Rangos rápidos de fecha para los movimientos
+  function applyDatePreset(preset) {
+    const now = new Date()
+    const iso = (d) => d.toISOString().slice(0, 10)
+    if (preset === 'hoy') { const d = iso(now); setDateFrom(d); setDateTo(d) }
+    else if (preset === 'semana') { const s = new Date(now); s.setDate(now.getDate() - now.getDay()); setDateFrom(iso(s)); setDateTo(iso(now)) }
+    else if (preset === 'mes') { setDateFrom(iso(new Date(now.getFullYear(), now.getMonth(), 1))); setDateTo(iso(now)) }
+    else if (preset === 'anio') { setDateFrom(iso(new Date(now.getFullYear(), 0, 1))); setDateTo(iso(now)) }
+    else { setDateFrom(''); setDateTo('') }
+  }
+
   const clients = useMemo(() => {
     return [...new Set(lots.map((lot) => lot.clients?.name).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'es'))
   }, [lots])
@@ -293,34 +304,32 @@ export default function AdminExports() {
             </select>
           </label>
         </div>
-        <div className="mt-3 grid gap-3 sm:grid-cols-2">
-          <label className="block">
-            <span className="label">Desde</span>
-            <div className="mt-1">
-              <SimpleDateSelect
-                value={dateFrom}
-                onChange={setDateFrom}
-                clearLabel="Sin fecha"
-                previewLabel="Desde"
-                startYear={new Date().getFullYear() - 5}
-                endYear={new Date().getFullYear() + 2}
-              />
+        <div className="mt-3">
+          <span className="label">Fechas (solo movimientos)</span>
+          <div className="mt-1 flex flex-wrap items-center gap-2">
+            {[['hoy', 'Hoy'], ['semana', 'Esta semana'], ['mes', 'Este mes'], ['anio', 'Este año'], ['todo', 'Todo']].map(([key, label]) => {
+              const active = key === 'todo' ? (!dateFrom && !dateTo) : false
+              return (
+                <button
+                  key={key}
+                  type="button"
+                  onClick={() => applyDatePreset(key)}
+                  className={`rounded-lg border px-3 py-1.5 text-xs font-bold transition ${active ? 'border-campo-400 bg-campo-50 text-campo-700' : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'}`}
+                >
+                  {label}
+                </button>
+              )
+            })}
+            <div className="ml-auto flex flex-wrap items-center gap-2">
+              <input type="date" className="input !min-h-10 !w-auto" value={dateFrom} onChange={(event) => setDateFrom(event.target.value)} />
+              <span className="text-xs font-bold text-slate-400">a</span>
+              <input type="date" className="input !min-h-10 !w-auto" value={dateTo} onChange={(event) => setDateTo(event.target.value)} />
             </div>
-          </label>
-          <label className="block">
-            <span className="label">Hasta</span>
-            <div className="mt-1">
-              <SimpleDateSelect
-                value={dateTo}
-                onChange={setDateTo}
-                clearLabel="Sin fecha"
-                previewLabel="Hasta"
-                startYear={new Date().getFullYear() - 5}
-                endYear={new Date().getFullYear() + 2}
-              />
-            </div>
-          </label>
+          </div>
         </div>
+        <p className="mt-3 rounded-lg bg-slate-50 px-3 py-2 text-xs font-semibold text-slate-500">
+          <b className="text-slate-700">Cliente</b> filtra el inventario y los movimientos. <b className="text-slate-700">Fecha</b> y <b className="text-slate-700">Tipo</b> aplican solo a los movimientos.
+        </p>
       </section>
 
       <section className="grid gap-4 lg:grid-cols-2">
