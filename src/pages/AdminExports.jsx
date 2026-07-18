@@ -252,20 +252,26 @@ export default function AdminExports() {
     ]
   })
 
-  const movementHeaders = ['Fecha', 'Tipo', 'Cliente', 'Producto', 'Lote', 'Cantidad', 'Equivalente', 'Stock anterior', 'Stock nuevo', 'Ubicacion', 'Usuario']
-  const movementRows = filteredMovements.map((movement) => [
-    movement.created_at ? formatDate(movement.created_at) : '',
-    movementLabel(movement.type),
-    movement.lots?.clients?.name || '',
-    cleanProductName(movement.lots?.product),
-    displayLotCode(movement.lots?.lot_code),
-    formatNumber(movement.quantity),
-    equivalentLabel({ ...movement.lots, quantity: movement.quantity }),
-    formatNumber(movement.previous_quantity),
-    formatNumber(movement.new_quantity),
-    movement.lots?.location || movement.to_location || '',
-    movement.profiles?.full_name || '',
-  ])
+  const movementHeaders = ['Fecha', 'Tipo', 'Cliente', 'Producto', 'Lote', 'Cantidad', 'Unidades', 'Stock anterior', 'Stock nuevo', 'Ubicacion', 'Usuario']
+  const movementRows = filteredMovements.map((movement) => {
+    const size = Number(movement.lots?.package_size) || 0
+    const unit = movement.lots?.package_unit
+    const eqOf = (uds) => (size > 0 ? fmtEquivalent(Number(uds || 0) * size, unit) : `${formatNumber(uds)} uds`)
+    const envOf = (uds) => (size > 0 ? desgloseEnvases(Number(uds || 0) * size, size, unit, 0).unidadesLabel : `${formatNumber(uds)} uds`)
+    return [
+      movement.created_at ? formatDate(movement.created_at) : '',
+      movementLabel(movement.type),
+      movement.lots?.clients?.name || '',
+      cleanProductName(movement.lots?.product),
+      displayLotCode(movement.lots?.lot_code),
+      eqOf(movement.quantity),
+      envOf(movement.quantity),
+      eqOf(movement.previous_quantity),
+      eqOf(movement.new_quantity),
+      movement.lots?.location || movement.to_location || '',
+      movement.profiles?.full_name || '',
+    ]
+  })
 
   return (
     <div>
