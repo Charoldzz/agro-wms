@@ -41,7 +41,6 @@ function StockLine({ label, eq, env, tone }) {
 export default function AdminPending() {
   const { user } = useAuth()
   const [movements, setMovements] = useState([])
-  const [corrections, setCorrections] = useState([])
   const [clients, setClients] = useState([])
   const [issues, setIssues] = useState([])
   const [error, setError] = useState('')
@@ -52,7 +51,6 @@ export default function AdminPending() {
     const channel = supabase
       .channel('admin-pending')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'movements' }, loadPending)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'movement_correction_requests' }, loadPending)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'operational_issue_reports' }, loadPending)
       .subscribe()
 
@@ -60,17 +58,12 @@ export default function AdminPending() {
   }, [])
 
   async function loadPending() {
-    const [movementResult, correctionResult, issueResult, clientResult] = await Promise.all([
+    const [movementResult, issueResult, clientResult] = await Promise.all([
       supabase
         .from('movements')
         .select('*, lots(product, lot_code, current_quantity, package_size, package_unit, location, clients(name)), profiles!movements_user_id_fkey(full_name)')
         .in('type', ['ajuste', 'traslado', 'salida'])
         .eq('approval_status', 'pendiente')
-        .order('created_at', { ascending: false }),
-      supabase
-        .from('movement_correction_requests')
-        .select('*, movements(type, quantity, lots(lot_code, product, clients(name))), profiles!movement_correction_requests_requested_by_fkey(full_name)')
-        .eq('status', 'pendiente')
         .order('created_at', { ascending: false }),
       supabase
         .from('operational_issue_reports')
@@ -96,13 +89,6 @@ export default function AdminPending() {
       } else {
         movementRows = await enrichMovements(data || [])
       }
-    }
-
-    if (correctionResult.error) {
-      if (!String(correctionResult.error.message || '').includes('movement_correction_requests')) loadErrors.push('correcciones')
-      setCorrections([])
-    } else {
-      setCorrections(correctionResult.data || [])
     }
 
     if (issueResult.error) {
@@ -143,14 +129,6 @@ export default function AdminPending() {
     loadPending()
   }
 
-  async function reviewCorrection(id, action) {
-    await supabase.rpc(action === 'approve' ? 'approve_movement_correction' : 'reject_movement_correction', {
-      p_request_id: id,
-      p_user_id: user.id,
-    })
-    loadPending()
-  }
-
   async function resolveIssue(id) {
     await supabase
       .from('operational_issue_reports')
@@ -159,7 +137,7 @@ export default function AdminPending() {
     loadPending()
   }
 
-  const total = movements.length + corrections.length + issues.length
+  const total = movements.length + issues.length
 
   return (
     <div>
@@ -251,32 +229,6 @@ export default function AdminPending() {
             )
           })}
 
-          {corrections.map((correction) => (
-            <article key={correction.id} className="panel border-red-200 bg-red-50">
-              <div className="flex flex-wrap items-start justify-between gap-3">
-                <div>
-                  <p className="font-black text-slate-950">
-                    Correccion de {correctionTypeLabel(correction.correction_type)}
-                  </p>
-                  <p className="mt-1 font-black text-slate-900 [overflow-wrap:anywhere]">{cleanProductName(correction.movements?.lots?.product)}</p>
-                  <p className="text-xs font-semibold text-slate-500">
-                    {displayLotCode(correction.movements?.lots?.lot_code)} - {correction.movements?.lots?.clients?.name || '-'} - {correction.profiles?.full_name || 'Usuario'}
-                  </p>
-                </div>
-                <span className="rounded-full bg-white px-3 py-1 text-xs font-black text-red-700">Auditoria</span>
-              </div>
-              <CorrectionReviewDetails correction={correction} clients={clients} />
-              <p className="mt-2 rounded-lg bg-white p-3 text-sm font-semibold text-slate-700">{correction.reason}</p>
-              <div className="mt-3 grid grid-cols-2 gap-2">
-                <button className="btn-secondary w-full" type="button" onClick={() => reviewCorrection(correction.id, 'reject')}>
-                  <X size={18} /> Rechazar
-                </button>
-                <button className="btn-primary w-full" type="button" onClick={() => reviewCorrection(correction.id, 'approve')}>
-                  <Check size={18} /> Aprobar
-                </button>
-              </div>
-            </article>
-          ))}
 
           {issues.map((issue) => (
             <article key={issue.id} className="panel border-slate-200 bg-white">
@@ -302,59 +254,3 @@ export default function AdminPending() {
   )
 }
 
-function CorrectionReviewDetails({ correction, clients }) {
-  if (correction.correction_type === 'cantidad') {
-    return (
-      <div className="mt-3 grid gap-2 text-sm font-bold sm:grid-cols-2">
-        <p className="rounded-lg bg-white p-3">Registrado: {formatNumber(correction.movements?.quantity)} uds</p>
-        <p className="rounded-lg bg-white p-3">Correcto: {formatNumber(correction.requested_quantity)} uds</p>
-      </div>
-    )
-  }
-
-  const patchRows = lotPatchRows(correction.lot_patch, clients)
-
-  return (
-    <div className="mt-3 rounded-lg bg-white p-3">
-      <p className="text-xs font-black uppercase text-slate-500">
-        Cambios solicitados en {correction.correction_type === 'operacion' ? 'operacion' : 'ficha'}
-      </p>
-      <div className="mt-2 grid gap-2 sm:grid-cols-2">
-        {patchRows.map((row) => (
-          <div key={row.label} className="rounded-lg bg-slate-50 p-2">
-            <p className="text-xs font-bold text-slate-500">{row.label}</p>
-            <p className="mt-0.5 font-black text-slate-950 [overflow-wrap:anywhere]">{row.value}</p>
-          </div>
-        ))}
-      </div>
-    </div>
-  )
-}
-
-function lotPatchRows(patch, clients) {
-  const values = patch && typeof patch === 'object' ? patch : {}
-  const clientMap = new Map((clients || []).map((client) => [client.id, client.name]))
-  const labels = {
-    client_id: 'Cliente',
-    lot_code: 'ID lote',
-    product: 'Producto',
-    location: 'Ubicacion',
-    package_size: 'Tamaño presentación',
-    package_unit: 'Unidad',
-    expiry_date: 'Vencimiento',
-    vehicle_plate: 'Placa',
-    receiver_name: 'Recibe',
-    receiver_document: 'Documento',
-  }
-
-  return Object.entries(values).filter(([key]) => key !== 'movement_ids').map(([key, value]) => ({
-    label: labels[key] || key,
-    value: key === 'client_id' ? clientMap.get(value) || 'Cliente seleccionado' : String(value || '-'),
-  }))
-}
-
-function correctionTypeLabel(type) {
-  if (type === 'ficha') return 'ficha'
-  if (type === 'operacion') return 'operacion'
-  return 'cantidad'
-}

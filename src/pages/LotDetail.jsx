@@ -400,8 +400,8 @@ export default function LotDetail() {
       return
     }
 
-    if (movement.type === 'ajuste' && !movementPhotoFile) {
-      setError('La foto es obligatoria para reparaciones.')
+    if (movement.type === 'ajuste' && movement.incident_type !== 'diferencia_conteo' && !movementPhotoFile) {
+      setError('La foto es obligatoria para esta reparación.')
       vibrateError()
       return
     }
@@ -1271,7 +1271,7 @@ export default function LotDetail() {
           ) : null}
           {['ajuste', 'traslado'].includes(movement.type) ? (
             <label className="block sm:col-span-2">
-              <span className="label">{movement.type === 'ajuste' ? 'Foto obligatoria' : 'Foto opcional'}</span>
+              <span className="label">{movement.type === 'ajuste' && movement.incident_type !== 'diferencia_conteo' ? 'Foto obligatoria' : 'Foto opcional'}</span>
               <div className="mt-1 grid gap-3">
                 {movementPhotoPreview ? (
                   <img className="h-44 w-full rounded-lg object-cover" src={movementPhotoPreview} alt="Movimiento" />

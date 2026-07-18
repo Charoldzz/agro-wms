@@ -22,7 +22,6 @@ import OfflineAudit from './pages/OfflineAudit'
 import QrGate from './pages/QrGate'
 import ClientPortal from './pages/ClientPortal'
 import AdminPending from './pages/AdminPending'
-import CorrectionRequests from './pages/CorrectionRequests'
 import AdminExports from './pages/AdminExports'
 import Backups from './pages/Backups'
 import ProductCatalog from './pages/ProductCatalog'
@@ -85,7 +84,6 @@ function AppRoutes() {
         <Route path="kardex" element={<RoleRoute roles={['administrador', 'operador']}><Kardex /></RoleRoute>} />
         <Route path="operacion/salidas" element={<RoleRoute roles={['administrador', 'operador']}><SalidasHub /></RoleRoute>} />
         <Route path="operacion/reparacion-traslado" element={<RoleRoute roles={['administrador', 'operador']}><OperatorService /></RoleRoute>} />
-        <Route path="operacion/correcciones" element={<RoleRoute roles={['administrador', 'operador']}><CorrectionRequests /></RoleRoute>} />
         <Route path="clientes" element={<RoleRoute roles={['administrador']}><Clients /></RoleRoute>} />
         <Route path="lotes" element={<RoleRoute roles={['administrador', 'operador']}><Lots /></RoleRoute>} />
         {/* La ficha del lote SÍ permite cliente: LotDetail tiene vista propia de consulta
