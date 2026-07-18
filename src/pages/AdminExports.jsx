@@ -5,6 +5,7 @@ import EmptyState from '../components/EmptyState'
 import SimpleDateSelect from '../components/SimpleDateSelect'
 import { cleanProductName, displayLotCode, packageLabel } from '../lib/display'
 import { formatDate, formatNumber, movementLabel, equivalentLabel as fmtEquivalent } from '../lib/format'
+import { exportTableExcel, printTablePdf } from '../lib/exports'
 import { supabase } from '../lib/supabase'
 
 function escapeHtml(value) {
@@ -323,8 +324,8 @@ export default function AdminExports() {
         <ExportPanel
           title="Inventario actual"
           description={`${formatNumber(filteredLots.length)} lotes filtrados. Incluye cliente, producto, lote, fecha, vencimiento y stock.`}
-          onExcel={() => rowsToExcel('inventario-todo-agricola', inventoryHeaders, inventoryRows)}
-          onPdf={() => printReport('Inventario actual', inventoryHeaders, inventoryRows)}
+          onExcel={() => exportTableExcel({ fileName: 'inventario-todo-agricola', sheetName: 'Inventario', title: 'Inventario actual', headers: inventoryHeaders, rows: inventoryRows }).catch((e) => alert(`Error al generar Excel: ${e.message}`))}
+          onPdf={() => printTablePdf({ title: 'Inventario actual', headers: inventoryHeaders, rows: inventoryRows, meta: [{ label: 'Lotes', value: formatNumber(filteredLots.length) }] })}
         >
           {inventoryRows.length === 0 ? <EmptyState title="Sin inventario" text="Ajusta los filtros para ver resultados." /> : inventoryRows.slice(0, 8).map((row) => (
             <PreviewRow key={`${row[0]}-${row[2]}-${row[3]}`} title={row[1]} meta={`${row[0]} - ${row[2]} - vence ${row[8] || '-'}`} value={row[5] || `${row[3]} uds`} />
@@ -334,8 +335,8 @@ export default function AdminExports() {
         <ExportPanel
           title="Movimientos"
           description={`${formatNumber(filteredMovements.length)} movimientos filtrados. Incluye usuario, stock anterior y stock nuevo.`}
-          onExcel={() => rowsToExcel('movimientos-todo-agricola', movementHeaders, movementRows)}
-          onPdf={() => printReport('Movimientos de inventario', movementHeaders, movementRows)}
+          onExcel={() => exportTableExcel({ fileName: 'movimientos-todo-agricola', sheetName: 'Movimientos', title: 'Movimientos de inventario', headers: movementHeaders, rows: movementRows }).catch((e) => alert(`Error al generar Excel: ${e.message}`))}
+          onPdf={() => printTablePdf({ title: 'Movimientos de inventario', headers: movementHeaders, rows: movementRows, meta: [{ label: 'Movimientos', value: formatNumber(filteredMovements.length) }] })}
         >
           {movementRows.length === 0 ? <EmptyState title="Sin movimientos" text="Ajusta los filtros para ver resultados." /> : movementRows.slice(0, 8).map((row) => (
             <PreviewRow key={`${row[0]}-${row[2]}-${row[4]}-${row[5]}`} title={row[3]} meta={`${row[1]} - ${row[2]} - ${row[0]}`} value={row[6] || `${row[5]} uds`} />
