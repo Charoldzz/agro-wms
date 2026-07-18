@@ -8,7 +8,7 @@ import PageHeader from '../components/PageHeader'
 import { supabase } from '../lib/supabase'
 import { cleanProductName, displayLotCode, packageLabel } from '../lib/display'
 import { normalizeDispatchRequests } from '../lib/dispatchRequests'
-import { formatNumber } from '../lib/format'
+import { formatNumber, equivalentLabel } from '../lib/format'
 
 async function decodeWithBarcodeDetector(file) {
   if (!('BarcodeDetector' in window) || !('createImageBitmap' in window)) return null
@@ -338,11 +338,16 @@ export default function Scanner() {
                   quantity: dispatchReference.quantity,
                 }])
               .slice(0, 4)
-              .map((item) => (
-                <span key={item.lot_id || item.lot_code || item.product} className="shrink-0 rounded-lg bg-white px-2 py-1 text-xs font-bold text-slate-700">
-                  {cleanProductName(item.product)} · {formatNumber(item.quantity)} uds
-                </span>
-              ))}
+              .map((item) => {
+                const size = Number(item.package_size ?? dispatchReference.lots?.package_size) || 0
+                const unit = item.package_unit ?? dispatchReference.lots?.package_unit
+                const label = size > 0 ? equivalentLabel(Number(item.quantity || 0) * size, unit) : `${formatNumber(item.quantity)} uds`
+                return (
+                  <span key={item.lot_id || item.lot_code || item.product} className="shrink-0 rounded-lg bg-white px-2 py-1 text-xs font-bold text-slate-700">
+                    {cleanProductName(item.product)} · {label}
+                  </span>
+                )
+              })}
             {Array.isArray(dispatchReference.items) && dispatchReference.items.length > 4 ? (
               <span className="shrink-0 rounded-lg bg-white px-2 py-1 text-xs font-bold text-slate-500">+{dispatchReference.items.length - 4}</span>
             ) : null}
