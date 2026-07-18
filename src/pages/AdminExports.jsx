@@ -347,9 +347,9 @@ export default function AdminExports() {
       <section className="grid gap-4 lg:grid-cols-2">
         <ExportPanel
           title="Inventario actual"
-          description={`${formatNumber(filteredLots.length)} lotes filtrados. Incluye cliente, producto, lote, fecha, vencimiento y stock.`}
+          description={`${formatNumber(filteredLots.length)} productos filtrados. Incluye cliente, producto, lote, fecha, vencimiento y stock.`}
           onExcel={() => exportTableExcel({ fileName: 'inventario-todo-agricola', sheetName: 'Inventario', title: 'Inventario actual', headers: inventoryHeaders, rows: inventoryRows }).catch((e) => alert(`Error al generar Excel: ${e.message}`))}
-          onPdf={() => printTablePdf({ title: 'Inventario actual', headers: inventoryHeaders, rows: inventoryRows, meta: [{ label: 'Lotes', value: formatNumber(filteredLots.length) }] })}
+          onPdf={() => printTablePdf({ title: 'Inventario actual', headers: inventoryHeaders, rows: inventoryRows, meta: [{ label: 'Productos', value: formatNumber(filteredLots.length) }] })}
         >
           {inventoryRows.length === 0 ? <EmptyState title="Sin inventario" text="Ajusta los filtros para ver resultados." /> : filteredLots.slice(0, 8).map((lot) => {
             const size = Number(lot.package_size) || 0
