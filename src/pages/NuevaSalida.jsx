@@ -370,7 +370,10 @@ export default function NuevaSalida() {
 
     const overStock = validRows.find((r) => Number(r.uds) > Number(r.saldo))
     if (overStock) {
-      setError(`Cantidad excede el saldo disponible para: ${overStock.product} (saldo: ${formatNumber(overStock.saldo)} uds).`)
+      const disponible = Number(overStock.package_size) > 0
+        ? equivalentLabel(Number(overStock.saldo) * Number(overStock.package_size), overStock.package_unit)
+        : `${formatNumber(overStock.saldo)} uds`
+      setError(`Cantidad excede el saldo disponible para: ${overStock.product} (disponible: ${disponible}).`)
       return
     }
 
@@ -670,7 +673,7 @@ export default function NuevaSalida() {
                         ) : null}
                         {rowInsufficient(row) ? (
                           <div className="text-[10px] font-black text-red-600">
-                            Saldo insuficiente: hay {formatNumber(row.saldo)} uds y pide {formatNumber(row.uds)}
+                            Saldo insuficiente: hay {equivalentLabel(row.saldo * (Number(row.package_size) || 1), row.package_unit)} y pide {equivalentLabel(row.uds * (Number(row.package_size) || 1), row.package_unit)}
                           </div>
                         ) : row.package_unit ? (
                           <div className="text-[10px] font-semibold text-slate-400">
@@ -830,11 +833,11 @@ export default function NuevaSalida() {
                     ) : null}
                     {rowInsufficient(row) ? (
                       <p className="text-[10px] font-black text-red-600">
-                        Saldo insuficiente: hay {formatNumber(row.saldo)} uds y pide {formatNumber(row.uds)}
+                        Saldo insuficiente: hay {equivalentLabel(row.saldo * (Number(row.package_size) || 1), row.package_unit)} y pide {equivalentLabel(row.uds * (Number(row.package_size) || 1), row.package_unit)}
                       </p>
                     ) : row.package_unit ? (
                       <p className="text-[10px] font-semibold text-slate-400">
-                        {formatNumber(row.saldo * (Number(row.package_size) || 1))} {row.package_unit} disponibles
+                        {equivalentLabel(row.saldo * (Number(row.package_size) || 1), row.package_unit)} disponibles
                       </p>
                     ) : null}
                   </div>
