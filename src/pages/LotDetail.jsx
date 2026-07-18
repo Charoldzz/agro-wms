@@ -53,17 +53,15 @@ const initialMovement = {
   notes: '',
 }
 
+// Motivos de reparación/ajuste (lista limpia — el operador carga la cantidad afectada)
 const incidentTypes = [
-  { value: 'unidades', label: 'Unidades', needsAffected: true, needsPhysicalCount: false },
-  { value: 'cajas', label: 'Cajas', needsAffected: true, needsPhysicalCount: false },
-  { value: 'etiquetado', label: 'Etiquetado', needsAffected: false, needsPhysicalCount: false },
-  { value: 'reempaquetado', label: 'Reempaquetado', needsAffected: true, needsPhysicalCount: false },
-  { value: 'etiqueta_danada', label: 'Etiqueta dañada', needsAffected: false, needsPhysicalCount: false },
-  { value: 'envase_danado', label: 'Envase dañado', needsAffected: true, needsPhysicalCount: false },
-  { value: 'reempaque', label: 'Reempaque', needsAffected: true, needsPhysicalCount: false },
-  { value: 'fraccionamiento', label: 'Fraccionamiento', needsAffected: true, needsPhysicalCount: true },
-  { value: 'diferencia_stock', label: 'Diferencia de stock', needsAffected: false, needsPhysicalCount: true },
-  { value: 'otro', label: 'Otro', needsAffected: false, needsPhysicalCount: false },
+  { value: 'envase_danado', label: 'Envase dañado' },
+  { value: 'derrame', label: 'Derrame / pérdida' },
+  { value: 'etiqueta_danada', label: 'Etiqueta dañada' },
+  { value: 'reempaque', label: 'Reempaque' },
+  { value: 'vencido', label: 'Producto vencido/deteriorado' },
+  { value: 'diferencia_conteo', label: 'Diferencia de conteo' },
+  { value: 'otro', label: 'Otro' },
 ]
 
 function escapeHtml(value) {
