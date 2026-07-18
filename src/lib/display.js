@@ -232,13 +232,17 @@ function normalizeUnit(u) {
   return s
 }
 
-// Nombre visible de una ficha de catálogo: agrega la presentación si el nombre no la trae
-const CATALOG_SIZE_WITH_UNIT_RE = /[^a-zA-Z](\d+(?:[.,]\d+)?)\s*(ltrs?|lts?|kgs?|gr|gm|ml|cc|l(?:[^a-zA-Z]|$))/i
-const CATALOG_BARE_X_N_RE = /\s[xX×]\s*\d+/i
+// Nombre visible de una ficha de catálogo: agrega la presentación SOLO si el nombre
+// no la trae. Fuente ÚNICA de la verdad (la usan el catálogo, el ingreso y la lista
+// de almacenes) para que el nombre del lote y de la ficha coincidan siempre.
+// Detecta un número seguido de unidad ("5 LTS", "500 ML", "4X5 LTS", "20L_BO", "X 200 lt").
+const CATALOG_HAS_UNIT_RE = /\d\s*(?:ltrs?|lts?|kgs?|grs?|gr|gm|ml|cc|l)(?![a-z])/i
+// Multiplicador sin unidad ("4X5", "PROD X 5"): agrega solo la unidad
+const CATALOG_BARE_X_N_RE = /\d\s*[xX×]\s*\d|\s[xX×]\s*\d/i
 
 export function catalogDisplayName(p) {
   if (!p?.name) return ''
-  if (CATALOG_SIZE_WITH_UNIT_RE.test(p.name)) return p.name
+  if (CATALOG_HAS_UNIT_RE.test(p.name)) return p.name            // ya trae presentación → tal cual
   if (p.package_size && p.package_unit) {
     if (CATALOG_BARE_X_N_RE.test(p.name)) return `${p.name} ${p.package_unit}`
     return `${p.name} X ${p.package_size} ${p.package_unit}`

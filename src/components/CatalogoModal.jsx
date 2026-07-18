@@ -2,10 +2,9 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { ArrowLeft, CheckCircle2, Edit2, Filter, Save, Search, Trash2, X } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { catalogClientIds } from '../lib/catalogo'
+import { catalogDisplayName as productDisplayName } from '../lib/display'
 
 const UNITS = ['lt', 'ml', 'kg', 'gr']
-
-const SIZE_IN_NAME_RE = /[^a-zA-Z](\d+(?:[.,]\d+)?)\s*(ltrs?|lts?|kgs?|gr|gm|ml|cc|l(?:[^a-zA-Z]|$))|\s[xX×]\s*\d+/i
 
 // Presentación al final del nombre ("40X500 ML", "X 20 LTS", "500 ML"): para reemplazarla al reeditar
 const TRAILING_PRES_RE = /\s+(?:\d+(?:[.,]\d+)?\s*[xX×]\s*|[xX×]\s*)?\d+(?:[.,]\d+)?\s*(?:ltrs?|lts?|kgs?|grs?|gr|gm|ml|cc)\.?$/i
@@ -22,13 +21,6 @@ function buildNameSuffix(upb, size, unit) {
   else u = u.toUpperCase()
   const per = Number(upb)
   return per > 0 ? `${per}x${s} ${u}` : `X ${s} ${u}`
-}
-
-function productDisplayName(p) {
-  if (!p.name) return ''
-  if (p.package_size && p.package_unit && !SIZE_IN_NAME_RE.test(p.name))
-    return `${p.name} X ${p.package_size} ${p.package_unit}`
-  return p.name
 }
 
 export default function CatalogoModal({ clients, onClose }) {
@@ -153,15 +145,21 @@ export default function CatalogoModal({ clients, onClose }) {
     }
     const { error: err } = await supabase.from('product_catalog').update(updated).eq('id', selectedId)
 
-    // Si cambió el nombre visible, propagar la corrección a los lotes existentes
-    if (!err && before) {
-      const oldLabel = productDisplayName(before)
+    // Propagar la ficha corregida a los lotes existentes POR CÓDIGO (la relación real
+    // lote↔ficha es solucion_product_code = code, regla N°2). Sincroniza nombre y
+    // presentación para que Almacenes muestre siempre lo mismo que el catálogo.
+    if (!err && before?.code) {
       const newLabel = productDisplayName({ ...before, ...updated })
-      if (oldLabel && newLabel && oldLabel !== newLabel) {
-        const ids = await catalogClientIds(before.client_id)
-        const escaped = oldLabel.replace(/[\\%_]/g, (m) => `\\${m}`)
-        await supabase.from('lots').update({ product: newLabel }).in('client_id', ids).ilike('product', escaped)
-      }
+      const ids = await catalogClientIds(before.client_id)
+      await supabase.from('lots')
+        .update({
+          product: newLabel,
+          package_size: updated.package_size,
+          package_unit: updated.package_unit,
+          solucion_product_code: updated.code,
+        })
+        .in('client_id', ids)
+        .eq('solucion_product_code', before.code)
     }
 
     setSaving(false)

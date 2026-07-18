@@ -10,25 +10,11 @@ import { desgloseEnvases } from '../lib/envases'
 import { openEntryReceipt, totalEquivalente } from '../lib/comprobante'
 import OperationSuccess from '../components/OperationSuccess'
 import { catalogClientIds } from '../lib/catalogo'
+import { catalogDisplayName as productDisplayName } from '../lib/display'
 import NewProductModal from '../components/NewProductModal'
 
 const today = new Date().toISOString().slice(0, 10)
 const DRAFT_KEY = 'draft_ingreso'
-
-// Detecta si el nombre ya tiene unidad explícita (ej: "X 5 LTS.")
-const SIZE_WITH_UNIT_RE = /[^a-zA-Z](\d+(?:[.,]\d+)?)\s*(ltrs?|lts?|kgs?|gr|gm|ml|cc|l(?:[^a-zA-Z]|$))/i
-// Detecta si el nombre tiene "x N" sin unidad (ej: "PRUEBA FC x 5")
-const BARE_X_N_RE = /\s[xX×]\s*\d+/i
-
-function productDisplayName(p) {
-  if (!p.name) return ''
-  if (SIZE_WITH_UNIT_RE.test(p.name)) return p.name              // ya tiene unidad → tal cual
-  if (p.package_size && p.package_unit) {
-    if (BARE_X_N_RE.test(p.name)) return `${p.name} ${p.package_unit}` // x N sin unidad → agregar solo unidad
-    return `${p.name} X ${p.package_size} ${p.package_unit}`    // sin medida → agregar todo
-  }
-  return p.name
-}
 
 function emptyRow() {
   return { id: crypto.randomUUID(), product: '', lot_code: '', expiry_date: '', cantidad: '', uds: '', uds_rem: '', cajas: '', cajas_rem: '', galones: '', bidones: '', tambores: '', pallets: '' }
