@@ -72,7 +72,7 @@ export default function ProductLots() {
     <div>
       <PageHeader
         title={productName || 'Producto'}
-        subtitle={`${productLots.length} lotes · ${formatNumber(total)} uds${eqTotal > 0 ? ` · ${formatNumber(eqTotal)} ${eqUnit}` : ''}`}
+        subtitle={`${productLots.length} lotes · ${eqTotal > 0 ? `${formatNumber(eqTotal)} ${eqUnit} · ` : ''}${formatNumber(total)} uds`}
       />
 
       <div className="grid gap-2">

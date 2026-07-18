@@ -596,7 +596,11 @@ export default function ClientPortal({ view = 'inventory' }) {
     const clientId  = profileClientId
     if (!fresh[0] || !clientId) { setReqMessage('No se pudo validar el cliente. Recarga e intenta de nuevo.'); return }
     if (clientIds.some(id => id !== clientId)) { setReqMessage('La solicitud contiene productos de otro cliente. Recarga e intenta de nuevo.'); return }
-    if (over) { setReqMessage(`${cleanProductName(over.product)} solo tiene ${formatNumber(over.current_quantity ?? over.available ?? 0)} uds disponibles.`); return }
+    if (over) {
+      const availUds = Number(over.current_quantity ?? over.available ?? 0)
+      const disp = Number(over.package_size) > 0 && over.package_unit ? equivalentLabel(availUds * Number(over.package_size), over.package_unit) : `${formatNumber(availUds)} uds`
+      setReqMessage(`${cleanProductName(over.product)} solo tiene ${disp} disponibles.`); return
+    }
     let attachmentUrl = editingRequestId ? existingAttachment : null
     if (reqAttachFile) {
       setReqUploading(true)
