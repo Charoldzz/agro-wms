@@ -6,6 +6,7 @@ import SimpleDateSelect from '../components/SimpleDateSelect'
 import { cleanProductName, displayLotCode, packageLabel } from '../lib/display'
 import { formatDate, formatNumber, movementLabel, equivalentLabel as fmtEquivalent } from '../lib/format'
 import { exportTableExcel, printTablePdf } from '../lib/exports'
+import { desgloseEnvases } from '../lib/envases'
 import { supabase } from '../lib/supabase'
 
 function escapeHtml(value) {
@@ -266,7 +267,7 @@ export default function AdminExports() {
           </button>
         </div>
 
-        <div className="grid gap-3 lg:grid-cols-[1fr_220px_180px_160px_160px]">
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           <label className="block">
             <span className="label">Buscar</span>
             <div className="mt-1 flex items-center rounded-lg border border-slate-200 bg-white px-3">
@@ -282,15 +283,17 @@ export default function AdminExports() {
             </select>
           </label>
           <label className="block">
-            <span className="label">Tipo</span>
+            <span className="label">Tipo de movimiento</span>
             <select className="input mt-1" value={movementType} onChange={(event) => setMovementType(event.target.value)}>
               <option value="">Todos</option>
               <option value="entrada">Ingreso</option>
-              <option value="salida">Despacho</option>
+              <option value="salida">Salida</option>
               <option value="traslado">Traslado</option>
               <option value="ajuste">Reparo</option>
             </select>
           </label>
+        </div>
+        <div className="mt-3 grid gap-3 sm:grid-cols-2">
           <label className="block">
             <span className="label">Desde</span>
             <div className="mt-1">
@@ -327,9 +330,20 @@ export default function AdminExports() {
           onExcel={() => exportTableExcel({ fileName: 'inventario-todo-agricola', sheetName: 'Inventario', title: 'Inventario actual', headers: inventoryHeaders, rows: inventoryRows }).catch((e) => alert(`Error al generar Excel: ${e.message}`))}
           onPdf={() => printTablePdf({ title: 'Inventario actual', headers: inventoryHeaders, rows: inventoryRows, meta: [{ label: 'Lotes', value: formatNumber(filteredLots.length) }] })}
         >
-          {inventoryRows.length === 0 ? <EmptyState title="Sin inventario" text="Ajusta los filtros para ver resultados." /> : inventoryRows.slice(0, 8).map((row) => (
-            <PreviewRow key={`${row[0]}-${row[2]}-${row[3]}`} title={row[1]} meta={`${row[0]} - ${row[2]} - vence ${row[8] || '-'}`} value={row[5] || `${row[3]} uds`} />
-          ))}
+          {inventoryRows.length === 0 ? <EmptyState title="Sin inventario" text="Ajusta los filtros para ver resultados." /> : filteredLots.slice(0, 8).map((lot) => {
+            const size = Number(lot.package_size) || 0
+            const eq = equivalentLabel(lot)
+            const env = size > 0 ? desgloseEnvases(Number(lot.current_quantity || 0) * size, size, lot.package_unit, 0).unidadesLabel : ''
+            return (
+              <PreviewRow
+                key={lot.id}
+                title={cleanProductName(lot.product)}
+                meta={`${lot.clients?.name || '-'} · ${displayLotCode(lot.lot_code)} · vence ${lot.expiry_date ? formatDate(lot.expiry_date) : '-'}`}
+                value={eq || `${formatNumber(lot.current_quantity)} uds`}
+                sub={env}
+              />
+            )
+          })}
         </ExportPanel>
 
         <ExportPanel
@@ -338,9 +352,22 @@ export default function AdminExports() {
           onExcel={() => exportTableExcel({ fileName: 'movimientos-todo-agricola', sheetName: 'Movimientos', title: 'Movimientos de inventario', headers: movementHeaders, rows: movementRows }).catch((e) => alert(`Error al generar Excel: ${e.message}`))}
           onPdf={() => printTablePdf({ title: 'Movimientos de inventario', headers: movementHeaders, rows: movementRows, meta: [{ label: 'Movimientos', value: formatNumber(filteredMovements.length) }] })}
         >
-          {movementRows.length === 0 ? <EmptyState title="Sin movimientos" text="Ajusta los filtros para ver resultados." /> : movementRows.slice(0, 8).map((row) => (
-            <PreviewRow key={`${row[0]}-${row[2]}-${row[4]}-${row[5]}`} title={row[3]} meta={`${row[1]} - ${row[2]} - ${row[0]}`} value={row[6] || `${row[5]} uds`} />
-          ))}
+          {movementRows.length === 0 ? <EmptyState title="Sin movimientos" text="Ajusta los filtros para ver resultados." /> : filteredMovements.slice(0, 8).map((movement) => {
+            const size = Number(movement.lots?.package_size) || 0
+            const eqRaw = size > 0 ? Number(movement.quantity || 0) * size : Number(movement.quantity || 0)
+            const eq = equivalentLabel({ ...movement.lots, quantity: movement.quantity })
+            const env = size > 0 ? desgloseEnvases(eqRaw, size, movement.lots?.package_unit, 0).unidadesLabel : ''
+            return (
+              <PreviewRow
+                key={movement.id}
+                title={cleanProductName(movement.lots?.product)}
+                meta={`${movement.lots?.clients?.name || '-'} · ${formatDate(movement.created_at)}`}
+                value={eq || `${formatNumber(movement.quantity)} uds`}
+                sub={env}
+                movementType={movement.type}
+              />
+            )
+          })}
         </ExportPanel>
       </section>
 
@@ -382,15 +409,33 @@ function ExportPanel({ title, description, children, onExcel, onPdf }) {
   )
 }
 
-function PreviewRow({ title, meta, value }) {
+const MOVEMENT_TONE = {
+  entrada: 'bg-campo-100 text-campo-800',
+  salida: 'bg-red-100 text-red-800',
+  traslado: 'bg-blue-100 text-blue-800',
+  ajuste: 'bg-orange-100 text-orange-800',
+}
+const MOVEMENT_SHORT = { entrada: 'Ingreso', salida: 'Salida', traslado: 'Traslado', ajuste: 'Reparo' }
+
+function PreviewRow({ title, meta, value, sub, movementType }) {
   return (
-    <article className="rounded-lg bg-slate-50 p-3">
+    <article className="rounded-lg border border-slate-100 bg-white p-3">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className="font-black leading-snug text-slate-950 [overflow-wrap:anywhere]">{title}</p>
-          <p className="text-xs font-semibold text-slate-500 [overflow-wrap:anywhere]">{meta}</p>
+          <div className="flex flex-wrap items-center gap-2">
+            {movementType ? (
+              <span className={`rounded-full px-2 py-0.5 text-[10px] font-black uppercase tracking-wide ${MOVEMENT_TONE[movementType] || 'bg-slate-100 text-slate-700'}`}>
+                {MOVEMENT_SHORT[movementType] || movementType}
+              </span>
+            ) : null}
+            <p className="font-black leading-snug text-slate-950 [overflow-wrap:anywhere]">{title}</p>
+          </div>
+          <p className="mt-0.5 text-xs font-semibold text-slate-500 [overflow-wrap:anywhere]">{meta}</p>
         </div>
-        <span className="rounded-lg bg-campo-50 px-2 py-1 text-sm font-black text-campo-800">{value}</span>
+        <div className="shrink-0 text-right">
+          <p className="text-sm font-black text-campo-800 whitespace-nowrap">{value}</p>
+          {sub ? <p className="text-[10px] font-semibold text-slate-400 whitespace-nowrap">{sub}</p> : null}
+        </div>
       </div>
     </article>
   )
