@@ -8,17 +8,20 @@ import { formatDate, formatNumber, movementLabel, equivalentLabel } from '../lib
 import { desgloseEnvases } from '../lib/envases'
 import { supabase } from '../lib/supabase'
 
-// Separa el concepto crudo del movimiento en campos (Motivo, Foto) + observación
+// Separa el concepto crudo del movimiento en campos (Motivo, Afectado, Foto) + observación.
+// afectado = cantidad afectada en EQUIVALENTE que cargó el operador (dato principal de la reparación).
 function parseMovementNotes(notes) {
-  const out = { motivo: '', foto: '', obs: [] }
+  const out = { motivo: '', foto: '', afectado: null, obs: [] }
   String(notes || '').split('|').map((p) => p.trim()).filter(Boolean).forEach((part) => {
     if (/^motivo:/i.test(part)) out.motivo = part.replace(/^motivo:\s*/i, '')
     else if (/^incidencia:/i.test(part)) out.motivo = out.motivo || part.replace(/^incidencia:\s*/i, '')
     else if (/^foto:/i.test(part)) out.foto = part.replace(/^foto:\s*/i, '')
-    else if (/^afectado:/i.test(part)) { /* se calcula del stock, no se muestra el crudo */ }
-    else out.obs.push(part)
+    else if (/^afectado:/i.test(part)) {
+      const n = parseFloat(part.replace(/^afectado:\s*/i, '').replace(',', '.'))
+      out.afectado = Number.isFinite(n) ? n : null
+    } else out.obs.push(part)
   })
-  return { motivo: out.motivo, foto: out.foto, obs: out.obs.join(' · ') }
+  return { motivo: out.motivo, foto: out.foto, afectado: out.afectado, obs: out.obs.join(' · ') }
 }
 
 // Fila: dato PRINCIPAL en equivalente + envase secundario en gris
@@ -171,20 +174,24 @@ export default function AdminPending() {
           {movements.map((movement) => {
             const size = Number(movement.lots?.package_size) || 0
             const unit = movement.lots?.package_unit
-            const currentUds = Number(movement.previous_quantity != null ? movement.previous_quantity : movement.lots?.current_quantity) || 0
-            const newUds = Number(movement.new_quantity != null ? movement.new_quantity : movement.quantity) || 0
+            const currentUds = Number(movement.lots?.current_quantity) || 0
+            const currentEq = currentUds * size
             const isAjuste = movement.type === 'ajuste'
-            const afectadoUds = isAjuste ? Math.max(currentUds - newUds, 0) : newUds
             const note = parseMovementNotes(movement.notes)
-            const eqOf = (uds) => (size > 0 ? equivalentLabel(uds * size, unit) : `${formatNumber(uds)} uds`)
-            const envOf = (uds) => (size > 0 ? desgloseEnvases(uds * size, size, unit, 0).unidadesLabel : '')
+            // Cantidad afectada en equivalente: del concepto del operador; si falta, del delta de cantidades
+            const afectadoEq = isAjuste
+              ? (note.afectado != null ? note.afectado : Math.max((currentUds - (Number(movement.quantity) || 0)) * size, 0))
+              : (Number(movement.quantity) || 0) * size
+            const newEq = Math.max(currentEq - afectadoEq, 0)
+            const eqLabel = (v) => (size > 0 ? equivalentLabel(v, unit) : `${formatNumber(v)} uds`)
+            const envLabel = (v) => (size > 0 ? desgloseEnvases(v, size, unit, 0).unidadesLabel : '')
             const tipoLabel = isAjuste ? 'Reparación' : movement.type === 'traslado' ? 'Traslado' : movementLabel(movement.type)
             return (
               <article key={movement.id} className="panel border-orange-200 bg-orange-50">
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
                     <p className="text-base font-black text-slate-950 [overflow-wrap:anywhere]">{cleanProductName(movement.lots?.product)}</p>
-                    <p className="mt-0.5 text-[11px] font-semibold text-slate-500">Lote {displayLotCode(movement.lots?.lot_code)} · {movement.lots?.clients?.name || '-'}</p>
+                    <p className="mt-0.5 text-[11px] font-semibold text-slate-500 [overflow-wrap:anywhere]">Lote {displayLotCode(movement.lots?.lot_code)} · {movement.lots?.clients?.name || '-'} · {movement.lots?.location || '-'}</p>
                   </div>
                   <span className="shrink-0 rounded-full bg-white px-3 py-1 text-xs font-black text-orange-700">{tipoLabel}</span>
                 </div>
@@ -193,26 +200,33 @@ export default function AdminPending() {
                   <span className="mt-2 inline-flex rounded-full bg-white px-3 py-1 text-xs font-bold text-orange-800">{note.motivo}</span>
                 ) : null}
 
-                <div className="mt-3 space-y-1.5">
-                  {isAjuste ? (
-                    <>
-                      <StockLine label="Cantidad afectada" tone="red" eq={eqOf(afectadoUds)} env={envOf(afectadoUds)} />
-                      <StockLine label="Stock actual" eq={eqOf(currentUds)} env={envOf(currentUds)} />
-                      <StockLine label="Stock si se aprueba" tone="green" eq={eqOf(newUds)} env={envOf(newUds)} />
-                    </>
-                  ) : movement.type === 'traslado' ? (
-                    <>
-                      <StockLine label="Nueva ubicación" eq={movement.to_location || '-'} />
-                      <StockLine label="Cantidad" eq={eqOf(currentUds)} env={envOf(currentUds)} />
-                    </>
-                  ) : (
-                    <>
-                      <StockLine label="Cantidad" eq={eqOf(newUds)} env={envOf(newUds)} />
-                      <StockLine label="Stock actual" eq={eqOf(currentUds)} env={envOf(currentUds)} />
-                    </>
-                  )}
-                  <StockLine label="Ubicación" eq={movement.lots?.location || '-'} />
-                </div>
+                {isAjuste ? (
+                  <div className="mt-2.5 rounded-lg bg-white px-3">
+                    <div className="flex items-center justify-between gap-3 border-b border-slate-100 py-2">
+                      <span className="text-xs font-bold uppercase tracking-wide text-slate-400">Afectada</span>
+                      <span className="text-right text-sm font-black text-red-700">{eqLabel(afectadoEq)}{envLabel(afectadoEq) ? <span className="ml-1.5 text-[11px] font-semibold text-slate-400">· {envLabel(afectadoEq)}</span> : null}</span>
+                    </div>
+                    <div className="flex items-center justify-between gap-3 py-2">
+                      <span className="text-xs font-bold uppercase tracking-wide text-slate-400">Stock</span>
+                      <span className="text-right">
+                        <span className="text-sm font-black text-slate-500">{eqLabel(currentEq)}</span>
+                        <span className="mx-1.5 text-slate-300">→</span>
+                        <span className="text-sm font-black text-campo-700">{eqLabel(newEq)}</span>
+                        {size > 0 ? <span className="block text-[11px] font-semibold text-slate-400">{envLabel(currentEq)} → {envLabel(newEq)}</span> : null}
+                      </span>
+                    </div>
+                  </div>
+                ) : movement.type === 'traslado' ? (
+                  <div className="mt-2.5 flex items-center justify-between gap-3 rounded-lg bg-white px-3 py-2">
+                    <span className="text-xs font-bold uppercase tracking-wide text-slate-400">Nueva ubicación</span>
+                    <span className="text-sm font-black text-slate-900">{movement.to_location || '-'}</span>
+                  </div>
+                ) : (
+                  <div className="mt-2.5 flex items-center justify-between gap-3 rounded-lg bg-white px-3 py-2">
+                    <span className="text-xs font-bold uppercase tracking-wide text-slate-400">Cantidad</span>
+                    <span className="text-right text-sm font-black text-slate-900">{eqLabel(afectadoEq)}{envLabel(afectadoEq) ? <span className="ml-1.5 text-[11px] font-semibold text-slate-400">· {envLabel(afectadoEq)}</span> : null}</span>
+                  </div>
+                )}
 
                 {note.obs ? <p className="mt-2 rounded-lg bg-white px-3 py-2 text-sm font-semibold italic text-slate-600 [overflow-wrap:anywhere]">{note.obs}</p> : null}
 
