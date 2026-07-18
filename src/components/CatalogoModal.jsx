@@ -63,6 +63,7 @@ export default function CatalogoModal({ clients, onClose }) {
       .update({ pending_review: false })
       .eq('id', selectedId)
     if (err) { setError(err.message); return }
+    setMode(null)
     setSelectedId(null)
     load()
   }
@@ -95,6 +96,7 @@ export default function CatalogoModal({ clients, onClose }) {
     const { error: err } = await supabase.from('product_catalog').delete().eq('id', selectedId)
     setDeleting(false)
     if (err) return setError(err.message)
+    setMode(null)
     setSelectedId(null)
     load()
   }
@@ -135,7 +137,14 @@ export default function CatalogoModal({ clients, onClose }) {
     load()
   }
 
-  function cancel() { setMode(null); setError('') }
+  function cancel() { setMode('detail'); setError('') }
+
+  function goBack() {
+    setError('')
+    if (mode === 'edit') { setMode('detail'); return }
+    setMode(null)
+    setSelectedId(null)
+  }
 
   const selectedProduct = products.find((p) => p.id === selectedId)
   const editLabel = editForm.name
@@ -153,9 +162,9 @@ export default function CatalogoModal({ clients, onClose }) {
         {/* Header */}
         <div className="flex shrink-0 items-center justify-between border-b border-slate-100 px-5 py-4">
           <h2 className="text-base font-black text-slate-950">
-            {mode === 'edit' ? `Modificar: ${selectedProduct?.code || ''}` : 'Catálogo de productos'}
+            {mode === 'edit' ? `Modificar: ${selectedProduct?.code || ''}` : mode === 'detail' ? 'Ficha del producto' : 'Catálogo de productos'}
           </h2>
-          <button className="btn-secondary !min-h-9 !p-2" type="button" onClick={mode ? cancel : onClose}>
+          <button className="btn-secondary !min-h-9 !p-2" type="button" onClick={mode ? goBack : onClose}>
             {mode ? <ArrowLeft size={18} /> : <X size={18} />}
           </button>
         </div>
@@ -165,34 +174,6 @@ export default function CatalogoModal({ clients, onClose }) {
           <>
             {/* Toolbar */}
             <div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-slate-100 px-4 py-2.5">
-              <button
-                className="btn-secondary !min-h-9 !px-3 !py-1.5 text-sm"
-                type="button"
-                onClick={handleModificar}
-                disabled={deleting}
-              >
-                <Edit2 size={15} />
-                Modificar
-              </button>
-              <button
-                className="btn-secondary !min-h-9 !px-3 !py-1.5 text-sm text-red-700 hover:bg-red-50"
-                type="button"
-                onClick={handleEliminar}
-                disabled={deleting}
-              >
-                <Trash2 size={15} />
-                {deleting ? 'Eliminando...' : 'Eliminar'}
-              </button>
-              {selectedProduct?.pending_review && (
-                <button
-                  className="btn-secondary !min-h-9 !px-3 !py-1.5 text-sm text-campo-700 hover:bg-campo-50"
-                  type="button"
-                  onClick={marcarRevisada}
-                >
-                  <CheckCircle2 size={15} />
-                  Revisada
-                </button>
-              )}
               {pendingCount > 0 && (
                 <button
                   className={`inline-flex min-h-9 items-center gap-1.5 rounded-lg border px-3 py-1.5 text-sm font-bold transition ${
@@ -280,7 +261,7 @@ export default function CatalogoModal({ clients, onClose }) {
                           ? 'bg-campo-100'
                           : i % 2 === 0 ? 'bg-white hover:bg-slate-50' : 'bg-slate-50 hover:bg-slate-100'
                       }`}
-                      onClick={() => { setSelectedId((prev) => (prev === p.id ? null : p.id)); setError('') }}
+                      onClick={() => { setSelectedId(p.id); setMode('detail'); setError('') }}
                     >
                       <span className="w-24 shrink-0 font-mono text-xs font-bold text-campo-700">{p.code}</span>
                       <div className="min-w-0 flex-1">
@@ -298,10 +279,54 @@ export default function CatalogoModal({ clients, onClose }) {
 
             {/* Footer */}
             <div className="shrink-0 border-t border-slate-100 px-4 py-2 text-xs font-semibold text-slate-400">
-              {filtered.length} producto{filtered.length !== 1 ? 's' : ''}
-              {selectedId && <span className="ml-3 font-bold text-campo-700">· {selectedProduct?.code} seleccionado</span>}
+              {filtered.length} producto{filtered.length !== 1 ? 's' : ''} · tocá una ficha para ver su detalle
             </div>
           </>
+        )}
+
+        {/* === VISTA DETALLE === */}
+        {mode === 'detail' && selectedProduct && (
+          <div className="flex flex-1 flex-col overflow-y-auto">
+            <div className="flex-1 p-5">
+              <div className="mb-4">
+                {selectedProduct.pending_review ? (
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-100 px-3 py-1 text-xs font-black text-amber-800">
+                    <span className="h-1.5 w-1.5 rounded-full bg-amber-500" /> Pendiente de revisión
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-campo-100 px-3 py-1 text-xs font-black text-campo-800">
+                    <CheckCircle2 size={13} /> Revisada
+                  </span>
+                )}
+              </div>
+              <dl className="overflow-hidden rounded-xl border border-slate-200">
+                <DetailField label="Código" value={selectedProduct.code} mono />
+                <DetailField label="Producto" value={productDisplayName(selectedProduct)} strong />
+                <DetailField label="Empresa" value={selectedProduct.clients?.name || '—'} />
+                <DetailField
+                  label="Presentación"
+                  value={selectedProduct.package_size && selectedProduct.package_unit ? `${selectedProduct.package_size} ${selectedProduct.package_unit}` : 'Sin presentación'}
+                />
+                <DetailField label="Unidades por caja" value={selectedProduct.units_per_box ? String(selectedProduct.units_per_box) : '—'} />
+              </dl>
+              {error && <p className="mt-3 text-sm font-bold text-red-600">{error}</p>}
+            </div>
+            <div className="shrink-0 border-t border-slate-100 p-4">
+              {selectedProduct.pending_review && (
+                <button className="btn-primary mb-2 w-full" type="button" onClick={marcarRevisada}>
+                  <CheckCircle2 size={18} /> Marcar como revisada
+                </button>
+              )}
+              <div className="flex gap-2">
+                <button className="btn-secondary flex-1" type="button" onClick={handleModificar}>
+                  <Edit2 size={16} /> Modificar
+                </button>
+                <button className="btn-secondary flex-1 text-red-700 hover:bg-red-50" type="button" onClick={handleEliminar} disabled={deleting}>
+                  <Trash2 size={16} /> {deleting ? 'Eliminando...' : 'Eliminar'}
+                </button>
+              </div>
+            </div>
+          </div>
         )}
 
         {/* === FORMULARIO MODIFICAR === */}
@@ -373,6 +398,15 @@ export default function CatalogoModal({ clients, onClose }) {
         )}
 
       </div>
+    </div>
+  )
+}
+
+function DetailField({ label, value, mono, strong }) {
+  return (
+    <div className="flex items-start justify-between gap-4 border-b border-slate-100 px-4 py-3 last:border-b-0">
+      <dt className="shrink-0 text-xs font-bold uppercase tracking-wide text-slate-400">{label}</dt>
+      <dd className={`min-w-0 text-right text-sm [overflow-wrap:anywhere] ${mono ? 'font-mono font-bold text-campo-700' : strong ? 'font-black text-slate-900' : 'font-semibold text-slate-700'}`}>{value}</dd>
     </div>
   )
 }
