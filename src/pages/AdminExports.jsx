@@ -232,19 +232,25 @@ export default function AdminExports() {
     })
   }, [movements, search, clientFilter, movementType, dateFrom, dateTo])
 
-  const inventoryHeaders = ['Cliente', 'Producto', 'Lote', 'Unidades', 'Presentacion', 'Equivalente', 'Ubicacion', 'Ingreso', 'Vencimiento', 'Estado']
-  const inventoryRows = filteredLots.map((lot) => [
-    lot.clients?.name || '',
-    cleanProductName(lot.product),
-    displayLotCode(lot.lot_code),
-    formatNumber(lot.current_quantity),
-    packageLabel(lot) || '',
-    equivalentLabel(lot),
-    lot.location || '',
-    lot.entry_date ? formatDate(lot.entry_date) : '',
-    lot.expiry_date ? formatDate(lot.expiry_date) : '',
-    lot.status || '',
-  ])
+  const inventoryHeaders = ['Cliente', 'Producto', 'Lote', 'Cantidad', 'Unidades', 'Presentacion', 'Ubicacion', 'Ingreso', 'Vencimiento', 'Estado']
+  const inventoryRows = filteredLots.map((lot) => {
+    const size = Number(lot.package_size) || 0
+    const unidades = size > 0
+      ? desgloseEnvases(Number(lot.current_quantity || 0) * size, size, lot.package_unit, 0).unidadesLabel
+      : `${formatNumber(lot.current_quantity)} uds`
+    return [
+      lot.clients?.name || '',
+      cleanProductName(lot.product),
+      displayLotCode(lot.lot_code),
+      equivalentLabel(lot) || `${formatNumber(lot.current_quantity)} uds`,
+      unidades,
+      packageLabel(lot) || '',
+      lot.location || '',
+      lot.entry_date ? formatDate(lot.entry_date) : '',
+      lot.expiry_date ? formatDate(lot.expiry_date) : '',
+      lot.status || '',
+    ]
+  })
 
   const movementHeaders = ['Fecha', 'Tipo', 'Cliente', 'Producto', 'Lote', 'Cantidad', 'Equivalente', 'Stock anterior', 'Stock nuevo', 'Ubicacion', 'Usuario']
   const movementRows = filteredMovements.map((movement) => [
