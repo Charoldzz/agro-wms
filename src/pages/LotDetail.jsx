@@ -264,11 +264,15 @@ export default function LotDetail() {
   }, [lot, movement])
 
   const selectedIncident = getIncidentConfig(movement.incident_type)
+  // Reparación (modelo Harold): el operador carga la cantidad AFECTADA en equivalente
+  // (affected_packages). El nuevo stock = actual − afectado (convertido a uds).
   const repairQuantity = useMemo(() => {
     if (!lot || movement.type !== 'ajuste') return 0
-    if (selectedIncident?.needsPhysicalCount) return Number(movement.physical_count || 0)
-    return Number(lot.current_quantity || 0)
-  }, [lot, movement.type, movement.physical_count, selectedIncident])
+    const size = Number(lot.package_size) || 0
+    const affectedEquiv = Number(movement.affected_packages || 0)
+    const affectedUds = size > 0 ? affectedEquiv / size : affectedEquiv
+    return Math.max(Number(lot.current_quantity || 0) - affectedUds, 0)
+  }, [lot, movement.type, movement.affected_packages])
 
   const nextQuantity = useMemo(() => {
     const quantity = stockQuantity
@@ -310,7 +314,10 @@ export default function LotDetail() {
   useEffect(() => {
     if (!movementDraftKey) return
     const draft = readDraft(movementDraftKey, { movement: initialMovement })
-    if (draft.movement) setMovement((value) => ({ ...value, ...draft.movement }))
+    // El tipo lo manda SIEMPRE el modo de entrada (reparo/traslado/despacho), no el
+    // borrador (que arranca en 'entrada' por defecto y pisaba el modo).
+    const forcedType = movementMode === 'reparo' ? 'ajuste' : movementMode === 'traslado' ? 'traslado' : movementMode === 'despacho' ? 'salida' : null
+    if (draft.movement) setMovement((value) => ({ ...value, ...draft.movement, ...(forcedType ? { type: forcedType } : {}) }))
   }, [movementDraftKey])
 
   useEffect(() => {
@@ -372,25 +379,19 @@ export default function LotDetail() {
     }
 
     if (movement.type === 'ajuste' && !movement.incident_type) {
-      setError('Selecciona que paso con el lote.')
+      setError('Selecciona el motivo de la reparacion.')
       vibrateError()
       return
     }
 
-    if (movement.type === 'ajuste' && selectedIncident?.needsAffected && Number(movement.affected_packages || 0) <= 0) {
-      setError('Escribe cuantos unidades estan afectados.')
+    if (movement.type === 'ajuste' && !(Number(movement.affected_packages || 0) > 0)) {
+      setError('Escribe la cantidad afectada.')
       vibrateError()
       return
     }
 
-    if (movement.type === 'ajuste' && selectedIncident?.needsPhysicalCount && movement.physical_count === '') {
-      setError('Escribe la cantidad fisica contada.')
-      vibrateError()
-      return
-    }
-
-    if (movement.type === 'ajuste' && selectedIncident?.needsPhysicalCount && Number(movement.physical_count || 0) < 0) {
-      setError('La cantidad fisica no puede ser negativa.')
+    if (movement.type === 'ajuste' && Number(movement.affected_packages || 0) > currentEquivalent) {
+      setError('La cantidad afectada no puede superar el stock del lote.')
       vibrateError()
       return
     }
@@ -441,9 +442,8 @@ export default function LotDetail() {
     }
 
     const movementNotes = [
-      pendingMovement.type === 'ajuste' && pendingMovement.incident_type ? `Incidencia: ${getIncidentConfig(pendingMovement.incident_type)?.label || pendingMovement.incident_type}` : null,
-      pendingMovement.type === 'ajuste' && pendingMovement.affected_packages ? `Unidades afectados: ${pendingMovement.affected_packages}` : null,
-      pendingMovement.type === 'ajuste' && pendingMovement.physical_count !== '' ? `Cantidad fisica: ${pendingMovement.physical_count}` : null,
+      pendingMovement.type === 'ajuste' && pendingMovement.incident_type ? `Motivo: ${getIncidentConfig(pendingMovement.incident_type)?.label || pendingMovement.incident_type}` : null,
+      pendingMovement.type === 'ajuste' && Number(pendingMovement.affected_packages || 0) > 0 ? `Afectado: ${formatNumber(pendingMovement.affected_packages)} ${Number(lot.package_size) > 0 ? (lot.package_unit || '') : 'uds'}` : null,
       pendingMovement.notes || null,
       pendingMovement.type === 'salida' && pendingMovement.to_location ? `Placa: ${pendingMovement.to_location}` : null,
       pendingMovement.receiver_name ? `Recibe: ${pendingMovement.receiver_name}` : null,
@@ -1050,30 +1050,26 @@ export default function LotDetail() {
       ) : null}
 
       {compactServiceView ? (
-        <section className="panel mb-4 border-orange-200 bg-white/95">
-          <p className="mb-2 text-xs font-bold uppercase text-orange-700">
-            Lote para {movementMode === 'traslado' ? 'traslado' : 'reparacion'}
-          </p>
-          <ListProductCard
-            title={cleanProductName(lot.product)}
-            unidades={lot.current_quantity}
-            equivalent={Number(lot.package_size) > 0 ? currentEquivalent : null}
-            equivalentUnit={lot.package_unit}
-            presentation={lot.package_size ? `${formatNumber(lot.package_size)} ${lot.package_unit || ''}` : 'Sin dato'}
-            secondary={`${visibleLotCode} - ${lot.location || '-'}`}
-            detailTitle={movementMode === 'traslado' ? 'Producto para traslado' : 'Producto para reparacion'}
-            detailRows={[
-              { label: 'Cliente', value: lot.clients?.name || '-' },
-              { label: 'Codigo', value: productCodeLabel(lot) || '-' },
-              { label: 'Lote', value: visibleLotCode },
-              { label: 'Disponible', value: `${formatNumber(lot.current_quantity)} uds` },
-              { label: 'Equivalente', value: Number(lot.package_size) > 0 ? equivalentLabel(currentEquivalent, lot.package_unit) : 'Sin dato' },
-              { label: 'Presentacion', value: lot.package_size ? `${formatNumber(lot.package_size)} ${lot.package_unit || ''}` : 'Sin dato' },
-              { label: 'Ubicacion', value: lot.location || '-' },
-              { label: 'Vencimiento', value: lot.expiry_date ? formatDate(lot.expiry_date) : 'Sin dato' },
-              { label: 'Estado', value: lot.status || '-' },
-            ]}
-          />
+        <section className="mb-4">
+          <h2 className="mb-3 text-lg font-black text-slate-950">
+            {movementMode === 'traslado' ? 'Traslado de lote' : 'Reparación / Ajuste'}
+          </h2>
+          <div className="rounded-xl border border-slate-200 bg-white p-4">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-sm font-black text-slate-950 [overflow-wrap:anywhere]">{cleanProductName(lot.product)}</p>
+                <p className="mt-0.5 text-[11px] font-semibold text-slate-400">Lote {visibleLotCode} · {lot.location || '-'}</p>
+              </div>
+              <div className="shrink-0 text-right">
+                <p className="text-lg font-black text-campo-700">{Number(lot.package_size) > 0 ? equivalentLabel(currentEquivalent, lot.package_unit) : `${formatNumber(lot.current_quantity)} uds`}</p>
+                <p className="text-[11px] font-semibold text-slate-400">{unidadesEnvaseLabel(lot)}</p>
+              </div>
+            </div>
+            <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-[11px] font-semibold text-slate-500">
+              <span>Código: {productCodeLabel(lot) || '-'}</span>
+              <span>Vence: {lot.expiry_date ? formatDate(lot.expiry_date) : 'Sin dato'}</span>
+            </div>
+          </div>
         </section>
       ) : (
       <section className="panel mb-4 border-campo-200 bg-white/95">
@@ -1180,29 +1176,29 @@ export default function LotDetail() {
           ) : movement.type === 'ajuste' ? (
             <>
               <label className="sm:col-span-2">
-                <span className="label">¿Que paso?</span>
+                <span className="label">Motivo</span>
                 <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-3">
                   {incidentTypes.map((incident) => (
                     <button
                       key={incident.value}
-                      className={`min-h-12 rounded-lg border px-3 py-2 text-sm font-bold ${
+                      className={`min-h-11 rounded-lg border px-3 py-2 text-sm font-bold ${
                         movement.incident_type === incident.value
                           ? 'border-orange-500 bg-orange-50 text-orange-800'
                           : 'border-slate-200 bg-white text-slate-700'
                       }`}
                       type="button"
-                      onClick={() => setMovement({ ...movement, incident_type: incident.value, affected_packages: '', physical_count: '' })}
+                      onClick={() => setMovement({ ...movement, incident_type: incident.value })}
                     >
                       {incident.label}
                     </button>
                   ))}
                 </div>
               </label>
-              {selectedIncident?.needsAffected ? (
-                <label>
-                  <span className="label">Unidades afectados</span>
+              <div className="sm:col-span-2">
+                <span className="label">Cantidad afectada</span>
+                <div className="mt-1 flex items-center gap-2">
                   <input
-                    className="input mt-1"
+                    className="input w-40"
                     type="text"
                     inputMode="decimal"
                     value={movement.affected_packages}
@@ -1211,29 +1207,20 @@ export default function LotDetail() {
                       if (/^\d*\.?\d*$/.test(value)) setMovement({ ...movement, affected_packages: value })
                     }}
                     onWheel={(event) => event.currentTarget.blur()}
+                    placeholder={Number(lot.package_size) > 0 ? `Ej: ${formatNumber(lot.package_size)}` : 'Ej: 5'}
                     required
                   />
-                </label>
-              ) : null}
-              {selectedIncident?.needsPhysicalCount ? (
-                <label>
-                  <span className="label">Cantidad fisica contada</span>
-                  <input
-                    className="input mt-1"
-                    type="text"
-                    inputMode="decimal"
-                    value={movement.physical_count}
-                    onChange={(event) => {
-                      const value = event.target.value.replace(',', '.')
-                      if (/^\d*\.?\d*$/.test(value)) setMovement({ ...movement, physical_count: value })
-                    }}
-                    onWheel={(event) => event.currentTarget.blur()}
-                    required
-                  />
-                </label>
-              ) : null}
+                  <span className="text-sm font-bold text-slate-500">{Number(lot.package_size) > 0 ? (lot.package_unit || '') : 'uds'}</span>
+                </div>
+                {Number(movement.affected_packages || 0) > 0 ? (
+                  <p className="mt-1.5 text-xs font-semibold text-slate-500">
+                    = <span className="font-bold text-slate-800">{desgloseEnvases(Number(movement.affected_packages || 0), Number(lot.package_size) || 0, lot.package_unit, 0).unidadesLabel || `${formatNumber(movement.affected_packages)} uds`}</span>
+                    {Number(lot.package_size) > 0 ? ` · queda ${equivalentLabel(repairQuantity * Number(lot.package_size), lot.package_unit)} en el lote` : ''}
+                  </p>
+                ) : null}
+              </div>
               <div className="rounded-lg bg-orange-50 p-3 text-sm font-bold text-orange-800 sm:col-span-2">
-                Se enviara a revision del administrador. El operador solo reporta la incidencia.
+                Se enviará a revisión del administrador antes de aplicar el ajuste.
               </div>
             </>
           ) : movement.type !== 'traslado' ? (
@@ -1305,33 +1292,29 @@ export default function LotDetail() {
         </div>
 
         {movement.type === 'ajuste' ? (
-          <div className="rounded-lg bg-orange-50 p-3 text-sm font-semibold text-orange-800">
-            <div className="flex justify-between gap-3">
-              <span>Stock actual</span>
-              <span>{formatNumber(lot.current_quantity)} unidades</span>
-            </div>
-            {selectedIncident?.needsPhysicalCount ? (
-              <div className="mt-1 flex justify-between gap-3">
-                <span>Stock propuesto</span>
-                <span>{formatNumber(nextQuantity)} unidades</span>
+          <div className="rounded-lg bg-orange-50 p-3">
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-xs font-black uppercase tracking-wide text-orange-700">Stock después</span>
+              <div className="text-right">
+                <p className="text-base font-black text-orange-900">
+                  {Number(lot.package_size) > 0 ? equivalentLabel(repairQuantity * Number(lot.package_size), lot.package_unit) : `${formatNumber(repairQuantity)} uds`}
+                </p>
+                {Number(lot.package_size) > 0 ? <p className="text-[11px] font-semibold text-orange-700">{unidadesEnvaseLabel({ ...lot, current_quantity: repairQuantity })}</p> : null}
               </div>
-            ) : (
-              <p className="mt-1">No cambia stock automaticamente hasta revision administrativa.</p>
-            )}
+            </div>
           </div>
         ) : (
-        <div className="rounded-lg bg-campo-50 p-3 text-sm font-semibold text-campo-700">
-          <div className="flex justify-between gap-3">
-            <span>Stock despues</span>
-            <span>{formatNumber(nextQuantity)} unidades</span>
-          </div>
-          {Number(lot.package_size) > 0 ? (
-            <div className="mt-1 flex justify-between gap-3 text-campo-800">
-              <span>Equivalente despues</span>
-              <span>{equivalentLabel(nextQuantity * Number(lot.package_size), lot.package_unit)}</span>
+          <div className="rounded-lg bg-campo-50 p-3">
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-xs font-black uppercase tracking-wide text-campo-700">Stock después</span>
+              <div className="text-right">
+                <p className="text-base font-black text-campo-800">
+                  {Number(lot.package_size) > 0 ? equivalentLabel(nextQuantity * Number(lot.package_size), lot.package_unit) : `${formatNumber(nextQuantity)} uds`}
+                </p>
+                {Number(lot.package_size) > 0 ? <p className="text-[11px] font-semibold text-campo-700">{unidadesEnvaseLabel({ ...lot, current_quantity: nextQuantity })}</p> : null}
+              </div>
             </div>
-          ) : null}
-        </div>
+          </div>
         )}
         {isLargeSale ? (
           <div className="rounded-lg bg-amber-50 p-3 text-sm font-bold text-amber-800">
@@ -1483,7 +1466,7 @@ export default function LotDetail() {
         </div>
       ) : null}
 
-      <section className="mt-4">
+      <section className={`mt-4 ${compactServiceView ? 'hidden' : ''}`}>
         <div className="mb-3 flex items-center justify-between gap-3">
           <h3 className="text-lg font-bold text-slate-950">{showFullHistory ? 'Historial completo' : 'Historial corto del lote'}</h3>
           {movements.length > 3 ? (
