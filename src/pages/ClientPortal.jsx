@@ -301,7 +301,7 @@ export default function ClientPortal({ view = 'inventory' }) {
         .order('product'),
       supabase
         .from('product_catalog')
-        .select('code,name,units_per_box')
+        .select('code,name,units_per_box,package_size,package_unit')
         .eq('client_id', clientId),
     ])
     setLots(lotsData || [])
@@ -314,7 +314,50 @@ export default function ClientPortal({ view = 'inventory' }) {
           .in('lot_id', lotIds).in('type',['entrada','salida'])
           .order('created_at',{ ascending:false }).limit(80)
       : { data: [] }
-    setMovements(movData || [])
+    // HISTORICO DEL PROGRAMA: la mercaderia es del cliente, asi que ve su propio
+    // historial. Se le OCULTA el campo "Concepto" (trae referencias tecnicas del
+    // sistema viejo, del tipo "SALIDA 6021 (DBF DSALIDCA 001147)").
+    const whCodes = [...new Set((lotsData || []).map(l => l.solucion_warehouse_code).filter(v => v != null))]
+    const { data: deskData } = whCodes.length
+      ? await supabase.from('desktop_movements')
+          .select('id,note_number,type,date,product_code,product_name,lot,expiry_date,quantity,previous_quantity,new_quantity,location,concept,transporter,plate,contact_person')
+          .in('warehouse_code', whCodes.map(String))
+          .order('date', { ascending: false }).limit(600)
+      : { data: [] }
+
+    const catByCode = new Map((catalogData || []).map(c => [String(c.code).toUpperCase(), c]))
+    const desktopMovs = (deskData || []).map((r) => {
+      const cat = catByCode.get(String(r.product_code || '').toUpperCase())
+      const esSaldoInicial = /^inventario inicial/i.test(r.concept || '')
+      return {
+        id: `desk-${r.id}`,
+        source: 'programa',
+        type: r.type === 'INGRESO' ? 'entrada' : 'salida',
+        saldoInicial: esSaldoInicial,
+        quantity: Number(r.quantity || 0),
+        previous_quantity: r.previous_quantity,
+        new_quantity: r.new_quantity,
+        notes: null,              // el concepto tecnico NO se le muestra al cliente
+        created_at: r.date,
+        operation_id: null,
+        noteNumberDirect: r.note_number || null,
+        transporterDirect: r.transporter || '',
+        plateDirect: r.plate || '',
+        contactoDirect: r.contact_person || '',
+        lots: {
+          lot_code: r.lot || '',
+          product: r.product_name || r.product_code || '',
+          solucion_product_code: r.product_code || '',
+          package_size: cat?.package_size ?? null,
+          package_unit: cat?.package_unit ?? null,
+          location: r.location || '',
+          expiry_date: r.expiry_date || null,
+        },
+      }
+    })
+
+    setMovements([...(movData || []), ...desktopMovs]
+      .sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0)))
 
     // Notas de las operaciones (número de guía + transportista/placa)
     const opIds = [...new Set((movData || []).map(m => m.operation_id).filter(Boolean))]
@@ -350,7 +393,7 @@ export default function ClientPortal({ view = 'inventory' }) {
   const movementNotes = useMemo(() => {
     const groups = new Map()
     movements.forEach((m) => {
-      const key = m.operation_id || `mov-${m.id}`
+      const key = m.operation_id || m.noteNumberDirect || `mov-${m.id}`
       if (!groups.has(key)) groups.set(key, [])
       groups.get(key).push(m)
     })
@@ -358,13 +401,16 @@ export default function ClientPortal({ view = 'inventory' }) {
       const first = movs[0]
       const op = first.operation_id ? opsById[first.operation_id] : null
       return {
-        id: first.operation_id || `mov-${first.id}`,
+        id: first.operation_id || first.noteNumberDirect || `mov-${first.id}`,
         type: first.type,
-        noteNumber: op?.guide_number || null,
+        source: first.source || 'app',
+        // "Inventario Inicial" es un artefacto de la migracion, no un ingreso real
+        saldoInicial: Boolean(first.saldoInicial),
+        noteNumber: op?.guide_number || first.noteNumberDirect || null,
         createdAt: movs.reduce((max, m) => (m.created_at > max ? m.created_at : max), first.created_at),
-        transporter: op ? (first.type === 'entrada' ? op.driver_name : op.receiver_name) : null,
-        contacto: op ? (first.type === 'entrada' ? op.driver_document : op.receiver_document) : null,
-        plate: op?.vehicle_plate || null,
+        transporter: op ? (first.type === 'entrada' ? op.driver_name : op.receiver_name) : (first.transporterDirect || null),
+        contacto: op ? (first.type === 'entrada' ? op.driver_document : op.receiver_document) : (first.contactoDirect || null),
+        plate: op?.vehicle_plate || first.plateDirect || null,
         observations: op?.notes || null,
         // Productos A→Z dentro de la nota (mismo criterio que el inventario)
         movs: [...movs].sort((a, b) => {
@@ -1910,7 +1956,7 @@ export default function ClientPortal({ view = 'inventory' }) {
                   <div className="flex shrink-0 items-center justify-between border-b border-slate-100 px-4 py-3">
                     <div className="flex items-center gap-2">
                       <span className={`inline-block rounded px-2 py-0.5 text-xs font-black uppercase ${selectedMovement.type === 'salida' ? 'bg-red-100 text-red-800' : 'bg-campo-100 text-campo-800'}`}>
-                        {movementLabel(selectedMovement.type)}
+                        {notaTipoLabel(selectedMovement)}
                       </span>
                       <span className="text-xs font-semibold text-slate-400">{formatDate(selectedMovement.createdAt)}</span>
                     </div>
@@ -2030,6 +2076,12 @@ function RequestProgress({ status }) {
   )
 }
 
+// Etiqueta del tipo. El "Inventario Inicial" que trae el programa es un
+// artefacto de la migracion, no un ingreso real: se muestra como "Saldo inicial".
+function notaTipoLabel(note) {
+  return note?.saldoInicial ? 'Saldo inicial' : movementLabel(note?.type)
+}
+
 // Cuerpo de la ficha de movimiento (reusado en el panel derecho del historial)
 function MovementDetailBody({ note, clientName, onPrint }) {
   const isSalida = note.type === 'salida'
@@ -2039,6 +2091,11 @@ function MovementDetailBody({ note, clientName, onPrint }) {
       <div>
         <p className="font-mono text-sm font-black text-campo-700">{note.noteNumber || 'Sin nota'}</p>
         <p className="mt-0.5 text-xs font-semibold text-slate-500">{clientName}</p>
+        {note.source === 'programa' ? (
+          <p className="mt-1 inline-flex rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-500">
+            Registro histórico
+          </p>
+        ) : null}
       </div>
 
       {/* Productos */}
@@ -2104,7 +2161,7 @@ function MovementModal({ movement: note, clientName, onClose, onPrint }) {
         <div className="flex shrink-0 items-center justify-between border-b border-slate-100 px-5 py-3">
           <div className="flex items-center gap-2">
             <span className={`inline-block rounded px-2 py-0.5 text-xs font-black uppercase ${isSalida ? 'bg-red-100 text-red-800' : 'bg-campo-100 text-campo-800'}`}>
-              {movementLabel(note.type)}
+              {notaTipoLabel(note)}
             </span>
             <span className="text-xs font-semibold text-slate-400">{formatDate(note.createdAt)}</span>
           </div>
