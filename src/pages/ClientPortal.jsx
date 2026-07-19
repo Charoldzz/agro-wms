@@ -115,8 +115,8 @@ function movementEquivalentLabel(m) {
 function udsEnvaseLabel(qty, size, unit) {
   const s = Number(size) || 0
   const q = Number(qty) || 0
-  const eqRaw = s > 0 ? q * s : q
-  return desgloseEnvases(eqRaw, s, unit, 0).unidadesLabel || `${formatNumber(q)} uds`
+  // qty YA es el equivalente (lts/kgs); sin presentación son uds sueltas
+  return desgloseEnvases(q, s, unit, 0).unidadesLabel || `${formatNumber(q)} uds`
 }
 
 // Envases de una nota completa, sumados por TIPO de envase — físico y sin
