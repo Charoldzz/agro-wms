@@ -1467,21 +1467,33 @@ export default function LotDetail() {
                   <p className="mt-1 inline-flex rounded-full bg-red-50 px-2 py-1 text-xs font-bold text-red-700">Rechazado</p>
                 ) : null}
                 </div>
-                <p className="text-xl font-bold text-campo-700">{formatNumber(item.quantity)}</p>
+                <div className="text-right">
+                  <p className="text-xl font-black text-campo-700 [overflow-wrap:anywhere]">{qtyEquivalentLabel(lot, item.quantity)}</p>
+                  {qtyEnvaseLabel(lot, item.quantity) ? (
+                    <p className="text-[11px] font-semibold text-slate-400">{qtyEnvaseLabel(lot, item.quantity)}</p>
+                  ) : null}
+                </div>
               </div>
               <div className="mt-3 grid gap-2 text-sm sm:grid-cols-2">
                 <p className="rounded-lg bg-slate-50 p-2 font-semibold text-slate-600">Usuario: {item.profiles?.full_name || 'Usuario'}</p>
-                <p className="rounded-lg bg-slate-50 p-2 font-semibold text-slate-600">Stock anterior: {formatNumber(item.previous_quantity)} unidades</p>
-                <p className="rounded-lg bg-slate-50 p-2 font-semibold text-slate-600">Stock nuevo: {formatNumber(item.new_quantity)} unidades</p>
                 {item.to_location ? (
                   <p className="rounded-lg bg-slate-50 p-2 font-semibold text-slate-600">Nueva ubicacion: {item.to_location}</p>
                 ) : null}
+                <div className="rounded-lg bg-slate-50 p-2">
+                  <p className="text-[11px] font-bold uppercase tracking-wide text-slate-400">Stock anterior</p>
+                  <p className="font-bold text-slate-700">{qtyEquivalentLabel(lot, item.previous_quantity)}</p>
+                  {qtyEnvaseLabel(lot, item.previous_quantity) ? (
+                    <p className="text-[11px] font-semibold text-slate-400">{qtyEnvaseLabel(lot, item.previous_quantity)}</p>
+                  ) : null}
+                </div>
+                <div className="rounded-lg bg-slate-50 p-2">
+                  <p className="text-[11px] font-bold uppercase tracking-wide text-slate-400">Stock nuevo</p>
+                  <p className="font-bold text-campo-700">{qtyEquivalentLabel(lot, item.new_quantity)}</p>
+                  {qtyEnvaseLabel(lot, item.new_quantity) ? (
+                    <p className="text-[11px] font-semibold text-slate-400">{qtyEnvaseLabel(lot, item.new_quantity)}</p>
+                  ) : null}
+                </div>
               </div>
-              {Number(lot.package_size) > 0 ? (
-                <p className="mt-1 text-sm font-semibold text-slate-600">
-                  Equivalente nuevo: {equivalentLabel(Number(item.new_quantity || 0) * Number(lot.package_size), lot.package_unit)}
-                </p>
-              ) : null}
               {item.notes ? <p className="mt-1 text-sm text-slate-600">{item.notes}</p> : null}
             </article>
           ))}
