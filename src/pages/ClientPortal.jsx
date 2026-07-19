@@ -370,7 +370,6 @@ export default function ClientPortal({ view = 'inventory' }) {
           if (byName !== 0) return byName
           return String(a.lots?.lot_code || '').localeCompare(String(b.lots?.lot_code || ''), 'es')
         }),
-        totalUds: movs.reduce((s, m) => s + Number(m.quantity || 0), 0),
         equivalentLabel: noteEquivalentLabel(movs),
       }
     }).sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
@@ -390,7 +389,6 @@ export default function ClientPortal({ view = 'inventory' }) {
     })
   }, [movementNotes, histSearch, histFilter])
 
-  const totalStock    = lots.reduce((s,l) => s + Number(l.current_quantity||0), 0)
   const productCount  = lots.length
   const expiring      = lots.filter(l => { const d = daysUntil(l.expiry_date); return d !== null && d <= 90 })
   const alerts        = lots.filter(l => lotStatus(l).label !== 'Disponible' && lotStatus(l).label !== 'Por vencer')
