@@ -2,11 +2,18 @@ import { useEffect, useState } from 'react'
 import { ArrowLeft, Edit2, Plus, Save, Search, Trash2, X } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 
-const initialNew = { name: '', product_code_prefix: '', contact: '' }
-const initialEdit = { name: '', product_code_prefix: '', contact: '' }
+const initialNew = { name: '', product_code_prefix: '', contact: '', notes: '' }
+const initialEdit = { name: '', product_code_prefix: '', contact: '', notes: '' }
 
 function displayName(name) {
   return String(name || '').replaceAll('"', '').replace(/\s+/g, ' ').trim()
+}
+
+// Oculta el placeholder "importado desde excel" del programa; el resto son observaciones reales
+function cleanNotes(notes) {
+  if (!notes) return ''
+  if (/importado\s+desde\s+excel/i.test(notes)) return ''
+  return notes
 }
 
 export default function EmpresasModal({ onClose, onSaved }) {
@@ -54,7 +61,7 @@ export default function EmpresasModal({ onClose, onSaved }) {
     }
     const c = clients.find((x) => x.id === selectedId)
     if (!c) return
-    setEditForm({ name: c.name || '', product_code_prefix: c.product_code_prefix || '', contact: c.contact || '' })
+    setEditForm({ name: c.name || '', product_code_prefix: c.product_code_prefix || '', contact: c.contact || '', notes: cleanNotes(c.notes) })
     setError('')
     setMode('edit')
   }
@@ -70,6 +77,7 @@ export default function EmpresasModal({ onClose, onSaved }) {
       inventory_source: 'stock_independiente',
       product_code_prefix: prefix || null,
       contact: newForm.contact.trim() || null,
+      notes: newForm.notes.trim() || null,
     })
     setSaving(false)
     if (err) return setError(err.message)
@@ -90,6 +98,7 @@ export default function EmpresasModal({ onClose, onSaved }) {
       name: editForm.name.trim(),
       product_code_prefix: prefix || null,
       contact: editForm.contact.trim() || null,
+      notes: editForm.notes.trim() || null,
     }).eq('id', selectedId)
     setSaving(false)
     if (err) return setError(err.message)
@@ -270,6 +279,16 @@ export default function EmpresasModal({ onClose, onSaved }) {
                 placeholder="Opcional"
               />
             </label>
+            <label className="block">
+              <span className="text-sm font-bold text-slate-700">Observaciones</span>
+              <textarea
+                className="input mt-1 w-full"
+                rows="3"
+                value={newForm.notes}
+                onChange={(e) => setNewForm((f) => ({ ...f, notes: e.target.value }))}
+                placeholder="Opcional"
+              />
+            </label>
             {error && <p className="text-sm font-bold text-red-600">{error}</p>}
             <div className="mt-auto flex gap-3 pt-2">
               <button className="btn-primary flex-1" type="submit" disabled={saving}>
@@ -309,6 +328,16 @@ export default function EmpresasModal({ onClose, onSaved }) {
                 className="input mt-1 w-full"
                 value={editForm.contact}
                 onChange={(e) => setEditForm((f) => ({ ...f, contact: e.target.value }))}
+                placeholder="Opcional"
+              />
+            </label>
+            <label className="block">
+              <span className="text-sm font-bold text-slate-700">Observaciones</span>
+              <textarea
+                className="input mt-1 w-full"
+                rows="3"
+                value={editForm.notes}
+                onChange={(e) => setEditForm((f) => ({ ...f, notes: e.target.value }))}
                 placeholder="Opcional"
               />
             </label>
