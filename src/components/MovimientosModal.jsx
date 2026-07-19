@@ -299,6 +299,10 @@ export default function MovimientosModal({ onClose, canEdit = true }) {
         plate: rows.find((r) => r.plate)?.plate || '',
         contact_person: rows.find((r) => r.contact_person)?.contact_person || '',
         observations: rows.find((r) => r.observations)?.observations || '',
+        // Saldos calculados al importar (SQL 14). Solo tienen sentido mostrarlos
+        // como dato unico cuando la nota mueve un solo lote.
+        previous_quantity: multi ? null : first.previous_quantity,
+        new_quantity: multi ? null : first.new_quantity,
         items: rows.map((r) => ({
           product: r.product_name,
           lot: r.lot,
@@ -306,12 +310,15 @@ export default function MovimientosModal({ onClose, canEdit = true }) {
           quantity: r.quantity,
           cantidadLabel: equivalenteLabel(r.quantity, unitByCode.get(String(r.product_code || '').toUpperCase())),
           chips: packageChips(r),
+          location: r.location || '',
         })),
         lots: {
           product: multi ? `${rows.length} ITEMS` : first.product_name,
           lot_code: multi ? 'VARIOS' : first.lot,
           expiry_date: multi ? null : first.expiry_date,
-          location: null,
+          location: first.location || '',
+          package_size: sizeByCode.get(String(first.product_code || '').toUpperCase()) || 0,
+          package_unit: unitByCode.get(String(first.product_code || '').toUpperCase()) || '',
           clients: { name: empresa },
         },
       }
@@ -500,7 +507,7 @@ export default function MovimientosModal({ onClose, canEdit = true }) {
                   const isSalida = selected.type === 'salida'
                   const isDesktop = selected.source === 'desktop'
                   const isMulti = Array.isArray(selected.items) && selected.items.length > 1
-                  const isSingleLot = !isMulti && !isDesktop && !selected.grouped
+                  const isSingleLot = !isMulti && !selected.grouped && selected.previous_quantity != null
                   // Lista de productos unificada: individual = 1 item; multi/desktop = su lista
                   const displayItems = isMulti
                     ? selected.items

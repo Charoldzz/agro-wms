@@ -200,7 +200,7 @@ export default function AdminExports() {
     const [{ data: deskRows }, { data: catRows }, { data: clientRows }] = await Promise.all([
       supabase
         .from('desktop_movements')
-        .select('id, note_number, type, date, product_code, client_prefix, product_name, lot, quantity, concept, dispatch_company, observations, created_at')
+        .select('id, note_number, type, date, product_code, client_prefix, product_name, lot, quantity, previous_quantity, new_quantity, location, concept, dispatch_company, observations, created_at')
         .order('date', { ascending: false })
         .limit(5000),
       supabase.from('product_catalog').select('code, package_size, package_unit'),
@@ -219,15 +219,17 @@ export default function AdminExports() {
         type: desktopTypeToApp(m.type),
         created_at: m.date || m.created_at,
         quantity: Number(m.quantity || 0),   // YA es equivalente
-        previous_quantity: null,
-        new_quantity: null,
+        // Saldos calculados al importar (SQL 14): el programa no los guarda,
+        // se reprodujo la cuenta cronologica por lote.
+        previous_quantity: m.previous_quantity,
+        new_quantity: m.new_quantity,
         notes: m.observations || m.concept || '',
         lots: {
           product: m.product_name || m.product_code || '',
           lot_code: m.lot || '',
           package_size: cat?.package_size ?? null,
           package_unit: cat?.package_unit ?? null,
-          location: '',
+          location: m.location || '',
           clients: { name: clientByPrefix.get(m.client_prefix) || m.dispatch_company || '' },
         },
         profiles: { full_name: '' },
