@@ -122,7 +122,7 @@ function getLotOperationalState(lot, daysLeft) {
   if (daysLeft !== null && daysLeft < 0) {
     return {
       label: 'Vencido',
-      note: 'Lote vencido. Verificar con el cliente antes de despachar.',
+      note: 'Lote vencido. Conviene coordinar su retiro con el cliente.',
       badge: 'bg-red-600 text-white ring-1 ring-red-700',
       panel: 'bg-red-50 text-red-700',
     }
@@ -349,11 +349,9 @@ export default function LotDetail() {
       return
     }
 
-    if (movement.type === 'salida' && isExpired) {
-      setError('No se puede registrar salida porque este lote esta vencido.')
-      vibrateError()
-      return
-    }
+    // REGLA: el vencimiento NUNCA bloquea una salida. A la empresa le conviene
+    // que el producto vencido SALGA del deposito (riesgo con SENASAG). Lo unico
+    // que frena una salida es que no haya stock suficiente.
 
     if (movement.type === 'salida' && (!scannedAccess || movementMode !== 'despacho')) {
       setError('Para registrar salida debes entrar por Despacho.')
@@ -792,7 +790,7 @@ export default function LotDetail() {
   if (operatorQrConsultation) {
     return (
       <div>
-        <LotStateNotice state={lotState} saleBlocked={blocksSale || isExpired} />
+        <LotStateNotice state={lotState} saleBlocked={blocksSale} />
 
         <section className="overflow-hidden rounded-lg border border-slate-200 bg-white/95 shadow-soft">
           <div className="bg-campo-800 px-4 py-5">
@@ -861,7 +859,7 @@ export default function LotDetail() {
   if (adminLotConsultation) {
     return (
       <div>
-        <LotStateNotice state={lotState} saleBlocked={blocksSale || isExpired} />
+        <LotStateNotice state={lotState} saleBlocked={blocksSale} />
 
         <section className="grid gap-4 lg:grid-cols-[1.15fr_.85fr]">
           <div className="overflow-hidden rounded-lg border border-slate-200 bg-white/95 shadow-soft">
@@ -964,7 +962,7 @@ export default function LotDetail() {
           <ArrowLeft size={18} /> Volver
         </button>
 
-        <LotStateNotice state={lotState} saleBlocked={blocksSale || isExpired} />
+        <LotStateNotice state={lotState} saleBlocked={blocksSale} />
 
         <div className="mx-auto max-w-lg overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
           {/* Campo header inside card */}
@@ -1072,7 +1070,7 @@ export default function LotDetail() {
         </div>
       ) : null}
 
-      <LotStateNotice state={lotState} saleBlocked={blocksSale || isExpired} />
+      <LotStateNotice state={lotState} saleBlocked={blocksSale} />
 
       {(isAdmin || isOperator) && !canRegisterMovement ? (
         <div className="mb-4 flex flex-wrap gap-2">
