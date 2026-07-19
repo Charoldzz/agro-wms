@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from 'react'
-import { ArrowDown, ArrowLeftRight, ArrowUp, RotateCcw, Save, Search, X } from 'lucide-react'
+import { ArrowDown, ArrowLeftRight, ArrowUp, FileText, RotateCcw, Save, Search, X } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { formatNumber, normalizeEquivalent, pluralUnit, equivalentLabel } from '../lib/format'
 import { cleanProductName, displayLotCode } from '../lib/display'
 import { desgloseEnvases } from '../lib/envases'
+import { openDispatchReceipt, openEntryReceipt } from '../lib/comprobante'
 
 // Etiquetas técnicas del concepto que NO son observación del usuario
 const CONCEPT_TAGS = [
@@ -101,7 +102,7 @@ export default function MovimientosModal({ onClose, canEdit = true }) {
     const [webResult, desktopResult, clientsResult, catalogResult] = await Promise.all([
       supabase
         .from('movements')
-        .select('*, lots(lot_code, product, package_size, package_unit, location, expiry_date, clients(name)), profiles!movements_user_id_fkey(full_name)')
+        .select('*, lots(lot_code, product, solucion_product_code, package_size, package_unit, location, expiry_date, clients(name)), profiles!movements_user_id_fkey(full_name)')
         .order('created_at', { ascending: false })
         .limit(500),
       supabase
@@ -115,15 +116,59 @@ export default function MovimientosModal({ onClose, canEdit = true }) {
         .eq('inventory_source', 'stock_independiente'),
       supabase
         .from('product_catalog')
-        .select('code, package_unit')
+        .select('code, package_size, package_unit')
         .limit(2000),
     ])
 
     // Unidad de cada producto del programa, por CÓDIGO (desktop_movements.product_code ↔ catalog.code)
     const unitByCode = new Map()
+    const sizeByCode = new Map()
     ;(catalogResult.data || []).forEach((p) => {
-      if (p.code && p.package_unit) unitByCode.set(p.code.toUpperCase(), p.package_unit)
+      if (!p.code) return
+      if (p.package_unit) unitByCode.set(p.code.toUpperCase(), p.package_unit)
+      if (p.package_size) sizeByCode.set(p.code.toUpperCase(), Number(p.package_size))
     })
+
+    // Filas para el comprobante (mismo formato que usa la nota del operador)
+    function receiptRowsWeb(movs) {
+      return movs.map((m) => {
+        const l = m.lots || {}
+        const size = Number(l.package_size) || 0
+        const eq = Number(m.quantity || 0)
+        const d = desgloseEnvases(eq, size, l.package_unit, 0)
+        return {
+          code: l.solucion_product_code || '',
+          product: cleanProductName(l.product),
+          lot_code: displayLotCode(l.lot_code, l),
+          expiry_date: l.expiry_date || null,
+          cantidad: eq,
+          package_size: size,
+          package_unit: l.package_unit || '',
+          unidades_label: d.unidadesLabel || `${formatNumber(eq)} uds`,
+          cajas_label: d.cajasLabel,
+        }
+      })
+    }
+    function receiptRowsDesktop(rows) {
+      return rows.map((r) => {
+        const code = String(r.product_code || '').toUpperCase()
+        const size = sizeByCode.get(code) || 0
+        const unit = unitByCode.get(code) || ''
+        const eq = Number(r.quantity || 0)
+        const d = desgloseEnvases(eq, size, unit, 0)
+        return {
+          code: r.product_code || '',
+          product: cleanProductName(r.product_name),
+          lot_code: r.lot || 'SIN LOTE',
+          expiry_date: r.expiry_date || null,
+          cantidad: eq,
+          package_size: size,
+          package_unit: unit,
+          unidades_label: d.unidadesLabel || `${formatNumber(eq)} uds`,
+          cajas_label: d.cajasLabel,
+        }
+      })
+    }
 
     let rawWebMovements = webResult.data || []
     if (webResult.error) {
@@ -181,12 +226,12 @@ export default function MovimientosModal({ onClose, canEdit = true }) {
         if (!webByOperation.has(m.operation_id)) webByOperation.set(m.operation_id, [])
         webByOperation.get(m.operation_id).push({ ...m, note_number: noteNumber })
       } else {
-        webMovements.push({ ...m, note_number: noteNumber })
+        webMovements.push({ ...m, note_number: noteNumber, receiptRows: receiptRowsWeb([m]) })
       }
     }
     for (const group of webByOperation.values()) {
       if (group.length === 1) {
-        webMovements.push({ ...group[0], cantidadLabel: cantidadPorUnidad(group) })
+        webMovements.push({ ...group[0], cantidadLabel: cantidadPorUnidad(group), receiptRows: receiptRowsWeb(group) })
         continue
       }
       const first = group[0]
@@ -196,6 +241,7 @@ export default function MovimientosModal({ onClose, canEdit = true }) {
         grouped: true,
         quantity: group.reduce((sum, m) => sum + Number(m.quantity || 0), 0),
         cantidadLabel: cantidadPorUnidad(group),
+        receiptRows: receiptRowsWeb(group),
         created_at: group.reduce((max, m) => (m.created_at > max ? m.created_at : max), first.created_at),
         items: group.map((m) => {
           const size = Number(m.lots?.package_size) || 0
@@ -245,6 +291,8 @@ export default function MovimientosModal({ onClose, canEdit = true }) {
         created_at: rows.reduce((max, r) => (r.date > max ? r.date : max), first.date),
         quantity: rows.reduce((sum, r) => sum + Number(r.quantity || 0), 0),
         cantidadLabel: cantidadDesktop(rows),
+        receiptRows: receiptRowsDesktop(rows),
+        empresa,
         notes: first.concept,
         note_number: first.note_number,
         transporter: rows.find((r) => r.transporter)?.transporter || '',
@@ -477,6 +525,32 @@ export default function MovimientosModal({ onClose, canEdit = true }) {
                         <p className="font-mono text-sm font-black text-campo-700">{selected.note_number || '-'}</p>
                         <p className="mt-0.5 text-xs font-semibold text-slate-500">{lot.clients?.name || '-'}</p>
                       </div>
+
+                      {/* Comprobante de la guía: sirve para ingresos y salidas, tanto
+                          de la app como del programa (mismo diseño de nota) */}
+                      {selected.note_number && Array.isArray(selected.receiptRows) && selected.receiptRows.length > 0
+                        && ['entrada', 'salida'].includes(selected.type) ? (
+                        <button
+                          type="button"
+                          className="btn-primary w-full"
+                          onClick={() => {
+                            const opts = {
+                              guide: selected.note_number || '',
+                              empresa: selected.empresa || lot.clients?.name || '',
+                              contacto: tel || '',
+                              transportista: transp || '',
+                              placa: placa || '',
+                              observaciones: obs || '',
+                              fecha: selected.created_at,
+                              rows: selected.receiptRows,
+                            }
+                            if (selected.type === 'salida') openDispatchReceipt(opts)
+                            else openEntryReceipt(opts)
+                          }}
+                        >
+                          <FileText size={18} /> Ver comprobante
+                        </button>
+                      ) : null}
 
                       {/* Productos (1 o N, mismo formato) */}
                       <div>
