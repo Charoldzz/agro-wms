@@ -76,6 +76,10 @@ function printReport(title, headers, rows) {
   printWindow.document.close()
 }
 
+// Tipo en MAYUSCULAS, con la misma terminologia del programa (INGRESO/SALIDA),
+// para que las filas de la app y las del programa se lean igual en Excel y PDF.
+const TIPO_MAYUSCULA = { entrada: 'INGRESO', salida: 'SALIDA', traslado: 'TRASLADO', ajuste: 'AJUSTE' }
+
 // Tipos del programa C# -> tipos de la app (para que el filtro por tipo funcione)
 function desktopTypeToApp(type) {
   const t = String(type || '').toUpperCase()
@@ -327,7 +331,9 @@ export default function AdminExports() {
     return [
       delPrograma ? 'Programa' : 'App',
       movement.created_at ? formatDate(movement.created_at) : '',
-      delPrograma ? (movement.programType || movementLabel(movement.type)) : movementLabel(movement.type),
+      delPrograma
+        ? (movement.programType || TIPO_MAYUSCULA[movement.type] || movementLabel(movement.type))
+        : (TIPO_MAYUSCULA[movement.type] || movementLabel(movement.type)),
       movement.lots?.clients?.name || '',
       cleanProductName(movement.lots?.product),
       displayLotCode(movement.lots?.lot_code),
