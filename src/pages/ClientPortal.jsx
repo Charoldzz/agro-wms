@@ -293,7 +293,7 @@ export default function ClientPortal({ view = 'inventory' }) {
     const [{ data: lotsData }, { data: catalogData }] = await Promise.all([
       supabase
         .from('lots')
-        .select('id,lot_code,client_id,product,solucion_product_code,current_quantity,package_size,package_unit,location,entry_date,expiry_date,status,clients(name,contact)')
+        .select('id,lot_code,client_id,product,solucion_product_code,solucion_warehouse_code,current_quantity,package_size,package_unit,location,entry_date,expiry_date,status,clients(name,contact)')
         .eq('inventory_source','stock_independiente')
         .eq('client_id', clientId)
         .eq('status','activo')
@@ -317,7 +317,13 @@ export default function ClientPortal({ view = 'inventory' }) {
     // HISTORICO DEL PROGRAMA: la mercaderia es del cliente, asi que ve su propio
     // historial. Se le OCULTA el campo "Concepto" (trae referencias tecnicas del
     // sistema viejo, del tipo "SALIDA 6021 (DBF DSALIDCA 001147)").
-    const whCodes = [...new Set((lotsData || []).map(l => l.solucion_warehouse_code).filter(v => v != null))]
+    // El codigo de almacen sale de la EMPRESA (fuente autoritativa, igual que la
+    // politica RLS). Si no lo tuviera, se cae a los codigos de sus lotes.
+    const { data: miEmpresa } = await supabase
+      .from('clients').select('solucion_codigo').eq('id', clientId).maybeSingle()
+    const whCodes = miEmpresa?.solucion_codigo != null
+      ? [miEmpresa.solucion_codigo]
+      : [...new Set((lotsData || []).map(l => l.solucion_warehouse_code).filter(v => v != null))]
     const { data: deskData } = whCodes.length
       ? await supabase.from('desktop_movements')
           .select('id,note_number,type,date,product_code,product_name,lot,expiry_date,quantity,previous_quantity,new_quantity,location,concept,transporter,plate,contact_person')
