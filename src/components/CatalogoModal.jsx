@@ -32,7 +32,7 @@ export default function CatalogoModal({ clients, onClose }) {
   const [showFilterMenu, setShowFilterMenu] = useState(false)
   const [selectedId, setSelectedId] = useState(null)
   const [mode, setMode] = useState(null) // null | 'edit'
-  const [editForm, setEditForm] = useState({ code: '', name: '', package_size: '', package_unit: 'lt', units_per_box: '' })
+  const [editForm, setEditForm] = useState({ code: '', name: '', package_size: '', package_unit: 'lt', units_per_box: '', pallet_units_per_pallet: '' })
   const editReady = useRef(false) // evita reescribir el nombre en la primera pasada al abrir Modificar
   const [saving, setSaving] = useState(false)
   const [deleting, setDeleting] = useState(false)
@@ -101,7 +101,7 @@ export default function CatalogoModal({ clients, onClose }) {
     }
     const p = products.find((x) => x.id === selectedId)
     if (!p) return
-    setEditForm({ code: p.code || '', name: p.name || '', package_size: p.package_size || '', package_unit: p.package_size ? (p.package_unit || 'lt') : 'sin', units_per_box: p.units_per_box || '' })
+    setEditForm({ code: p.code || '', name: p.name || '', package_size: p.package_size || '', package_unit: p.package_size ? (p.package_unit || 'lt') : 'sin', units_per_box: p.units_per_box || '', pallet_units_per_pallet: p.pallet_units_per_pallet || '' })
     editReady.current = false
     setError('')
     setMode('edit')
@@ -141,6 +141,9 @@ export default function CatalogoModal({ clients, onClose }) {
       name: editForm.name.trim().toUpperCase(),
       package_size: (editForm.package_unit === 'sin' || !editForm.package_size) ? null : Number(editForm.package_size),
       package_unit: (editForm.package_unit === 'sin' || !editForm.package_size) ? null : editForm.package_unit,
+      // Cantidad por pallet: dato REAL de la mercaderia (sirve para facturar).
+      // Vacio = el producto no suma pallets; no se estima nada.
+      pallet_units_per_pallet: editForm.pallet_units_per_pallet ? Number(editForm.pallet_units_per_pallet) : null,
       units_per_box: editForm.units_per_box ? Number(editForm.units_per_box) : null,
       pending_review: false,
     }
@@ -337,6 +340,7 @@ export default function CatalogoModal({ clients, onClose }) {
                   value={selectedProduct.package_size && selectedProduct.package_unit ? `${selectedProduct.package_size} ${selectedProduct.package_unit}` : 'Sin presentación'}
                 />
                 <DetailField label="Unidades por caja" value={selectedProduct.units_per_box ? String(selectedProduct.units_per_box) : '—'} />
+                <DetailField label="Cantidad por pallet" value={selectedProduct.pallet_units_per_pallet ? String(selectedProduct.pallet_units_per_pallet) : '—'} />
               </dl>
               {error && <p className="mt-3 text-sm font-bold text-red-600">{error}</p>}
             </div>
@@ -415,6 +419,21 @@ export default function CatalogoModal({ clients, onClose }) {
                 onChange={(e) => setEditForm((f) => ({ ...f, units_per_box: e.target.value }))}
                 placeholder="Ej: 5"
               />
+            </div>
+            <div>
+              <span className="text-sm font-bold text-slate-700">Cantidad por pallet</span>
+              <input
+                className="input mt-1 w-32"
+                type="text"
+                inputMode="decimal"
+                value={editForm.pallet_units_per_pallet}
+                onChange={(e) => setEditForm((f) => ({ ...f, pallet_units_per_pallet: e.target.value.replace(',', '.') }))}
+                placeholder="Ej: 960"
+              />
+              <p className="mt-1 text-xs font-semibold text-slate-400">
+                En {editForm.package_unit === 'sin' ? 'unidades' : (editForm.package_unit === 'kg' || editForm.package_unit === 'gr' ? 'kgs' : 'lts')}, como en el programa.
+                Vacío = este producto no suma pallets.
+              </p>
             </div>
             {editLabel && (
               <p className="rounded-lg bg-slate-50 px-3 py-2 text-sm font-semibold text-slate-600">
