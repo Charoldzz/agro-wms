@@ -275,7 +275,7 @@ export default function AdminExports() {
 
   return (
     <div>
-      <PageHeader title="Exportes" subtitle="Inventario, lotes, vencimientos y movimientos" />
+      <PageHeader title="Exportes" subtitle="Inventario, productos, vencimientos y movimientos" />
 
       {notice ? <div className="mb-4 rounded-lg bg-amber-50 p-3 text-sm font-bold text-amber-800">{notice}</div> : null}
 

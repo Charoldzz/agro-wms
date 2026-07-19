@@ -82,7 +82,7 @@ export default function ExpiringLots() {
 
   return (
     <div>
-      <PageHeader title="Productos proximos a vencer" subtitle="Lotes vencidos o dentro de 90 dias" />
+      <PageHeader title="Productos proximos a vencer" subtitle="Productos vencidos o dentro de 90 dias" />
 
       <section className="panel mb-4 flex flex-wrap items-center justify-between gap-2">
         <div>
@@ -90,7 +90,7 @@ export default function ExpiringLots() {
           <p className="text-sm font-bold text-slate-700">Revisa primero los vencidos y los que vencen antes.</p>
         </div>
         <span className="rounded-lg bg-amber-50 px-3 py-2 text-sm font-black text-amber-800">
-          {filteredLots.length} lote{filteredLots.length === 1 ? '' : 's'}
+          {filteredLots.length} producto{filteredLots.length === 1 ? '' : 's'}
         </span>
       </section>
 
