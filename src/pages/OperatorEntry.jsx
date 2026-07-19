@@ -313,6 +313,9 @@ export default function OperatorEntry() {
           lot_code: r.lot_code?.trim() || createLotCode(i),
           product: r.product.trim(),
           product_code: code || null,
+          // El stock se guarda en EQUIVALENTE (lts/kgs), como el programa.
+          // Cajas/sueltas quedan solo como desglose informativo del ingreso.
+          quantity: totalEq,
           box_count: cajas,
           units_per_box: cajas > 0 ? upb : 0,
           loose_units: sueltas,

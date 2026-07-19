@@ -56,7 +56,7 @@ function displayClientName(name) {
 function lotOptionLabel(lot) {
   const lote = displayLotCode(lot.lot_code)
   const pkgSize = Number(lot.package_size) || 1
-  const total = lot.current_quantity * pkgSize
+  const total = Number(lot.current_quantity) || 0   // ya es equivalente
   const unit = lot.package_unit || ''
   const saldo = unit ? equivalentLabel(total, unit) : formatNumber(lot.current_quantity)
   return `${cleanProductName(lot.product)}   [Lote: ${lote}]   ${saldo}`
@@ -183,9 +183,10 @@ export default function NuevaSalida() {
     const newRows = solicitud.items.map((item) => {
       const lot = lots.find((l) => l.id === item.lot_id)
       if (!lot) { missing.push(item); return null }
-      const uds = Number(item.quantity) || 0
+      // item.quantity YA viene en equivalente (lts/kgs); los envases se calculan de ahí
+      const cantidad = Number(item.quantity) || 0
       const pkgSize = Number(lot.package_size) || 1
-      const cantidad = uds * pkgSize
+      const uds = pkgSize > 0 ? Math.floor(cantidad / pkgSize) : cantidad
       const product = cleanProductName(lot.product)
       const upb = upbFor(lot.solucion_product_code)
       const cajas = upb > 0 && uds > 0 ? Math.floor(uds / upb) : 0
@@ -355,7 +356,7 @@ export default function NuevaSalida() {
     }))
   }
 
-  const rowInsufficient = (row) => isRequestMode && row.lot_id && Number(row.uds || 0) > Number(row.saldo || 0)
+  const rowInsufficient = (row) => isRequestMode && row.lot_id && Number(row.cantidad || 0) > Number(row.saldo || 0)
   const insufficientRows = isRequestMode ? rows.filter(rowInsufficient) : []
   const allConfirmed = !isRequestMode || rows.every((r) => r.confirmed)
 
@@ -365,13 +366,14 @@ export default function NuevaSalida() {
     if (!transportista.trim()) { setError('El transportista es obligatorio.'); return }
     if (!contacto.trim()) { setError('El contacto es obligatorio.'); return }
     if (!placa.trim()) { setError('La placa es obligatoria.'); return }
-    const validRows = rows.filter((r) => r.lot_id && Number(r.uds || 0) > 0)
+    // La cantidad a despachar y el saldo del lote estan los dos en equivalente (lts/kgs)
+    const validRows = rows.filter((r) => r.lot_id && Number(r.cantidad || 0) > 0)
     if (validRows.length === 0) { setError('Agrega al menos un item con lote y cantidad.'); return }
 
-    const overStock = validRows.find((r) => Number(r.uds) > Number(r.saldo))
+    const overStock = validRows.find((r) => Number(r.cantidad) > Number(r.saldo))
     if (overStock) {
       const disponible = Number(overStock.package_size) > 0
-        ? equivalentLabel(Number(overStock.saldo) * Number(overStock.package_size), overStock.package_unit)
+        ? equivalentLabel(Number(overStock.saldo), overStock.package_unit)
         : `${formatNumber(overStock.saldo)} uds`
       setError(`Cantidad excede el saldo disponible para: ${overStock.product} (disponible: ${disponible}).`)
       return
@@ -381,7 +383,7 @@ export default function NuevaSalida() {
     try {
       const operationItems = validRows.map((r) => ({
         lot_id: r.lot_id,
-        quantity: Number(r.uds),
+        quantity: Number(r.cantidad),   // en equivalente (lts/kgs), como el programa
       }))
 
       const { data: rpcData, error: rpcError } = await supabase.rpc('create_dispatch_operation', {
@@ -417,9 +419,8 @@ export default function NuevaSalida() {
         observaciones: observaciones.trim(),
         rows: validRows.map((r) => {
           const d = desgloseEnvases(r.cantidad, r.package_size, r.package_unit, upbForRow(r))
-          // Saldo del lote DESPUÉS de la salida (uds restantes × presentación)
-          const restoUds = Math.max(Number(r.saldo || 0) - Number(r.uds || 0), 0)
-          const restoEq = (Number(r.package_size) || 0) > 0 ? restoUds * Number(r.package_size) : restoUds
+          // Saldo del lote DESPUÉS de la salida (todo en equivalente)
+          const restoEq = Math.max(Number(r.saldo || 0) - Number(r.cantidad || 0), 0)
           return { ...r, code: r.solucion_code || '', unidades_label: d.unidadesLabel, cajas_label: d.cajasLabel, resto_eq: restoEq }
         }),
       })
@@ -673,11 +674,11 @@ export default function NuevaSalida() {
                         ) : null}
                         {rowInsufficient(row) ? (
                           <div className="text-[10px] font-black text-red-600">
-                            Saldo insuficiente: hay {equivalentLabel(row.saldo * (Number(row.package_size) || 1), row.package_unit)} y pide {equivalentLabel(row.uds * (Number(row.package_size) || 1), row.package_unit)}
+                            Saldo insuficiente: hay {equivalentLabel(row.saldo, row.package_unit)} y pide {equivalentLabel(row.cantidad, row.package_unit)}
                           </div>
                         ) : row.package_unit ? (
                           <div className="text-[10px] font-semibold text-slate-400">
-                            {equivalentLabel(row.saldo * (Number(row.package_size) || 1), row.package_unit)} disponibles
+                            {equivalentLabel(row.saldo, row.package_unit)} disponibles
                           </div>
                         ) : null}
                       </div>
@@ -833,11 +834,11 @@ export default function NuevaSalida() {
                     ) : null}
                     {rowInsufficient(row) ? (
                       <p className="text-[10px] font-black text-red-600">
-                        Saldo insuficiente: hay {equivalentLabel(row.saldo * (Number(row.package_size) || 1), row.package_unit)} y pide {equivalentLabel(row.uds * (Number(row.package_size) || 1), row.package_unit)}
+                        Saldo insuficiente: hay {equivalentLabel(row.saldo, row.package_unit)} y pide {equivalentLabel(row.cantidad, row.package_unit)}
                       </p>
                     ) : row.package_unit ? (
                       <p className="text-[10px] font-semibold text-slate-400">
-                        {equivalentLabel(row.saldo * (Number(row.package_size) || 1), row.package_unit)} disponibles
+                        {equivalentLabel(row.saldo, row.package_unit)} disponibles
                       </p>
                     ) : null}
                   </div>

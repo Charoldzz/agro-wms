@@ -177,7 +177,7 @@ export default function SalidasHub() {
                   {items.map((item, idx) => {
                     const size = Number(item.package_size) || 0
                     const equivalente = size > 0 && item.package_unit
-                      ? equivalentLabel(Number(item.quantity || 0) * size, item.package_unit)
+                      ? equivalentLabel(Number(item.quantity || 0), item.package_unit)
                       : null
                     return (
                       <div key={item.lot_id || idx} className="flex items-center justify-between gap-2 rounded-lg bg-slate-50 px-3 py-1.5">

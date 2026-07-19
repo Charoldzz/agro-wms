@@ -341,7 +341,7 @@ export default function Scanner() {
               .map((item) => {
                 const size = Number(item.package_size ?? dispatchReference.lots?.package_size) || 0
                 const unit = item.package_unit ?? dispatchReference.lots?.package_unit
-                const label = size > 0 ? equivalentLabel(Number(item.quantity || 0) * size, unit) : `${formatNumber(item.quantity)} uds`
+                const label = size > 0 ? equivalentLabel(Number(item.quantity || 0), unit) : `${formatNumber(item.quantity)} uds`
                 return (
                   <span key={item.lot_id || item.lot_code || item.product} className="shrink-0 rounded-lg bg-white px-2 py-1 text-xs font-bold text-slate-700">
                     {cleanProductName(item.product)} · {label}

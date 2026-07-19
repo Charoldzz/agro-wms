@@ -152,14 +152,14 @@ export default function AdminPending() {
           {movements.map((movement) => {
             const size = Number(movement.lots?.package_size) || 0
             const unit = movement.lots?.package_unit
-            const currentUds = Number(movement.lots?.current_quantity) || 0
-            const currentEq = currentUds * size
+            // Las cantidades ya están en equivalente (lts/kgs); sin presentación son uds.
+            const currentEq = Number(movement.lots?.current_quantity) || 0
             const isAjuste = movement.type === 'ajuste'
             const note = parseMovementNotes(movement.notes)
             // Cantidad afectada en equivalente: del concepto del operador; si falta, del delta de cantidades
             const afectadoEq = isAjuste
-              ? (note.afectado != null ? note.afectado : Math.max((currentUds - (Number(movement.quantity) || 0)) * size, 0))
-              : (Number(movement.quantity) || 0) * size
+              ? (note.afectado != null ? note.afectado : Math.max(currentEq - (Number(movement.quantity) || 0), 0))
+              : (Number(movement.quantity) || 0)
             const newEq = Math.max(currentEq - afectadoEq, 0)
             const eqLabel = (v) => (size > 0 ? equivalentLabel(v, unit) : `${formatNumber(v)} uds`)
             const envLabel = (v) => (size > 0 ? desgloseEnvases(v, size, unit, 0).unidadesLabel : '')

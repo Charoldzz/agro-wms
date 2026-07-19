@@ -73,7 +73,8 @@ function eqUnit(eq) { const n = toCanonicalEq(eq.quantity, eq.unit); return plur
 
 function lotEquivalent(lot) {
   const s = Number(lot?.package_size || 0)
-  if (s > 0 && lot?.package_unit) return normalizeEquivalent({ quantity: Number(lot.current_quantity || 0) * s, unit: lot.package_unit })
+  // current_quantity YA es el equivalente (lts/kgs)
+  if (s > 0 && lot?.package_unit) return normalizeEquivalent({ quantity: Number(lot.current_quantity || 0), unit: lot.package_unit })
   const parsed = parseUnitFromName(lot?.product)
   if (!parsed) return null
   return normalizeEquivalent({ quantity: Number(lot.current_quantity || 0) * parsed.size, unit: parsed.unit })
@@ -81,7 +82,7 @@ function lotEquivalent(lot) {
 
 function itemEquivalent(item) {
   const s = Number(item?.package_size || 0)
-  if (s > 0 && item?.package_unit) return normalizeEquivalent({ quantity: Number(item.quantity || 0) * s, unit: item.package_unit })
+  if (s > 0 && item?.package_unit) return normalizeEquivalent({ quantity: Number(item.quantity || 0), unit: item.package_unit })
   const parsed = parseUnitFromName(item?.product)
   if (!parsed) return null
   return normalizeEquivalent({ quantity: Number(item.quantity || 0) * parsed.size, unit: parsed.unit })
@@ -497,11 +498,10 @@ export default function ClientPortal({ view = 'inventory' }) {
   /* ─── request actions ─────────────────────────────────────────── */
   // REGLA: la cantidad se pide SIEMPRE en equivalente (lts/kgs); las unidades
   // se calculan de ahí. Sin presentación, la cantidad ES unidades.
+  // Las cantidades se guardan directamente en equivalente (lts/kgs), igual que
+  // el programa. Sin presentación, la cantidad ES unidades sueltas.
   function reqUnitsFromEquivalent(lot, eqValue) {
-    const size = Number(lot?.package_size) || 0
-    const eq = Number(eqValue) || 0
-    if (!(size > 0)) return eq
-    return Math.round((eq / size) * 1000) / 1000
+    return Number(eqValue) || 0
   }
 
   function addReqItem() {
@@ -530,9 +530,8 @@ export default function ClientPortal({ view = 'inventory' }) {
   }
 
   function editReqItem(item) {
-    // El campo trabaja en equivalente: unidades guardadas × presentación
-    const size = Number(item.package_size) || 0
-    const eqValue = size > 0 ? Number(item.quantity || 0) * size : Number(item.quantity || 0)
+    // El campo trabaja en equivalente, y la cantidad guardada YA lo es
+    const eqValue = Number(item.quantity || 0)
     setEditingLotId(item.lot_id); setReqLotId(item.lot_id); setReqQuantity(String(eqValue || ''))
     setReqItemNote(item.note || '')
     const lot = lots.find(l => l.id === item.lot_id) || item
@@ -683,7 +682,7 @@ export default function ClientPortal({ view = 'inventory' }) {
         let eqStr = ''
         try { const eq = lotEquivalent(l); if (eq) eqStr = equivalentLabel(eq.quantity, eq.unit) } catch (_) {}
         const size = Number(l.package_size) || 0
-        const eqRaw = size > 0 ? Number(l.current_quantity || 0) * size : Number(l.current_quantity || 0)
+        const eqRaw = Number(l.current_quantity || 0)
         const desglose = desgloseEnvases(eqRaw, size, l.package_unit, lotUnitsPerBox(l))
         return [
           productCode(l) || '-',
@@ -787,7 +786,7 @@ export default function ClientPortal({ view = 'inventory' }) {
       let eqStr = ''
       try { const eq = lotEquivalent(l); if (eq) eqStr = equivalentLabel(eq.quantity, eq.unit) } catch (_) { /* sin dato */ }
       const size = Number(l.package_size) || 0
-      const eqRaw = size > 0 ? Number(l.current_quantity || 0) * size : Number(l.current_quantity || 0)
+      const eqRaw = Number(l.current_quantity || 0)
       const desglose = desgloseEnvases(eqRaw, size, l.package_unit, lotUnitsPerBox(l))
       const unidadesLabel = desglose.unidadesLabel || `${formatNumber(l.current_quantity)} uds`
       return `<tr>
@@ -894,7 +893,7 @@ export default function ClientPortal({ view = 'inventory' }) {
     const rows = note.movs.map((m) => {
       const lot = m.lots || {}
       const size = Number(lot.package_size) || 0
-      const eqRaw = size > 0 ? Number(m.quantity || 0) * size : Number(m.quantity || 0)
+      const eqRaw = Number(m.quantity || 0)
       const d = desgloseEnvases(eqRaw, size, lot.package_unit, lotUnitsPerBox(lot))
       return {
         code: productCode(lot) || '',

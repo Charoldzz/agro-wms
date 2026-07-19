@@ -20,7 +20,8 @@ function escapeHtml(value) {
 function equivalentLabel(item) {
   const size = Number(item?.package_size || 0)
   if (size <= 0) return ''
-  return fmtEquivalent(Number(item.current_quantity || item.quantity || 0) * size, item.package_unit)
+  // Las cantidades ya vienen en equivalente (lts/kgs); no se multiplica por la presentación.
+  return fmtEquivalent(Number(item.current_quantity || item.quantity || 0), item.package_unit)
 }
 
 function rowsToExcel(name, headers, rows) {
@@ -292,7 +293,7 @@ export default function AdminExports() {
   const inventoryRows = filteredLots.map((lot) => {
     const size = Number(lot.package_size) || 0
     const unidades = size > 0
-      ? desgloseEnvases(Number(lot.current_quantity || 0) * size, size, lot.package_unit, 0).unidadesLabel
+      ? desgloseEnvases(Number(lot.current_quantity || 0), size, lot.package_unit, 0).unidadesLabel
       : `${formatNumber(lot.current_quantity)} uds`
     return [
       lot.clients?.name || '',
@@ -313,16 +314,15 @@ export default function AdminExports() {
     const size = Number(movement.lots?.package_size) || 0
     const unit = movement.lots?.package_unit
     const delPrograma = movement.origin === 'programa'
-    // En los del programa la cantidad YA es el equivalente (lts/kgs); en los de
-    // la app viene en envases y hay que multiplicar por la presentacion.
-    const toEq = (v) => (delPrograma ? Number(v || 0) : Number(v || 0) * size)
+    // Tanto los del programa como los de la app guardan la cantidad en
+    // equivalente (lts/kgs). Sin presentación, la cantidad son uds sueltas.
     const eqOf = (v) => {
       if (v === null || v === undefined) return ''
-      return size > 0 || delPrograma ? fmtEquivalent(toEq(v), unit) : `${formatNumber(v)} uds`
+      return size > 0 ? fmtEquivalent(Number(v || 0), unit) : `${formatNumber(v)} uds`
     }
     const envOf = (v) => {
       if (v === null || v === undefined) return ''
-      return size > 0 ? desgloseEnvases(toEq(v), size, unit, 0).unidadesLabel : `${formatNumber(v)} uds`
+      return size > 0 ? desgloseEnvases(Number(v || 0), size, unit, 0).unidadesLabel : `${formatNumber(v)} uds`
     }
     return [
       delPrograma ? 'Programa' : 'App',
@@ -421,7 +421,7 @@ export default function AdminExports() {
           {inventoryRows.length === 0 ? <EmptyState title="Sin inventario" text="Ajusta los filtros para ver resultados." /> : filteredLots.slice(0, 8).map((lot) => {
             const size = Number(lot.package_size) || 0
             const eq = equivalentLabel(lot)
-            const env = size > 0 ? desgloseEnvases(Number(lot.current_quantity || 0) * size, size, lot.package_unit, 0).unidadesLabel : ''
+            const env = size > 0 ? desgloseEnvases(Number(lot.current_quantity || 0), size, lot.package_unit, 0).unidadesLabel : ''
             return (
               <PreviewRow
                 key={lot.id}
@@ -443,13 +443,9 @@ export default function AdminExports() {
           {movementRows.length === 0 ? <EmptyState title="Sin movimientos" text="Ajusta los filtros para ver resultados." /> : filteredMovements.slice(0, 8).map((movement) => {
             const size = Number(movement.lots?.package_size) || 0
             const delPrograma = movement.origin === 'programa'
-            // Los del programa ya traen el equivalente; los de la app, envases.
-            const eqRaw = delPrograma
-              ? Number(movement.quantity || 0)
-              : (size > 0 ? Number(movement.quantity || 0) * size : Number(movement.quantity || 0))
-            const eq = delPrograma
-              ? fmtEquivalent(eqRaw, movement.lots?.package_unit)
-              : equivalentLabel({ ...movement.lots, quantity: movement.quantity })
+            // Programa y app guardan la cantidad en equivalente (lts/kgs).
+            const eqRaw = Number(movement.quantity || 0)
+            const eq = size > 0 ? fmtEquivalent(eqRaw, movement.lots?.package_unit) : ''
             const env = size > 0 ? desgloseEnvases(eqRaw, size, movement.lots?.package_unit, 0).unidadesLabel : ''
             return (
               <PreviewRow

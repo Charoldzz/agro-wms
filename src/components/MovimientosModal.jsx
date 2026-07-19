@@ -160,7 +160,7 @@ export default function MovimientosModal({ onClose, canEdit = true }) {
     function cantidadPorUnidad(group) {
       return totalesPorUnidad(group.map((m) => {
         const size = Number(m.lots?.package_size) || 0
-        return { value: size > 0 ? Number(m.quantity || 0) * size : Number(m.quantity || 0), unit: m.lots?.package_unit }
+        return { value: Number(m.quantity || 0), unit: m.lots?.package_unit }
       }))
     }
 
@@ -204,7 +204,7 @@ export default function MovimientosModal({ onClose, canEdit = true }) {
             lot: displayLotCode(m.lots?.lot_code, m.lots),
             quantity: m.quantity,
             cantidadLabel: equivalenteLabel(
-              size > 0 ? Number(m.quantity || 0) * size : Number(m.quantity || 0),
+              Number(m.quantity || 0),
               size > 0 ? m.lots?.package_unit : null,
             ),
             envaseLabel: stockEnvaseLabel(m.quantity, m.lots),

@@ -148,7 +148,7 @@ export default function Kardex() {
       return {
         ...m,
         note: guideMap.get(m.operation_id) || null,
-        eqQuantity: size > 0 ? Number(m.quantity || 0) * size : Number(m.quantity || 0),
+        eqQuantity: Number(m.quantity || 0),
         unit: m.lots?.package_unit || '',
       }
     })

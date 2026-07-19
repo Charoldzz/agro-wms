@@ -527,7 +527,8 @@ export default function Lots() {
                     {pageRows.map((lot, i) => {
                       const isZero = Number(lot.current_quantity || 0) <= 0
                       const { size, unit } = lotSizeAndUnit(lot)
-                      const eqTotal = size > 0 ? Number(lot.current_quantity || 0) * size : 0
+                      // current_quantity YA es el equivalente (lts/kgs). Sin presentación son uds.
+                      const eqTotal = size > 0 ? Number(lot.current_quantity || 0) : 0
                       const eqN = eqTotal > 0 && unit ? normalizeEquivalent(eqTotal, unit) : null
                       const eqNorm = eqN ? eqN.value : eqTotal
                       const eqUnit = eqN && eqN.unit !== 'uds' ? pluralUnit(eqN.unit, eqN.value) : ''

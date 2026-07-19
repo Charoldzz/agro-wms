@@ -33,7 +33,7 @@ function lotEquivalentLabel(lot) {
 function lotDesgloseLabel(lot) {
   const size = Number(lot.package_size) || 0
   if (size <= 0) return ''
-  const eqRaw = (Number(lot.current_quantity) || 0) * size
+  const eqRaw = Number(lot.current_quantity) || 0
   return desgloseEnvases(eqRaw, size, lot.package_unit, 0).unidadesLabel || ''
 }
 

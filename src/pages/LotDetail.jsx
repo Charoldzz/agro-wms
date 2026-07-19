@@ -18,18 +18,19 @@ import { clearDraft, readDraft, writeDraft } from '../lib/drafts'
 import { internalLocations } from '../lib/locations'
 
 // Unidades disponibles con su tipo de envase ("30 bolsas", "53 bidones + 15 lt")
+// NOTA: current_quantity y movements.quantity guardan el EQUIVALENTE (lts/kgs),
+// igual que el programa. Sin presentación, son unidades sueltas.
 function unidadesEnvaseLabel(lot) {
   const size = Number(lot?.package_size) || 0
   const qty = Number(lot?.current_quantity) || 0
-  const eqRaw = size > 0 ? qty * size : qty
-  return desgloseEnvases(eqRaw, size, lot?.package_unit, 0).unidadesLabel || `${formatNumber(qty)} uds`
+  return desgloseEnvases(qty, size, lot?.package_unit, 0).unidadesLabel || `${formatNumber(qty)} uds`
 }
 
 // Equivalente de una cantidad de movimiento según la presentación del lote
 function qtyEquivalentLabel(lot, qty) {
   const size = Number(lot?.package_size) || 0
   const q = Number(qty) || 0
-  if (size > 0 && lot?.package_unit) return equivalentLabel(q * size, lot.package_unit)
+  if (size > 0 && lot?.package_unit) return equivalentLabel(q, lot.package_unit)
   return `${formatNumber(q)} uds`
 }
 
@@ -37,7 +38,7 @@ function qtyEnvaseLabel(lot, qty) {
   const size = Number(lot?.package_size) || 0
   const q = Number(qty) || 0
   if (!(size > 0)) return ''
-  return desgloseEnvases(q * size, size, lot?.package_unit, 0).unidadesLabel || ''
+  return desgloseEnvases(q, size, lot?.package_unit, 0).unidadesLabel || ''
 }
 
 // Traslado entre ubicaciones: OCULTO por ahora (hoy hay un solo depósito, "Depósito Warnes").
@@ -254,8 +255,9 @@ export default function LotDetail() {
 
   const stockQuantity = useMemo(() => {
     if (!lot) return 0
+    // El operador escribe envases, pero se guarda el EQUIVALENTE (lts/kgs)
     if (['entrada', 'salida'].includes(movement.type) && Number(lot.package_size) > 0) {
-      return Number(movement.package_count || 0)
+      return Number(movement.package_count || 0) * Number(lot.package_size || 0)
     }
 
     return Number(movement.quantity || 0)
@@ -271,10 +273,9 @@ export default function LotDetail() {
   // (affected_packages). El nuevo stock = actual − afectado (convertido a uds).
   const repairQuantity = useMemo(() => {
     if (!lot || movement.type !== 'ajuste') return 0
-    const size = Number(lot.package_size) || 0
+    // Afectado y stock estan los dos en equivalente: se restan directo
     const affectedEquiv = Number(movement.affected_packages || 0)
-    const affectedUds = size > 0 ? affectedEquiv / size : affectedEquiv
-    return Math.max(Number(lot.current_quantity || 0) - affectedUds, 0)
+    return Math.max(Number(lot.current_quantity || 0) - affectedEquiv, 0)
   }, [lot, movement.type, movement.affected_packages])
 
   const nextQuantity = useMemo(() => {
@@ -310,7 +311,7 @@ export default function LotDetail() {
     Number(lot?.current_quantity || 0) > 0 &&
     stockQuantity >= Number(lot.current_quantity) * 0.5
 
-  const currentEquivalent = lot ? Number(lot.current_quantity || 0) * Number(lot.package_size || 0) : 0
+  const currentEquivalent = lot ? Number(lot.current_quantity || 0) : 0
   const visibleMovements = showFullHistory ? movements : movements.slice(0, 3)
   const movementDraftKey = canRegisterMovement ? `todo-agricola-lot-movement-draft:${id}:${movementMode}` : ''
 
@@ -1222,7 +1223,7 @@ export default function LotDetail() {
                 {Number(movement.affected_packages || 0) > 0 ? (
                   <p className="mt-1.5 text-xs font-semibold text-slate-500">
                     = <span className="font-bold text-slate-800">{desgloseEnvases(Number(movement.affected_packages || 0), Number(lot.package_size) || 0, lot.package_unit, 0).unidadesLabel || `${formatNumber(movement.affected_packages)} uds`}</span>
-                    {Number(lot.package_size) > 0 ? ` · queda ${equivalentLabel(repairQuantity * Number(lot.package_size), lot.package_unit)} en el lote` : ''}
+                    {Number(lot.package_size) > 0 ? ` · queda ${equivalentLabel(repairQuantity, lot.package_unit)} en el lote` : ''}
                   </p>
                 ) : null}
               </div>
@@ -1304,7 +1305,7 @@ export default function LotDetail() {
               <span className="text-xs font-black uppercase tracking-wide text-orange-700">Stock después</span>
               <div className="text-right">
                 <p className="text-base font-black text-orange-900">
-                  {Number(lot.package_size) > 0 ? equivalentLabel(repairQuantity * Number(lot.package_size), lot.package_unit) : `${formatNumber(repairQuantity)} uds`}
+                  {Number(lot.package_size) > 0 ? equivalentLabel(repairQuantity, lot.package_unit) : `${formatNumber(repairQuantity)} uds`}
                 </p>
                 {Number(lot.package_size) > 0 ? <p className="text-[11px] font-semibold text-orange-700">{unidadesEnvaseLabel({ ...lot, current_quantity: repairQuantity })}</p> : null}
               </div>
@@ -1316,7 +1317,7 @@ export default function LotDetail() {
               <span className="text-xs font-black uppercase tracking-wide text-campo-700">Stock después</span>
               <div className="text-right">
                 <p className="text-base font-black text-campo-800">
-                  {Number(lot.package_size) > 0 ? equivalentLabel(nextQuantity * Number(lot.package_size), lot.package_unit) : `${formatNumber(nextQuantity)} uds`}
+                  {Number(lot.package_size) > 0 ? equivalentLabel(nextQuantity, lot.package_unit) : `${formatNumber(nextQuantity)} uds`}
                 </p>
                 {Number(lot.package_size) > 0 ? <p className="text-[11px] font-semibold text-campo-700">{unidadesEnvaseLabel({ ...lot, current_quantity: nextQuantity })}</p> : null}
               </div>
@@ -1395,8 +1396,8 @@ export default function LotDetail() {
                 <>
                   <StockLine
                     label="Cantidad"
-                    eq={Number(lot.package_size) > 0 ? equivalentLabel((pendingMovement.calculatedQuantity || pendingMovement.quantity * Number(lot.package_size)), lot.package_unit) : `${formatNumber(pendingMovement.quantity)} uds`}
-                    env={Number(lot.package_size) > 0 ? desgloseEnvases((pendingMovement.calculatedQuantity || pendingMovement.quantity * Number(lot.package_size)), Number(lot.package_size), lot.package_unit, 0).unidadesLabel : ''}
+                    eq={Number(lot.package_size) > 0 ? equivalentLabel(pendingMovement.quantity, lot.package_unit) : `${formatNumber(pendingMovement.quantity)} uds`}
+                    env={Number(lot.package_size) > 0 ? desgloseEnvases(pendingMovement.quantity, Number(lot.package_size), lot.package_unit, 0).unidadesLabel : ''}
                   />
                   {pendingMovement.type !== 'traslado' ? (
                     <StockLine
