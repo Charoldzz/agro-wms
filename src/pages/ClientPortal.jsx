@@ -322,7 +322,9 @@ export default function ClientPortal({ view = 'inventory' }) {
       ? await supabase.from('desktop_movements')
           .select('id,note_number,type,date,product_code,product_name,lot,expiry_date,quantity,previous_quantity,new_quantity,location,concept,transporter,plate,contact_person')
           .in('warehouse_code', whCodes.map(String))
-          .order('date', { ascending: false }).limit(600)
+          // Tope alto a proposito: es el historial COMPLETO del cliente y ya
+          // viene filtrado por su propio almacen (el mayor hoy tiene ~1.000)
+          .order('date', { ascending: false }).limit(5000)
       : { data: [] }
 
     const catByCode = new Map((catalogData || []).map(c => [String(c.code).toUpperCase(), c]))
