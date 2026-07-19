@@ -215,8 +215,20 @@ export default function Lots() {
   const totalPallets = sumBillingPallets(filteredLots)
 
   const selectedClientName = selectedClient ? clients.find((c) => c.id === selectedClient)?.name : ''
+  // En Almacenes solo se listan las empresas que TIENEN mercaderia. Las demas
+  // existen igual (y aparecen en Ingreso), pero aca ensuciarian la lista.
+  // Si se tilda "Mostrar stock 0" tambien entran las que solo tienen lotes agotados.
+  const clientsConMercaderia = useMemo(() => {
+    const ids = new Set()
+    for (const lot of lots) {
+      if (showZeroStock || Number(lot.current_quantity || 0) > 0) ids.add(lot.client_id)
+    }
+    return ids
+  }, [lots, showZeroStock])
+
   const visibleClients = clients.filter((c) =>
-    !clientSearch || c.name.toLowerCase().includes(clientSearch.toLowerCase())
+    clientsConMercaderia.has(c.id) &&
+    (!clientSearch || c.name.toLowerCase().includes(clientSearch.toLowerCase()))
   )
   return (
     <div className="flex h-full min-h-0 flex-col gap-3">

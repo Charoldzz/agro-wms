@@ -214,13 +214,23 @@ export default function NuevaSalida() {
   }, [solicitud, lots, catalogMap])
 
   async function loadClients() {
-    const { data } = await supabase
-      .from('clients')
-      .select('id, name')
-      .eq('inventory_source', 'stock_independiente')
-      .order('name')
+    // En SALIDA solo se ofrecen las empresas que tienen algo para despachar.
+    // (En INGRESO se ofrecen todas: puede llegar mercaderia de cualquiera.)
+    const [{ data }, { data: conStock }] = await Promise.all([
+      supabase
+        .from('clients')
+        .select('id, name')
+        .eq('inventory_source', 'stock_independiente')
+        .order('name'),
+      supabase
+        .from('lots')
+        .select('client_id')
+        .eq('inventory_source', 'stock_independiente')
+        .gt('current_quantity', 0),
+    ])
+    const idsConStock = new Set((conStock || []).map((l) => l.client_id))
     const seen = new Set()
-    setClients((data || []).filter((c) => {
+    setClients((data || []).filter((c) => idsConStock.has(c.id)).filter((c) => {
       const key = displayClientName(c.name).toLowerCase()
       if (seen.has(key)) return false
       seen.add(key)
