@@ -906,6 +906,30 @@ export default function LotDetail() {
             ) : null}
           </div>
         </section>
+
+        {/* Acciones sobre el lote: el administrador tiene las mismas que el operador */}
+        <div className="mt-4 flex flex-wrap gap-2">
+          <button
+            className="btn-secondary flex-1"
+            type="button"
+            onClick={() => navigate(`/lotes/${lot.id}`, { state: { movementMode: 'reparo', scanned: true } })}
+          >
+            Reparación / Ajuste
+          </button>
+          {TRASLADO_ENABLED ? (
+            <button
+              className="btn-secondary flex-1"
+              type="button"
+              onClick={() => navigate(`/lotes/${lot.id}`, { state: { movementMode: 'traslado', scanned: true } })}
+            >
+              Traslado
+            </button>
+          ) : null}
+          <button className="btn-secondary flex-1" type="button" onClick={() => setShowIssueReport(true)}>
+            Reportar problema
+          </button>
+        </div>
+        {showIssueReport ? <OperationalIssueModal lot={lot} userId={user.id} onClose={() => setShowIssueReport(false)} /> : null}
       </div>
     )
   }
