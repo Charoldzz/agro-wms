@@ -20,7 +20,7 @@ function lotEquivalentLabel(lot) {
   const qty = Number(lot.current_quantity) || 0
   if (size <= 0 || !lot.package_unit) return `${formatNumber(qty)} uds`
   let u = String(lot.package_unit).toLowerCase().trim()
-  let v = qty * size
+  let v = qty   // ya es equivalente
   if (u === 'ml') { u = 'lts'; v /= 1000 }
   else if (u === 'gr' || u === 'grs') { u = 'kgs'; v /= 1000 }
   else if (/^l/.test(u)) u = 'lts'

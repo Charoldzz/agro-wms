@@ -176,7 +176,7 @@ export default function Lots() {
       if (qty > 0) {
         const { size, unit } = lotSizeAndUnit(lot)
         if (size > 0) {
-          const total = qty * size
+          const total = qty   // ya es equivalente
           if (unit === 'ml') map[key].eqLts += total / 1000
           else if (unit === 'gr') map[key].eqKgs += total / 1000
           else if (/^l/.test(unit)) map[key].eqLts += total
@@ -206,7 +206,7 @@ export default function Lots() {
       // Sin presentación no se inventa equivalente, y las uds no van al total
       // (mezclar uds con lts/kgs confunde — decisión Harold)
       if (!(size > 0) || !unit) continue
-      const eq = normalizeEquivalent(qty * size, unit)
+      const eq = normalizeEquivalent(qty, unit)
       if (eq.unit === 'uds') continue
       totals.set(eq.unit, (totals.get(eq.unit) || 0) + eq.value)
     }

@@ -32,7 +32,7 @@ function parseConcepto(notes) {
 function stockEnvaseLabel(uds, lot) {
   const size = Number(lot?.package_size) || 0
   const q = Number(uds) || 0
-  const eqRaw = size > 0 ? q * size : q
+  const eqRaw = q   // ya es equivalente
   return desgloseEnvases(eqRaw, size, lot?.package_unit, 0).unidadesLabel || `${formatNumber(q)} uds`
 }
 

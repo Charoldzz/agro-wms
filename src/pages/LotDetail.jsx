@@ -1388,7 +1388,7 @@ export default function LotDetail() {
                   <StockLine
                     label="Stock después"
                     tone="green"
-                    eq={Number(lot.package_size) > 0 ? equivalentLabel(pendingMovement.newQuantity * Number(lot.package_size), lot.package_unit) : `${formatNumber(pendingMovement.newQuantity)} uds`}
+                    eq={Number(lot.package_size) > 0 ? equivalentLabel(pendingMovement.newQuantity, lot.package_unit) : `${formatNumber(pendingMovement.newQuantity)} uds`}
                     env={Number(lot.package_size) > 0 ? unidadesEnvaseLabel({ ...lot, current_quantity: pendingMovement.newQuantity }) : ''}
                   />
                 </>
@@ -1403,7 +1403,7 @@ export default function LotDetail() {
                     <StockLine
                       label="Stock después"
                       tone="green"
-                      eq={Number(lot.package_size) > 0 ? equivalentLabel(pendingMovement.newQuantity * Number(lot.package_size), lot.package_unit) : `${formatNumber(pendingMovement.newQuantity)} uds`}
+                      eq={Number(lot.package_size) > 0 ? equivalentLabel(pendingMovement.newQuantity, lot.package_unit) : `${formatNumber(pendingMovement.newQuantity)} uds`}
                       env={Number(lot.package_size) > 0 ? unidadesEnvaseLabel({ ...lot, current_quantity: pendingMovement.newQuantity }) : ''}
                     />
                   ) : null}

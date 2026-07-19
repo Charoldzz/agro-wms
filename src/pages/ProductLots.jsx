@@ -54,7 +54,7 @@ export default function ProductLots() {
       unidades += qty
       const { size, unit } = lotSizeAndUnit(lot)
       if (size > 0 && qty > 0) {
-        const t = qty * size
+        const t = qty   // ya es equivalente
         if (unit === 'ml') lts += t / 1000
         else if (unit === 'gr') kgs += t / 1000
         else if (/^l/.test(unit)) lts += t
@@ -82,7 +82,7 @@ export default function ProductLots() {
           productLots.map((lot) => {
             const { size, unit } = lotSizeAndUnit(lot)
             const qty = Number(lot.current_quantity || 0)
-            const rawEq = size > 0 ? qty * size : 0
+            const rawEq = size > 0 ? qty : 0
             const lotEq = unit === 'ml' ? rawEq / 1000 : unit === 'gr' ? rawEq / 1000 : rawEq
             const lotEqUnit = unit === 'ml' ? 'lts' : unit === 'gr' ? 'kgs' : unit ? unit + (unit.endsWith('s') ? '' : 's') : ''
             return (

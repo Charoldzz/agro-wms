@@ -135,7 +135,7 @@ function noteEnvasesLabel(movs) {
       tipos.set('unidades', t)
       continue
     }
-    const d = desgloseEnvases(qty * size, size, lot.package_unit, 0)
+    const d = desgloseEnvases(qty, size, lot.package_unit, 0)
     const tipo = envaseTipo(size, lot.package_unit) || { singular: 'unidad', plural: 'unidades' }
     if (d.uds > 0) {
       const t = tipos.get(tipo.plural) || { ...tipo, count: 0 }
