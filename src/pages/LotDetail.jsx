@@ -40,6 +40,11 @@ function qtyEnvaseLabel(lot, qty) {
   return desgloseEnvases(q * size, size, lot?.package_unit, 0).unidadesLabel || ''
 }
 
+// Traslado entre ubicaciones: OCULTO por ahora (hoy hay un solo depósito, "Depósito Warnes").
+// El formulario y toda la lógica siguen intactos; poner en true para reactivar el botón
+// cuando se empiecen a usar sub-ubicaciones internas (H1, H2, H3, H4, Playa, Nave 5).
+const TRASLADO_ENABLED = false
+
 const initialMovement = {
   type: 'entrada',
   quantity: '',
@@ -813,6 +818,7 @@ export default function LotDetail() {
               >
                 Reparación / Ajuste
               </button>
+              {TRASLADO_ENABLED ? (
               <button
                 className="btn-secondary flex-1"
                 type="button"
@@ -820,6 +826,7 @@ export default function LotDetail() {
               >
                 Traslado
               </button>
+              ) : null}
               <button className="btn-secondary flex-1" type="button" onClick={() => setShowIssueReport(true)}>
                 Reportar problema
               </button>
@@ -1032,6 +1039,7 @@ export default function LotDetail() {
           >
             Reparación / Ajuste
           </button>
+          {TRASLADO_ENABLED ? (
           <button
             className="btn-secondary"
             type="button"
@@ -1039,6 +1047,7 @@ export default function LotDetail() {
           >
             Traslado
           </button>
+          ) : null}
           {isOperator ? (
             <button className="btn-secondary" type="button" onClick={() => setShowIssueReport(true)}>
               Reportar problema
