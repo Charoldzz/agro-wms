@@ -75,6 +75,16 @@ function printReport(title, headers, rows) {
   printWindow.document.close()
 }
 
+// Tipos del programa C# -> tipos de la app (para que el filtro por tipo funcione)
+function desktopTypeToApp(type) {
+  const t = String(type || '').toUpperCase()
+  if (t.includes('TRASPASO') && t.includes('SALIDA')) return 'traslado'
+  if (t.includes('INGRESO')) return 'entrada'
+  if (t === 'SALIDA' || t === 'REMISION') return 'salida'
+  if (t.includes('SALIDA')) return 'ajuste'   // transformacion/formulacion/fraccionamiento
+  return 'ajuste'
+}
+
 export default function AdminExports() {
   const [lots, setLots] = useState([])
   const [movements, setMovements] = useState([])
@@ -179,8 +189,54 @@ export default function AdminExports() {
       }
     }
 
+    // Movimientos historicos del programa C# (desktop_movements). Se marcan con
+    // origin='programa' porque su cantidad YA viene en equivalente (lts/kgs),
+    // a diferencia de los de la app que vienen en envases.
+    const [{ data: deskRows }, { data: catRows }, { data: clientRows }] = await Promise.all([
+      supabase
+        .from('desktop_movements')
+        .select('id, note_number, type, date, product_code, client_prefix, product_name, lot, quantity, concept, dispatch_company, observations, created_at')
+        .order('date', { ascending: false })
+        .limit(5000),
+      supabase.from('product_catalog').select('code, package_size, package_unit'),
+      supabase.from('clients').select('name, product_code_prefix'),
+    ])
+
+    const catByCode = new Map((catRows || []).map((c) => [c.code, c]))
+    const clientByPrefix = new Map((clientRows || []).filter((c) => c.product_code_prefix).map((c) => [c.product_code_prefix, c.name]))
+
+    const desktopMovements = (deskRows || []).map((m) => {
+      const cat = catByCode.get(m.product_code)
+      return {
+        id: `desk-${m.id}`,
+        origin: 'programa',
+        programType: m.type,
+        type: desktopTypeToApp(m.type),
+        created_at: m.date || m.created_at,
+        quantity: Number(m.quantity || 0),   // YA es equivalente
+        previous_quantity: null,
+        new_quantity: null,
+        notes: m.observations || m.concept || '',
+        lots: {
+          product: m.product_name || m.product_code || '',
+          lot_code: m.lot || '',
+          package_size: cat?.package_size ?? null,
+          package_unit: cat?.package_unit ?? null,
+          location: '',
+          clients: { name: clientByPrefix.get(m.client_prefix) || m.dispatch_company || '' },
+        },
+        profiles: { full_name: '' },
+      }
+    })
+
+    const appMovements = safeMovements.map((m) => ({ ...m, origin: 'app' }))
+
     setLots(safeLots)
-    setMovements(safeMovements)
+    setMovements(
+      [...appMovements, ...desktopMovements].sort(
+        (a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0),
+      ),
+    )
   }
 
   function clearFilters() {
@@ -252,15 +308,26 @@ export default function AdminExports() {
     ]
   })
 
-  const movementHeaders = ['Fecha', 'Tipo', 'Cliente', 'Producto', 'Lote', 'Cantidad', 'Unidades', 'Stock anterior', 'Stock nuevo', 'Ubicacion', 'Usuario']
+  const movementHeaders = ['Origen', 'Fecha', 'Tipo', 'Cliente', 'Producto', 'Lote', 'Cantidad', 'Unidades', 'Stock anterior', 'Stock nuevo', 'Ubicacion', 'Usuario']
   const movementRows = filteredMovements.map((movement) => {
     const size = Number(movement.lots?.package_size) || 0
     const unit = movement.lots?.package_unit
-    const eqOf = (uds) => (size > 0 ? fmtEquivalent(Number(uds || 0) * size, unit) : `${formatNumber(uds)} uds`)
-    const envOf = (uds) => (size > 0 ? desgloseEnvases(Number(uds || 0) * size, size, unit, 0).unidadesLabel : `${formatNumber(uds)} uds`)
+    const delPrograma = movement.origin === 'programa'
+    // En los del programa la cantidad YA es el equivalente (lts/kgs); en los de
+    // la app viene en envases y hay que multiplicar por la presentacion.
+    const toEq = (v) => (delPrograma ? Number(v || 0) : Number(v || 0) * size)
+    const eqOf = (v) => {
+      if (v === null || v === undefined) return ''
+      return size > 0 || delPrograma ? fmtEquivalent(toEq(v), unit) : `${formatNumber(v)} uds`
+    }
+    const envOf = (v) => {
+      if (v === null || v === undefined) return ''
+      return size > 0 ? desgloseEnvases(toEq(v), size, unit, 0).unidadesLabel : `${formatNumber(v)} uds`
+    }
     return [
+      delPrograma ? 'Programa' : 'App',
       movement.created_at ? formatDate(movement.created_at) : '',
-      movementLabel(movement.type),
+      delPrograma ? (movement.programType || movementLabel(movement.type)) : movementLabel(movement.type),
       movement.lots?.clients?.name || '',
       cleanProductName(movement.lots?.product),
       displayLotCode(movement.lots?.lot_code),
@@ -269,7 +336,7 @@ export default function AdminExports() {
       eqOf(movement.previous_quantity),
       eqOf(movement.new_quantity),
       movement.lots?.location || movement.to_location || '',
-      movement.profiles?.full_name || '',
+      movement.profiles?.full_name || (delPrograma ? 'Programa' : ''),
     ]
   })
 
@@ -369,20 +436,26 @@ export default function AdminExports() {
 
         <ExportPanel
           title="Movimientos"
-          description={`${formatNumber(filteredMovements.length)} movimientos filtrados. Incluye usuario, stock anterior y stock nuevo.`}
+          description={`${formatNumber(filteredMovements.length)} movimientos filtrados (${formatNumber(filteredMovements.filter((m) => m.origin === 'programa').length)} del programa · ${formatNumber(filteredMovements.filter((m) => m.origin !== 'programa').length)} de la app). Incluye origen, usuario y stock.`}
           onExcel={() => exportTableExcel({ fileName: 'movimientos-todo-agricola', sheetName: 'Movimientos', title: 'Movimientos de inventario', headers: movementHeaders, rows: movementRows }).catch((e) => alert(`Error al generar Excel: ${e.message}`))}
           onPdf={() => printTablePdf({ title: 'Movimientos de inventario', headers: movementHeaders, rows: movementRows, meta: [{ label: 'Movimientos', value: formatNumber(filteredMovements.length) }] })}
         >
           {movementRows.length === 0 ? <EmptyState title="Sin movimientos" text="Ajusta los filtros para ver resultados." /> : filteredMovements.slice(0, 8).map((movement) => {
             const size = Number(movement.lots?.package_size) || 0
-            const eqRaw = size > 0 ? Number(movement.quantity || 0) * size : Number(movement.quantity || 0)
-            const eq = equivalentLabel({ ...movement.lots, quantity: movement.quantity })
+            const delPrograma = movement.origin === 'programa'
+            // Los del programa ya traen el equivalente; los de la app, envases.
+            const eqRaw = delPrograma
+              ? Number(movement.quantity || 0)
+              : (size > 0 ? Number(movement.quantity || 0) * size : Number(movement.quantity || 0))
+            const eq = delPrograma
+              ? fmtEquivalent(eqRaw, movement.lots?.package_unit)
+              : equivalentLabel({ ...movement.lots, quantity: movement.quantity })
             const env = size > 0 ? desgloseEnvases(eqRaw, size, movement.lots?.package_unit, 0).unidadesLabel : ''
             return (
               <PreviewRow
                 key={movement.id}
                 title={cleanProductName(movement.lots?.product)}
-                meta={`${movement.lots?.clients?.name || '-'} · ${formatDate(movement.created_at)}`}
+                meta={`${delPrograma ? 'Programa' : 'App'} · ${movement.lots?.clients?.name || '-'} · ${formatDate(movement.created_at)}`}
                 value={eq || `${formatNumber(movement.quantity)} uds`}
                 sub={env}
                 movementType={movement.type}
