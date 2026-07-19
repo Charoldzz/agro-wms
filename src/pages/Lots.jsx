@@ -149,7 +149,9 @@ export default function Lots() {
   const filteredLots = useMemo(() => {
     const term = search.trim().toLowerCase()
     return lots.filter((lot) => {
-      if (!showZeroStock && Number(lot.current_quantity || 0) < 1) return false
+      // Ocultar SOLO lo que esta en cero. Un envase a medio usar (ej. 0,7 bidones
+      // de 20 lt = 14 lts) es mercaderia real y tiene que verse.
+      if (!showZeroStock && Number(lot.current_quantity || 0) <= 0) return false
       if (selectedClient && lot.client_id !== selectedClient) return false
       if (!term) return true
       return (
@@ -523,7 +525,7 @@ export default function Lots() {
                   </thead>
                   <tbody>
                     {pageRows.map((lot, i) => {
-                      const isZero = Number(lot.current_quantity || 0) < 1
+                      const isZero = Number(lot.current_quantity || 0) <= 0
                       const { size, unit } = lotSizeAndUnit(lot)
                       const eqTotal = size > 0 ? Number(lot.current_quantity || 0) * size : 0
                       const eqN = eqTotal > 0 && unit ? normalizeEquivalent(eqTotal, unit) : null
