@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
-import { ArrowLeft, Camera, CheckCircle2, Download, Printer, QrCode, Save } from 'lucide-react'
+import { ArrowLeft, Camera, CheckCircle2, Clock, Download, Printer, QrCode, Save } from 'lucide-react'
 import PageHeader from '../components/PageHeader'
 import ListProductCard from '../components/ListProductCard'
 import { useAuth } from '../hooks/useAuth.jsx'
@@ -20,6 +20,15 @@ import { internalLocations } from '../lib/locations'
 // Unidades disponibles con su tipo de envase ("30 bolsas", "53 bidones + 15 lt")
 // NOTA: current_quantity y movements.quantity guardan el EQUIVALENTE (lts/kgs),
 // igual que el programa. Sin presentación, son unidades sueltas.
+function SummaryLine({ label, value }) {
+  return (
+    <div className="flex items-center justify-between gap-3 py-2">
+      <span className="text-[11px] font-black uppercase tracking-wide text-slate-400">{label}</span>
+      <span className="min-w-0 text-right text-sm font-bold text-slate-900 [overflow-wrap:anywhere]">{value}</span>
+    </div>
+  )
+}
+
 function unidadesEnvaseLabel(lot) {
   const size = Number(lot?.package_size) || 0
   const qty = Number(lot?.current_quantity) || 0
@@ -156,7 +165,7 @@ export default function LotDetail() {
   const { id } = useParams()
   const location = useLocation()
   const navigate = useNavigate()
-  const { user, isAdmin, isOperator } = useAuth()
+  const { user, profile, isAdmin, isOperator } = useAuth()
   const [lot, setLot] = useState(null)
   const [movements, setMovements] = useState([])
   const [movement, setMovement] = useState(initialMovement)
@@ -506,8 +515,13 @@ export default function LotDetail() {
         vibrateSuccess()
         if (['ajuste', 'traslado'].includes(pendingMovement.type) && canRegisterMovement) {
           setMovementSuccess({
-            title: pendingMovement.type === 'traslado' ? 'Traslado guardado' : 'Reparacion guardada',
-            text: pendingMovement.type === 'traslado' ? 'Quedo pendiente de revision al volver la senal.' : 'Quedo pendiente de revision al volver la senal.',
+            title: pendingMovement.type === 'traslado' ? 'Traslado guardado' : 'Reparación guardada',
+            text: 'Sin señal: quedó en cola y se enviará a revisión al volver internet.',
+            pendiente: true,
+            motivo: getIncidentConfig(pendingMovement.incident_type)?.label || null,
+            afectado: pendingMovement.affected_packages || null,
+            nuevoStock: pendingMovement.newQuantity,
+            observaciones: pendingMovement.notes || '',
           })
         } else {
           setTimeout(() => navigate(isOperator ? '/lotes' : '/'), 1200)
@@ -538,10 +552,15 @@ export default function LotDetail() {
       vibrateSuccess()
       if (['ajuste', 'traslado'].includes(pendingMovement.type) && canRegisterMovement) {
         setMovementSuccess({
-          title: pendingMovement.type === 'traslado' ? 'Traslado guardado' : 'Reparacion guardada',
+          title: pendingMovement.type === 'traslado' ? 'Traslado guardado' : 'Reparación guardada',
           text: isOperator
-            ? `${pendingMovement.type === 'traslado' ? 'Traslado' : 'Reparacion'} enviada a aprobacion.`
-            : `${pendingMovement.type === 'traslado' ? 'Traslado' : 'Reparacion'} aplicada.`,
+            ? `${pendingMovement.type === 'traslado' ? 'Traslado' : 'Reparación'} enviada a aprobación del administrador.`
+            : `${pendingMovement.type === 'traslado' ? 'Traslado' : 'Reparación'} aplicada.`,
+          pendiente: isOperator,
+          motivo: getIncidentConfig(pendingMovement.incident_type)?.label || null,
+          afectado: pendingMovement.affected_packages || null,
+          nuevoStock: pendingMovement.newQuantity,
+          observaciones: pendingMovement.notes || '',
         })
       } else if (canRegisterMovement) {
         setTimeout(() => navigate(isOperator ? '/lotes' : '/'), 900)
@@ -1464,16 +1483,72 @@ export default function LotDetail() {
       ) : null}
 
       {movementSuccess ? (
-        <div data-modal-backdrop="true" className="fixed inset-0 z-50 grid place-items-center overflow-y-auto bg-campo-700 p-6 text-white">
-          <section className="w-full max-w-sm py-8 text-center">
-            <span className="mx-auto flex h-40 w-40 items-center justify-center rounded-full border border-white/25 text-white">
-              <CheckCircle2 size={118} strokeWidth={1.8} />
-            </span>
-            <h2 className="mt-5 text-3xl font-black">{movementSuccess.title}</h2>
-            <p className="mt-2 text-base font-semibold text-campo-50">{movementSuccess.text}</p>
-            <button className="mt-6 inline-flex min-h-12 w-full items-center justify-center rounded-lg border border-white/20 bg-white/10 px-4 py-3 font-black text-white transition active:scale-[0.99]" type="button" onClick={() => navigate(isOperator ? '/lotes' : '/')}>
-              Volver a operar
-            </button>
+        <div data-modal-backdrop="true" className="fixed inset-0 z-50 grid place-items-center overflow-y-auto bg-slate-950/50 p-4">
+          <section data-overlay-panel="true" role="dialog" className="w-full max-w-md overflow-hidden rounded-2xl bg-white shadow-xl">
+            <div className="bg-campo-50 px-6 pb-5 pt-7 text-center">
+              <span className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-white text-campo-700 shadow-soft">
+                <CheckCircle2 size={38} strokeWidth={2} />
+              </span>
+              <h2 className="mt-3 text-2xl font-black text-slate-950">{movementSuccess.title}</h2>
+              <p className="mt-1 text-sm font-semibold text-slate-600">{movementSuccess.text}</p>
+              {movementSuccess.pendiente ? (
+                <span className="mt-2 inline-flex items-center gap-1 rounded-full bg-orange-100 px-2.5 py-1 text-[11px] font-black uppercase tracking-wide text-orange-800">
+                  <Clock size={12} /> Pendiente de aprobación
+                </span>
+              ) : null}
+              <p className="mt-2 flex items-center justify-center gap-1 text-xs font-semibold text-campo-700/80">
+                <Clock size={13} /> Registrado hoy {new Date().toLocaleTimeString('es-BO', { hour: '2-digit', minute: '2-digit' })}
+                {profile?.full_name ? ` · ${profile.full_name}` : ''}
+              </p>
+            </div>
+
+            <div className="divide-y divide-slate-100 px-6">
+              <SummaryLine label="Empresa" value={lot?.clients?.name || '—'} />
+              <SummaryLine label="Producto" value={cleanProductName(lot?.product)} />
+              <SummaryLine label="Lote" value={visibleLotCode} />
+              {movementSuccess.motivo ? <SummaryLine label="Motivo" value={movementSuccess.motivo} /> : null}
+            </div>
+
+            <div className="px-6 pt-3">
+              <div className="space-y-1">
+                {movementSuccess.afectado ? (
+                  <div className="flex items-center justify-between gap-2 rounded-lg bg-orange-50 px-3 py-2">
+                    <p className="text-xs font-black uppercase tracking-wide text-orange-700">Cantidad afectada</p>
+                    <div className="text-right">
+                      <p className="text-sm font-black text-orange-900">{qtyEquivalentLabel(lot, movementSuccess.afectado)}</p>
+                      {qtyEnvaseLabel(lot, movementSuccess.afectado) ? (
+                        <p className="text-[10px] font-semibold text-orange-700">{qtyEnvaseLabel(lot, movementSuccess.afectado)}</p>
+                      ) : null}
+                    </div>
+                  </div>
+                ) : null}
+                <div className="flex items-center justify-between gap-2 rounded-lg bg-campo-50 px-3 py-2">
+                  <p className="text-xs font-black uppercase tracking-wide text-campo-700">Stock del lote</p>
+                  <div className="text-right">
+                    <p className="text-sm font-black text-campo-800">{qtyEquivalentLabel(lot, movementSuccess.nuevoStock)}</p>
+                    {qtyEnvaseLabel(lot, movementSuccess.nuevoStock) ? (
+                      <p className="text-[10px] font-semibold text-campo-700">{qtyEnvaseLabel(lot, movementSuccess.nuevoStock)}</p>
+                    ) : null}
+                  </div>
+                </div>
+              </div>
+              {movementSuccess.observaciones ? (
+                <p className="mt-2 text-[11px] font-semibold italic text-slate-500">Obs.: {movementSuccess.observaciones}</p>
+              ) : null}
+            </div>
+
+            <div className="grid gap-2 px-6 pb-6 pt-5">
+              <button className="btn-primary w-full" type="button" onClick={() => navigate(isOperator ? '/lotes' : '/')}>
+                Volver a operar
+              </button>
+              <button
+                className="w-full py-1 text-sm font-bold text-slate-500 hover:text-slate-800"
+                type="button"
+                onClick={() => { setMovementSuccess(null); loadLot() }}
+              >
+                Ver la ficha del lote
+              </button>
+            </div>
           </section>
         </div>
       ) : null}
