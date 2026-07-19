@@ -533,31 +533,6 @@ export default function MovimientosModal({ onClose, canEdit = true }) {
                         <p className="mt-0.5 text-xs font-semibold text-slate-500">{lot.clients?.name || '-'}</p>
                       </div>
 
-                      {/* Comprobante de la guía: sirve para ingresos y salidas, tanto
-                          de la app como del programa (mismo diseño de nota) */}
-                      {selected.note_number && Array.isArray(selected.receiptRows) && selected.receiptRows.length > 0
-                        && ['entrada', 'salida'].includes(selected.type) ? (
-                        <button
-                          type="button"
-                          className="btn-primary w-full"
-                          onClick={() => {
-                            const opts = {
-                              guide: selected.note_number || '',
-                              empresa: selected.empresa || lot.clients?.name || '',
-                              contacto: tel || '',
-                              transportista: transp || '',
-                              placa: placa || '',
-                              observaciones: obs || '',
-                              fecha: selected.created_at,
-                              rows: selected.receiptRows,
-                            }
-                            if (selected.type === 'salida') openDispatchReceipt(opts)
-                            else openEntryReceipt(opts)
-                          }}
-                        >
-                          <FileText size={18} /> Ver comprobante
-                        </button>
-                      ) : null}
 
                       {/* Productos (1 o N, mismo formato) */}
                       <div>
@@ -656,6 +631,32 @@ export default function MovimientosModal({ onClose, canEdit = true }) {
                           onClick={startEdit}
                         >
                           Editar concepto
+                        </button>
+                      ) : null}
+
+                      {/* Comprobante de la guía: sirve para ingresos y salidas, tanto
+                          de la app como del programa (mismo diseño de nota) */}
+                      {selected.note_number && Array.isArray(selected.receiptRows) && selected.receiptRows.length > 0
+                        && ['entrada', 'salida'].includes(selected.type) ? (
+                        <button
+                          type="button"
+                          className="btn-primary w-full"
+                          onClick={() => {
+                            const opts = {
+                              guide: selected.note_number || '',
+                              empresa: selected.empresa || lot.clients?.name || '',
+                              contacto: tel || '',
+                              transportista: transp || '',
+                              placa: placa || '',
+                              observaciones: obs || '',
+                              fecha: selected.created_at,
+                              rows: selected.receiptRows,
+                            }
+                            if (selected.type === 'salida') openDispatchReceipt(opts)
+                            else openEntryReceipt(opts)
+                          }}
+                        >
+                          <FileText size={16} /> Ver comprobante
                         </button>
                       ) : null}
                     </>

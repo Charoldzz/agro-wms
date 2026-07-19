@@ -94,7 +94,8 @@ function movementEquivalent(m) {
   const lot = m.lots || {}
   const s = Number(lot.package_size || 0)
   if (s > 0 && lot.package_unit) {
-    const norm = normalizeEquivalent({ quantity: Number(m.quantity || 0) * s, unit: lot.package_unit })
+    // m.quantity YA es el equivalente (lts/kgs); no se multiplica por la presentación
+    const norm = normalizeEquivalent({ quantity: Number(m.quantity || 0), unit: lot.package_unit })
     let u = String(norm.unit || '').toLowerCase().trim()
     let q = norm.quantity
     if (u === 'ml') { u = 'lts'; q /= 1000 }
@@ -2089,7 +2090,7 @@ function MovementDetailBody({ note, clientName, onPrint }) {
         </div>
       )}
 
-      <button className="btn-primary w-full" onClick={onPrint}><FileText size={16} /> Ver nota (PDF)</button>
+      <button className="btn-primary w-full" type="button" onClick={onPrint}><FileText size={16} /> Ver comprobante</button>
     </div>
   )
 }
