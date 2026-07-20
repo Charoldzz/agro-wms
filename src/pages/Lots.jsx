@@ -195,7 +195,10 @@ export default function Lots() {
   function handleSearch(v) { setSearch(v); setPage(1) }
   function handleClientSelect(id) { setSelectedClient(id); setPage(1); setSidebarOpen(false) }
 
-  const totalItems = filteredLots.length
+  // Con "Total por producto" el recuadro cuenta PRODUCTOS (nombres distintos);
+  // sin tildar cuenta LOTES (cada partida por separado). Ver regla de terminología.
+  const totalItems = groupByProduct ? (groupedRows?.length || 0) : filteredLots.length
+  const totalItemsLabel = groupByProduct ? 'TOTAL PRODUCTOS' : 'TOTAL LOTES'
   // Total equivalente separado por unidad (lts · kgs), normalizando ml→lt y gr→kg
   const totalMercaderia = useMemo(() => {
     const totals = new Map()
@@ -618,7 +621,7 @@ export default function Lots() {
 
           {/* Barra de totales */}
           <div className="grid grid-cols-3 divide-x divide-slate-200 rounded-xl border border-slate-200 bg-white">
-            <Total label="TOTAL ITEM" value={formatNumber(totalItems)} />
+            <Total label={totalItemsLabel} value={formatNumber(totalItems)} />
             <Total label="TOTAL MERCADERÍA" value={totalMercaderia} />
             <Total
               label="PALLETS OCUPADOS"
