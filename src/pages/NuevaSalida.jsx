@@ -675,47 +675,58 @@ export default function NuevaSalida() {
                   )}
                 </td>
                 <td className="px-2 py-1">
-                  {row.lot_id ? (
-                    <div className="flex min-w-0 items-center gap-1">
-                      <div className="min-w-0 flex-1">
-                        <div className="truncate text-sm font-semibold text-slate-900" title={row.product}>{row.product}</div>
-                        {row.note ? (
-                          <div className="text-[10px] font-semibold italic text-amber-700">Obs.: {row.note}</div>
-                        ) : null}
-                        {rowInsufficient(row) ? (
-                          <div className="text-[10px] font-black text-red-600">
-                            Saldo insuficiente: hay {equivalentLabel(row.saldo, row.package_unit)} y pide {equivalentLabel(row.cantidad, row.package_unit)}
-                          </div>
-                        ) : row.package_unit ? (
-                          <div className="text-[10px] font-semibold text-slate-400">
-                            {equivalentLabel(row.saldo, row.package_unit)} disponibles
-                          </div>
-                        ) : null}
-                      </div>
-                      {!isRequestMode && (
-                        <button
-                          type="button"
-                          className="shrink-0 rounded p-0.5 text-slate-400 hover:text-red-500"
-                          onClick={(e) => { e.stopPropagation(); setSelectedIdx(i); clearLot(row.id) }}
-                          title="Cambiar lote"
-                        >
-                          <X size={14} />
-                        </button>
-                      )}
+                  {/* El desplegable queda SIEMPRE visible con el lote elegido, para poder
+                      corregirlo sin tener que borrarlo primero. En modo solicitud el
+                      producto lo define el cliente, asi que ahi va solo de lectura. */}
+                  {isRequestMode ? (
+                    <div className="min-w-0">
+                      <div className="truncate text-sm font-semibold text-slate-900" title={row.product}>{row.product}</div>
+                      {row.note ? (
+                        <div className="text-[10px] font-semibold italic text-amber-700">Obs.: {row.note}</div>
+                      ) : null}
+                      {rowInsufficient(row) ? (
+                        <div className="text-[10px] font-black text-red-600">
+                          Saldo insuficiente: hay {equivalentLabel(row.saldo, row.package_unit)} y pide {equivalentLabel(row.cantidad, row.package_unit)}
+                        </div>
+                      ) : row.lot_id && row.package_unit ? (
+                        <div className="text-[10px] font-semibold text-slate-400">
+                          {equivalentLabel(row.saldo, row.package_unit)} disponibles
+                        </div>
+                      ) : null}
                     </div>
                   ) : (
-                    <select
-                      className="w-full rounded border border-transparent bg-transparent px-1 py-1 text-sm focus:border-campo-400 focus:bg-white focus:outline-none"
-                      value=""
-                      onChange={(e) => { setSelectedIdx(i); selectLot(row.id, e.target.value) }}
-                      onFocus={() => setSelectedIdx(i)}
-                      disabled={!clientId || lots.length === 0 || isRequestMode}
-                    >
-                      <option value="">— Seleccionar lote —</option>
-                      {lots.map((lot) => (
-                        <option key={lot.id} value={lot.id}>{lotOptionLabel(lot)}</option>
-                      ))}
-                    </select>
+                    <div className="min-w-0">
+                      <select
+                        className="w-full truncate rounded border border-transparent bg-transparent px-1 py-1 text-sm font-semibold text-slate-900 focus:border-campo-400 focus:bg-white focus:outline-none"
+                        value={row.lot_id}
+                        onChange={(e) => {
+                          setSelectedIdx(i)
+                          const v = e.target.value
+                          if (v) selectLot(row.id, v)
+                          else clearLot(row.id)
+                        }}
+                        onFocus={() => setSelectedIdx(i)}
+                        disabled={!clientId || lots.length === 0}
+                        title={row.product || ''}
+                      >
+                        <option value="">— Seleccionar lote —</option>
+                        {lots.map((lot) => (
+                          <option key={lot.id} value={lot.id}>{lotOptionLabel(lot)}</option>
+                        ))}
+                      </select>
+                      {row.note ? (
+                        <div className="text-[10px] font-semibold italic text-amber-700">Obs.: {row.note}</div>
+                      ) : null}
+                      {rowInsufficient(row) ? (
+                        <div className="text-[10px] font-black text-red-600">
+                          Saldo insuficiente: hay {equivalentLabel(row.saldo, row.package_unit)} y pide {equivalentLabel(row.cantidad, row.package_unit)}
+                        </div>
+                      ) : row.lot_id && row.package_unit ? (
+                        <div className="text-[10px] font-semibold text-slate-400">
+                          {equivalentLabel(row.saldo, row.package_unit)} disponibles
+                        </div>
+                      ) : null}
+                    </div>
                   )}
                 </td>
                 <td className="px-2 py-1.5 text-center text-sm font-semibold text-slate-700">
@@ -835,46 +846,54 @@ export default function NuevaSalida() {
                 )}
               </div>
 
-              {row.lot_id ? (
-                <div className="mb-3 flex items-start justify-between gap-2">
-                  <div className="min-w-0">
-                    <p className="text-sm font-bold text-slate-900 [overflow-wrap:anywhere]">{row.product}</p>
-                    {row.note ? (
-                      <p className="text-[10px] font-semibold italic text-amber-700">Obs.: {row.note}</p>
-                    ) : null}
-                    {rowInsufficient(row) ? (
-                      <p className="text-[10px] font-black text-red-600">
-                        Saldo insuficiente: hay {equivalentLabel(row.saldo, row.package_unit)} y pide {equivalentLabel(row.cantidad, row.package_unit)}
-                      </p>
-                    ) : row.package_unit ? (
-                      <p className="text-[10px] font-semibold text-slate-400">
-                        {equivalentLabel(row.saldo, row.package_unit)} disponibles
-                      </p>
-                    ) : null}
-                  </div>
-                  {!isRequestMode && (
-                    <button
-                      type="button"
-                      className="shrink-0 rounded p-1 text-slate-400 hover:text-red-500"
-                      onClick={() => clearLot(row.id)}
-                      title="Cambiar lote"
-                    >
-                      <X size={16} />
-                    </button>
-                  )}
+              {/* Igual que en la tabla: el desplegable queda siempre visible para
+                  poder cambiar de lote sin borrarlo antes. */}
+              {isRequestMode ? (
+                <div className="mb-3 min-w-0">
+                  <p className="text-sm font-bold text-slate-900 [overflow-wrap:anywhere]">{row.product}</p>
+                  {row.note ? (
+                    <p className="text-[10px] font-semibold italic text-amber-700">Obs.: {row.note}</p>
+                  ) : null}
+                  {rowInsufficient(row) ? (
+                    <p className="text-[10px] font-black text-red-600">
+                      Saldo insuficiente: hay {equivalentLabel(row.saldo, row.package_unit)} y pide {equivalentLabel(row.cantidad, row.package_unit)}
+                    </p>
+                  ) : row.lot_id && row.package_unit ? (
+                    <p className="text-[10px] font-semibold text-slate-400">
+                      {equivalentLabel(row.saldo, row.package_unit)} disponibles
+                    </p>
+                  ) : null}
                 </div>
               ) : (
-                <select
-                  className="input mb-3 w-full text-sm disabled:opacity-40"
-                  value=""
-                  onChange={(e) => selectLot(row.id, e.target.value)}
-                  disabled={!clientId || lots.length === 0 || isRequestMode}
-                >
-                  <option value="">— Seleccionar lote —</option>
-                  {lots.map((lot) => (
-                    <option key={lot.id} value={lot.id}>{lotOptionLabel(lot)}</option>
-                  ))}
-                </select>
+                <div className="mb-3 min-w-0">
+                  <select
+                    className="input w-full text-sm disabled:opacity-40"
+                    value={row.lot_id}
+                    onChange={(e) => {
+                      const v = e.target.value
+                      if (v) selectLot(row.id, v)
+                      else clearLot(row.id)
+                    }}
+                    disabled={!clientId || lots.length === 0}
+                  >
+                    <option value="">— Seleccionar lote —</option>
+                    {lots.map((lot) => (
+                      <option key={lot.id} value={lot.id}>{lotOptionLabel(lot)}</option>
+                    ))}
+                  </select>
+                  {row.note ? (
+                    <p className="text-[10px] font-semibold italic text-amber-700">Obs.: {row.note}</p>
+                  ) : null}
+                  {rowInsufficient(row) ? (
+                    <p className="text-[10px] font-black text-red-600">
+                      Saldo insuficiente: hay {equivalentLabel(row.saldo, row.package_unit)} y pide {equivalentLabel(row.cantidad, row.package_unit)}
+                    </p>
+                  ) : row.lot_id && row.package_unit ? (
+                    <p className="text-[10px] font-semibold text-slate-400">
+                      {equivalentLabel(row.saldo, row.package_unit)} disponibles
+                    </p>
+                  ) : null}
+                </div>
               )}
 
               <div className="mb-3 grid grid-cols-2 gap-2">
