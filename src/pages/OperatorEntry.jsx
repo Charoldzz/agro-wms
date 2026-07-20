@@ -535,9 +535,9 @@ export default function OperatorEntry() {
                 </td>
                 <td className="px-2 py-1">
                   <input
-                    className="w-full rounded border border-transparent bg-transparent px-1.5 py-1 text-center text-sm focus:border-campo-400 focus:bg-white focus:outline-none"
+                    className="w-full rounded border border-transparent bg-transparent px-1.5 py-1 text-center text-sm uppercase focus:border-campo-400 focus:bg-white focus:outline-none"
                     value={row.lot_code}
-                    onChange={(e) => updateRow(row.id, 'lot_code', e.target.value)}
+                    onChange={(e) => updateRow(row.id, 'lot_code', e.target.value.toUpperCase())}
                     onFocus={() => setSelectedIdx(i)}
                   />
                 </td>
@@ -640,9 +640,9 @@ export default function OperatorEntry() {
               <label className="block">
                 <span className="text-xs font-bold text-slate-500">LOTE</span>
                 <input
-                  className="input mt-1 w-full text-sm"
+                  className="input mt-1 w-full text-sm uppercase"
                   value={row.lot_code}
-                  onChange={(e) => updateRow(row.id, 'lot_code', e.target.value)}
+                  onChange={(e) => updateRow(row.id, 'lot_code', e.target.value.toUpperCase())}
                 />
               </label>
               <label className="block">
