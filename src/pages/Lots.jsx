@@ -621,7 +621,7 @@ export default function Lots() {
             <Total label="TOTAL ITEM" value={formatNumber(totalItems)} />
             <Total label="TOTAL MERCADERÍA" value={totalMercaderia} />
             <Total
-              label="TOTAL PALLETS"
+              label="PALLETS OCUPADOS"
               value={totalPallets.value > 0 ? formatNumber(totalPallets.value) : '—'}
             />
           </div>
