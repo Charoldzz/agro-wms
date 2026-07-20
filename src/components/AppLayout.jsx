@@ -37,7 +37,9 @@ export default function AppLayout() {
       : profile?.role === 'cliente'
         ? clienteNavItems
         : adminNavItems
-  const mainTabPaths = new Set(['/', '/lotes', '/offline', '/despachos', '/historial', '/operacion/salidas'])
+  // Pestañas del menú (sin botón Volver, son raíz). Salidas NO va aquí: se
+  // entra desde Almacenes, así que necesita el botón Volver.
+  const mainTabPaths = new Set(['/', '/lotes', '/offline', '/despachos', '/historial'])
   const showBackButton = !mainTabPaths.has(location.pathname)
 
   async function signOut() {
