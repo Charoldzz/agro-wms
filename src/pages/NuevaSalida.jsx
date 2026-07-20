@@ -53,13 +53,44 @@ function displayClientName(name) {
   return String(name || '').replaceAll('"', '').replace(/\s+/g, ' ').trim()
 }
 
+// Dias que faltan para vencer (negativo = ya vencido). Sin fecha -> null.
+function diasParaVencer(fecha) {
+  if (!fecha) return null
+  const hoy = new Date()
+  hoy.setHours(0, 0, 0, 0)
+  return Math.ceil((new Date(`${fecha}T00:00:00`) - hoy) / 86400000)
+}
+
+// Color de la fecha: rojo si vencio, ambar si vence dentro de 90 dias.
+function claseVencimiento(fecha) {
+  const d = diasParaVencer(fecha)
+  if (d === null) return 'text-slate-700'
+  if (d < 0) return 'text-red-600 font-black'
+  if (d <= 90) return 'text-amber-600 font-black'
+  return 'text-slate-700'
+}
+
+// Nota al operador. El vencido NO se esconde ni se desaconseja: a la empresa le
+// conviene que salga del deposito, asi que se le sugiere despacharlo.
+function notaVencimiento(fecha) {
+  const d = diasParaVencer(fecha)
+  if (d === null) return null
+  if (d < 0) return { txt: 'Vencido — conviene despacharlo', cls: 'text-red-600' }
+  if (d <= 90) return { txt: `Vence en ${d} ${d === 1 ? 'dia' : 'dias'}`, cls: 'text-amber-600' }
+  return null
+}
+
 function lotOptionLabel(lot) {
   const lote = displayLotCode(lot.lot_code)
   const pkgSize = Number(lot.package_size) || 1
   const total = Number(lot.current_quantity) || 0   // ya es equivalente
   const unit = lot.package_unit || ''
   const saldo = unit ? equivalentLabel(total, unit) : formatNumber(lot.current_quantity)
-  return `${cleanProductName(lot.product)}   [Lote: ${lote}]   ${saldo}`
+  // Los <option> no admiten color de forma confiable en todos los navegadores,
+  // asi que el estado del vencimiento va como texto.
+  const d = diasParaVencer(lot.expiry_date)
+  const venc = d === null ? '' : d < 0 ? '   · VENCIDO' : d <= 90 ? `   · vence en ${d} d` : ''
+  return `${cleanProductName(lot.product)}   [Lote: ${lote}]   ${saldo}${venc}`
 }
 
 export default function NuevaSalida() {
@@ -693,6 +724,11 @@ export default function NuevaSalida() {
                           {equivalentLabel(row.saldo, row.package_unit)} disponibles
                         </div>
                       ) : null}
+                      {row.lot_id && notaVencimiento(row.expiry_date) ? (
+                        <div className={`text-[10px] font-black ${notaVencimiento(row.expiry_date).cls}`}>
+                          {notaVencimiento(row.expiry_date).txt}
+                        </div>
+                      ) : null}
                     </div>
                   ) : (
                     <div className="min-w-0">
@@ -726,13 +762,18 @@ export default function NuevaSalida() {
                           {equivalentLabel(row.saldo, row.package_unit)} disponibles
                         </div>
                       ) : null}
+                      {row.lot_id && notaVencimiento(row.expiry_date) ? (
+                        <div className={`text-[10px] font-black ${notaVencimiento(row.expiry_date).cls}`}>
+                          {notaVencimiento(row.expiry_date).txt}
+                        </div>
+                      ) : null}
                     </div>
                   )}
                 </td>
                 <td className="px-2 py-1.5 text-center text-sm font-semibold text-slate-700">
                   {row.lot_code || <span className="text-slate-300">—</span>}
                 </td>
-                <td className="px-2 py-1.5 text-center text-sm font-semibold text-slate-700">
+                <td className={`px-2 py-1.5 text-center text-sm font-semibold ${claseVencimiento(row.expiry_date)}`}>
                   {row.expiry_date
                     ? new Intl.DateTimeFormat('es-BO', { day: '2-digit', month: 'short', year: 'numeric' }).format(new Date(`${row.expiry_date}T00:00:00`))
                     : <span className="text-slate-300">—</span>}
@@ -863,6 +904,11 @@ export default function NuevaSalida() {
                       {equivalentLabel(row.saldo, row.package_unit)} disponibles
                     </p>
                   ) : null}
+                  {row.lot_id && notaVencimiento(row.expiry_date) ? (
+                    <p className={`text-[10px] font-black ${notaVencimiento(row.expiry_date).cls}`}>
+                      {notaVencimiento(row.expiry_date).txt}
+                    </p>
+                  ) : null}
                 </div>
               ) : (
                 <div className="mb-3 min-w-0">
@@ -893,6 +939,11 @@ export default function NuevaSalida() {
                       {equivalentLabel(row.saldo, row.package_unit)} disponibles
                     </p>
                   ) : null}
+                  {row.lot_id && notaVencimiento(row.expiry_date) ? (
+                    <p className={`text-[10px] font-black ${notaVencimiento(row.expiry_date).cls}`}>
+                      {notaVencimiento(row.expiry_date).txt}
+                    </p>
+                  ) : null}
                 </div>
               )}
 
@@ -903,7 +954,7 @@ export default function NuevaSalida() {
                 </div>
                 <div className="rounded-lg bg-slate-50 px-3 py-2">
                   <p className="text-[10px] font-black uppercase text-slate-500">Venc.</p>
-                  <p className="text-sm font-bold text-slate-700">
+                  <p className={`text-sm font-bold ${claseVencimiento(row.expiry_date)}`}>
                     {row.expiry_date
                       ? new Intl.DateTimeFormat('es-BO', { day: '2-digit', month: 'short', year: 'numeric' }).format(new Date(`${row.expiry_date}T00:00:00`))
                       : '—'}
