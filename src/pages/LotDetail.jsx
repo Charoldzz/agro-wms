@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
-import { ArrowLeft, Camera, CheckCircle2, Clock, Download, Printer, QrCode, Save } from 'lucide-react'
+import { ArrowLeft, Camera, CheckCircle2, Clock, Download, Printer, QrCode, Save, WifiOff } from 'lucide-react'
 import PageHeader from '../components/PageHeader'
 import ListProductCard from '../components/ListProductCard'
 import { useAuth } from '../hooks/useAuth.jsx'
@@ -167,6 +167,7 @@ export default function LotDetail() {
   const navigate = useNavigate()
   const { user, profile, isAdmin, isOperator } = useAuth()
   const [lot, setLot] = useState(null)
+  const [loadError, setLoadError] = useState(false)
   const [movements, setMovements] = useState([])
   const [movement, setMovement] = useState(initialMovement)
   const [qrDataUrl, setQrDataUrl] = useState('')
@@ -250,16 +251,24 @@ export default function LotDetail() {
   }, [lot, movement.type])
 
   async function loadLot() {
-    const [{ data: lotData }, { data: movementsData }] = await Promise.all([
-      supabase.from('lots').select('*, clients(name, contact)').eq('id', id).eq('inventory_source', 'stock_independiente').single(),
-      supabase
-        .from('movements')
-        .select('*, profiles!movements_user_id_fkey(full_name)')
-        .eq('lot_id', id)
-        .order('created_at', { ascending: false }),
-    ])
-    setLot(lotData)
-    setMovements(movementsData || [])
+    setLoadError(false)
+    try {
+      const [{ data: lotData, error: lotError }, { data: movementsData }] = await Promise.all([
+        supabase.from('lots').select('*, clients(name, contact)').eq('id', id).eq('inventory_source', 'stock_independiente').single(),
+        supabase
+          .from('movements')
+          .select('*, profiles!movements_user_id_fkey(full_name)')
+          .eq('lot_id', id)
+          .order('created_at', { ascending: false }),
+      ])
+      // Sin internet la consulta falla: se marca el error para avisar claro
+      // en vez de quedar "Cargando lote..." para siempre.
+      if (lotError || !lotData) { setLoadError(true); return }
+      setLot(lotData)
+      setMovements(movementsData || [])
+    } catch {
+      setLoadError(true)
+    }
   }
 
   const stockQuantity = useMemo(() => {
@@ -806,7 +815,26 @@ export default function LotDetail() {
     printWindow.document.close()
   }
 
-  if (!lot) return <div className="p-6 text-center text-slate-600">Cargando lote...</div>
+  if (!lot) {
+    if (loadError) {
+      return (
+        <div className="mx-auto max-w-md px-4 py-10 text-center">
+          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-amber-100 text-amber-700">
+            <WifiOff size={26} />
+          </div>
+          <h2 className="text-lg font-black text-slate-950">Sin conexión</h2>
+          <p className="mt-2 text-sm font-semibold text-slate-500">
+            No se pudo abrir este lote porque no hay internet. Esperá a que vuelva la señal e intentá de nuevo.
+          </p>
+          <div className="mt-5 grid gap-2">
+            <button className="btn-primary w-full" type="button" onClick={loadLot}>Reintentar</button>
+            <button className="btn-secondary w-full" type="button" onClick={() => navigate(isOperator ? '/lotes' : '/')}>Volver a Almacenes</button>
+          </div>
+        </div>
+      )
+    }
+    return <div className="p-6 text-center text-slate-600">Cargando lote...</div>
+  }
 
   if (operatorQrConsultation) {
     return (
