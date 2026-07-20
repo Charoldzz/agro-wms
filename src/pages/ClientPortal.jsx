@@ -591,7 +591,7 @@ export default function ClientPortal({ view = 'inventory' }) {
   }
 
   function clearCart() {
-    setReqLotId(''); setReqQuantity(''); setReqItems([]); setReqNotes(''); setReqItemNote('')
+    setReqLotId(''); setReqQuantity(''); setReqItems([]); setReqNotes('')
     setEditingLotId(''); setReqMessage(''); setReqSuccess(null); setReqProductName('')
     setReqTransporter({ name: '', ci: '', plate: '' }); setReqAttachFile(null)
     clearDraft()
@@ -1687,6 +1687,19 @@ export default function ClientPortal({ view = 'inventory' }) {
 
                   {reqMessage && (
                     <p className="rounded-lg bg-amber-50 px-3 py-2.5 text-sm font-bold text-amber-800">{reqMessage}</p>
+                  )}
+
+                  {reqItems.length > 0 && (
+                    <label className="block">
+                      <span className="text-xs font-black uppercase tracking-wide text-slate-500">Observaciones de la solicitud (opcional)</span>
+                      <textarea
+                        className="input mt-1.5 w-full"
+                        rows="2"
+                        value={reqNotes}
+                        onChange={e => setReqNotes(e.target.value)}
+                        placeholder="Algo que el almacen deba saber sobre este pedido"
+                      />
+                    </label>
                   )}
 
                   {reqItems.length > 0 && (
