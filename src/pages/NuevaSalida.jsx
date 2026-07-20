@@ -615,18 +615,13 @@ export default function NuevaSalida() {
         </div>
       )}
 
-      {insufficientRows.length > 0 && (
-        <div className="mb-4 rounded-lg border border-red-200 bg-red-50 p-3">
-          <p className="text-sm font-black text-red-800">Saldo insuficiente para {insufficientRows.length === 1 ? 'un producto' : `${insufficientRows.length} productos`} (marcados en rojo):</p>
-          <ul className="mt-1 space-y-0.5">
-            {insufficientRows.map((row) => (
-              <li key={row.id} className="text-sm font-semibold text-red-700">
-                • {row.product} — pide {formatNumber(row.uds)} uds y hay {formatNumber(row.saldo)} uds
-              </li>
-            ))}
-          </ul>
-          <p className="mt-2 text-xs font-semibold text-red-600">El stock cambió desde que el cliente hizo la solicitud. Podés rechazarla con motivo desde la pantalla de Salidas.</p>
-        </div>
+      {/* El detalle del faltante ya se ve en la propia fila. Aca solo queda, y en
+          una linea, la accion que el operador puede tomar cuando es una
+          solicitud del cliente: rechazarla. En la salida manual no hace falta. */}
+      {isRequestMode && insufficientRows.length > 0 && (
+        <p className="mb-3 rounded-lg bg-red-50 px-3 py-2 text-xs font-bold text-red-700">
+          El stock cambió desde que el cliente hizo la solicitud. Si no alcanza, podés rechazarla con motivo desde Salidas.
+        </p>
       )}
 
       <div className="mb-4 hidden overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm sm:block">
