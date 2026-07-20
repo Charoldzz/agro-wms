@@ -156,11 +156,13 @@ export default function AdminPending() {
             const currentEq = Number(movement.lots?.current_quantity) || 0
             const isAjuste = movement.type === 'ajuste'
             const note = parseMovementNotes(movement.notes)
-            // Cantidad afectada en equivalente: del concepto del operador; si falta, del delta de cantidades
-            const afectadoEq = isAjuste
-              ? (note.afectado != null ? note.afectado : Math.max(currentEq - (Number(movement.quantity) || 0), 0))
-              : (Number(movement.quantity) || 0)
-            const newEq = Math.max(currentEq - afectadoEq, 0)
+            // Para un ajuste, movement.quantity ES el stock final (así lo guarda la
+            // base y así lo aplica al aprobar). El cambio = final − actual, con signo:
+            // + sube (diferencia de conteo hacia arriba), − baja.
+            const newEq = isAjuste ? (Number(movement.quantity) || 0) : Math.max(currentEq - (Number(movement.quantity) || 0), 0)
+            const deltaEq = newEq - currentEq                 // + sube, − baja
+            const afectadoEq = isAjuste ? Math.abs(deltaEq) : (Number(movement.quantity) || 0)
+            const subeStock = deltaEq > 0
             const eqLabel = (v) => (size > 0 ? equivalentLabel(v, unit) : `${formatNumber(v)} uds`)
             const envLabel = (v) => (size > 0 ? desgloseEnvases(v, size, unit, 0).unidadesLabel : '')
             const tipoLabel = isAjuste ? 'Reparación' : movement.type === 'traslado' ? 'Traslado' : movementLabel(movement.type)
@@ -181,8 +183,8 @@ export default function AdminPending() {
                 {isAjuste ? (
                   <div className="mt-2.5 rounded-lg bg-white px-3">
                     <div className="flex items-center justify-between gap-3 border-b border-slate-100 py-2">
-                      <span className="text-xs font-bold uppercase tracking-wide text-slate-400">Afectada</span>
-                      <span className="text-right text-sm font-black text-red-700">{eqLabel(afectadoEq)}{envLabel(afectadoEq) ? <span className="ml-1.5 text-[11px] font-semibold text-slate-400">· {envLabel(afectadoEq)}</span> : null}</span>
+                      <span className="text-xs font-bold uppercase tracking-wide text-slate-400">{subeStock ? 'Diferencia (sube)' : 'Afectada'}</span>
+                      <span className={`text-right text-sm font-black ${subeStock ? 'text-campo-700' : 'text-red-700'}`}>{subeStock ? '+' : '−'}{eqLabel(afectadoEq)}{envLabel(afectadoEq) ? <span className="ml-1.5 text-[11px] font-semibold text-slate-400">· {envLabel(afectadoEq)}</span> : null}</span>
                     </div>
                     <div className="flex items-center justify-between gap-3 py-2">
                       <span className="text-xs font-bold uppercase tracking-wide text-slate-400">Stock</span>

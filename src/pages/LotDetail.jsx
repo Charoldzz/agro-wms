@@ -278,14 +278,18 @@ export default function LotDetail() {
   }, [lot, movement])
 
   const selectedIncident = getIncidentConfig(movement.incident_type)
-  // Reparación (modelo Harold): el operador carga la cantidad AFECTADA en equivalente
-  // (affected_packages). El nuevo stock = actual − afectado (convertido a uds).
+  // "Diferencia de conteo": el operador escribe cuánto CONTÓ en total, y el
+  // nuevo stock ES ese valor (puede subir o bajar). El resto de los motivos
+  // (envase dañado, derrame, etc.) siempre RESTAN la cantidad afectada.
+  const isConteo = movement.incident_type === 'diferencia_conteo'
   const repairQuantity = useMemo(() => {
     if (!lot || movement.type !== 'ajuste') return 0
-    // Afectado y stock estan los dos en equivalente: se restan directo
-    const affectedEquiv = Number(movement.affected_packages || 0)
-    return Math.max(Number(lot.current_quantity || 0) - affectedEquiv, 0)
-  }, [lot, movement.type, movement.affected_packages])
+    const val = Number(movement.affected_packages || 0)
+    if (isConteo) return Math.max(val, 0)          // el valor es el stock contado
+    return Math.max(Number(lot.current_quantity || 0) - val, 0)   // resta lo afectado
+  }, [lot, movement.type, movement.affected_packages, isConteo])
+  // Diferencia contra el stock actual (para "Diferencia de conteo"): + sube, − baja.
+  const conteoDelta = isConteo ? repairQuantity - Number(lot?.current_quantity || 0) : 0
 
   const nextQuantity = useMemo(() => {
     const quantity = stockQuantity
@@ -395,14 +399,22 @@ export default function LotDetail() {
       return
     }
 
-    if (movement.type === 'ajuste' && !(Number(movement.affected_packages || 0) > 0)) {
-      setError('Escribe la cantidad afectada.')
+    if (movement.type === 'ajuste' && String(movement.affected_packages).trim() === '') {
+      setError(isConteo ? 'Escribe cuánto contaste.' : 'Escribe la cantidad afectada.')
       vibrateError()
       return
     }
 
-    if (movement.type === 'ajuste' && Number(movement.affected_packages || 0) > currentEquivalent) {
+    // "Diferencia de conteo" puede subir o bajar el stock, asi que NO tiene el
+    // tope del stock actual. Los demas motivos restan, no pueden superar lo que hay.
+    if (movement.type === 'ajuste' && !isConteo && Number(movement.affected_packages || 0) > currentEquivalent) {
       setError('La cantidad afectada no puede superar el stock del lote.')
+      vibrateError()
+      return
+    }
+
+    if (movement.type === 'ajuste' && isConteo && conteoDelta === 0) {
+      setError('El conteo es igual al stock actual: no hay nada que ajustar.')
       vibrateError()
       return
     }
@@ -452,9 +464,14 @@ export default function LotDetail() {
       }
     }
 
+    const uMov = Number(lot.package_size) > 0 ? (lot.package_unit || '') : 'uds'
     const movementNotes = [
       pendingMovement.type === 'ajuste' && pendingMovement.incident_type ? `Motivo: ${getIncidentConfig(pendingMovement.incident_type)?.label || pendingMovement.incident_type}` : null,
-      pendingMovement.type === 'ajuste' && Number(pendingMovement.affected_packages || 0) > 0 ? `Afectado: ${formatNumber(pendingMovement.affected_packages)} ${Number(lot.package_size) > 0 ? (lot.package_unit || '') : 'uds'}` : null,
+      // Para "diferencia de conteo" se guarda la diferencia real (con signo);
+      // para el resto, la cantidad afectada (siempre resta).
+      pendingMovement.type === 'ajuste' && isConteo
+        ? `Contado: ${formatNumber(pendingMovement.affected_packages)} ${uMov} | Afectado: ${conteoDelta > 0 ? '+' : ''}${formatNumber(conteoDelta)} ${uMov}`
+        : (pendingMovement.type === 'ajuste' && Number(pendingMovement.affected_packages || 0) > 0 ? `Afectado: ${formatNumber(pendingMovement.affected_packages)} ${uMov}` : null),
       pendingMovement.notes || null,
       pendingMovement.type === 'salida' && pendingMovement.to_location ? `Placa: ${pendingMovement.to_location}` : null,
       pendingMovement.receiver_name ? `Recibe: ${pendingMovement.receiver_name}` : null,
@@ -518,6 +535,8 @@ export default function LotDetail() {
             pendiente: true,
             motivo: getIncidentConfig(pendingMovement.incident_type)?.label || null,
             afectado: pendingMovement.affected_packages || null,
+            esConteo: isConteo,
+            conteoDelta,
             nuevoStock: pendingMovement.newQuantity,
             observaciones: pendingMovement.notes || '',
           })
@@ -557,6 +576,8 @@ export default function LotDetail() {
           pendiente: isOperator,
           motivo: getIncidentConfig(pendingMovement.incident_type)?.label || null,
           afectado: pendingMovement.affected_packages || null,
+          esConteo: isConteo,
+          conteoDelta,
           nuevoStock: pendingMovement.newQuantity,
           observaciones: pendingMovement.notes || '',
         })
@@ -1244,7 +1265,7 @@ export default function LotDetail() {
                 </div>
               </label>
               <div className="sm:col-span-2">
-                <span className="label">Cantidad afectada</span>
+                <span className="label">{isConteo ? '¿Cuánto contaste en total?' : 'Cantidad afectada'}</span>
                 <div className="mt-1 flex items-center gap-2">
                   <input
                     className="input w-40"
@@ -1256,12 +1277,23 @@ export default function LotDetail() {
                       if (/^\d*\.?\d*$/.test(value)) setMovement({ ...movement, affected_packages: value })
                     }}
                     onWheel={(event) => event.currentTarget.blur()}
-                    placeholder={Number(lot.package_size) > 0 ? `Ej: ${formatNumber(lot.package_size)}` : 'Ej: 5'}
+                    placeholder={isConteo ? `Actual: ${formatNumber(lot.current_quantity)}` : (Number(lot.package_size) > 0 ? `Ej: ${formatNumber(lot.package_size)}` : 'Ej: 5')}
                     required
                   />
                   <span className="text-sm font-bold text-slate-500">{Number(lot.package_size) > 0 ? (lot.package_unit || '') : 'uds'}</span>
                 </div>
-                {Number(movement.affected_packages || 0) > 0 ? (
+                {isConteo ? (
+                  String(movement.affected_packages).trim() !== '' && conteoDelta !== 0 ? (
+                    <p className="mt-1.5 text-xs font-semibold text-slate-500">
+                      <span className={`font-black ${conteoDelta > 0 ? 'text-campo-700' : 'text-orange-700'}`}>
+                        {conteoDelta > 0 ? 'Sube ' : 'Baja '}{equivalentLabel(Math.abs(conteoDelta), lot.package_unit)}
+                      </span>
+                      {Number(lot.package_size) > 0 ? ` · queda ${equivalentLabel(repairQuantity, lot.package_unit)} en el lote` : ''}
+                    </p>
+                  ) : (
+                    <p className="mt-1.5 text-xs font-semibold text-slate-400">Escribí el total que contaste; el sistema calcula si sube o baja.</p>
+                  )
+                ) : Number(movement.affected_packages || 0) > 0 ? (
                   <p className="mt-1.5 text-xs font-semibold text-slate-500">
                     = <span className="font-bold text-slate-800">{desgloseEnvases(Number(movement.affected_packages || 0), Number(lot.package_size) || 0, lot.package_unit, 0).unidadesLabel || `${formatNumber(movement.affected_packages)} uds`}</span>
                     {Number(lot.package_size) > 0 ? ` · queda ${equivalentLabel(repairQuantity, lot.package_unit)} en el lote` : ''}
@@ -1420,12 +1452,27 @@ export default function LotDetail() {
               {pendingMovement.type === 'ajuste' ? (
                 <>
                   <StockLine label="Motivo" eq={getIncidentConfig(pendingMovement.incident_type)?.label || '-'} />
-                  <StockLine
-                    label="Cantidad afectada"
-                    tone="red"
-                    eq={Number(lot.package_size) > 0 ? equivalentLabel(Number(pendingMovement.affected_packages || 0), lot.package_unit) : `${formatNumber(pendingMovement.affected_packages)} uds`}
-                    env={Number(lot.package_size) > 0 ? desgloseEnvases(Number(pendingMovement.affected_packages || 0), Number(lot.package_size), lot.package_unit, 0).unidadesLabel : ''}
-                  />
+                  {isConteo ? (
+                    <>
+                      <StockLine
+                        label="Contaste"
+                        eq={Number(lot.package_size) > 0 ? equivalentLabel(Number(pendingMovement.affected_packages || 0), lot.package_unit) : `${formatNumber(pendingMovement.affected_packages)} uds`}
+                        env={Number(lot.package_size) > 0 ? desgloseEnvases(Number(pendingMovement.affected_packages || 0), Number(lot.package_size), lot.package_unit, 0).unidadesLabel : ''}
+                      />
+                      <StockLine
+                        label={conteoDelta > 0 ? 'Diferencia (sube)' : 'Diferencia (baja)'}
+                        tone={conteoDelta > 0 ? 'green' : 'red'}
+                        eq={`${conteoDelta > 0 ? '+' : '−'}${Number(lot.package_size) > 0 ? equivalentLabel(Math.abs(conteoDelta), lot.package_unit) : `${formatNumber(Math.abs(conteoDelta))} uds`}`}
+                      />
+                    </>
+                  ) : (
+                    <StockLine
+                      label="Cantidad afectada"
+                      tone="red"
+                      eq={Number(lot.package_size) > 0 ? equivalentLabel(Number(pendingMovement.affected_packages || 0), lot.package_unit) : `${formatNumber(pendingMovement.affected_packages)} uds`}
+                      env={Number(lot.package_size) > 0 ? desgloseEnvases(Number(pendingMovement.affected_packages || 0), Number(lot.package_size), lot.package_unit, 0).unidadesLabel : ''}
+                    />
+                  )}
                   <StockLine
                     label="Stock después"
                     tone="green"
@@ -1509,7 +1556,23 @@ export default function LotDetail() {
 
             <div className="px-6 pt-3">
               <div className="space-y-1">
-                {movementSuccess.afectado ? (
+                {movementSuccess.esConteo && movementSuccess.afectado ? (
+                  <>
+                    <div className="flex items-center justify-between gap-2 rounded-lg bg-slate-50 px-3 py-2">
+                      <p className="text-xs font-black uppercase tracking-wide text-slate-500">Contaste</p>
+                      <div className="text-right">
+                        <p className="text-sm font-black text-slate-800">{qtyEquivalentLabel(lot, movementSuccess.afectado)}</p>
+                        {qtyEnvaseLabel(lot, movementSuccess.afectado) ? (
+                          <p className="text-[10px] font-semibold text-slate-400">{qtyEnvaseLabel(lot, movementSuccess.afectado)}</p>
+                        ) : null}
+                      </div>
+                    </div>
+                    <div className={`flex items-center justify-between gap-2 rounded-lg px-3 py-2 ${movementSuccess.conteoDelta > 0 ? 'bg-campo-50' : 'bg-orange-50'}`}>
+                      <p className={`text-xs font-black uppercase tracking-wide ${movementSuccess.conteoDelta > 0 ? 'text-campo-700' : 'text-orange-700'}`}>{movementSuccess.conteoDelta > 0 ? 'Diferencia (sube)' : 'Diferencia (baja)'}</p>
+                      <p className={`text-sm font-black ${movementSuccess.conteoDelta > 0 ? 'text-campo-800' : 'text-orange-900'}`}>{movementSuccess.conteoDelta > 0 ? '+' : '−'}{qtyEquivalentLabel(lot, Math.abs(movementSuccess.conteoDelta))}</p>
+                    </div>
+                  </>
+                ) : movementSuccess.afectado ? (
                   <div className="flex items-center justify-between gap-2 rounded-lg bg-orange-50 px-3 py-2">
                     <p className="text-xs font-black uppercase tracking-wide text-orange-700">Cantidad afectada</p>
                     <div className="text-right">
