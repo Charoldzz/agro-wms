@@ -600,10 +600,6 @@ export default function NuevaSalida() {
             <span className="label">Teléfono</span>
             <input className="input mt-1" value={contacto} onChange={(e) => setContacto(e.target.value)} />
           </label>
-          <label className="block sm:col-span-2">
-            <span className="label">Observaciones</span>
-            <input className="input mt-1" value={observaciones} onChange={(e) => setObservaciones(e.target.value)} />
-          </label>
         </section>
       )}
 
@@ -984,6 +980,16 @@ export default function NuevaSalida() {
         <div className="mb-4 rounded-lg bg-amber-50 p-3 text-sm font-bold text-amber-700">
           Confirmá cada producto en el carrito antes de guardar.
         </div>
+      )}
+
+      {/* Observaciones DE LA OPERACION: debajo de los productos, para poder anotar
+          algo despues de cargarlos. En modo solicitud la nota la puso el cliente
+          y se muestra arriba (datos fijos del cliente). */}
+      {!isRequestMode && (
+        <label className="mb-4 block">
+          <span className="label">Observaciones</span>
+          <input className="input mt-1" value={observaciones} onChange={(e) => setObservaciones(e.target.value)} placeholder="Algo sobre esta salida (opcional)" />
+        </label>
       )}
 
       {error ? <div className="mb-4 rounded-lg bg-red-50 p-3 text-sm font-bold text-red-700">{error}</div> : null}

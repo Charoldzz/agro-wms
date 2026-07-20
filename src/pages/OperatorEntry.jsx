@@ -468,10 +468,6 @@ export default function OperatorEntry() {
           <span className="label">Teléfono</span>
           <input className="input mt-1" value={contacto} onChange={(e) => setContacto(e.target.value)} />
         </label>
-        <label className="block sm:col-span-2">
-          <span className="label">Observaciones</span>
-          <input className="input mt-1" value={observaciones} onChange={(e) => setObservaciones(e.target.value)} />
-        </label>
       </section>
 
       <div className="mb-3 flex flex-wrap items-center gap-2">
@@ -718,6 +714,13 @@ export default function OperatorEntry() {
             : <p className="text-sm text-slate-400 mb-2">Sin cantidades ingresadas</p>}
         </div>
       </div>
+
+      {/* Observaciones DE LA OPERACION: debajo de los productos, para poder
+          anotar algo despues de cargarlos. */}
+      <label className="mb-4 block">
+        <span className="label">Observaciones</span>
+        <input className="input mt-1" value={observaciones} onChange={(e) => setObservaciones(e.target.value)} placeholder="Algo sobre este ingreso (opcional)" />
+      </label>
 
       {error ? <div className="mb-4 rounded-lg bg-red-50 p-3 text-sm font-bold text-red-700">{error}</div> : null}
 
