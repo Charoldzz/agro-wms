@@ -1821,6 +1821,11 @@ export default function ClientPortal({ view = 'inventory' }) {
                               {[req.transporter_name, req.transporter_plate, req.transporter_ci].filter(Boolean).join(' · ')}
                             </div>
                           )}
+                          {req.notes && (
+                            <div className="mt-1.5 rounded-lg bg-amber-50 px-3 py-2">
+                              <span className="text-xs font-semibold italic text-amber-800 [overflow-wrap:anywhere]">Obs.: {req.notes}</span>
+                            </div>
+                          )}
                           {req.attachment_url && (
                             <a href={attachmentViewerUrl(req.attachment_url)} target="_blank" rel="noreferrer" className="mt-1.5 flex items-center gap-1.5 text-xs font-bold text-campo-700 hover:underline">
                               <Paperclip size={11} /> Ver nota adjunta
