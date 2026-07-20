@@ -1815,6 +1815,12 @@ export default function ClientPortal({ view = 'inventory' }) {
                             )
                           })()}
                           <RequestProgress status={req.status} />
+                          {req.status === 'rechazado' && req.admin_notes && (
+                            <div className="mt-2 border-l-[3px] border-red-400 bg-red-50 px-3.5 py-2.5">
+                              <p className="flex items-center gap-1 text-[10px] font-black uppercase tracking-wide text-red-700">Motivo del rechazo</p>
+                              <p className="mt-1 text-sm font-semibold text-red-700 [overflow-wrap:anywhere]">{req.admin_notes}</p>
+                            </div>
+                          )}
                           {(req.transporter_name || req.transporter_ci || req.transporter_plate) && (
                             <div className="mt-2 rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-600">
                               <span className="font-bold">Transportista: </span>
@@ -1833,7 +1839,9 @@ export default function ClientPortal({ view = 'inventory' }) {
                           )}
                           <div className="mt-2 space-y-0.5">
                             <p className="text-[10px] font-semibold text-slate-400">{formatDate(req.created_at)}</p>
-                            {req.admin_notes && (
+                            {/* El motivo del rechazo ya se muestra destacado arriba;
+                                otras notas del admin (no rechazo) van acá. */}
+                            {req.admin_notes && req.status !== 'rechazado' && (
                               <p className="text-xs font-semibold text-slate-600 italic [overflow-wrap:anywhere]">{req.admin_notes}</p>
                             )}
                           </div>
