@@ -337,6 +337,7 @@ export default function NuevaSalida() {
   }
 
   function clearLot(rowId) {
+    setError('')
     setRows((r) => r.map((row) => row.id === rowId ? { ...emptyRow(), id: rowId } : row))
   }
 
@@ -347,6 +348,7 @@ export default function NuevaSalida() {
   function updateCantidad(rowId, value) {
     const v = value.replace(',', '.')
     if (!/^\d*\.?\d*$/.test(v)) return
+    setError('')
     const qty = Number(v || 0)
     setRows((r) => r.map((row) => {
       if (row.id !== rowId) return row
@@ -366,8 +368,11 @@ export default function NuevaSalida() {
     }))
   }
 
-  const rowInsufficient = (row) => isRequestMode && row.lot_id && Number(row.cantidad || 0) > Number(row.saldo || 0)
-  const insufficientRows = isRequestMode ? rows.filter(rowInsufficient) : []
+  // Aviso de saldo insuficiente EN VIVO, mientras se escribe (antes solo existía
+  // en el modo solicitud, y en la salida manual el error solo aparecía al Guardar
+  // y quedaba pegado aunque se corrigiera la cantidad).
+  const rowInsufficient = (row) => row.lot_id && Number(row.cantidad || 0) > Number(row.saldo || 0)
+  const insufficientRows = rows.filter(rowInsufficient)
   const allConfirmed = !isRequestMode || rows.every((r) => r.confirmed)
 
   async function save() {
