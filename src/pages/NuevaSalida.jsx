@@ -226,7 +226,6 @@ export default function NuevaSalida() {
         ...emptyRow(),
         lot_id: lot.id,
         product,
-        note: item.note || '',
         solucion_code: lot.solucion_product_code || '',
         lot_code: displayLotCode(lot.lot_code),
         expiry_date: lot.expiry_date || '',
@@ -712,9 +711,6 @@ export default function NuevaSalida() {
                   {isRequestMode ? (
                     <div className="min-w-0">
                       <div className="truncate text-sm font-semibold text-slate-900" title={row.product}>{row.product}</div>
-                      {row.note ? (
-                        <div className="text-[10px] font-semibold italic text-amber-700">Obs.: {row.note}</div>
-                      ) : null}
                       {rowInsufficient(row) ? (
                         <div className="text-[10px] font-black text-red-600">
                           Saldo insuficiente: hay {equivalentLabel(row.saldo, row.package_unit)} y pide {equivalentLabel(row.cantidad, row.package_unit)}
@@ -750,9 +746,6 @@ export default function NuevaSalida() {
                           <option key={lot.id} value={lot.id}>{lotOptionLabel(lot)}</option>
                         ))}
                       </select>
-                      {row.note ? (
-                        <div className="text-[10px] font-semibold italic text-amber-700">Obs.: {row.note}</div>
-                      ) : null}
                       {rowInsufficient(row) ? (
                         <div className="text-[10px] font-black text-red-600">
                           Saldo insuficiente: hay {equivalentLabel(row.saldo, row.package_unit)} y pide {equivalentLabel(row.cantidad, row.package_unit)}
@@ -892,9 +885,6 @@ export default function NuevaSalida() {
               {isRequestMode ? (
                 <div className="mb-3 min-w-0">
                   <p className="text-sm font-bold text-slate-900 [overflow-wrap:anywhere]">{row.product}</p>
-                  {row.note ? (
-                    <p className="text-[10px] font-semibold italic text-amber-700">Obs.: {row.note}</p>
-                  ) : null}
                   {rowInsufficient(row) ? (
                     <p className="text-[10px] font-black text-red-600">
                       Saldo insuficiente: hay {equivalentLabel(row.saldo, row.package_unit)} y pide {equivalentLabel(row.cantidad, row.package_unit)}
@@ -927,9 +917,6 @@ export default function NuevaSalida() {
                       <option key={lot.id} value={lot.id}>{lotOptionLabel(lot)}</option>
                     ))}
                   </select>
-                  {row.note ? (
-                    <p className="text-[10px] font-semibold italic text-amber-700">Obs.: {row.note}</p>
-                  ) : null}
                   {rowInsufficient(row) ? (
                     <p className="text-[10px] font-black text-red-600">
                       Saldo insuficiente: hay {equivalentLabel(row.saldo, row.package_unit)} y pide {equivalentLabel(row.cantidad, row.package_unit)}
