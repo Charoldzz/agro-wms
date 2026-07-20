@@ -654,6 +654,7 @@ export default function Lots() {
       {showMovimientosModal && (
         <MovimientosModal
           canEdit={isAdmin}
+          isAdmin={isAdmin}
           onClose={() => setShowMovimientosModal(false)}
         />
       )}

@@ -84,7 +84,7 @@ function PackageChips({ chips }) {
   )
 }
 
-export default function MovimientosModal({ onClose, canEdit = true }) {
+export default function MovimientosModal({ onClose, canEdit = true, isAdmin = false }) {
   const [movements, setMovements] = useState([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
@@ -472,7 +472,7 @@ export default function MovimientosModal({ onClose, canEdit = true }) {
                           <td className="px-3 py-2 text-xs font-semibold text-slate-700 max-w-[120px] truncate">{mLot.clients?.name || '-'}</td>
                           <td className="px-3 py-2 text-xs font-semibold text-slate-900 max-w-[160px] truncate">{cleanProductName(mLot.product) || '-'}</td>
                           <td className="px-3 py-2 text-right text-sm font-black leading-snug text-campo-700">{m.cantidadLabel || formatNumber(m.quantity)}</td>
-                          <td className="px-3 py-2 text-xs text-slate-500 max-w-[100px] truncate">{m.notes || '-'}</td>
+                          <td className="px-3 py-2 text-xs text-slate-500 max-w-[100px] truncate">{(m.source === 'desktop' && !isAdmin) ? '-' : (m.notes || '-')}</td>
                         </tr>
                       )
                     })}
@@ -524,7 +524,9 @@ export default function MovimientosModal({ onClose, canEdit = true }) {
                   const transp = selected.transporter || c.transportista
                   const placa = selected.plate || c.placa
                   const tel = selected.contact_person || c.documento
-                  const obs = selected.observations || c.obs
+                  // El concepto tecnico del programa ("SALIDA 6021 (DBF...)") solo
+                  // lo ve el admin como referencia; al operador se le oculta.
+                  const obs = selected.observations || ((selected.source === 'desktop' && !isAdmin) ? '' : c.obs)
                   return (
                     <>
                       {/* Nota + empresa */}
