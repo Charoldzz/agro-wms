@@ -95,3 +95,41 @@ grant execute on function public.revoke_portal_user(uuid) to authenticated;
 -- select * from public.company_portal_users(
 --   (select id from public.clients where solucion_codigo = 999)
 -- );
+
+
+-- ============================================================
+-- 3) CONTEO de usuarios por empresa (para los chips de la lista).
+--    Devuelve, por cada empresa con usuarios cliente, cuantos activos y
+--    cuantos con invitacion pendiente. Solo el administrador.
+-- ============================================================
+create or replace function public.company_portal_user_counts()
+returns table (
+  client_id   uuid,
+  activos     int,
+  pendientes  int
+)
+language plpgsql
+security definer
+set search_path = public, auth
+as $$
+begin
+  if not exists (
+    select 1 from public.profiles p
+    where p.id = auth.uid() and p.role::text = 'administrador'
+  ) then
+    raise exception 'Solo el administrador puede ver los usuarios.';
+  end if;
+
+  return query
+  select
+    p.client_id,
+    count(*) filter (where u.last_sign_in_at is not null or u.email_confirmed_at is not null)::int,
+    count(*) filter (where u.last_sign_in_at is null and u.email_confirmed_at is null)::int
+  from public.profiles p
+  join auth.users u on u.id = p.id
+  where p.role::text = 'cliente' and p.client_id is not null
+  group by p.client_id;
+end;
+$$;
+
+grant execute on function public.company_portal_user_counts() to authenticated;

@@ -27,8 +27,10 @@ export default function EmpresasModal({ onClose, onSaved }) {
   const [saving, setSaving] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [error, setError] = useState('')
+  // Conteo de usuarios de portal por empresa, para el chip de cada fila
+  const [accessCounts, setAccessCounts] = useState({})
 
-  useEffect(() => { load() }, [])
+  useEffect(() => { load(); loadAccessCounts() }, [])
 
   async function load() {
     setLoading(true)
@@ -45,6 +47,19 @@ export default function EmpresasModal({ onClose, onSaved }) {
       return true
     }))
     setLoading(false)
+  }
+
+  async function loadAccessCounts() {
+    const { data } = await supabase.rpc('company_portal_user_counts')
+    const map = {}
+    ;(data || []).forEach((r) => { map[r.client_id] = { activos: r.activos, pendientes: r.pendientes } })
+    setAccessCounts(map)
+  }
+
+  function abrirAcceso(id) {
+    setSelectedId(id)
+    setError('')
+    setMode('access')
   }
 
   const filtered = clients.filter((c) => {
@@ -144,7 +159,7 @@ export default function EmpresasModal({ onClose, onSaved }) {
         {/* Header */}
         <div className="flex shrink-0 items-center justify-between border-b border-slate-100 px-5 py-4">
           <h2 className="text-base font-black text-slate-950">
-            {mode === 'new' ? 'Nueva empresa' : mode === 'edit' ? `Modificar: ${displayName(selectedClient?.name || '')}` : 'Empresas'}
+            {mode === 'new' ? 'Nueva empresa' : mode === 'edit' ? `Modificar: ${displayName(selectedClient?.name || '')}` : mode === 'access' ? `Acceso: ${displayName(selectedClient?.name || '')}` : 'Empresas'}
           </h2>
           <button className="btn-secondary !min-h-9 !p-2" type="button" onClick={mode ? cancel : onClose}>
             {mode ? <ArrowLeft size={18} /> : <X size={18} />}
@@ -170,6 +185,14 @@ export default function EmpresasModal({ onClose, onSaved }) {
                 disabled={deleting}
               >
                 <Edit2 size={15} /> Modificar
+              </button>
+              <button
+                className="btn-secondary !min-h-9 !px-3 !py-1.5 text-sm"
+                type="button"
+                onClick={() => { if (!selectedId) { setError('Selecciona una empresa para ver su acceso al portal.'); return } abrirAcceso(selectedId) }}
+                disabled={deleting}
+              >
+                <UserPlus size={15} /> Acceso al portal
               </button>
               <button
                 className="btn-secondary !min-h-9 !px-3 !py-1.5 text-sm text-red-700 hover:bg-red-50"
@@ -225,7 +248,10 @@ export default function EmpresasModal({ onClose, onSaved }) {
                         onClick={() => { setSelectedId((p) => (p === c.id ? null : c.id)); setError('') }}
                       >
                         <td className="px-4 py-2.5 text-sm font-bold text-slate-400">{i + 1}</td>
-                        <td className="px-4 py-2.5 text-sm text-slate-900 [overflow-wrap:anywhere]">{displayName(c.name)}</td>
+                        <td className="px-4 py-2.5 text-sm text-slate-900 [overflow-wrap:anywhere]">
+                          {displayName(c.name)}
+                          <AccessChip counts={accessCounts[c.id]} onClick={(e) => { e.stopPropagation(); abrirAcceso(c.id) }} />
+                        </td>
                         <td className="px-3 py-2.5">
                           {c.product_code_prefix
                             ? <span className="rounded bg-campo-100 px-1.5 py-0.5 font-mono text-xs font-bold text-campo-700">{c.product_code_prefix}</span>
@@ -348,14 +374,49 @@ export default function EmpresasModal({ onClose, onSaved }) {
               </button>
               <button className="btn-secondary flex-1" type="button" onClick={cancel}>Cancelar</button>
             </div>
-
-            {/* Acceso al portal: usuarios que entran al portal de esta empresa */}
-            <PortalAccess clientId={selectedId} clientName={displayName(editForm.name)} />
           </form>
+        )}
+
+        {/* === VISTA ACCESO AL PORTAL === */}
+        {mode === 'access' && selectedId && (
+          <div className="flex flex-1 flex-col overflow-y-auto p-5">
+            <PortalAccess
+              clientId={selectedId}
+              clientName={displayName(selectedClient?.name || '')}
+              onChanged={loadAccessCounts}
+            />
+          </div>
         )}
 
       </div>
     </div>
+  )
+}
+
+// Chip de estado de acceso al portal para cada fila de la lista
+function AccessChip({ counts, onClick }) {
+  const activos = counts?.activos || 0
+  const pendientes = counts?.pendientes || 0
+  let cls, label
+  if (activos > 0) {
+    cls = 'bg-campo-100 text-campo-800'
+    label = `${activos} usuario${activos !== 1 ? 's' : ''}${pendientes > 0 ? ` · ${pendientes} pend.` : ''}`
+  } else if (pendientes > 0) {
+    cls = 'bg-amber-100 text-amber-800'
+    label = `${pendientes} pendiente${pendientes !== 1 ? 's' : ''}`
+  } else {
+    cls = 'bg-slate-100 text-slate-500'
+    label = 'sin acceso'
+  }
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`ml-2 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-black uppercase tracking-wide ${cls}`}
+      title="Ver el acceso al portal de esta empresa"
+    >
+      <UserPlus size={11} /> {label}
+    </button>
   )
 }
 
@@ -368,7 +429,7 @@ function fmtFecha(str) {
   return new Intl.DateTimeFormat('es-BO', { day: '2-digit', month: 'short', year: 'numeric' }).format(new Date(str))
 }
 
-function PortalAccess({ clientId, clientName }) {
+function PortalAccess({ clientId, clientName, onChanged }) {
   const [users, setUsers] = useState([])
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
@@ -397,6 +458,7 @@ function PortalAccess({ clientId, clientName }) {
       setForm({ full_name: '', email: '' })
       setShowForm(false)
       await loadUsers()
+      onChanged?.()
     } catch (e2) {
       setErr(e2.message || 'No se pudo enviar la invitación.')
     }
@@ -421,7 +483,7 @@ function PortalAccess({ clientId, clientName }) {
     setBusy(true)
     const { error } = await supabase.rpc('revoke_portal_user', { p_user_id: u.user_id })
     if (error) setErr(error.message)
-    else { setMsg(`Acceso de ${u.email} quitado.`); await loadUsers() }
+    else { setMsg(`Acceso de ${u.email} quitado.`); await loadUsers(); onChanged?.() }
     setBusy(false)
   }
 
