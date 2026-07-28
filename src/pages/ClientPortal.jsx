@@ -853,22 +853,9 @@ export default function ClientPortal({ view = 'inventory' }) {
       </tr>`
     }).join('')
 
-    // Total solo en equivalente (lts · kgs) — nunca mezclar con uds
-    const totals = new Map()
-    lots.forEach((l) => {
-      let eq = null
-      try { eq = lotEquivalent(l) } catch (_) { /* sin dato */ }
-      if (!eq) return
-      let u = String(eq.unit || '').toLowerCase()
-      let v = eq.quantity
-      if (u === 'ml') { u = 'lts'; v /= 1000 }
-      else if (/^l/.test(u)) u = 'lts'
-      else if (/^k/.test(u)) u = 'kgs'
-      else return
-      totals.set(u, (totals.get(u) || 0) + v)
-    })
-    const totalLabel = [...totals.entries()].map(([u, v]) => `${formatNumber(v)} ${u}`).join(' · ')
-
+    // Sin fila TOTAL: un inventario mezcla productos distintos, sumar su volumen
+    // (lts/kgs) no aporta un dato útil. El resumen real (productos · lotes) va
+    // en la cabecera. Decisión Harold 2026-07-28.
     const w = window.open('', '_blank'); if (!w) return
     w.document.write(`<!doctype html><html><head><title>Inventario ${escapeHtml(clientName)}</title>
 <style>
@@ -932,7 +919,6 @@ export default function ClientPortal({ view = 'inventory' }) {
     <th class="r">Cantidad</th><th class="r">Unidades</th><th class="r">Cajas</th>
   </tr></thead>
   <tbody>${rows}</tbody>
-  ${totalLabel ? `<tfoot><tr><td colspan="5">TOTAL</td><td class="r">${escapeHtml(totalLabel)}</td><td></td><td></td></tr></tfoot>` : ''}
 </table>
 <p class="foot">Documento informativo generado desde el portal de clientes de Todo Agr&iacute;cola Boliviana Ltda &mdash; Emitido el ${escapeHtml(formatDateOnly(new Date().toISOString()))}. Informaci&oacute;n referencial sujeta a validaci&oacute;n operativa.</p>
 </body></html>`)

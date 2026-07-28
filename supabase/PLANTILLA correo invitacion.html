@@ -1,0 +1,74 @@
+<!--
+  PLANTILLA DE CORREO — Invitación al portal de cliente
+  Todo Agrícola Boliviana Ltda
+
+  DONDE PEGARLO EN SUPABASE:
+    Supabase → Authentication → Emails (o Email Templates) →
+    pestaña "Invite user" → borrar lo que hay y pegar TODO esto → Save.
+
+  El {{ .ConfirmationURL }} es la variable que Supabase reemplaza por el
+  enlace real de invitación. No la toques.
+-->
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#f1f5f9;padding:24px 0;font-family:Arial,Helvetica,sans-serif;">
+  <tr>
+    <td align="center">
+      <table width="100%" style="max-width:520px;background:#ffffff;border-radius:14px;overflow:hidden;border:1px solid #e2e8f0;">
+
+        <tr>
+          <td style="background:#166534;padding:24px 28px;">
+            <p style="margin:0;color:#ffffff;font-size:18px;font-weight:bold;letter-spacing:0.3px;">TODO AGRÍCOLA BOLIVIANA LTDA</p>
+            <p style="margin:4px 0 0;color:#bbf7d0;font-size:13px;">Portal de clientes · Depósito Warnes</p>
+          </td>
+        </tr>
+
+        <tr>
+          <td style="padding:28px;">
+            <p style="margin:0 0 14px;color:#0f172a;font-size:20px;font-weight:bold;">¡Bienvenido a tu portal!</p>
+
+            <p style="margin:0 0 14px;color:#334155;font-size:15px;line-height:1.6;">
+              Te damos acceso al portal de clientes de <strong>Todo Agrícola Boliviana Ltda</strong>,
+              donde vas a poder ver en todo momento tu mercadería almacenada, revisar sus
+              vencimientos y solicitar despachos de forma simple y sin llamadas.
+            </p>
+
+            <p style="margin:0 0 20px;color:#334155;font-size:15px;line-height:1.6;">
+              Para empezar, solo tenés que crear tu contraseña. Hacé clic en el botón de abajo:
+            </p>
+
+            <table cellpadding="0" cellspacing="0" style="margin:0 auto 22px;">
+              <tr>
+                <td align="center" style="border-radius:10px;background:#166534;">
+                  <a href="{{ .ConfirmationURL }}"
+                     style="display:inline-block;padding:14px 32px;color:#ffffff;font-size:16px;font-weight:bold;text-decoration:none;border-radius:10px;">
+                    Crear mi contraseña y entrar
+                  </a>
+                </td>
+              </tr>
+            </table>
+
+            <p style="margin:0 0 6px;color:#64748b;font-size:13px;line-height:1.6;">
+              Si el botón no funciona, copiá y pegá este enlace en tu navegador:
+            </p>
+            <p style="margin:0 0 20px;word-break:break-all;">
+              <a href="{{ .ConfirmationURL }}" style="color:#166534;font-size:13px;">{{ .ConfirmationURL }}</a>
+            </p>
+
+            <p style="margin:0;color:#94a3b8;font-size:12px;line-height:1.6;border-top:1px solid #e2e8f0;padding-top:16px;">
+              Si no esperabas esta invitación, podés ignorar este correo con tranquilidad.
+              Ante cualquier duda, contactá con tu representante de Todo Agrícola.
+            </p>
+          </td>
+        </tr>
+
+        <tr>
+          <td style="background:#f8fafc;padding:16px 28px;">
+            <p style="margin:0;color:#94a3b8;font-size:12px;">
+              Todo Agrícola Boliviana Ltda · Este correo se envió porque un administrador te dio acceso al portal.
+            </p>
+          </td>
+        </tr>
+
+      </table>
+    </td>
+  </tr>
+</table>
