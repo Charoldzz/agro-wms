@@ -1948,10 +1948,13 @@ export default function ClientPortal({ view = 'inventory' }) {
                               {n.movs.length > 1 ? `${n.movs.length} productos` : cleanProductName(firstLot.product)} · {formatDate(n.createdAt)}
                             </p>
                           </div>
-                          <div className="shrink-0 text-right">
+                          {/* Ancho acotado: un ingreso con muchos tipos de envase genera
+                              un texto larguísimo que si no se limita aplasta la columna
+                              del medio y parte el texto en vertical. */}
+                          <div className="shrink-0 max-w-[45%] text-right">
                             <p className="text-sm font-black leading-snug text-campo-700">{n.equivalentLabel}</p>
                             {noteEnvasesLabel(n.movs) ? (
-                              <p className="text-xs font-semibold text-slate-400">{noteEnvasesLabel(n.movs)}</p>
+                              <p className="line-clamp-2 text-xs font-semibold leading-snug text-slate-400 [overflow-wrap:anywhere]">{noteEnvasesLabel(n.movs)}</p>
                             ) : null}
                           </div>
                         </div>
