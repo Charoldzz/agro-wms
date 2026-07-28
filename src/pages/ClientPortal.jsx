@@ -1941,7 +1941,7 @@ export default function ClientPortal({ view = 'inventory' }) {
                             {n.type === 'entrada' ? 'Ingreso' : 'Salida'}
                           </span>
                           <div className="min-w-0 flex-1">
-                            <p className="font-mono text-sm font-black text-campo-700 [overflow-wrap:anywhere]">
+                            <p className="truncate font-mono text-sm font-black text-campo-700" title={n.noteNumber || cleanProductName(firstLot.product)}>
                               {n.noteNumber || cleanProductName(firstLot.product)}
                             </p>
                             <p className="text-xs font-semibold text-slate-500">
