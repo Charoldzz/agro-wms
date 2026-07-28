@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
-import { ArrowLeft, Edit2, Plus, Save, Search, Trash2, X } from 'lucide-react'
-import { supabase } from '../lib/supabase'
+import { ArrowLeft, Clock, Edit2, Mail, Plus, Save, Search, Send, Trash2, UserMinus, UserPlus, X } from 'lucide-react'
+import { supabase, inviteUser } from '../lib/supabase'
 
 const initialNew = { name: '', product_code_prefix: '', contact: '', notes: '' }
 const initialEdit = { name: '', product_code_prefix: '', contact: '', notes: '' }
@@ -342,16 +342,163 @@ export default function EmpresasModal({ onClose, onSaved }) {
               />
             </label>
             {error && <p className="text-sm font-bold text-red-600">{error}</p>}
-            <div className="mt-auto flex gap-3 pt-2">
+            <div className="flex gap-3 pt-1">
               <button className="btn-primary flex-1" type="submit" disabled={saving}>
                 <Save size={18} /> {saving ? 'Guardando...' : 'Guardar'}
               </button>
               <button className="btn-secondary flex-1" type="button" onClick={cancel}>Cancelar</button>
             </div>
+
+            {/* Acceso al portal: usuarios que entran al portal de esta empresa */}
+            <PortalAccess clientId={selectedId} clientName={displayName(editForm.name)} />
           </form>
         )}
 
       </div>
+    </div>
+  )
+}
+
+// ── Acceso al portal de una empresa ────────────────────────────────
+// Lista los usuarios que entran al portal de este cliente, permite invitar
+// nuevos (por correo), reenviar la invitacion y quitar el acceso. La empresa
+// puede tener 0, 1 o varios usuarios. El invitado crea su propia contraseña.
+function fmtFecha(str) {
+  if (!str) return null
+  return new Intl.DateTimeFormat('es-BO', { day: '2-digit', month: 'short', year: 'numeric' }).format(new Date(str))
+}
+
+function PortalAccess({ clientId, clientName }) {
+  const [users, setUsers] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [showForm, setShowForm] = useState(false)
+  const [form, setForm] = useState({ full_name: '', email: '' })
+  const [busy, setBusy] = useState(false)
+  const [msg, setMsg] = useState('')
+  const [err, setErr] = useState('')
+
+  async function loadUsers() {
+    setLoading(true)
+    const { data, error } = await supabase.rpc('company_portal_users', { p_client_id: clientId })
+    setUsers(error ? [] : (data || []))
+    setLoading(false)
+  }
+  useEffect(() => { if (clientId) loadUsers() }, [clientId])
+
+  async function enviarInvitacion(e) {
+    e.preventDefault()
+    setErr(''); setMsg('')
+    const email = form.email.trim().toLowerCase()
+    if (!email) { setErr('Escribí el correo.'); return }
+    setBusy(true)
+    try {
+      await inviteUser({ email, role: 'cliente', clientId, fullName: form.full_name.trim() || null })
+      setMsg(`Invitación enviada a ${email}.`)
+      setForm({ full_name: '', email: '' })
+      setShowForm(false)
+      await loadUsers()
+    } catch (e2) {
+      setErr(e2.message || 'No se pudo enviar la invitación.')
+    }
+    setBusy(false)
+  }
+
+  async function reenviar(email) {
+    setErr(''); setMsg('')
+    setBusy(true)
+    try {
+      await inviteUser({ email, role: 'cliente', clientId })
+      setMsg(`Invitación reenviada a ${email}.`)
+    } catch (e2) {
+      setErr(e2.message || 'No se pudo reenviar.')
+    }
+    setBusy(false)
+  }
+
+  async function quitar(u) {
+    if (!window.confirm(`¿Quitar el acceso de ${u.email}? Ya no podrá entrar al portal.`)) return
+    setErr(''); setMsg('')
+    setBusy(true)
+    const { error } = await supabase.rpc('revoke_portal_user', { p_user_id: u.user_id })
+    if (error) setErr(error.message)
+    else { setMsg(`Acceso de ${u.email} quitado.`); await loadUsers() }
+    setBusy(false)
+  }
+
+  return (
+    <div className="rounded-xl border border-slate-200 bg-white p-4">
+      <div className="mb-3 flex items-center justify-between gap-2">
+        <span className="text-xs font-black uppercase tracking-wide text-slate-500">Acceso al portal</span>
+        {!showForm && (
+          <button type="button" className="btn-secondary !min-h-8 !px-3 !py-1 text-sm" onClick={() => { setShowForm(true); setErr(''); setMsg('') }}>
+            <UserPlus size={15} /> Invitar usuario
+          </button>
+        )}
+      </div>
+
+      {loading ? (
+        <p className="py-3 text-center text-sm font-semibold text-slate-400">Cargando usuarios...</p>
+      ) : users.length === 0 ? (
+        <p className="rounded-lg bg-slate-50 px-3 py-3 text-center text-sm font-semibold text-slate-400">
+          Nadie tiene acceso al portal de esta empresa todavía.
+        </p>
+      ) : (
+        <div className="divide-y divide-slate-100 rounded-lg border border-slate-100">
+          {users.map((u) => {
+            const activo = u.estado === 'activo'
+            return (
+              <div key={u.user_id} className="flex items-center gap-3 px-3 py-2.5">
+                <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-xs font-black ${activo ? 'bg-campo-100 text-campo-800' : 'bg-amber-100 text-amber-800'}`}>
+                  {(u.full_name || u.email || '?').trim().slice(0, 2).toUpperCase()}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-bold text-slate-900">{u.email}</p>
+                  {activo ? (
+                    <p className="text-[11px] font-semibold text-campo-700">
+                      <span className="mr-1 inline-block h-1.5 w-1.5 rounded-full bg-campo-500 align-middle" />
+                      Activo{u.last_sign_in ? ` · último ingreso ${fmtFecha(u.last_sign_in)}` : ''}
+                    </p>
+                  ) : (
+                    <p className="flex items-center gap-1 text-[11px] font-semibold text-amber-700">
+                      <Clock size={12} /> Invitación enviada · sin aceptar
+                    </p>
+                  )}
+                </div>
+                {!activo && (
+                  <button type="button" className="btn-secondary !min-h-8 !px-2.5 !py-1 text-xs" disabled={busy} onClick={() => reenviar(u.email)}>
+                    <Mail size={13} /> Reenviar
+                  </button>
+                )}
+                <button type="button" className="btn-secondary !min-h-8 !border-red-200 !px-2.5 !py-1 text-xs !text-red-600" disabled={busy} onClick={() => quitar(u)}>
+                  <UserMinus size={13} /> Quitar
+                </button>
+              </div>
+            )
+          })}
+        </div>
+      )}
+
+      {showForm && (
+        <form onSubmit={enviarInvitacion} className="mt-3 rounded-lg bg-slate-50 p-3">
+          <p className="mb-2 text-xs font-black uppercase tracking-wide text-slate-500">Invitar nuevo usuario</p>
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+            <input className="input" placeholder="Nombre" value={form.full_name} onChange={(e) => setForm((f) => ({ ...f, full_name: e.target.value }))} />
+            <input className="input" type="email" placeholder="correo@empresa.com" value={form.email} onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))} required />
+          </div>
+          <div className="mt-2 flex gap-2">
+            <button className="btn-primary flex-1 !min-h-9 text-sm" type="submit" disabled={busy}>
+              <Send size={15} /> {busy ? 'Enviando...' : 'Enviar invitación'}
+            </button>
+            <button className="btn-secondary !min-h-9 text-sm" type="button" onClick={() => { setShowForm(false); setErr('') }}>Cancelar</button>
+          </div>
+          <p className="mt-2 text-[11px] font-semibold text-slate-400">
+            Le llega un correo para crear su propia contraseña y entrar al portal de {clientName}.
+          </p>
+        </form>
+      )}
+
+      {msg && <p className="mt-2 text-xs font-bold text-campo-700">{msg}</p>}
+      {err && <p className="mt-2 text-xs font-bold text-red-600">{err}</p>}
     </div>
   )
 }
