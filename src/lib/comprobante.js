@@ -105,12 +105,14 @@ function openOperationNote({ tipo, guide, empresa, contacto, transportista, plac
       td.c, th.c { text-align: center; }
       td.r, th.r { text-align: right; }
       .mono { letter-spacing: 0.3px; }
-      tfoot td { background: #f0fdf4; border-bottom: none; border-top: 2px solid #15803d; color: #14532d; font-size: 12.5px; font-weight: bold; padding: 9px 7px; }
-      .firmas { display: grid; gap: 40px; grid-template-columns: 1fr 1fr; margin-top: 70px; }
+      .cierre { break-inside: avoid; page-break-inside: avoid; }
+      .total-final { align-items: baseline; background: #f0fdf4; border-top: 2px solid #15803d; color: #14532d; display: flex; font-size: 13px; font-weight: bold; gap: 14px; justify-content: flex-end; padding: 9px 7px; white-space: nowrap; }
+      .total-final .tl { letter-spacing: 1px; }
+      .firmas { display: grid; gap: 40px; grid-template-columns: 1fr 1fr; margin-top: 46px; }
       .firma { border-top: 1px solid #0f172a; font-size: 11px; padding-top: 6px; text-align: center; }
-      .foot { color: #94a3b8; font-size: 9.5px; margin-top: 30px; text-align: center; }
+      .foot { bottom: 8mm; color: #94a3b8; font-size: 9px; left: 0; position: fixed; right: 0; text-align: center; }
       .print-btn { background: #15803d; border: none; border-radius: 8px; bottom: 20px; box-shadow: 0 4px 12px rgba(15, 23, 42, 0.25); color: #fff; cursor: pointer; font-size: 13px; font-weight: bold; padding: 10px 18px; position: fixed; right: 20px; }
-      @media print { body { margin: 10mm; } .print-btn { display: none; } }
+      @media print { body { margin: 12mm 12mm 20mm; } .print-btn { display: none; } }
     </style>
   </head>
   <body>
@@ -146,13 +148,15 @@ function openOperationNote({ tipo, guide, empresa, contacto, transportista, plac
         </tr>
       </thead>
       <tbody>${tableRows}</tbody>
-      ${total ? `<tfoot><tr><td colspan="5">TOTAL</td><td class="r">${escapeHtml(total)}</td><td></td><td></td></tr></tfoot>` : ''}
     </table>
-    <div class="firmas">
-      <div class="firma">${escapeHtml(firmaIzq)}</div>
-      <div class="firma">${escapeHtml(firmaDer)}</div>
+    <div class="cierre">
+      ${total ? `<div class="total-final"><span class="tl">TOTAL</span><span class="tv">${escapeHtml(total)}</span></div>` : ''}
+      <div class="firmas">
+        <div class="firma">${escapeHtml(firmaIzq)}</div>
+        <div class="firma">${escapeHtml(firmaDer)}</div>
+      </div>
     </div>
-    <p class="foot">Documento generado por el sistema de almac&eacute;n de Todo Agr&iacute;cola Boliviana Ltda &mdash; Emitido el ${escapeHtml(formatDateOnly(new Date().toISOString()))}.</p>
+    <p class="foot">Nota ${esSalida ? 'de salida' : 'de ingreso'} N&deg; ${escapeHtml(guide || '-')} &middot; Todo Agr&iacute;cola Boliviana Ltda &middot; Emitido el ${escapeHtml(formatDateOnly(new Date().toISOString()))}</p>
   </body>
 </html>`)
   win.document.close()
