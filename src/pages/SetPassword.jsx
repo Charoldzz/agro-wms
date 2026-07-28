@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { KeyRound } from 'lucide-react'
+import { KeyRound, Eye, EyeOff } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 
 // Pantalla que ve un usuario invitado al aceptar la invitación:
@@ -7,6 +7,7 @@ import { supabase } from '../lib/supabase'
 export default function SetPassword({ onDone }) {
   const [password, setPassword] = useState('')
   const [confirm, setConfirm] = useState('')
+  const [show, setShow] = useState(false)   // ojito: ver/ocultar contraseña
   const [error, setError] = useState('')
   const [saving, setSaving] = useState(false)
 
@@ -37,26 +38,50 @@ export default function SetPassword({ onDone }) {
 
         <label className="block">
           <span className="label">Contraseña nueva</span>
-          <input
-            className="input mt-1 w-full"
-            type="password"
-            required
-            minLength={6}
-            autoFocus
-            value={password}
-            onChange={(event) => setPassword(event.target.value)}
-          />
+          <div className="relative mt-1">
+            <input
+              className="input w-full pr-11"
+              type={show ? 'text' : 'password'}
+              required
+              minLength={6}
+              autoFocus
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+            />
+            <button
+              type="button"
+              onClick={() => setShow((v) => !v)}
+              className="absolute inset-y-0 right-0 flex items-center px-3 text-slate-400 hover:text-slate-700"
+              title={show ? 'Ocultar contraseña' : 'Ver contraseña'}
+              aria-label={show ? 'Ocultar contraseña' : 'Ver contraseña'}
+            >
+              {show ? <EyeOff size={18} /> : <Eye size={18} />}
+            </button>
+          </div>
+          <p className="mt-1 text-[11px] font-semibold text-slate-400">Mínimo 6 caracteres.</p>
         </label>
+
         <label className="mt-3 block">
           <span className="label">Repetir contraseña</span>
-          <input
-            className="input mt-1 w-full"
-            type="password"
-            required
-            minLength={6}
-            value={confirm}
-            onChange={(event) => setConfirm(event.target.value)}
-          />
+          <div className="relative mt-1">
+            <input
+              className="input w-full pr-11"
+              type={show ? 'text' : 'password'}
+              required
+              minLength={6}
+              value={confirm}
+              onChange={(event) => setConfirm(event.target.value)}
+            />
+            <button
+              type="button"
+              onClick={() => setShow((v) => !v)}
+              className="absolute inset-y-0 right-0 flex items-center px-3 text-slate-400 hover:text-slate-700"
+              title={show ? 'Ocultar contraseña' : 'Ver contraseña'}
+              aria-label={show ? 'Ocultar contraseña' : 'Ver contraseña'}
+            >
+              {show ? <EyeOff size={18} /> : <Eye size={18} />}
+            </button>
+          </div>
         </label>
 
         {error ? <p className="mt-3 text-xs font-bold text-red-600">{error}</p> : null}
