@@ -287,17 +287,6 @@ export default function OperatorEntry() {
     }))
   }
 
-  const unitTotals = useMemo(() => {
-    const totals = {}
-    rows.forEach((r) => {
-      const qty = Number(r.cantidad || 0)
-      const { unit } = productInfo(r.product)
-      // CANTIDAD ya es el equivalente total (lts/kgs), no multiplicar
-      if (unit && qty > 0) totals[unit] = (totals[unit] || 0) + qty
-    })
-    return totals
-  }, [rows])
-
   async function save() {
     setError('')
     if (!clientId) { setError('Selecciona la empresa.'); return }
@@ -704,19 +693,6 @@ export default function OperatorEntry() {
           </div>
         ))}
 
-        <div className="rounded-xl border-2 border-slate-200 bg-slate-50 px-4 py-3">
-          <p className="mb-2 text-xs font-black uppercase text-slate-500">Totales por unidad</p>
-          {Object.keys(unitTotals).length > 0
-            ? <div className="flex flex-wrap gap-4 mb-2">
-                {Object.entries(unitTotals).map(([u, v]) => (
-                  <div key={u} className="text-center">
-                    <p className="text-lg font-black text-campo-700">{formatNumber(v)}</p>
-                    <p className="text-xs font-bold uppercase text-campo-500">{u}</p>
-                  </div>
-                ))}
-              </div>
-            : <p className="text-sm text-slate-400 mb-2">Sin cantidades ingresadas</p>}
-        </div>
       </div>
 
       {/* Observaciones DE LA OPERACION: debajo de los productos, para poder
