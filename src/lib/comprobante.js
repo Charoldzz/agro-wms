@@ -99,6 +99,8 @@ function openOperationNote({ tipo, guide, empresa, contacto, transportista, plac
       .op .cols .v { font-size: 13px; font-weight: 600; margin-top: 2px; }
       .op .obs { border-top: 1px dotted #cbd5e1; color: #475569; font-size: 12px; font-style: italic; margin: 10px 0 0; padding-top: 7px; }
       table { border-collapse: collapse; width: 100%; }
+      thead { display: table-header-group; }
+      tr { break-inside: avoid; page-break-inside: avoid; }
       th, td { border-bottom: 1px solid #e2e8f0; font-size: 12px; font-variant-numeric: tabular-nums; padding: 8px 7px; text-align: left; vertical-align: top; }
       td { color: #0f172a; font-weight: 500; }
       th { background: #f1f5f9; color: #334155; font-size: 9.5px; font-weight: 600; letter-spacing: 1px; text-transform: uppercase; }
