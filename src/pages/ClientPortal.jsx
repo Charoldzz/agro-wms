@@ -853,9 +853,23 @@ export default function ClientPortal({ view = 'inventory' }) {
       </tr>`
     }).join('')
 
-    // Sin fila TOTAL: un inventario mezcla productos distintos, sumar su volumen
-    // (lts/kgs) no aporta un dato útil. El resumen real (productos · lotes) va
-    // en la cabecera. Decisión Harold 2026-07-28.
+    // Total en equivalente, separado por unidad (lts · kgs) — nunca mezclar con uds.
+    // Reincorporado a pedido de Harold (2026-07-28) con el formato de una línea de las notas.
+    const totals = new Map()
+    lots.forEach((l) => {
+      let eq = null
+      try { eq = lotEquivalent(l) } catch (_) { /* sin dato */ }
+      if (!eq) return
+      let u = String(eq.unit || '').toLowerCase()
+      let v = eq.quantity
+      if (u === 'ml') { u = 'lts'; v /= 1000 }
+      else if (/^l/.test(u)) u = 'lts'
+      else if (/^k/.test(u)) u = 'kgs'
+      else return
+      totals.set(u, (totals.get(u) || 0) + v)
+    })
+    const totalLabel = [...totals.entries()].map(([u, v]) => `${formatNumber(v)} ${u}`).join(' · ')
+
     const w = window.open('', '_blank'); if (!w) return
     w.document.write(`<!doctype html><html><head><title>Inventario ${escapeHtml(clientName)}</title>
 <style>
@@ -886,7 +900,10 @@ export default function ClientPortal({ view = 'inventory' }) {
   td.c, th.c { text-align: center; }
   td.r, th.r { text-align: right; }
   .mono { letter-spacing: 0.3px; }
-  tfoot td { background: #f0fdf4; border-bottom: none; border-top: 2px solid #15803d; color: #14532d; font-size: 12.5px; font-weight: bold; padding: 9px 7px; }
+  tr { break-inside: avoid; page-break-inside: avoid; }
+  thead { display: table-header-group; }
+  .total-final { align-items: baseline; background: #f0fdf4; border-top: 2px solid #15803d; color: #14532d; display: flex; font-size: 13px; font-weight: bold; gap: 14px; justify-content: flex-end; padding: 9px 7px; white-space: nowrap; }
+  .total-final .tl { letter-spacing: 1px; }
   .foot { color: #94a3b8; font-size: 9.5px; margin-top: 30px; text-align: center; }
   .print-btn { background: #15803d; border: none; border-radius: 8px; bottom: 20px; box-shadow: 0 4px 12px rgba(15, 23, 42, 0.25); color: #fff; cursor: pointer; font-size: 13px; font-weight: bold; padding: 10px 18px; position: fixed; right: 20px; }
   @media print { body { margin: 10mm; } .print-btn { display: none; } }
@@ -920,6 +937,7 @@ export default function ClientPortal({ view = 'inventory' }) {
   </tr></thead>
   <tbody>${rows}</tbody>
 </table>
+${totalLabel ? `<div class="total-final"><span class="tl">TOTAL</span><span class="tv">${escapeHtml(totalLabel)}</span></div>` : ''}
 <p class="foot">Documento informativo generado desde el portal de clientes de Todo Agr&iacute;cola Boliviana Ltda &mdash; Emitido el ${escapeHtml(formatDateOnly(new Date().toISOString()))}. Informaci&oacute;n referencial sujeta a validaci&oacute;n operativa.</p>
 </body></html>`)
     w.document.close()
