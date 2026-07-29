@@ -699,7 +699,7 @@ export default function OperatorEntry() {
           anotar algo despues de cargarlos. */}
       <label className="mb-4 block">
         <span className="label">Observaciones</span>
-        <input className="input mt-1" value={observaciones} onChange={(e) => setObservaciones(e.target.value)} placeholder="Algo sobre este ingreso (opcional)" />
+        <input className="input mt-1" value={observaciones} onChange={(e) => setObservaciones(e.target.value.toUpperCase())} placeholder="Algo sobre este ingreso (opcional)" />
       </label>
 
       {error ? <div className="mb-4 rounded-lg bg-red-50 p-3 text-sm font-bold text-red-700">{error}</div> : null}

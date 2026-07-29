@@ -986,7 +986,7 @@ export default function NuevaSalida() {
       {!isRequestMode && (
         <label className="mb-4 block">
           <span className="label">Observaciones</span>
-          <input className="input mt-1" value={observaciones} onChange={(e) => setObservaciones(e.target.value)} placeholder="Algo sobre esta salida (opcional)" />
+          <input className="input mt-1" value={observaciones} onChange={(e) => setObservaciones(e.target.value.toUpperCase())} placeholder="Algo sobre esta salida (opcional)" />
         </label>
       )}
 
