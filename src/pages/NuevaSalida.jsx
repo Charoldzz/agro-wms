@@ -12,6 +12,7 @@ import { openDispatchReceipt, totalEquivalente } from '../lib/comprobante'
 import OperationSuccess from '../components/OperationSuccess'
 import { desgloseEnvases } from '../lib/envases'
 import { catalogClientIds } from '../lib/catalogo'
+import Combobox from '../components/Combobox'
 
 const today = new Date().toISOString().slice(0, 10)
 const DRAFT_KEY = 'draft_salida'
@@ -113,6 +114,9 @@ export default function NuevaSalida() {
   const [lots, setLots] = useState([])
   const [catalogMap, setCatalogMap] = useState(new Map())
   const [rows, setRows] = useState([emptyRow()])
+  const [lastAddedId, setLastAddedId] = useState('')
+  const clientOptions = useMemo(() => clients.map((c) => ({ value: c.id, label: displayClientName(c.name) })), [clients])
+  const lotOptions = useMemo(() => lots.map((l) => ({ value: l.id, label: lotOptionLabel(l) })), [lots])
   const [selectedIdx, setSelectedIdx] = useState(0)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
@@ -299,11 +303,13 @@ export default function NuevaSalida() {
   }
 
   function addRow() {
+    const nr = emptyRow()
     setRows((r) => {
-      const next = [...r, emptyRow()]
+      const next = [...r, nr]
       setSelectedIdx(next.length - 1)
       return next
     })
+    setLastAddedId(nr.id)
   }
 
   function removeSelectedRow() {
@@ -580,12 +586,13 @@ export default function NuevaSalida() {
           {!clientId && (
             <label className="block">
               <span className="label">Empresa</span>
-              <select className="input mt-1" value={clientId} onChange={(e) => setClientId(e.target.value)} required>
-                <option value="">Seleccionar empresa</option>
-                {clients.map((c) => (
-                  <option key={c.id} value={c.id}>{displayClientName(c.name)}</option>
-                ))}
-              </select>
+              <Combobox
+                value={clientId}
+                options={clientOptions}
+                onChange={(v) => setClientId(v)}
+                placeholder="Buscar empresa…"
+                className="input mt-1 w-full"
+              />
             </label>
           )}
           <label className="block">
@@ -724,24 +731,17 @@ export default function NuevaSalida() {
                     </div>
                   ) : (
                     <div className="min-w-0">
-                      <select
-                        className="w-full truncate rounded border border-transparent bg-transparent px-1 py-1 text-sm font-semibold text-slate-900 focus:border-campo-400 focus:bg-white focus:outline-none"
+                      <Combobox
                         value={row.lot_id}
-                        onChange={(e) => {
-                          setSelectedIdx(i)
-                          const v = e.target.value
-                          if (v) selectLot(row.id, v)
-                          else clearLot(row.id)
-                        }}
+                        options={lotOptions}
+                        onChange={(v) => { setSelectedIdx(i); if (v) selectLot(row.id, v); else clearLot(row.id) }}
                         onFocus={() => setSelectedIdx(i)}
                         disabled={!clientId || lots.length === 0}
-                        title={row.product || ''}
-                      >
-                        <option value="">— Seleccionar lote —</option>
-                        {lots.map((lot) => (
-                          <option key={lot.id} value={lot.id}>{lotOptionLabel(lot)}</option>
-                        ))}
-                      </select>
+                        placeholder={!clientId || lots.length === 0 ? '—' : 'Buscar producto o lote…'}
+                        className="w-full rounded border border-transparent bg-transparent px-1 py-1 text-sm font-semibold text-slate-900 focus:border-campo-400 focus:bg-white focus:outline-none disabled:opacity-40"
+                        advanceOnCommit
+                        autoFocus={row.id === lastAddedId}
+                      />
                       {rowInsufficient(row) ? (
                         <div className="text-[10px] font-black text-red-600">
                           Saldo insuficiente: hay {equivalentLabel(row.saldo, row.package_unit)} y pide {equivalentLabel(row.cantidad, row.package_unit)}
@@ -898,21 +898,16 @@ export default function NuevaSalida() {
                 </div>
               ) : (
                 <div className="mb-3 min-w-0">
-                  <select
-                    className="input w-full text-sm disabled:opacity-40"
+                  <Combobox
                     value={row.lot_id}
-                    onChange={(e) => {
-                      const v = e.target.value
-                      if (v) selectLot(row.id, v)
-                      else clearLot(row.id)
-                    }}
+                    options={lotOptions}
+                    onChange={(v) => { if (v) selectLot(row.id, v); else clearLot(row.id) }}
                     disabled={!clientId || lots.length === 0}
-                  >
-                    <option value="">— Seleccionar lote —</option>
-                    {lots.map((lot) => (
-                      <option key={lot.id} value={lot.id}>{lotOptionLabel(lot)}</option>
-                    ))}
-                  </select>
+                    placeholder={!clientId || lots.length === 0 ? '—' : 'Buscar producto o lote…'}
+                    className="input w-full text-sm disabled:opacity-40"
+                    advanceOnCommit
+                    autoFocus={row.id === lastAddedId}
+                  />
                   {rowInsufficient(row) ? (
                     <p className="text-[10px] font-black text-red-600">
                       Saldo insuficiente: hay {equivalentLabel(row.saldo, row.package_unit)} y pide {equivalentLabel(row.cantidad, row.package_unit)}
