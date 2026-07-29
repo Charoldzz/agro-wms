@@ -10,10 +10,9 @@ const TIPO_META = {
 }
 const STATUS_META = {
   nuevo:    { label: 'Nuevo',    cls: 'bg-campo-100 text-campo-800' },
-  visto:    { label: 'Visto',    cls: 'bg-slate-200 text-slate-700' },
   resuelto: { label: 'Resuelto', cls: 'bg-emerald-100 text-emerald-700' },
 }
-const FILTERS = [['', 'Todos'], ['nuevo', 'Nuevos'], ['visto', 'Vistos'], ['resuelto', 'Resueltos']]
+const FILTERS = [['', 'Todos'], ['nuevo', 'Nuevos'], ['resuelto', 'Resueltos']]
 
 export default function FeedbackAdminModal({ onClose }) {
   const [rows, setRows] = useState([])
@@ -104,15 +103,10 @@ export default function FeedbackAdminModal({ onClose }) {
                     </div>
 
                     <div className="mt-3 flex flex-wrap items-center gap-1.5 border-t border-slate-100 pt-2.5">
-                      {r.status !== 'visto' && (
-                        <button disabled={busy === r.id} onClick={() => setStatus(r.id, 'visto')}
-                          className="rounded-lg bg-slate-100 px-2.5 py-1 text-xs font-bold text-slate-600 transition hover:bg-slate-200 disabled:opacity-50">Marcar visto</button>
-                      )}
-                      {r.status !== 'resuelto' && (
+                      {r.status !== 'resuelto' ? (
                         <button disabled={busy === r.id} onClick={() => setStatus(r.id, 'resuelto')}
                           className="rounded-lg bg-emerald-100 px-2.5 py-1 text-xs font-bold text-emerald-700 transition hover:bg-emerald-200 disabled:opacity-50">Marcar resuelto</button>
-                      )}
-                      {r.status !== 'nuevo' && (
+                      ) : (
                         <button disabled={busy === r.id} onClick={() => setStatus(r.id, 'nuevo')}
                           className="rounded-lg bg-campo-100 px-2.5 py-1 text-xs font-bold text-campo-800 transition hover:bg-campo-200 disabled:opacity-50">Reabrir</button>
                       )}

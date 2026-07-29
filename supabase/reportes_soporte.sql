@@ -21,7 +21,7 @@ create table if not exists public.portal_feedback (
   app_version    text,
   page           text,
   user_agent     text,
-  status         text not null default 'nuevo' check (status in ('nuevo','visto','resuelto')),
+  status         text not null default 'nuevo' check (status in ('nuevo','resuelto')),
   admin_notes    text,
   resolved_at    timestamptz
 );
