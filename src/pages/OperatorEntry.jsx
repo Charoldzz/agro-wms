@@ -12,6 +12,7 @@ import OperationSuccess from '../components/OperationSuccess'
 import { catalogClientIds } from '../lib/catalogo'
 import { catalogDisplayName as productDisplayName } from '../lib/display'
 import NewProductModal from '../components/NewProductModal'
+import Combobox from '../components/Combobox'
 
 const today = new Date().toISOString().slice(0, 10)
 const DRAFT_KEY = 'draft_ingreso'
@@ -97,6 +98,9 @@ export default function OperatorEntry() {
   const [rows, setRows] = useState([emptyRow()])
   const [selectedIdx, setSelectedIdx] = useState(0)
   const [products, setProducts] = useState([])
+  const [lastAddedId, setLastAddedId] = useState('')
+  const productOptions = useMemo(() => products.map((p) => ({ value: p, label: p })), [products])
+  const clientOptions = useMemo(() => clients.map((c) => ({ value: c.id, label: displayClientName(c.name) })), [clients])
   const [catalogMap, setCatalogMap] = useState(new Map()) // label → units_per_box
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
@@ -202,11 +206,13 @@ export default function OperatorEntry() {
   }
 
   function addRow() {
+    const nr = emptyRow()
     setRows((r) => {
-      const next = [...r, emptyRow()]
+      const next = [...r, nr]
       setSelectedIdx(next.length - 1)
       return next
     })
+    setLastAddedId(nr.id)
   }
 
   function removeSelectedRow() {
@@ -448,12 +454,13 @@ export default function OperatorEntry() {
         {!clientId && (
           <label className="block">
             <span className="label">Empresa</span>
-            <select className="input mt-1" value={clientId} onChange={(e) => setClientId(e.target.value)} required>
-              <option value="">Seleccionar empresa</option>
-              {clients.map((c) => (
-                <option key={c.id} value={c.id}>{displayClientName(c.name)}</option>
-              ))}
-            </select>
+            <Combobox
+              value={clientId}
+              options={clientOptions}
+              onChange={(v) => setClientId(v)}
+              placeholder="Buscar empresa…"
+              className="input mt-1 w-full"
+            />
           </label>
         )}
         <label className="block">
@@ -509,29 +516,18 @@ export default function OperatorEntry() {
               >
                 <td className="px-2 py-1 text-center text-sm font-bold text-slate-500">{i + 1}</td>
                 <td className="px-2 py-1">
-                  <div className="relative">
-                    <div className={`w-full truncate rounded border border-transparent py-1 pl-1.5 pr-5 text-sm ${row.product ? 'text-slate-800' : 'text-slate-400'} ${!clientId ? 'opacity-40' : ''}`}>
-                      {row.product || '—'}
-                    </div>
-                    <select
-                      className="absolute inset-0 w-full cursor-pointer opacity-0 disabled:cursor-not-allowed"
-                      value={row.product}
-                      onChange={(e) => {
-                        if (e.target.value === '__nuevo__') { setNewProductRowId(row.id); return }
-                        updateProduct(row.id, e.target.value)
-                      }}
-                      onFocus={() => setSelectedIdx(i)}
-                      disabled={!clientId}
-                      title={row.product}
-                    >
-                      <option value="">—</option>
-                      {products.map((p) => <option key={p} value={p}>{p}</option>)}
-                      <option value="__nuevo__">＋ Producto nuevo...</option>
-                    </select>
-                    <span className="pointer-events-none absolute inset-y-0 right-1 flex items-center text-slate-400">
-                      <svg className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd"/></svg>
-                    </span>
-                  </div>
+                  <Combobox
+                    value={row.product}
+                    options={productOptions}
+                    onChange={(v) => updateProduct(row.id, v)}
+                    onFocus={() => setSelectedIdx(i)}
+                    disabled={!clientId}
+                    placeholder={clientId ? 'Buscar producto…' : '—'}
+                    className="w-full rounded border border-transparent bg-transparent px-1.5 py-1 text-sm focus:border-campo-400 focus:bg-white focus:outline-none disabled:opacity-40"
+                    extraOption={{ value: '__nuevo__', label: '＋ Producto nuevo…', onSelect: () => setNewProductRowId(row.id) }}
+                    advanceOnCommit
+                    autoFocus={row.id === lastAddedId}
+                  />
                 </td>
                 <td className="px-2 py-1">
                   <input
@@ -622,19 +618,19 @@ export default function OperatorEntry() {
               </button>
             </div>
 
-            <select
-              className="input mb-3 w-full text-sm disabled:opacity-40"
-              value={row.product}
-              onChange={(e) => {
-                if (e.target.value === '__nuevo__') { setNewProductRowId(row.id); return }
-                updateProduct(row.id, e.target.value)
-              }}
-              disabled={!clientId}
-            >
-              <option value="">—</option>
-              {products.map((p) => <option key={p} value={p}>{p}</option>)}
-              <option value="__nuevo__">＋ Producto nuevo...</option>
-            </select>
+            <div className="mb-3">
+              <Combobox
+                value={row.product}
+                options={productOptions}
+                onChange={(v) => updateProduct(row.id, v)}
+                disabled={!clientId}
+                placeholder={clientId ? 'Buscar producto…' : '—'}
+                className="input w-full text-sm disabled:opacity-40"
+                extraOption={{ value: '__nuevo__', label: '＋ Producto nuevo…', onSelect: () => setNewProductRowId(row.id) }}
+                advanceOnCommit
+                autoFocus={row.id === lastAddedId}
+              />
+            </div>
 
             <div className="mb-3 grid grid-cols-2 gap-2">
               <label className="block">
