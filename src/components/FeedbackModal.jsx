@@ -84,7 +84,7 @@ export default function FeedbackModal({ page = 'inventory', onClose }) {
                 rows={5}
                 value={mensaje}
                 maxLength={2000}
-                onChange={e => setMensaje(e.target.value)}
+                onChange={e => setMensaje(e.target.value.toUpperCase())}
                 placeholder="Describí lo que viste o lo que te gustaría. Cuanto más detalle, mejor."
                 autoFocus
               />
