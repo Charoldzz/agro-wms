@@ -13,6 +13,7 @@ import OperationSuccess from '../components/OperationSuccess'
 import { desgloseEnvases } from '../lib/envases'
 import { catalogClientIds } from '../lib/catalogo'
 import Combobox from '../components/Combobox'
+import { advanceOnEnter } from '../lib/formNav'
 
 const today = new Date().toISOString().slice(0, 10)
 const DRAFT_KEY = 'draft_salida'
@@ -774,6 +775,7 @@ export default function NuevaSalida() {
                     value={row.cantidad}
                     onChange={(e) => updateCantidad(row.id, e.target.value)}
                     onFocus={() => setSelectedIdx(i)}
+                    onKeyDown={advanceOnEnter}
                     placeholder="0"
                     disabled={!row.lot_id || isRequestMode}
                   />
@@ -949,6 +951,7 @@ export default function NuevaSalida() {
                   inputMode="decimal"
                   value={row.cantidad}
                   onChange={(e) => updateCantidad(row.id, e.target.value)}
+                  onKeyDown={advanceOnEnter}
                   placeholder="0"
                   disabled={!row.lot_id || isRequestMode}
                 />

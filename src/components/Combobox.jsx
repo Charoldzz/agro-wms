@@ -1,19 +1,13 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-
-// Mueve el foco al siguiente elemento tabulable VISIBLE después de `el`.
-// (offsetParent === null descarta lo oculto, ej. el layout que no está en uso.)
-function focusNextTabbable(el) {
-  if (!el) return
-  const nodes = Array.from(document.querySelectorAll('input, select, textarea, button, [tabindex]'))
-    .filter(n => !n.disabled && n.getAttribute('tabindex') !== '-1' && n.offsetParent !== null)
-  const idx = nodes.indexOf(el)
-  if (idx > -1 && nodes[idx + 1]) nodes[idx + 1].focus()
-}
+import { focusNextTabbable } from '../lib/formNav'
 
 // Combobox con autocompletado: se escribe para filtrar, se elige con flechas +
-// Enter o clic. El desplegable va por portal (position:fixed) para no ser
-// recortado por contenedores con overflow (ej. la tabla de ingreso).
+// Enter o clic. El desplegable va por portal, posicionado en coordenadas del
+// DOCUMENTO (position:absolute) para: (1) no ser recortado por contenedores con
+// overflow (ej. la tabla de ingreso); (2) quedar bien anclado en el celular aun
+// con el teclado abierto (usa visualViewport); (3) abrirse hacia arriba si no hay
+// lugar abajo.
 //
 // options: [{ value, label }]  ·  value: valor actual  ·  onChange(value)
 // extraOption: { value, label, onSelect } — fila fija al final (ej. "Producto nuevo")
@@ -36,8 +30,9 @@ export default function Combobox({
   const [text, setText] = useState('')
   const [touched, setTouched] = useState(false)
   const [hi, setHi] = useState(0)
-  const [rect, setRect] = useState(null)
+  const [pos, setPos] = useState(null)
   const inputRef = useRef(null)
+  const popRef = useRef(null)
 
   const selected = options.find(o => o.value === value)
   const label = selected ? selected.label : ''
@@ -52,20 +47,39 @@ export default function Combobox({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  function reposition() {
+  function computePos() {
     const el = inputRef.current
-    if (el) {
-      const r = el.getBoundingClientRect()
-      setRect({ left: r.left, top: r.bottom + 2, width: r.width })
-    }
+    if (!el) return
+    const r = el.getBoundingClientRect()
+    const vv = window.visualViewport
+    const vpTop = vv ? vv.offsetTop : 0
+    const vpH = vv ? vv.height : window.innerHeight
+    const spaceBelow = (vpTop + vpH) - r.bottom
+    const spaceAbove = r.top - vpTop
+    const up = spaceBelow < 210 && spaceAbove > spaceBelow
+    const maxHeight = Math.max(132, Math.min(300, (up ? spaceAbove : spaceBelow) - 12))
+    setPos({
+      left: r.left + window.scrollX,
+      width: r.width,
+      maxHeight,
+      up,
+      downTop: r.bottom + window.scrollY + 3,
+      anchorTop: r.top + window.scrollY - 3,
+    })
   }
+
+  // Ajuste fino cuando abre hacia arriba: alinea el borde inferior con el input.
+  useLayoutEffect(() => {
+    if (!open || !pos || !pos.up || !popRef.current) return
+    popRef.current.style.top = (pos.anchorTop - popRef.current.offsetHeight) + 'px'
+  }, [open, pos, items.length])
 
   function openList() {
     if (disabled) return
     setText(label)
     setTouched(false)
     setHi(0)
-    reposition()
+    computePos()
     setOpen(true)
     onFocus && onFocus()
     setTimeout(() => { try { inputRef.current && inputRef.current.select() } catch (e) { /* noop */ } }, 0)
@@ -89,14 +103,22 @@ export default function Combobox({
       const inPop = e.target.closest && e.target.closest('[data-combobox-pop]')
       if (!inInput && !inPop) close()
     }
-    function onScrollResize() { reposition() }
+    function recompute() { computePos() }
     document.addEventListener('mousedown', onDoc)
-    window.addEventListener('scroll', onScrollResize, true)
-    window.addEventListener('resize', onScrollResize)
+    window.addEventListener('scroll', recompute, true)
+    window.addEventListener('resize', recompute)
+    if (window.visualViewport) {
+      window.visualViewport.addEventListener('resize', recompute)
+      window.visualViewport.addEventListener('scroll', recompute)
+    }
     return () => {
       document.removeEventListener('mousedown', onDoc)
-      window.removeEventListener('scroll', onScrollResize, true)
-      window.removeEventListener('resize', onScrollResize)
+      window.removeEventListener('scroll', recompute, true)
+      window.removeEventListener('resize', recompute)
+      if (window.visualViewport) {
+        window.visualViewport.removeEventListener('resize', recompute)
+        window.visualViewport.removeEventListener('scroll', recompute)
+      }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open])
@@ -123,22 +145,30 @@ export default function Combobox({
         placeholder={placeholder}
         disabled={disabled}
         onFocus={openList}
-        onChange={(e) => { setText(e.target.value); setTouched(true); setHi(0); if (!open) { reposition(); setOpen(true) } }}
+        onChange={(e) => { setText(e.target.value); setTouched(true); setHi(0); if (!open) { setOpen(true) } computePos() }}
         onBlur={() => setTimeout(() => setOpen(false), 120)}
         onKeyDown={onKey}
       />
-      {open && rect && items.length > 0 && createPortal(
+      {open && pos && items.length > 0 && createPortal(
         <div
+          ref={popRef}
           data-combobox-pop
-          style={{ position: 'fixed', left: rect.left, top: rect.top, width: rect.width, zIndex: 60 }}
-          className="max-h-64 overflow-y-auto rounded-xl border border-slate-200 bg-white py-1 shadow-xl"
+          style={{
+            position: 'absolute',
+            left: pos.left,
+            width: pos.width,
+            top: pos.up ? (pos.anchorTop - pos.maxHeight) : pos.downTop,
+            maxHeight: pos.maxHeight,
+            zIndex: 60,
+          }}
+          className="overflow-y-auto rounded-xl border border-slate-200 bg-white py-1 shadow-xl"
         >
           {items.map((it, i) => (
             <div
               key={String(it.value) + i}
               onMouseDown={(e) => { e.preventDefault(); commit(it) }}
               onMouseEnter={() => setHi(i)}
-              className={`cursor-pointer truncate px-3 py-2 text-sm ${it.__extra ? 'font-black text-campo-700' : 'font-semibold text-slate-700'} ${i === hi ? 'bg-campo-50' : ''}`}
+              className={`cursor-pointer truncate px-3 py-2.5 text-sm ${it.__extra ? 'font-black text-campo-700' : 'font-semibold text-slate-700'} ${i === hi ? 'bg-campo-50' : ''}`}
               title={it.label}
             >
               {it.label}

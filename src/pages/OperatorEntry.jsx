@@ -13,6 +13,7 @@ import { catalogClientIds } from '../lib/catalogo'
 import { catalogDisplayName as productDisplayName } from '../lib/display'
 import NewProductModal from '../components/NewProductModal'
 import Combobox from '../components/Combobox'
+import { advanceOnEnter } from '../lib/formNav'
 
 const today = new Date().toISOString().slice(0, 10)
 const DRAFT_KEY = 'draft_ingreso'
@@ -39,7 +40,7 @@ function isoToDisplay(iso) {
 
 // Input de fecha enmascarado DD/MM/AAAA — almacena YYYY-MM-DD
 // Acepta 6 dígitos (DD/MM/AA → año 20AA) o 8 dígitos (DD/MM/AAAA)
-function DateInput({ value, onChange, onFocus, className }) {
+function DateInput({ value, onChange, onFocus, onKeyDown, className }) {
   const [display, setDisplay] = useState(() => isoToDisplay(value))
   const isTypingRef = useRef(false)
 
@@ -75,6 +76,7 @@ function DateInput({ value, onChange, onFocus, className }) {
       placeholder="DD/MM/AAAA"
       onChange={handleChange}
       onFocus={onFocus}
+      onKeyDown={onKeyDown}
       maxLength={10}
       inputMode="numeric"
     />
@@ -535,6 +537,7 @@ export default function OperatorEntry() {
                     value={row.lot_code}
                     onChange={(e) => updateRow(row.id, 'lot_code', e.target.value.toUpperCase())}
                     onFocus={() => setSelectedIdx(i)}
+                    onKeyDown={advanceOnEnter}
                   />
                 </td>
                 <td className="px-2 py-1">
@@ -543,6 +546,7 @@ export default function OperatorEntry() {
                     value={row.expiry_date || ''}
                     onChange={(v) => updateRow(row.id, 'expiry_date', v)}
                     onFocus={() => setSelectedIdx(i)}
+                    onKeyDown={advanceOnEnter}
                   />
                 </td>
                 <td className="px-2 py-1">
@@ -552,6 +556,7 @@ export default function OperatorEntry() {
                     value={row.cantidad}
                     onChange={(e) => updateCantidad(row.id, e.target.value)}
                     onFocus={() => setSelectedIdx(i)}
+                    onKeyDown={advanceOnEnter}
                     placeholder="0"
                   />
                 </td>
@@ -639,6 +644,7 @@ export default function OperatorEntry() {
                   className="input mt-1 w-full text-sm uppercase"
                   value={row.lot_code}
                   onChange={(e) => updateRow(row.id, 'lot_code', e.target.value.toUpperCase())}
+                  onKeyDown={advanceOnEnter}
                 />
               </label>
               <label className="block">
@@ -647,6 +653,7 @@ export default function OperatorEntry() {
                   className="input mt-1 w-full text-sm"
                   value={row.expiry_date || ''}
                   onChange={(v) => updateRow(row.id, 'expiry_date', v)}
+                  onKeyDown={advanceOnEnter}
                 />
               </label>
             </div>
@@ -660,6 +667,7 @@ export default function OperatorEntry() {
                 inputMode="decimal"
                 value={row.cantidad}
                 onChange={(e) => updateCantidad(row.id, e.target.value)}
+                onKeyDown={advanceOnEnter}
                 placeholder="0"
               />
             </label>
