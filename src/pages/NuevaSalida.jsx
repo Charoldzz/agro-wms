@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
-import { CheckCircle2, FileText, LogOut, Paperclip, Plus, Trash2, X } from 'lucide-react'
+import { CheckCircle2, FileText, LogOut, Paperclip, Pencil, Plus, Trash2, X } from 'lucide-react'
 import { attachmentViewerUrl } from '../lib/dispatchRequests'
 import PageHeader from '../components/PageHeader'
 import { useAuth } from '../hooks/useAuth.jsx'
@@ -116,8 +116,11 @@ export default function NuevaSalida() {
   const [catalogMap, setCatalogMap] = useState(new Map())
   const [rows, setRows] = useState([emptyRow()])
   const [lastAddedId, setLastAddedId] = useState('')
+  const [expandedId, setExpandedId] = useState(() => rows[rows.length - 1]?.id || '')
   const clientOptions = useMemo(() => clients.map((c) => ({ value: c.id, label: displayClientName(c.name) })), [clients])
   const lotOptions = useMemo(() => lots.map((l) => ({ value: l.id, label: lotOptionLabel(l) })), [lots])
+  // En móvil (salida manual) solo un ítem queda abierto (acordeón); si el marcado ya no existe, abre el último.
+  const effectiveExpandedId = rows.some((r) => r.id === expandedId) ? expandedId : (rows[rows.length - 1]?.id || '')
   const [selectedIdx, setSelectedIdx] = useState(0)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
@@ -311,6 +314,7 @@ export default function NuevaSalida() {
       return next
     })
     setLastAddedId(nr.id)
+    setExpandedId(nr.id)
   }
 
   function removeSelectedRow() {
@@ -325,8 +329,10 @@ export default function NuevaSalida() {
   function removeRow(id) {
     if (rows.length <= 1) return
     const index = rows.findIndex((r) => r.id === id)
-    setRows((r) => r.filter((row) => row.id !== id))
+    const remaining = rows.filter((row) => row.id !== id)
+    setRows(remaining)
     setSelectedIdx((prev) => Math.max(0, index <= prev ? prev - 1 : prev))
+    if (id === expandedId) setExpandedId(remaining[remaining.length - 1]?.id || '')
   }
 
   // Unidades por caja: relación por CÓDIGO, sin excepciones
@@ -612,7 +618,7 @@ export default function NuevaSalida() {
       )}
 
       {!isRequestMode && (
-        <div className="mb-3 flex flex-wrap items-center gap-2">
+        <div className="mb-3 hidden flex-wrap items-center gap-2 sm:flex">
           <button className="btn-primary !min-h-10 !px-4 !py-2 text-sm" type="button" onClick={addRow}>
             <Plus size={17} /> Agregar item <span className="hidden sm:inline">(F12)</span>
           </button>
@@ -838,6 +844,27 @@ export default function NuevaSalida() {
         {rows.map((row, i) => {
           const upb = upbForRow(row)
           const d = desgloseEnvases(row.cantidad, row.package_size, row.package_unit, upb)
+          const rowExpanded = isRequestMode || row.id === effectiveExpandedId
+          if (!rowExpanded) {
+            const cant = row.package_unit && Number(row.cantidad) > 0 ? equivalentLabel(Number(row.cantidad), row.package_unit) : ''
+            const meta = [
+              row.lot_code ? `Lote ${row.lot_code}` : null,
+              row.expiry_date ? `Vence ${formatDateShort(row.expiry_date)}` : null,
+              cant || null,
+            ].filter(Boolean).join(' · ')
+            return (
+              <div key={row.id} className={`flex items-center gap-3 rounded-xl border p-3 shadow-sm ${rowInsufficient(row) ? 'border-red-200 bg-red-50' : 'border-slate-200 bg-white'}`}>
+                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-campo-100 text-xs font-black text-campo-700">{i + 1}</span>
+                <button type="button" className="min-w-0 flex-1 text-left" onClick={() => setExpandedId(row.id)}>
+                  <p className="truncate text-sm font-black text-slate-900">{row.product || 'Sin producto'}</p>
+                  <p className="truncate text-xs font-semibold text-slate-500">{meta || 'Tocá para elegir un lote'}</p>
+                  {rowInsufficient(row) && <p className="truncate text-[11px] font-black text-red-600">Saldo insuficiente</p>}
+                </button>
+                <button type="button" className="p-1.5 text-slate-400 hover:text-campo-700" onClick={() => setExpandedId(row.id)} aria-label="Editar"><Pencil size={16} /></button>
+                <button type="button" className="p-1.5 text-slate-300 hover:text-red-500 disabled:opacity-30" onClick={() => removeRow(row.id)} disabled={rows.length <= 1} aria-label="Quitar"><Trash2 size={16} /></button>
+              </div>
+            )
+          }
           return (
             <div
               key={row.id}
@@ -972,6 +999,15 @@ export default function NuevaSalida() {
             </div>
           )
         })}
+        {!isRequestMode && (
+          <button
+            type="button"
+            onClick={addRow}
+            className="w-full rounded-xl border-[1.5px] border-dashed border-campo-300 bg-campo-50 px-4 py-3.5 text-sm font-black text-campo-700 transition active:scale-[0.99]"
+          >
+            ＋ Agregar otro producto
+          </button>
+        )}
       </div>
 
       {isRequestMode && !allConfirmed && (

@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
-import { CheckCircle2, FileText, PackagePlus, Plus, Trash2 } from 'lucide-react'
+import { CheckCircle2, FileText, PackagePlus, Pencil, Plus, Trash2 } from 'lucide-react'
 import PageHeader from '../components/PageHeader'
 import { useAuth } from '../hooks/useAuth.jsx'
 import { supabase } from '../lib/supabase'
-import { formatDateShort, formatNumber } from '../lib/format'
+import { formatDateShort, formatNumber, equivalentLabel } from '../lib/format'
 import { vibrateSuccess } from '../lib/haptics'
 import { desgloseEnvases } from '../lib/envases'
 import { openEntryReceipt, totalEquivalente } from '../lib/comprobante'
@@ -101,8 +101,11 @@ export default function OperatorEntry() {
   const [selectedIdx, setSelectedIdx] = useState(0)
   const [products, setProducts] = useState([])
   const [lastAddedId, setLastAddedId] = useState('')
+  const [expandedId, setExpandedId] = useState(() => rows[rows.length - 1]?.id || '')
   const productOptions = useMemo(() => products.map((p) => ({ value: p, label: p })), [products])
   const clientOptions = useMemo(() => clients.map((c) => ({ value: c.id, label: displayClientName(c.name) })), [clients])
+  // En móvil solo un ítem queda abierto (acordeón); si el marcado ya no existe (borrador), abre el último.
+  const effectiveExpandedId = rows.some((r) => r.id === expandedId) ? expandedId : (rows[rows.length - 1]?.id || '')
   const [catalogMap, setCatalogMap] = useState(new Map()) // label → units_per_box
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
@@ -215,6 +218,7 @@ export default function OperatorEntry() {
       return next
     })
     setLastAddedId(nr.id)
+    setExpandedId(nr.id)
   }
 
   function removeSelectedRow() {
@@ -229,8 +233,10 @@ export default function OperatorEntry() {
   function removeRow(id) {
     if (rows.length <= 1) return
     const index = rows.findIndex((r) => r.id === id)
-    setRows((r) => r.filter((row) => row.id !== id))
+    const remaining = rows.filter((row) => row.id !== id)
+    setRows(remaining)
     setSelectedIdx((prev) => Math.max(0, index <= prev ? prev - 1 : prev))
+    if (id === expandedId) setExpandedId(remaining[remaining.length - 1]?.id || '')
   }
 
   function clearDraft() { localStorage.removeItem(DRAFT_KEY) }
@@ -468,7 +474,7 @@ export default function OperatorEntry() {
         </label>
       </section>
 
-      <div className="mb-3 flex flex-wrap items-center gap-2">
+      <div className="mb-3 hidden flex-wrap items-center gap-2 sm:flex">
         <button className="btn-primary !min-h-10 !px-4 !py-2 text-sm" type="button" onClick={addRow}>
           <Plus size={17} /> Agregar item <span className="hidden sm:inline">(F12)</span>
         </button>
@@ -598,19 +604,43 @@ export default function OperatorEntry() {
 
       {/* ── Tarjetas mobile ── */}
       <div className="mb-4 space-y-3 sm:hidden">
-        {rows.map((row, i) => (
-          <div key={row.id} className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
-            <div className="mb-2 flex items-center justify-between">
-              <span className="text-xs font-black text-slate-400">ITEM #{i + 1}</span>
-              <button
-                type="button"
-                className="flex h-7 w-7 items-center justify-center rounded text-slate-300 hover:bg-red-50 hover:text-red-500 disabled:opacity-30"
-                onClick={() => removeRow(row.id)}
-                disabled={rows.length <= 1}
-              >
-                <Trash2 size={14} />
-              </button>
-            </div>
+        {rows.map((row, i) => {
+          const rowExpanded = row.id === effectiveExpandedId
+          if (!rowExpanded) {
+            const { size, unit } = productInfo(row.product)
+            const cant = Number(row.cantidad) > 0
+              ? (unit ? equivalentLabel(Number(row.cantidad), unit) : `${formatNumber(Number(row.cantidad))} uds`)
+              : ''
+            const meta = [
+              row.lot_code ? `Lote ${row.lot_code}` : null,
+              row.expiry_date ? `Vence ${formatDateShort(row.expiry_date)}` : null,
+              cant || null,
+            ].filter(Boolean).join(' · ')
+            return (
+              <div key={row.id} className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
+                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-campo-100 text-xs font-black text-campo-700">{i + 1}</span>
+                <button type="button" className="min-w-0 flex-1 text-left" onClick={() => setExpandedId(row.id)}>
+                  <p className="truncate text-sm font-black text-slate-900">{row.product || 'Sin producto'}</p>
+                  <p className="truncate text-xs font-semibold text-slate-500">{meta || 'Tocá para completar'}</p>
+                </button>
+                <button type="button" className="p-1.5 text-slate-400 hover:text-campo-700" onClick={() => setExpandedId(row.id)} aria-label="Editar"><Pencil size={16} /></button>
+                <button type="button" className="p-1.5 text-slate-300 hover:text-red-500 disabled:opacity-30" onClick={() => removeRow(row.id)} disabled={rows.length <= 1} aria-label="Quitar"><Trash2 size={16} /></button>
+              </div>
+            )
+          }
+          return (
+            <div key={row.id} className="rounded-xl border-2 border-campo-500 bg-white p-3 shadow-sm">
+              <div className="mb-2 flex items-center justify-between">
+                <span className="text-xs font-black text-campo-600">ITEM #{i + 1}</span>
+                <button
+                  type="button"
+                  className="flex h-7 w-7 items-center justify-center rounded text-slate-300 hover:bg-red-50 hover:text-red-500 disabled:opacity-30"
+                  onClick={() => removeRow(row.id)}
+                  disabled={rows.length <= 1}
+                >
+                  <Trash2 size={14} />
+                </button>
+              </div>
 
             <div className="mb-3">
               <Combobox
@@ -690,9 +720,16 @@ export default function OperatorEntry() {
                 placeholder="0"
               />
             </label>
-          </div>
-        ))}
-
+            </div>
+          )
+        })}
+        <button
+          type="button"
+          onClick={addRow}
+          className="w-full rounded-xl border-[1.5px] border-dashed border-campo-300 bg-campo-50 px-4 py-3.5 text-sm font-black text-campo-700 transition active:scale-[0.99]"
+        >
+          ＋ Agregar otro producto
+        </button>
       </div>
 
       {/* Observaciones DE LA OPERACION: debajo de los productos, para poder
