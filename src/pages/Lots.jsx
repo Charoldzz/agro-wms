@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
-import { Building2, CalendarClock, ChevronLeft, ChevronRight, ClipboardCheck, ClipboardList, Download, History, LayoutList, LogOut, Menu, PackagePlus, Plus, X } from 'lucide-react'
+import { Building2, CalendarClock, ChevronLeft, ChevronRight, ClipboardCheck, ClipboardList, Download, History, LayoutList, LifeBuoy, LogOut, Menu, PackagePlus, Plus, X } from 'lucide-react'
 import { useAuth } from '../hooks/useAuth.jsx'
 import { supabase } from '../lib/supabase'
 import { formatDate, formatNumber, normalizeEquivalent, pluralUnit, equivalentLabel } from '../lib/format'
@@ -11,6 +11,7 @@ import NewProductModal from '../components/NewProductModal'
 import EmpresasModal from '../components/EmpresasModal'
 import CatalogoModal from '../components/CatalogoModal'
 import MovimientosModal from '../components/MovimientosModal'
+import FeedbackAdminModal from '../components/FeedbackAdminModal'
 
 const LOTS_CACHE_KEY = 'todo-agricola-lots-cache'
 const CLIENTS_CACHE_KEY = 'todo-agricola-clients-cache'
@@ -81,10 +82,17 @@ export default function Lots() {
   // Contadores para los badges de admin: cosas por aprobar y fichas del catálogo pendientes de revisión
   const [pendingRepairs, setPendingRepairs] = useState(0)
   const [pendingCatalog, setPendingCatalog] = useState(0)
+  const [feedbackNuevos, setFeedbackNuevos] = useState(0)
+  const [showFeedbackModal, setShowFeedbackModal] = useState(false)
 
   async function loadCatalogBadge() {
     const { count } = await supabase.from('product_catalog').select('id', { count: 'exact', head: true }).eq('pending_review', true)
     setPendingCatalog(count || 0)
+  }
+
+  async function loadFeedbackBadge() {
+    const { count } = await supabase.from('portal_feedback').select('id', { count: 'exact', head: true }).eq('status', 'nuevo')
+    setFeedbackNuevos(count || 0)
   }
 
   useEffect(() => {
@@ -99,12 +107,14 @@ export default function Lots() {
     }
     loadRepairs()
     loadCatalogBadge()
+    loadFeedbackBadge()
     const ch = supabase
       .channel('lots-admin-badges')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'movements' }, loadRepairs)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'movement_correction_requests' }, loadRepairs)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'operational_issue_reports' }, loadRepairs)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'product_catalog' }, loadCatalogBadge)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'portal_feedback' }, loadFeedbackBadge)
       .subscribe()
     return () => supabase.removeChannel(ch)
   }, [isAdmin])
@@ -461,6 +471,18 @@ export default function Lots() {
                 Empresas
               </button>
               <button
+                className="btn-secondary relative !min-h-8 !px-3 !py-1.5 text-xs"
+                onClick={() => setShowFeedbackModal(true)}
+              >
+                {feedbackNuevos > 0 && (
+                  <span className="absolute -right-1.5 -top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-black text-white">
+                    {feedbackNuevos > 99 ? '99+' : feedbackNuevos}
+                  </span>
+                )}
+                <LifeBuoy size={14} />
+                Reportes
+              </button>
+              <button
                 className="btn-secondary !min-h-8 !px-3 !py-1.5 text-xs"
                 onClick={() => navigate('/exportes')}
                 title="Descargar inventario y movimientos (Excel/PDF)"
@@ -644,6 +666,12 @@ export default function Lots() {
         <EmpresasModal
           onClose={() => setShowEmpresasModal(false)}
           onSaved={loadData}
+        />
+      )}
+
+      {showFeedbackModal && (
+        <FeedbackAdminModal
+          onClose={() => { setShowFeedbackModal(false); loadFeedbackBadge() }}
         />
       )}
 

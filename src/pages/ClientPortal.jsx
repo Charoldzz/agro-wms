@@ -3,12 +3,13 @@ import ExcelJS from 'exceljs'
 import { Link, useNavigate } from 'react-router-dom'
 import {
   Boxes, CalendarClock, CheckCircle2, ChevronDown,
-  ClipboardList, Download, FileText, History, LogOut, Minus, Package,
+  ClipboardList, Download, FileText, History, LifeBuoy, LogOut, Minus, Package,
   PackageCheck, Paperclip, Plus, Printer, Search, Send,
   Truck, X,
 } from 'lucide-react'
 import EmptyState from '../components/EmptyState'
 import ListProductCard from '../components/ListProductCard'
+import FeedbackModal from '../components/FeedbackModal'
 import { useAuth } from '../hooks/useAuth.jsx'
 import { cleanProductName, displayLotCode, lotLabel, packageLabel, productCode, productCodeLabel } from '../lib/display'
 import { desgloseEnvases, envaseTipo } from '../lib/envases'
@@ -273,6 +274,7 @@ export default function ClientPortal({ view = 'inventory' }) {
   const [reqProductName, setReqProductName] = useState('')
   const [reqLotId,       setReqLotId]       = useState(initialDraft.lotId)
   const [reqQuantity,    setReqQuantity]     = useState(initialDraft.quantity)
+  const [showFeedback,   setShowFeedback]    = useState(false)
   const [reqNotes,       setReqNotes]        = useState(initialDraft.notes)
   const [reqItems,       setReqItems]        = useState(initialDraft.items)
   const [editingLotId,   setEditingLotId]    = useState('')
@@ -1030,6 +1032,9 @@ ${totalLabel ? `<div class="total-final"><span class="tl">TOTAL</span><span clas
       </button>
       <button onClick={printPdf} title="Ver inventario (PDF)" className={`flex ${cls} items-center justify-center rounded-lg border border-white/20 bg-white/10 transition hover:bg-white/25`}>
         <FileText size={size} />
+      </button>
+      <button onClick={() => setShowFeedback(true)} title="Contactar a soporte" className={`flex ${cls} items-center justify-center rounded-lg border border-white/20 bg-white/10 transition hover:bg-white/25`}>
+        <LifeBuoy size={size} />
       </button>
       <button onClick={handleSignOut} title="Cerrar sesión" className={`flex ${cls} items-center justify-center rounded-lg border border-white/20 bg-white/10 transition hover:bg-white/25`}>
         <LogOut size={size} />
@@ -2007,6 +2012,8 @@ ${totalLabel ? `<div class="total-final"><span class="tl">TOTAL</span><span clas
           onPrint={() => openNotePdf(selectedMovement)}
         />
       )}
+
+      {showFeedback && <FeedbackModal page={view} onClose={() => setShowFeedback(false)} />}
 
       </div>
     </div>
