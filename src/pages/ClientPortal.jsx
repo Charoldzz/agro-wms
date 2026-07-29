@@ -166,6 +166,16 @@ function sortInventoryLots(lots) {
   })
 }
 
+// Muestra un valor numérico canónico (punto decimal) con separador de miles
+// boliviano: punto para miles, coma para decimales. "50000" → "50.000",
+// "50000.5" → "50.000,5". Solo afecta la vista; el valor guardado no cambia.
+function formatQtyInput(raw) {
+  if (raw === '' || raw == null) return ''
+  const [intPart, decPart] = String(raw).split('.')
+  const intFmt = (intPart || '').replace(/\B(?=(\d{3})+(?!\d))/g, '.')
+  return decPart !== undefined ? `${intFmt},${decPart}` : intFmt
+}
+
 // Total de una nota separado por unidad: "315 lts · 5.038 kgs"
 function noteEquivalentLabel(movs) {
   const totals = new Map()
@@ -1608,8 +1618,8 @@ ${totalLabel ? `<div class="total-final"><span class="tl">TOTAL</span><span clas
                           className="input w-28 text-right font-bold sm:w-32"
                           inputMode="decimal"
                           type="text"
-                          value={reqQuantity}
-                          onChange={e => { const v = e.target.value.replace(',','.'); if(/^\d*\.?\d*$/.test(v)) setReqQuantity(v) }}
+                          value={formatQtyInput(reqQuantity)}
+                          onChange={e => { const v = e.target.value.replace(/\./g,'').replace(',','.'); if(/^\d*\.?\d*$/.test(v)) setReqQuantity(v) }}
                         />
                         <span className="shrink-0 rounded-lg bg-slate-100 px-3 py-2 text-sm font-black text-slate-600">
                           {Number(selectedLot?.package_size) > 0 && selectedLot?.package_unit ? selectedLot.package_unit : 'uds'}
