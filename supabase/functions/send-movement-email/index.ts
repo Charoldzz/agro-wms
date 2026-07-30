@@ -54,21 +54,31 @@ Deno.serve(async (req) => {
     if (items.length === 0) return json({ error: 'Sin items' }, 400)
 
     // ── Destinatarios: usuarios del portal de esa empresa (+ copia a oficina)
+    // A prueba de fallos: si la búsqueda de correos del cliente falla, NO se cae
+    // el envío — se manda igual a la oficina y se loguea el error para verlo.
     const clientEmails: string[] = []
     if (b.client_id) {
-      const admin = createClient(
-        Deno.env.get('SUPABASE_URL')!,
-        Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
-      )
-      const { data: profs } = await admin.from('profiles').select('id').eq('client_id', b.client_id).eq('role', 'cliente')
-      for (const p of (profs || [])) {
-        const { data: u } = await admin.auth.admin.getUserById((p as { id: string }).id)
-        const email = u?.user?.email
-        if (email) clientEmails.push(email)
+      try {
+        const admin = createClient(
+          Deno.env.get('SUPABASE_URL')!,
+          Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
+        )
+        const { data: profs, error: pErr } = await admin
+          .from('profiles').select('id').eq('client_id', b.client_id).eq('role', 'cliente')
+        if (pErr) console.error('profiles lookup error:', pErr.message)
+        for (const p of (profs || [])) {
+          const { data: u, error: uErr } = await admin.auth.admin.getUserById((p as { id: string }).id)
+          if (uErr) console.error('getUserById error:', uErr.message)
+          const email = u?.user?.email
+          if (email) clientEmails.push(email)
+        }
+      } catch (e) {
+        console.error('client email lookup failed:', (e as Error).message)
       }
     }
     const to = clientEmails.length ? clientEmails : [OFFICE]
     const bcc = clientEmails.length ? [OFFICE] : []
+    console.log('recipients →', JSON.stringify({ to, bcc, client_id: b.client_id }))
 
     // ── Contenido cálido
     const titulo = esSalida ? '¡Despachamos tu mercadería! 🚚' : '¡Recibimos tu mercadería! 📦'
