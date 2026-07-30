@@ -611,20 +611,23 @@ export default function OperatorEntry() {
             const cant = Number(row.cantidad) > 0
               ? (unit ? equivalentLabel(Number(row.cantidad), unit) : `${formatNumber(Number(row.cantidad))} uds`)
               : ''
-            const meta = [
-              row.lot_code ? `Lote ${row.lot_code}` : null,
-              row.expiry_date ? `Vence ${formatDateShort(row.expiry_date)}` : null,
-              cant || null,
-            ].filter(Boolean).join(' · ')
             return (
-              <div key={row.id} className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
-                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-campo-100 text-xs font-black text-campo-700">{i + 1}</span>
-                <button type="button" className="min-w-0 flex-1 text-left" onClick={() => setExpandedId(row.id)}>
-                  <p className="truncate text-sm font-black text-slate-900">{row.product || 'Sin producto'}</p>
-                  <p className="truncate text-xs font-semibold text-slate-500">{meta || 'Tocá para completar'}</p>
-                </button>
-                <button type="button" className="p-1.5 text-slate-400 hover:text-campo-700" onClick={() => setExpandedId(row.id)} aria-label="Editar"><Pencil size={16} /></button>
-                <button type="button" className="p-1.5 text-slate-300 hover:text-red-500 disabled:opacity-30" onClick={() => removeRow(row.id)} disabled={rows.length <= 1} aria-label="Quitar"><Trash2 size={16} /></button>
+              <div key={row.id} className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
+                <div className="flex items-start gap-3">
+                  <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-campo-100 text-xs font-black text-campo-700">{i + 1}</span>
+                  <button type="button" className="min-w-0 flex-1 text-left" onClick={() => setExpandedId(row.id)}>
+                    <p className="text-sm font-black leading-snug text-slate-900 [overflow-wrap:anywhere]">{row.product || 'Sin producto'}</p>
+                    <div className="mt-1.5 flex flex-wrap gap-x-4 gap-y-1 text-xs">
+                      <span><span className="font-bold text-slate-400">Lote </span><span className="font-bold text-slate-700">{row.lot_code || '—'}</span></span>
+                      <span><span className="font-bold text-slate-400">Vence </span><span className="font-bold text-slate-700">{row.expiry_date ? isoToDisplay(row.expiry_date) : '—'}</span></span>
+                      <span><span className="font-bold text-slate-400">Cant. </span><span className="font-black text-campo-700">{cant || '—'}</span></span>
+                    </div>
+                  </button>
+                  <div className="flex shrink-0 flex-col items-center gap-1">
+                    <button type="button" className="p-1.5 text-slate-400 hover:text-campo-700" onClick={() => setExpandedId(row.id)} aria-label="Editar"><Pencil size={16} /></button>
+                    <button type="button" className="p-1.5 text-slate-300 hover:text-red-500 disabled:opacity-30" onClick={() => removeRow(row.id)} disabled={rows.length <= 1} aria-label="Quitar"><Trash2 size={16} /></button>
+                  </div>
+                </div>
               </div>
             )
           }

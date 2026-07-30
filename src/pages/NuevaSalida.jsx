@@ -847,21 +847,25 @@ export default function NuevaSalida() {
           const rowExpanded = isRequestMode || row.id === effectiveExpandedId
           if (!rowExpanded) {
             const cant = row.package_unit && Number(row.cantidad) > 0 ? equivalentLabel(Number(row.cantidad), row.package_unit) : ''
-            const meta = [
-              row.lot_code ? `Lote ${row.lot_code}` : null,
-              row.expiry_date ? `Vence ${formatDateShort(row.expiry_date)}` : null,
-              cant || null,
-            ].filter(Boolean).join(' · ')
+            const vence = row.expiry_date ? row.expiry_date.split('-').reverse().join('/') : '—'
             return (
-              <div key={row.id} className={`flex items-center gap-3 rounded-xl border p-3 shadow-sm ${rowInsufficient(row) ? 'border-red-200 bg-red-50' : 'border-slate-200 bg-white'}`}>
-                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-campo-100 text-xs font-black text-campo-700">{i + 1}</span>
-                <button type="button" className="min-w-0 flex-1 text-left" onClick={() => setExpandedId(row.id)}>
-                  <p className="truncate text-sm font-black text-slate-900">{row.product || 'Sin producto'}</p>
-                  <p className="truncate text-xs font-semibold text-slate-500">{meta || 'Tocá para elegir un lote'}</p>
-                  {rowInsufficient(row) && <p className="truncate text-[11px] font-black text-red-600">Saldo insuficiente</p>}
-                </button>
-                <button type="button" className="p-1.5 text-slate-400 hover:text-campo-700" onClick={() => setExpandedId(row.id)} aria-label="Editar"><Pencil size={16} /></button>
-                <button type="button" className="p-1.5 text-slate-300 hover:text-red-500 disabled:opacity-30" onClick={() => removeRow(row.id)} disabled={rows.length <= 1} aria-label="Quitar"><Trash2 size={16} /></button>
+              <div key={row.id} className={`rounded-xl border p-3 shadow-sm ${rowInsufficient(row) ? 'border-red-200 bg-red-50' : 'border-slate-200 bg-white'}`}>
+                <div className="flex items-start gap-3">
+                  <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-campo-100 text-xs font-black text-campo-700">{i + 1}</span>
+                  <button type="button" className="min-w-0 flex-1 text-left" onClick={() => setExpandedId(row.id)}>
+                    <p className="text-sm font-black leading-snug text-slate-900 [overflow-wrap:anywhere]">{row.product || 'Sin producto'}</p>
+                    <div className="mt-1.5 flex flex-wrap gap-x-4 gap-y-1 text-xs">
+                      <span><span className="font-bold text-slate-400">Lote </span><span className="font-bold text-slate-700">{row.lot_code || '—'}</span></span>
+                      <span><span className="font-bold text-slate-400">Vence </span><span className="font-bold text-slate-700">{vence}</span></span>
+                      <span><span className="font-bold text-slate-400">Cant. </span><span className="font-black text-campo-700">{cant || '—'}</span></span>
+                    </div>
+                    {rowInsufficient(row) && <p className="mt-1 text-[11px] font-black text-red-600">Saldo insuficiente</p>}
+                  </button>
+                  <div className="flex shrink-0 flex-col items-center gap-1">
+                    <button type="button" className="p-1.5 text-slate-400 hover:text-campo-700" onClick={() => setExpandedId(row.id)} aria-label="Editar"><Pencil size={16} /></button>
+                    <button type="button" className="p-1.5 text-slate-300 hover:text-red-500 disabled:opacity-30" onClick={() => removeRow(row.id)} disabled={rows.length <= 1} aria-label="Quitar"><Trash2 size={16} /></button>
+                  </div>
+                </div>
               </div>
             )
           }
