@@ -859,7 +859,37 @@ export default function NuevaSalida() {
         {rows.map((row, i) => {
           const upb = upbForRow(row)
           const d = desgloseEnvases(row.cantidad, row.package_size, row.package_unit, upb)
-          const rowExpanded = isRequestMode || row.id === effectiveExpandedId
+          if (isRequestMode) {
+            const cant = row.package_unit && Number(row.cantidad) > 0 ? equivalentLabel(Number(row.cantidad), row.package_unit) : ''
+            const vence = row.expiry_date ? row.expiry_date.split('-').reverse().join('/') : '—'
+            return (
+              <div key={row.id} className={`rounded-xl border p-3 shadow-sm ${rowInsufficient(row) ? 'border-red-200 bg-red-50' : row.confirmed ? 'border-campo-300 bg-campo-50' : 'border-slate-200 bg-white'}`}>
+                <div className="flex items-start gap-3">
+                  <button
+                    type="button"
+                    className={`mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full transition-all ${rowInsufficient(row) ? 'cursor-not-allowed border-2 border-red-200 text-red-300' : row.confirmed ? 'bg-campo-600 text-white shadow-sm' : 'border-2 border-slate-300 text-slate-300'}`}
+                    onClick={() => { if (!rowInsufficient(row)) updateRow(row.id, 'confirmed', !row.confirmed) }}
+                    title={rowInsufficient(row) ? 'Saldo insuficiente' : row.confirmed ? 'Quitar confirmación' : 'Confirmar producto'}
+                  >
+                    <CheckCircle2 size={18} />
+                  </button>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-black leading-snug text-slate-900 [overflow-wrap:anywhere]">{row.product}</p>
+                    <div className="mt-1 flex flex-wrap gap-x-4 gap-y-0.5 text-xs">
+                      <span><span className="font-bold text-slate-400">Lote </span><span className="font-bold text-slate-700">{row.lot_code || '—'}</span></span>
+                      <span><span className="font-bold text-slate-400">Vence </span><span className="font-bold text-slate-700">{vence}</span></span>
+                    </div>
+                    <div className="mt-1.5 flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+                      <span className="whitespace-nowrap text-lg font-black leading-none text-campo-700">{cant || '—'}</span>
+                      {d.unidadesLabel ? <span className="whitespace-nowrap text-xs font-bold text-slate-500">{d.unidadesLabel}</span> : null}
+                    </div>
+                    {rowInsufficient(row) && <p className="mt-1 text-[11px] font-black text-red-600">Saldo insuficiente: hay {equivalentLabel(row.saldo, row.package_unit)}</p>}
+                  </div>
+                </div>
+              </div>
+            )
+          }
+          const rowExpanded = row.id === effectiveExpandedId
           if (!rowExpanded) {
             const cant = row.package_unit && Number(row.cantidad) > 0 ? equivalentLabel(Number(row.cantidad), row.package_unit) : ''
             const vence = row.expiry_date ? row.expiry_date.split('-').reverse().join('/') : '—'
