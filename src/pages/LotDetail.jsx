@@ -490,25 +490,9 @@ export default function LotDetail() {
       .filter(Boolean)
       .join(' | ')
 
-    const emailPayload = ['entrada', 'salida'].includes(pendingMovement.type)
-      ? {
-          to: 'hgarayd@outlook.com',
-          movement_type: pendingMovement.type,
-          quantity,
-          previous_quantity: Number(lot.current_quantity),
-          new_quantity: pendingMovement.newQuantity,
-          to_location: pendingMovement.to_location || null,
-          notes: pendingMovement.notes || null,
-          receiver_name: pendingMovement.receiver_name || null,
-          receiver_document: pendingMovement.receiver_document || null,
-          vehicle_plate: pendingMovement.type === 'salida' ? pendingMovement.to_location || null : null,
-          lot_code: visibleLotCode,
-          product: cleanProductName(lot.product),
-          client: lot.clients?.name || 'Sin cliente',
-          location: lot.location,
-          user_email: user.email,
-        }
-      : null
+    // El aviso de movimiento al cliente va SOLO en los ingresos/salidas
+    // (OperatorEntry / NuevaSalida). Los ajustes de lote no envían correo.
+    const emailPayload = null
 
     const { error: rpcError } = await supabase.rpc('register_movement', {
       p_lot_id: lot.id,

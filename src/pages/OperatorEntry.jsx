@@ -373,6 +373,27 @@ export default function OperatorEntry() {
         rows: receiptRows,
       })
 
+      // Aviso al cliente (+ copia a oficina). Fire-and-forget: si falla el correo, el ingreso ya quedó guardado.
+      supabase.functions.invoke('send-movement-email', {
+        body: {
+          client_id: clientId,
+          movement_type: 'entrada',
+          client_name: displayClientName(clients.find((c) => c.id === clientId)?.name || ''),
+          guide: rpcData?.guide_number || '',
+          date: today,
+          driver_name: transportista.trim() || null,
+          vehicle_plate: placa.trim().toUpperCase() || null,
+          notes: notasFinal,
+          items: receiptRows.map((r) => ({
+            product: r.product,
+            lot_code: r.lot_code,
+            expiry_date: r.expiry_date,
+            cantidad_label: (Number(r.package_size) > 0 && r.package_unit) ? equivalentLabel(r.cantidad, r.package_unit) : `${formatNumber(r.cantidad)} uds`,
+            envases_label: r.unidades_label || '',
+          })),
+        },
+      }).catch(() => {})
+
       clearDraft()
       vibrateSuccess()
       setSuccess(true)

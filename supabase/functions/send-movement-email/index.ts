@@ -1,286 +1,163 @@
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+
+// ============================================================
+// CORREO DE MOVIMIENTO — aviso al CLIENTE (+ copia a oficina)
+//
+// Se dispara desde los ingresos (OperatorEntry) y salidas (NuevaSalida) al
+// guardar. Va a los usuarios del portal de esa empresa; copia (BCC) a oficina.
+// El front ya calcula las etiquetas (cantidad equivalente + envases), acá solo
+// se arman en la estética de Todo Agrícola.
+//
+// Secretos que necesita (Supabase → Edge Functions → Secrets):
+//   RESEND_API_KEY        (obligatorio) la llave re_... de Resend
+//   MOVEMENT_EMAIL_FROM   (opcional) por defecto "Todo Agrícola Boliviana <almacenes@tagribol.com>"
+//   MOVEMENT_OFFICE_BCC   (opcional) copia interna, por defecto hgarayd@outlook.com
+// SUPABASE_URL y SUPABASE_SERVICE_ROLE_KEY vienen solos.
+// ============================================================
+
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
-function formatNumber(value: unknown) {
-  return Number(value || 0).toLocaleString('es-BO', {
-    maximumFractionDigits: 2,
+function json(o: unknown, status = 200) {
+  return new Response(JSON.stringify(o), {
+    status,
+    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
   })
 }
 
-function escapeHtml(value: unknown) {
-  return String(value || '')
-    .replaceAll('&', '&amp;')
-    .replaceAll('<', '&lt;')
-    .replaceAll('>', '&gt;')
-    .replaceAll('"', '&quot;')
-    .replaceAll("'", '&#039;')
+function escapeHtml(v: unknown) {
+  return String(v ?? '')
+    .replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;').replaceAll("'", '&#039;')
 }
 
-function presentationLabel(item: Record<string, unknown>) {
-  if (!Number(item.package_size || 0)) return 'Sin dato'
-  return `${formatNumber(item.package_size)} ${String(item.package_unit || '')}`.trim()
-}
-
-function entryPackLabel(item: Record<string, unknown>) {
-  const boxes = Number(item.box_count || 0)
-  const unitsPerBox = Number(item.units_per_box || 0)
-  const looseUnits = Number(item.loose_units || 0)
-  const boxText = boxes > 0 ? `${formatNumber(boxes)} cajas x ${formatNumber(unitsPerBox)} env.` : 'Sin cajas'
-  return `${boxText} + ${formatNumber(looseUnits)} sueltos`
+function fmtDate(v: unknown) {
+  if (!v) return ''
+  const s = String(v)
+  return /^\d{4}-\d{2}-\d{2}$/.test(s) ? s.split('-').reverse().join('/') : s
 }
 
 Deno.serve(async (req) => {
-  if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders })
-  }
+  if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
 
   try {
-    const resendApiKey = Deno.env.get('RESEND_API_KEY')
-    const fromEmail = Deno.env.get('MOVEMENT_EMAIL_FROM') || 'Todo Agricola <onboarding@resend.dev>'
-    const appUrl = Deno.env.get('APP_PUBLIC_URL') || 'https://todo-agricola.vercel.app'
+    const RESEND = Deno.env.get('RESEND_API_KEY')
+    const FROM = Deno.env.get('MOVEMENT_EMAIL_FROM') || 'Todo Agrícola Boliviana <almacenes@tagribol.com>'
+    const OFFICE = Deno.env.get('MOVEMENT_OFFICE_BCC') || 'hgarayd@outlook.com'
+    if (!RESEND) return json({ error: 'RESEND_API_KEY no configurado' }, 500)
 
-    if (!resendApiKey) {
-      return new Response(JSON.stringify({ error: 'RESEND_API_KEY no configurado' }), {
-        status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      })
-    }
+    const b = await req.json()
+    const esSalida = b.movement_type === 'salida'
+    const items: Array<Record<string, unknown>> = Array.isArray(b.items) ? b.items : []
+    if (items.length === 0) return json({ error: 'Sin items' }, 400)
 
-    const body = await req.json()
-    const toEmail = Deno.env.get('MOVEMENT_EMAIL_TO') || body.to || 'hgarayd@outlook.com'
-    const listItems = Array.isArray(body.items) && body.items.length > 0
-      ? body.items
-      : body.product
-        ? [{
-          lot_code: body.lot_code,
-          product: body.product,
-          quantity: body.quantity,
-          previous_quantity: body.previous_quantity,
-          new_quantity: body.new_quantity,
-          location: body.location,
-          package_size: body.package_size,
-          package_unit: body.package_unit,
-        }]
-        : []
-    const attachments = Array.isArray(body.attachments)
-      ? body.attachments
-        .filter((attachment: Record<string, unknown>) => attachment?.filename && attachment?.content)
-        .map((attachment: Record<string, unknown>) => ({
-          filename: String(attachment.filename),
-          content: String(attachment.content),
-        }))
-      : []
-    const isList = body.movement_type === 'salida_lista' || listItems.length > 0
-    const emailAttachments = attachments
-    const hasEntryPack = listItems.some((item: Record<string, unknown>) =>
-      Number(item.box_count || 0) > 0 || Number(item.units_per_box || 0) > 0 || Number(item.loose_units || 0) > 0
-    )
-    const typeLabel = body.movement_type === 'entrada' ? 'Entrada' : isList ? 'Despacho' : 'Salida'
-    const subject = isList
-      ? `${typeLabel} de inventario - ${body.client || 'Cliente'} (${listItems.length} productos)`
-      : `${typeLabel} de inventario - ${body.lot_code}`
-    const logoUrl = `${appUrl.replace(/\/$/, '')}/images/todo-logo.png`
-    const itemRowsText = isList
-      ? listItems.map((item: Record<string, unknown>) =>
-        `- ${item.product} | Presentacion ${presentationLabel(item)} | ${hasEntryPack ? `${entryPackLabel(item)} | ` : ''}${formatNumber(item.quantity)} env. | Lote ${item.lot_code} | ${item.location || '-'} | stock ${formatNumber(item.previous_quantity)} -> ${formatNumber(item.new_quantity)}`,
+    // ── Destinatarios: usuarios del portal de esa empresa (+ copia a oficina)
+    const clientEmails: string[] = []
+    if (b.client_id) {
+      const admin = createClient(
+        Deno.env.get('SUPABASE_URL')!,
+        Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
       )
-      : []
-    const text = [
-      `${typeLabel} registrada en Todo Agricola`,
-      ``,
-      isList ? `Cliente: ${body.client}` : `Lote: ${body.lot_code}`,
-      isList ? `Productos: ${listItems.length}` : `Producto: ${body.product}`,
-      !isList ? `Cliente: ${body.client}` : null,
-      !isList ? `Ubicacion: ${body.location || '-'}` : null,
-      !isList ? `Cantidad: ${formatNumber(body.quantity)}` : null,
-      !isList ? `Stock anterior: ${formatNumber(body.previous_quantity)}` : null,
-      !isList ? `Stock nuevo: ${formatNumber(body.new_quantity)}` : null,
-      body.receiver_name ? `Recibe: ${body.receiver_name}` : null,
-      body.receiver_document ? `Documento: ${body.receiver_document}` : null,
-      body.driver_name ? `Chofer: ${body.driver_name}` : null,
-      body.driver_document ? `CI chofer: ${body.driver_document}` : null,
-      body.vehicle_plate ? `Placa: ${body.vehicle_plate}` : null,
-      isList ? `` : null,
-      ...itemRowsText,
-      `Usuario: ${body.user_email || 'Usuario'}`,
-      body.notes ? `Observaciones: ${body.notes}` : null,
-    ]
-      .filter(Boolean)
-      .join('\n')
-    const html = `
-      <!doctype html>
-      <html>
-        <body style="margin:0;background:#f6f7f3;font-family:Arial,sans-serif;color:#0f172a;">
-          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f6f7f3;padding:24px 12px;">
-            <tr>
-              <td align="center">
-                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:620px;background:#ffffff;border:1px solid #e2e8f0;border-radius:12px;overflow:hidden;">
-                  <tr>
-                    <td style="padding:22px 24px;border-bottom:1px solid #e2e8f0;">
-                      <img src="${logoUrl}" width="160" alt="Todo Agricola" style="display:block;max-width:160px;height:auto;margin-bottom:16px;" />
-                      <h1 style="margin:0;color:#14532d;font-size:22px;line-height:1.25;">${escapeHtml(typeLabel)} de inventario</h1>
-                      <p style="margin:8px 0 0;color:#475569;font-size:14px;">Resumen para registro en oficina</p>
-                    </td>
-                  </tr>
-                  <tr>
-                    <td style="padding:22px 24px;">
-                      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;">
-                        ${!isList ? `
-                          <tr>
-                            <td style="padding:10px 0;color:#64748b;font-size:13px;border-bottom:1px solid #f1f5f9;">Lote</td>
-                            <td style="padding:10px 0;text-align:right;font-size:14px;font-weight:700;border-bottom:1px solid #f1f5f9;">${escapeHtml(body.lot_code)}</td>
-                          </tr>
-                          <tr>
-                            <td style="padding:10px 0;color:#64748b;font-size:13px;border-bottom:1px solid #f1f5f9;">Producto</td>
-                            <td style="padding:10px 0;text-align:right;font-size:14px;font-weight:700;border-bottom:1px solid #f1f5f9;">${escapeHtml(body.product)}</td>
-                          </tr>
-                        ` : ''}
-                        <tr>
-                          <td style="padding:10px 0;color:#64748b;font-size:13px;border-bottom:1px solid #f1f5f9;">Cliente</td>
-                          <td style="padding:10px 0;text-align:right;font-size:14px;font-weight:700;border-bottom:1px solid #f1f5f9;">${escapeHtml(body.client)}</td>
-                        </tr>
-                        ${!isList ? `
-                          <tr>
-                            <td style="padding:10px 0;color:#64748b;font-size:13px;border-bottom:1px solid #f1f5f9;">Ubicacion</td>
-                            <td style="padding:10px 0;text-align:right;font-size:14px;font-weight:700;border-bottom:1px solid #f1f5f9;">${escapeHtml(body.location || '-')}</td>
-                          </tr>
-                        ` : `
-                          <tr>
-                            <td style="padding:10px 0;color:#64748b;font-size:13px;border-bottom:1px solid #f1f5f9;">Productos</td>
-                            <td style="padding:10px 0;text-align:right;font-size:14px;font-weight:700;border-bottom:1px solid #f1f5f9;">${listItems.length}</td>
-                          </tr>
-                        `}
-                        ${!isList ? `
-                          <tr>
-                            <td style="padding:10px 0;color:#64748b;font-size:13px;border-bottom:1px solid #f1f5f9;">Cantidad</td>
-                            <td style="padding:10px 0;text-align:right;font-size:18px;font-weight:800;color:#14532d;border-bottom:1px solid #f1f5f9;">${formatNumber(body.quantity)}</td>
-                          </tr>
-                        ` : ''}
-                        ${body.receiver_name ? `
-                          <tr>
-                            <td style="padding:10px 0;color:#64748b;font-size:13px;border-bottom:1px solid #f1f5f9;">Recibe</td>
-                            <td style="padding:10px 0;text-align:right;font-size:14px;font-weight:700;border-bottom:1px solid #f1f5f9;">${escapeHtml(body.receiver_name)}</td>
-                          </tr>
-                        ` : ''}
-                        ${body.receiver_document ? `
-                          <tr>
-                            <td style="padding:10px 0;color:#64748b;font-size:13px;border-bottom:1px solid #f1f5f9;">Documento</td>
-                            <td style="padding:10px 0;text-align:right;font-size:14px;font-weight:700;border-bottom:1px solid #f1f5f9;">${escapeHtml(body.receiver_document)}</td>
-                          </tr>
-                        ` : ''}
-                        ${body.driver_name ? `
-                          <tr>
-                            <td style="padding:10px 0;color:#64748b;font-size:13px;border-bottom:1px solid #f1f5f9;">Chofer</td>
-                            <td style="padding:10px 0;text-align:right;font-size:14px;font-weight:700;border-bottom:1px solid #f1f5f9;">${escapeHtml(body.driver_name)}</td>
-                          </tr>
-                        ` : ''}
-                        ${body.driver_document ? `
-                          <tr>
-                            <td style="padding:10px 0;color:#64748b;font-size:13px;border-bottom:1px solid #f1f5f9;">CI chofer</td>
-                            <td style="padding:10px 0;text-align:right;font-size:14px;font-weight:700;border-bottom:1px solid #f1f5f9;">${escapeHtml(body.driver_document)}</td>
-                          </tr>
-                        ` : ''}
-                        ${body.vehicle_plate ? `
-                          <tr>
-                            <td style="padding:10px 0;color:#64748b;font-size:13px;border-bottom:1px solid #f1f5f9;">Placa</td>
-                            <td style="padding:10px 0;text-align:right;font-size:14px;font-weight:700;border-bottom:1px solid #f1f5f9;">${escapeHtml(body.vehicle_plate)}</td>
-                          </tr>
-                        ` : ''}
-                        ${!isList ? `
-                          <tr>
-                            <td style="padding:10px 0;color:#64748b;font-size:13px;border-bottom:1px solid #f1f5f9;">Stock antes</td>
-                            <td style="padding:10px 0;text-align:right;font-size:14px;font-weight:700;border-bottom:1px solid #f1f5f9;">${formatNumber(body.previous_quantity)}</td>
-                          </tr>
-                          <tr>
-                            <td style="padding:10px 0;color:#64748b;font-size:13px;border-bottom:1px solid #f1f5f9;">Stock despues</td>
-                            <td style="padding:10px 0;text-align:right;font-size:14px;font-weight:700;border-bottom:1px solid #f1f5f9;">${formatNumber(body.new_quantity)}</td>
-                          </tr>
-                        ` : ''}
-                        <tr>
-                          <td style="padding:10px 0;color:#64748b;font-size:13px;">Usuario</td>
-                          <td style="padding:10px 0;text-align:right;font-size:14px;font-weight:700;">${escapeHtml(body.user_email || 'Usuario')}</td>
-                        </tr>
-                      </table>
-                      ${
-                        isList
-                          ? `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;margin-top:18px;">
-                              <thead>
-                                <tr>
-                                  <th align="left" style="padding:8px;background:#f8fafc;color:#475569;font-size:12px;">Producto</th>
-                                  <th align="left" style="padding:8px;background:#f8fafc;color:#475569;font-size:12px;">Present.</th>
-                                  ${hasEntryPack ? '<th align="left" style="padding:8px;background:#f8fafc;color:#475569;font-size:12px;">Ingreso</th>' : ''}
-                                  <th align="right" style="padding:8px;background:#f8fafc;color:#475569;font-size:12px;">Env.</th>
-                                  <th align="left" style="padding:8px;background:#f8fafc;color:#475569;font-size:12px;">Lote</th>
-                                  <th align="right" style="padding:8px;background:#f8fafc;color:#475569;font-size:12px;">Equiv.</th>
-                                  <th align="right" style="padding:8px;background:#f8fafc;color:#475569;font-size:12px;">Stock antes</th>
-                                  <th align="right" style="padding:8px;background:#f8fafc;color:#475569;font-size:12px;">Stock despues</th>
-                                </tr>
-                              </thead>
-                              <tbody>
-                                ${listItems.map((item: Record<string, unknown>) => `
-                                  <tr>
-                                    <td style="padding:8px;border-bottom:1px solid #f1f5f9;font-size:13px;font-weight:700;">${escapeHtml(item.product)}</td>
-                                    <td style="padding:8px;border-bottom:1px solid #f1f5f9;color:#64748b;font-size:12px;">${escapeHtml(presentationLabel(item))}</td>
-                                    ${hasEntryPack ? `<td style="padding:8px;border-bottom:1px solid #f1f5f9;font-size:12px;">${escapeHtml(entryPackLabel(item))}</td>` : ''}
-                                    <td align="right" style="padding:8px;border-bottom:1px solid #f1f5f9;color:#14532d;font-size:14px;font-weight:800;">${formatNumber(item.quantity)}</td>
-                                    <td style="padding:8px;border-bottom:1px solid #f1f5f9;color:#64748b;font-size:12px;">${escapeHtml(item.lot_code)}</td>
-                                    <td align="right" style="padding:8px;border-bottom:1px solid #f1f5f9;font-size:12px;">${Number(item.package_size || 0) > 0 ? `${formatNumber(Number(item.quantity || 0) * Number(item.package_size || 0))} ${escapeHtml(item.package_unit || '')}` : '-'}</td>
-                                    <td align="right" style="padding:8px;border-bottom:1px solid #f1f5f9;font-size:12px;">${formatNumber(item.previous_quantity)}</td>
-                                    <td align="right" style="padding:8px;border-bottom:1px solid #f1f5f9;font-size:12px;">${formatNumber(item.new_quantity)}</td>
-                                  </tr>
-                                `).join('')}
-                              </tbody>
-                            </table>`
-                          : ''
-                      }
-                      ${
-                        body.notes
-                          ? `<div style="margin-top:18px;padding:14px;border-radius:8px;background:#f8fafc;color:#334155;font-size:14px;"><strong>Observaciones:</strong> ${escapeHtml(body.notes)}</div>`
-                          : ''
-                      }
-                    </td>
-                  </tr>
-                </table>
-              </td>
-            </tr>
-          </table>
-        </body>
-      </html>
-    `
-
-    const response = await fetch('https://api.resend.com/emails', {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${resendApiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        from: fromEmail,
-        to: [toEmail],
-        subject,
-        text,
-        html,
-        ...(emailAttachments.length > 0 ? { attachments: emailAttachments } : {}),
-      }),
-    })
-
-    if (!response.ok) {
-      const errorText = await response.text()
-      return new Response(JSON.stringify({ error: errorText }), {
-        status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      })
+      const { data: profs } = await admin.from('profiles').select('id').eq('client_id', b.client_id).eq('role', 'cliente')
+      for (const p of (profs || [])) {
+        const { data: u } = await admin.auth.admin.getUserById((p as { id: string }).id)
+        const email = u?.user?.email
+        if (email) clientEmails.push(email)
+      }
     }
+    const to = clientEmails.length ? clientEmails : [OFFICE]
+    const bcc = clientEmails.length ? [OFFICE] : []
 
-    return new Response(JSON.stringify({ ok: true }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    // ── Contenido cálido
+    const titulo = esSalida ? '¡Despachamos tu mercadería! 🚚' : '¡Recibimos tu mercadería! 📦'
+    const intro = esSalida
+      ? 'Registramos la salida de tu mercadería de nuestro depósito. Acá tenés el detalle de lo despachado:'
+      : 'Ingresó mercadería tuya a nuestro depósito. Acá tenés el detalle de lo recibido:'
+
+    const rows = items.map((it) => `
+                <tr>
+                  <td style="padding:9px 8px;border-bottom:1px solid #f1f5f9;font-size:13px;font-weight:bold;color:#0f172a;">${escapeHtml(it.product)}</td>
+                  <td style="padding:9px 8px;border-bottom:1px solid #f1f5f9;font-size:12px;color:#64748b;">${escapeHtml(it.lot_code || '-')}</td>
+                  <td style="padding:9px 8px;border-bottom:1px solid #f1f5f9;font-size:12px;color:#64748b;white-space:nowrap;">${escapeHtml(fmtDate(it.expiry_date) || '-')}</td>
+                  <td align="right" style="padding:9px 8px;border-bottom:1px solid #f1f5f9;font-size:14px;font-weight:bold;color:#166534;white-space:nowrap;">${escapeHtml(it.cantidad_label || '-')}</td>
+                  <td align="right" style="padding:9px 8px;border-bottom:1px solid #f1f5f9;font-size:12px;color:#334155;white-space:nowrap;">${escapeHtml(it.envases_label || '-')}</td>
+                </tr>`).join('')
+
+    const transporte: Array<[string, string]> = []
+    if (b.receiver_name) transporte.push(['Recibe', b.receiver_name])
+    if (b.driver_name) transporte.push(['Chofer', b.driver_name])
+    if (b.vehicle_plate) transporte.push(['Placa', b.vehicle_plate])
+    const transporteHtml = transporte.length
+      ? `<table width="100%" cellpadding="0" cellspacing="0" style="margin:18px 0 0;">
+                ${transporte.map(([k, v]) => `<tr><td style="padding:6px 0;color:#64748b;font-size:13px;border-bottom:1px solid #f1f5f9;">${escapeHtml(k)}</td><td align="right" style="padding:6px 0;font-size:13px;font-weight:bold;color:#0f172a;border-bottom:1px solid #f1f5f9;">${escapeHtml(v)}</td></tr>`).join('')}
+              </table>`
+      : ''
+
+    const notasHtml = b.notes
+      ? `<div style="margin:18px 0 0;padding:12px 14px;border-radius:10px;background:#f8fafc;color:#334155;font-size:13px;"><strong>Observaciones:</strong> ${escapeHtml(b.notes)}</div>`
+      : ''
+
+    const html = `<table width="100%" cellpadding="0" cellspacing="0" style="background:#f1f5f9;padding:24px 0;font-family:Arial,Helvetica,sans-serif;">
+  <tr><td align="center">
+    <table width="100%" style="max-width:560px;background:#ffffff;border-radius:14px;overflow:hidden;border:1px solid #e2e8f0;">
+      <tr>
+        <td style="background:#166534;padding:24px 28px;">
+          <p style="margin:0;color:#ffffff;font-size:18px;font-weight:bold;letter-spacing:0.3px;">TODO AGRÍCOLA BOLIVIANA LTDA</p>
+          <p style="margin:4px 0 0;color:#bbf7d0;font-size:13px;">Portal de clientes · Depósito Warnes</p>
+        </td>
+      </tr>
+      <tr>
+        <td style="padding:28px;">
+          <p style="margin:0 0 12px;color:#0f172a;font-size:20px;font-weight:bold;">${titulo}</p>
+          <p style="margin:0 0 16px;color:#334155;font-size:15px;line-height:1.6;">Hola <strong>${escapeHtml(b.client_name || '')}</strong>, ${intro}</p>
+
+          <table width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 16px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:12px;">
+            <tr><td style="padding:14px 16px;">
+              <p style="margin:0;color:#166534;font-size:12px;font-weight:bold;letter-spacing:1px;text-transform:uppercase;">${esSalida ? 'Salida' : 'Ingreso'} · ${escapeHtml(fmtDate(b.date) || '')}</p>
+              ${b.guide ? `<p style="margin:4px 0 0;color:#14532d;font-size:15px;font-weight:bold;">N° Guía ${escapeHtml(b.guide)}</p>` : ''}
+            </td></tr>
+          </table>
+
+          <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;">
+            <thead><tr>
+              <th align="left" style="padding:8px;background:#f8fafc;color:#475569;font-size:11px;text-transform:uppercase;">Producto</th>
+              <th align="left" style="padding:8px;background:#f8fafc;color:#475569;font-size:11px;text-transform:uppercase;">Lote</th>
+              <th align="left" style="padding:8px;background:#f8fafc;color:#475569;font-size:11px;text-transform:uppercase;">Venc.</th>
+              <th align="right" style="padding:8px;background:#f8fafc;color:#475569;font-size:11px;text-transform:uppercase;">Cantidad</th>
+              <th align="right" style="padding:8px;background:#f8fafc;color:#475569;font-size:11px;text-transform:uppercase;">Envases</th>
+            </tr></thead>
+            <tbody>${rows}</tbody>
+          </table>
+
+          ${transporteHtml}
+          ${notasHtml}
+
+          <p style="margin:20px 0 0;color:#94a3b8;font-size:12px;line-height:1.6;border-top:1px solid #e2e8f0;padding-top:16px;">
+            Podés ver el detalle completo y tu inventario en tu portal. Ante cualquier consulta, escribinos — estamos para ayudarte.
+          </p>
+        </td>
+      </tr>
+      <tr>
+        <td style="background:#f8fafc;padding:16px 28px;">
+          <p style="margin:0;color:#94a3b8;font-size:12px;">Todo Agrícola Boliviana Ltda · Aviso automático de movimiento de tu mercadería.</p>
+        </td>
+      </tr>
+    </table>
+  </td></tr>
+</table>`
+
+    const subject = `${esSalida ? 'Despacho' : 'Ingreso'} de mercadería · ${b.client_name || ''}${b.guide ? ' · ' + b.guide : ''}`.trim()
+
+    const resp = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${RESEND}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ from: FROM, to, ...(bcc.length ? { bcc } : {}), subject, html }),
     })
-  } catch (error) {
-    return new Response(JSON.stringify({ error: error.message }), {
-      status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    })
+    if (!resp.ok) return json({ error: await resp.text() }, 500)
+    return json({ ok: true, sent_to: to })
+  } catch (e) {
+    return json({ error: (e as Error).message }, 500)
   }
 })
