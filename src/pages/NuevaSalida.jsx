@@ -921,10 +921,6 @@ export default function NuevaSalida() {
                     <p className="text-[10px] font-black text-red-600">
                       Saldo insuficiente: hay {equivalentLabel(row.saldo, row.package_unit)} y pide {equivalentLabel(row.cantidad, row.package_unit)}
                     </p>
-                  ) : row.lot_id && row.package_unit ? (
-                    <p className="text-[10px] font-semibold text-slate-400">
-                      {equivalentLabel(row.saldo, row.package_unit)} disponibles
-                    </p>
                   ) : null}
                   {row.lot_id && notaVencimiento(row.expiry_date) ? (
                     <p className={`text-[10px] font-black ${notaVencimiento(row.expiry_date).cls}`}>
@@ -947,10 +943,6 @@ export default function NuevaSalida() {
                   {rowInsufficient(row) ? (
                     <p className="text-[10px] font-black text-red-600">
                       Saldo insuficiente: hay {equivalentLabel(row.saldo, row.package_unit)} y pide {equivalentLabel(row.cantidad, row.package_unit)}
-                    </p>
-                  ) : row.lot_id && row.package_unit ? (
-                    <p className="text-[10px] font-semibold text-slate-400">
-                      {equivalentLabel(row.saldo, row.package_unit)} disponibles
                     </p>
                   ) : null}
                   {row.lot_id && notaVencimiento(row.expiry_date) ? (
