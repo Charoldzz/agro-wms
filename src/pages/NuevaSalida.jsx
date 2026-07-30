@@ -988,8 +988,14 @@ export default function NuevaSalida() {
                 <span className="text-xs font-bold uppercase text-slate-500">
                   {row.package_unit ? `Cantidad (${row.package_unit})` : 'Cantidad'}
                 </span>
+                {row.lot_id && row.package_unit ? (
+                  <div className="mt-1 flex items-center justify-between rounded-lg bg-campo-50 px-3 py-2">
+                    <span className="text-[11px] font-black uppercase tracking-wide text-campo-600">Disponible</span>
+                    <span className="text-lg font-black leading-none text-campo-700">{equivalentLabel(row.saldo, row.package_unit)}</span>
+                  </div>
+                ) : null}
                 <input
-                  className="input mt-1 w-full text-right text-sm font-bold disabled:opacity-30"
+                  className="input mt-1.5 w-full text-right text-sm font-bold disabled:opacity-30"
                   inputMode="decimal"
                   value={row.cantidad}
                   onChange={(e) => updateCantidad(row.id, e.target.value)}
