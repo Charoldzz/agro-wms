@@ -774,19 +774,28 @@ export default function NuevaSalida() {
                     ? new Intl.DateTimeFormat('es-BO', { day: '2-digit', month: 'short', year: 'numeric' }).format(new Date(`${row.expiry_date}T00:00:00`))
                     : <span className="text-slate-300">—</span>}
                 </td>
-                <td className="px-2 py-1">
-                  <input
-                    className="w-full rounded border border-transparent bg-transparent px-1.5 py-1 text-right text-sm font-bold focus:border-campo-400 focus:bg-white focus:outline-none disabled:opacity-30"
-                    inputMode="decimal"
-                    value={formatQtyInput(row.cantidad)}
-                    onChange={(e) => { const v = parseQtyInput(e.target.value); if (v !== null) updateCantidad(row.id, v) }}
-                    onFocus={() => setSelectedIdx(i)}
-                    onKeyDown={advanceOnEnter}
-                    placeholder="0"
-                    disabled={!row.lot_id || isRequestMode}
-                  />
-                  {row.package_unit && Number(row.cantidad) > 0 && (
-                    <div className="text-right text-[10px] font-bold text-slate-400">{row.package_unit}</div>
+                <td className="px-2 py-1.5 text-right">
+                  {isRequestMode ? (
+                    <span className="text-sm font-bold tabular-nums text-slate-800">
+                      {formatQtyInput(row.cantidad)}
+                      {row.package_unit ? <span className="ml-0.5 text-[10px] font-bold text-slate-400">{row.package_unit}</span> : null}
+                    </span>
+                  ) : (
+                    <>
+                      <input
+                        className="w-full rounded border border-transparent bg-transparent px-1.5 py-1 text-right text-sm font-bold focus:border-campo-400 focus:bg-white focus:outline-none disabled:opacity-30"
+                        inputMode="decimal"
+                        value={formatQtyInput(row.cantidad)}
+                        onChange={(e) => { const v = parseQtyInput(e.target.value); if (v !== null) updateCantidad(row.id, v) }}
+                        onFocus={() => setSelectedIdx(i)}
+                        onKeyDown={advanceOnEnter}
+                        placeholder="0"
+                        disabled={!row.lot_id}
+                      />
+                      {row.package_unit && Number(row.cantidad) > 0 && (
+                        <div className="text-right text-[10px] font-bold text-slate-400">{row.package_unit}</div>
+                      )}
+                    </>
                   )}
                 </td>
                 {(() => {
@@ -807,19 +816,25 @@ export default function NuevaSalida() {
                     </>
                   )
                 })()}
-                <td className="px-2 py-1">
-                  <input
-                    className="w-full rounded border border-transparent bg-transparent px-1.5 py-1 text-right text-sm focus:border-campo-400 focus:bg-white focus:outline-none disabled:opacity-30"
-                    inputMode="decimal"
-                    value={row.pallets}
-                    onChange={(e) => {
-                      const v = e.target.value.replace(',', '.')
-                      if (/^\d*\.?\d*$/.test(v)) updateRow(row.id, 'pallets', v)
-                    }}
-                    onFocus={() => setSelectedIdx(i)}
-                    placeholder="0"
-                    disabled={!row.lot_id || isRequestMode}
-                  />
+                <td className="px-2 py-1.5 text-right">
+                  {isRequestMode ? (
+                    <span className="text-sm font-bold tabular-nums text-slate-700">
+                      {Number(row.pallets) > 0 ? row.pallets : <span className="text-slate-300">—</span>}
+                    </span>
+                  ) : (
+                    <input
+                      className="w-full rounded border border-transparent bg-transparent px-1.5 py-1 text-right text-sm focus:border-campo-400 focus:bg-white focus:outline-none disabled:opacity-30"
+                      inputMode="decimal"
+                      value={row.pallets}
+                      onChange={(e) => {
+                        const v = e.target.value.replace(',', '.')
+                        if (/^\d*\.?\d*$/.test(v)) updateRow(row.id, 'pallets', v)
+                      }}
+                      onFocus={() => setSelectedIdx(i)}
+                      placeholder="0"
+                      disabled={!row.lot_id}
+                    />
+                  )}
                 </td>
                 {!isRequestMode && (
                   <td className="px-1 py-1 text-center">
