@@ -776,7 +776,7 @@ export default function NuevaSalida() {
                 </td>
                 <td className="px-2 py-1.5 text-right">
                   {isRequestMode ? (
-                    <span className="text-sm font-bold tabular-nums text-slate-800">
+                    <span className="whitespace-nowrap text-sm font-bold tabular-nums text-slate-800">
                       {formatQtyInput(row.cantidad)}
                       {row.package_unit ? <span className="ml-0.5 text-[10px] font-bold text-slate-400">{row.package_unit}</span> : null}
                     </span>
@@ -805,12 +805,12 @@ export default function NuevaSalida() {
                     <>
                       <td className="px-2 py-1.5 text-right">
                         {d.unidadesLabel
-                          ? <span className="text-sm font-bold leading-snug text-campo-700">{d.unidadesLabel}</span>
+                          ? <span className="whitespace-nowrap text-sm font-bold leading-snug text-campo-700">{d.unidadesLabel}</span>
                           : <span className="text-slate-300">—</span>}
                       </td>
                       <td className="px-2 py-1.5 text-right">
                         {d.cajasLabel
-                          ? <span className="text-sm font-bold leading-snug text-slate-700">{d.cajasLabel}</span>
+                          ? <span className="whitespace-nowrap text-sm font-bold leading-snug text-slate-700">{d.cajasLabel}</span>
                           : <span className="text-slate-300">—</span>}
                       </td>
                     </>
