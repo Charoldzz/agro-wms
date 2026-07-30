@@ -45,7 +45,6 @@ Deno.serve(async (req) => {
   try {
     const RESEND = Deno.env.get('RESEND_API_KEY')
     const FROM = Deno.env.get('MOVEMENT_EMAIL_FROM') || 'Todo Agrícola Boliviana <almacenes@tagribol.com>'
-    const OFFICE = Deno.env.get('MOVEMENT_OFFICE_BCC') || 'hgarayd@outlook.com'
     if (!RESEND) return json({ error: 'RESEND_API_KEY no configurado' }, 500)
 
     const b = await req.json()
@@ -76,9 +75,13 @@ Deno.serve(async (req) => {
         console.error('client email lookup failed:', (e as Error).message)
       }
     }
-    const to = clientEmails.length ? clientEmails : [OFFICE]
-    const bcc = clientEmails.length ? [OFFICE] : []
-    console.log('recipients →', JSON.stringify({ to, bcc, client_id: b.client_id }))
+    // Solo al CLIENTE (sus usuarios de portal). El registro interno lo tiene el
+    // sistema (movimientos, notas, kardex, exportes) — no se manda copia a oficina.
+    if (clientEmails.length === 0) {
+      return json({ ok: true, sent_to: [], note: 'El cliente no tiene usuarios de portal; no se envía.' })
+    }
+    const to = clientEmails
+    console.log('recipients →', JSON.stringify({ to, client_id: b.client_id }))
 
     // ── Contenido cálido
     const titulo = esSalida ? '¡Despachamos tu mercadería! 🚚' : '¡Recibimos tu mercadería! 📦'
@@ -163,7 +166,7 @@ Deno.serve(async (req) => {
     const resp = await fetch('https://api.resend.com/emails', {
       method: 'POST',
       headers: { Authorization: `Bearer ${RESEND}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ from: FROM, to, ...(bcc.length ? { bcc } : {}), subject, html }),
+      body: JSON.stringify({ from: FROM, to, subject, html }),
     })
     if (!resp.ok) return json({ error: await resp.text() }, 500)
     return json({ ok: true, sent_to: to })
