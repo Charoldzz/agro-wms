@@ -302,13 +302,19 @@ export default function ClientPortal({ view = 'inventory' }) {
         .order('product'),
       supabase
         .from('product_catalog')
-        .select('code,name,units_per_box,package_size,package_unit')
+        .select('code,name,units_per_box,package_size,package_unit,pending_review')
         .eq('client_id', clientId),
     ])
-    setLots(lotsData || [])
+    // Ocultar al cliente los productos PENDIENTES de aprobación del admin
+    // (no debe verlos ni pedirlos hasta que se aprueben).
+    const pendingCodes = new Set((catalogData || [])
+      .filter(p => p.pending_review && p.code)
+      .map(p => String(p.code).toUpperCase()))
+    const visibleLots = (lotsData || []).filter(l => !pendingCodes.has(String(l.solucion_product_code || '').toUpperCase()))
+    setLots(visibleLots)
     setCatalog(catalogData || [])
 
-    const lotIds = (lotsData||[]).map(l => l.id)
+    const lotIds = visibleLots.map(l => l.id)
     const { data: movData } = lotIds.length
       ? await supabase.from('movements')
           .select('id,type,quantity,previous_quantity,new_quantity,to_location,notes,created_at,operation_id,lots(lot_code,product,solucion_product_code,package_size,package_unit,location,expiry_date)')

@@ -117,8 +117,11 @@ export default function NuevaSalida() {
   const [rows, setRows] = useState([emptyRow()])
   const [lastAddedId, setLastAddedId] = useState('')
   const [expandedId, setExpandedId] = useState(() => rows[rows.length - 1]?.id || '')
+  const [pendingCodes, setPendingCodes] = useState(() => new Set())
   const clientOptions = useMemo(() => clients.map((c) => ({ value: c.id, label: displayClientName(c.name) })), [clients])
-  const lotOptions = useMemo(() => lots.map((l) => ({ value: l.id, label: lotOptionLabel(l) })), [lots])
+  const lotOptions = useMemo(() => lots
+    .filter((l) => !pendingCodes.has(String(l.solucion_product_code || '').toUpperCase()))
+    .map((l) => ({ value: l.id, label: lotOptionLabel(l) })), [lots, pendingCodes])
   // En móvil (salida manual) solo un ítem queda abierto (acordeón); si el marcado ya no existe, abre el último.
   const effectiveExpandedId = rows.some((r) => r.id === expandedId) ? expandedId : (rows[rows.length - 1]?.id || '')
   const [selectedIdx, setSelectedIdx] = useState(0)
@@ -291,7 +294,7 @@ export default function NuevaSalida() {
         .order('expiry_date', { ascending: true, nullsFirst: false }),
       supabase
         .from('product_catalog')
-        .select('code, name, package_size, package_unit, units_per_box')
+        .select('code, name, package_size, package_unit, units_per_box, pending_review')
         .in('client_id', catalogIds),
     ])
     // Relación por CÓDIGO: lots.solucion_product_code ↔ product_catalog.code
@@ -301,6 +304,12 @@ export default function NuevaSalida() {
       if (p.units_per_box && p.code) map.set(p.code.toUpperCase(), p.units_per_box)
     })
     setCatalogMap(map)
+    // Productos pendientes de aprobación del admin: no pueden salir hasta aprobarse
+    const pending = new Set()
+    ;(catalogData || []).forEach((p) => {
+      if (p.pending_review && p.code) pending.add(p.code.toUpperCase())
+    })
+    setPendingCodes(pending)
     setLots(lotsData || [])
     if (!restoringRef.current) setRows([emptyRow()])
     restoringRef.current = false
@@ -434,6 +443,12 @@ export default function NuevaSalida() {
         ? equivalentLabel(Number(overStock.saldo), overStock.package_unit)
         : `${formatNumber(overStock.saldo)} uds`
       setError(`Cantidad excede el saldo disponible para: ${overStock.product} (disponible: ${disponible}).`)
+      return
+    }
+
+    const pendingRow = validRows.find((r) => pendingCodes.has(String(r.solucion_code || '').toUpperCase()))
+    if (pendingRow) {
+      setError(`El producto "${pendingRow.product}" está pendiente de aprobación del administrador y no puede despacharse todavía.`)
       return
     }
 
@@ -630,6 +645,12 @@ export default function NuevaSalida() {
           >
             <Trash2 size={17} /> Quitar seleccionado (F10)
           </button>
+        </div>
+      )}
+
+      {!isRequestMode && lots.some((l) => pendingCodes.has(String(l.solucion_product_code || '').toUpperCase())) && (
+        <div className="mb-3 rounded-lg bg-amber-50 px-3 py-2 text-xs font-bold text-amber-700">
+          Hay productos con stock pendientes de aprobación del administrador — no aparecen para salida hasta ser aprobados.
         </div>
       )}
 
