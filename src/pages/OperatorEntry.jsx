@@ -617,11 +617,11 @@ export default function OperatorEntry() {
                   <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-campo-100 text-xs font-black text-campo-700">{i + 1}</span>
                   <button type="button" className="min-w-0 flex-1 text-left" onClick={() => setExpandedId(row.id)}>
                     <p className="text-sm font-black leading-snug text-slate-900 [overflow-wrap:anywhere]">{row.product || 'Sin producto'}</p>
-                    <div className="mt-1.5 flex flex-wrap gap-x-4 gap-y-1 text-xs">
+                    <div className="mt-1 flex flex-wrap gap-x-4 gap-y-0.5 text-xs">
                       <span><span className="font-bold text-slate-400">Lote </span><span className="font-bold text-slate-700">{row.lot_code || '—'}</span></span>
                       <span><span className="font-bold text-slate-400">Vence </span><span className="font-bold text-slate-700">{row.expiry_date ? isoToDisplay(row.expiry_date) : '—'}</span></span>
-                      <span><span className="font-bold text-slate-400">Cant. </span><span className="font-black text-campo-700">{cant || '—'}</span></span>
                     </div>
+                    <p className="mt-1.5 text-lg font-black leading-none text-campo-700">{cant || '—'}</p>
                   </button>
                   <div className="flex shrink-0 flex-col items-center gap-1">
                     <button type="button" className="p-1.5 text-slate-400 hover:text-campo-700" onClick={() => setExpandedId(row.id)} aria-label="Editar"><Pencil size={16} /></button>
