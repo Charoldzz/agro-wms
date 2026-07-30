@@ -54,6 +54,7 @@ export default function NewProductModal({ clients, onClose, onSaved, fixedClient
   const [packageSize, setPackageSize] = useState('')
   const [packageUnit, setPackageUnit] = useState('lt')
   const [unitsPerBox, setUnitsPerBox] = useState('')
+  const [sinCajas, setSinCajas] = useState(false)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [loadingCode, setLoadingCode] = useState(false)
@@ -106,7 +107,7 @@ export default function NewProductModal({ clients, onClose, onSaved, fixedClient
   // Auto-detectar unidades por caja desde el nombre si el campo está vacío
   useEffect(() => {
     const detected = unitsPerBoxFromName(name)
-    if (detected > 0 && !unitsPerBox) setUnitsPerBox(String(detected))
+    if (detected > 0 && !unitsPerBox && !sinCajas) setUnitsPerBox(String(detected))
   }, [name])
 
   async function loadNextCode(cid, fallbackPrefix) {
@@ -236,15 +237,32 @@ export default function NewProductModal({ clients, onClose, onSaved, fixedClient
           </div>
 
           <div>
-            <label className="block text-sm font-bold text-slate-700">Unidades por caja</label>
-            <input
-              className="input mt-1 w-32"
-              type="text"
-              inputMode="numeric"
-              value={unitsPerBox}
-              onChange={(e) => setUnitsPerBox(e.target.value)}
-              placeholder="Ej: 5"
-            />
+            <label className="flex cursor-pointer items-center gap-2 text-sm font-bold text-slate-700">
+              <input
+                type="checkbox"
+                className="h-4 w-4 rounded border-slate-300 text-campo-600 focus:ring-campo-500"
+                checked={sinCajas}
+                onChange={(e) => { setSinCajas(e.target.checked); if (e.target.checked) setUnitsPerBox('') }}
+              />
+              Este producto no viene en cajas
+            </label>
+            {sinCajas ? (
+              <p className="mt-1.5 text-xs font-semibold text-slate-400">
+                Se contará en envases sueltos (tambores, bidones, sacos…), sin agrupar en cajas.
+              </p>
+            ) : (
+              <div className="mt-2">
+                <label className="block text-sm font-bold text-slate-700">Unidades por caja</label>
+                <input
+                  className="input mt-1 w-32"
+                  type="text"
+                  inputMode="numeric"
+                  value={unitsPerBox}
+                  onChange={(e) => setUnitsPerBox(e.target.value)}
+                  placeholder="Ej: 5"
+                />
+              </div>
+            )}
           </div>
 
           {productLabel && (
