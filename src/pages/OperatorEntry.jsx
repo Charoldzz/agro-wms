@@ -4,7 +4,7 @@ import { CheckCircle2, FileText, PackagePlus, Pencil, Plus, Trash2 } from 'lucid
 import PageHeader from '../components/PageHeader'
 import { useAuth } from '../hooks/useAuth.jsx'
 import { supabase } from '../lib/supabase'
-import { formatDateShort, formatNumber, equivalentLabel } from '../lib/format'
+import { formatDateShort, formatNumber, equivalentLabel, formatQtyInput, parseQtyInput } from '../lib/format'
 import { vibrateSuccess } from '../lib/haptics'
 import { desgloseEnvases } from '../lib/envases'
 import { openEntryReceipt, totalEquivalente } from '../lib/comprobante'
@@ -548,8 +548,8 @@ export default function OperatorEntry() {
                   <input
                     className="w-full rounded border border-transparent bg-transparent px-1.5 py-1 text-right text-sm font-bold focus:border-campo-400 focus:bg-white focus:outline-none"
                     inputMode="decimal"
-                    value={row.cantidad}
-                    onChange={(e) => updateCantidad(row.id, e.target.value)}
+                    value={formatQtyInput(row.cantidad)}
+                    onChange={(e) => { const v = parseQtyInput(e.target.value); if (v !== null) updateCantidad(row.id, v) }}
                     onFocus={() => setSelectedIdx(i)}
                     onKeyDown={advanceOnEnter}
                     placeholder="0"
@@ -687,8 +687,8 @@ export default function OperatorEntry() {
               <input
                 className="input mt-1 w-full text-right font-bold text-sm"
                 inputMode="decimal"
-                value={row.cantidad}
-                onChange={(e) => updateCantidad(row.id, e.target.value)}
+                value={formatQtyInput(row.cantidad)}
+                onChange={(e) => { const v = parseQtyInput(e.target.value); if (v !== null) updateCantidad(row.id, v) }}
                 onKeyDown={advanceOnEnter}
                 placeholder="0"
               />

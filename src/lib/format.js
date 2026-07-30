@@ -1,3 +1,20 @@
+// ── Separador de miles en campos de cantidad ────────────────────────────
+// Formato boliviano: punto para miles, coma para decimales. La entrada
+// canónica usa punto decimal ("50000" / "50000.5"); solo se formatea la VISTA.
+export function formatQtyInput(raw) {
+  if (raw === '' || raw == null) return ''
+  const [intPart, decPart] = String(raw).split('.')
+  const intFmt = (intPart || '').replace(/\B(?=(\d{3})+(?!\d))/g, '.')
+  return decPart !== undefined ? `${intFmt},${decPart}` : intFmt
+}
+
+// Convierte lo que se ve (con puntos de miles y coma decimal) al valor canónico
+// (punto decimal, sin miles). Devuelve null si el texto no es un número válido.
+export function parseQtyInput(display) {
+  const v = String(display).replace(/\./g, '').replace(',', '.')
+  return /^\d*\.?\d*$/.test(v) ? v : null
+}
+
 export function formatDate(value) {
   if (!value) return '-'
   const date = /^\d{4}-\d{2}-\d{2}$/.test(String(value))

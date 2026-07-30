@@ -5,7 +5,7 @@ import { attachmentViewerUrl } from '../lib/dispatchRequests'
 import PageHeader from '../components/PageHeader'
 import { useAuth } from '../hooks/useAuth.jsx'
 import { supabase } from '../lib/supabase'
-import { formatDateShort, formatNumber, equivalentLabel } from '../lib/format'
+import { formatDateShort, formatNumber, equivalentLabel, formatQtyInput, parseQtyInput } from '../lib/format'
 import { cleanProductName, displayLotCode } from '../lib/display'
 import { vibrateSuccess } from '../lib/haptics'
 import { openDispatchReceipt, totalEquivalente } from '../lib/comprobante'
@@ -778,8 +778,8 @@ export default function NuevaSalida() {
                   <input
                     className="w-full rounded border border-transparent bg-transparent px-1.5 py-1 text-right text-sm font-bold focus:border-campo-400 focus:bg-white focus:outline-none disabled:opacity-30"
                     inputMode="decimal"
-                    value={row.cantidad}
-                    onChange={(e) => updateCantidad(row.id, e.target.value)}
+                    value={formatQtyInput(row.cantidad)}
+                    onChange={(e) => { const v = parseQtyInput(e.target.value); if (v !== null) updateCantidad(row.id, v) }}
                     onFocus={() => setSelectedIdx(i)}
                     onKeyDown={advanceOnEnter}
                     placeholder="0"
@@ -989,8 +989,8 @@ export default function NuevaSalida() {
                 <input
                   className="input mt-1.5 w-full text-right text-sm font-bold disabled:opacity-30"
                   inputMode="decimal"
-                  value={row.cantidad}
-                  onChange={(e) => updateCantidad(row.id, e.target.value)}
+                  value={formatQtyInput(row.cantidad)}
+                  onChange={(e) => { const v = parseQtyInput(e.target.value); if (v !== null) updateCantidad(row.id, v) }}
                   onKeyDown={advanceOnEnter}
                   placeholder="0"
                   disabled={!row.lot_id || isRequestMode}
