@@ -858,10 +858,18 @@ export default function NuevaSalida() {
                       <span><span className="font-bold text-slate-400">Lote </span><span className="font-bold text-slate-700">{row.lot_code || '—'}</span></span>
                       <span><span className="font-bold text-slate-400">Vence </span><span className="font-bold text-slate-700">{vence}</span></span>
                     </div>
-                    <p className="mt-1.5 flex items-baseline gap-1.5">
-                      <span className="text-lg font-black leading-none text-campo-700">{cant || '—'}</span>
-                      {row.lot_id && row.package_unit ? <span className="text-xs font-semibold text-slate-400">/ {equivalentLabel(row.saldo, row.package_unit)} disp.</span> : null}
-                    </p>
+                    <div className="mt-1.5 flex flex-wrap items-end gap-x-5 gap-y-1">
+                      <div>
+                        <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400 leading-none">Cantidad</p>
+                        <p className="mt-0.5 text-lg font-black leading-none text-campo-700">{cant || '—'}</p>
+                      </div>
+                      {row.lot_id && row.package_unit ? (
+                        <div>
+                          <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400 leading-none">Disponible</p>
+                          <p className="mt-0.5 text-lg font-black leading-none text-slate-700">{equivalentLabel(row.saldo, row.package_unit)}</p>
+                        </div>
+                      ) : null}
+                    </div>
                     {rowInsufficient(row) && <p className="mt-1 text-[11px] font-black text-red-600">Saldo insuficiente</p>}
                   </button>
                   <div className="flex shrink-0 flex-col items-center gap-1">
