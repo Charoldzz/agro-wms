@@ -150,6 +150,12 @@ export default function EmpresasModal({ onClose, onSaved }) {
     setError('')
   }
 
+  async function updateFrequency(value) {
+    if (!selectedId) return
+    await supabase.from('clients').update({ inventory_email_frequency: value }).eq('id', selectedId)
+    load()
+  }
+
   const selectedClient = clients.find((c) => c.id === selectedId)
 
   return (
@@ -380,6 +386,20 @@ export default function EmpresasModal({ onClose, onSaved }) {
         {/* === VISTA ACCESO AL PORTAL === */}
         {mode === 'access' && selectedId && (
           <div className="flex flex-1 flex-col overflow-y-auto p-5">
+            <div className="mb-4 rounded-xl border border-slate-200 bg-slate-50 p-4">
+              <p className="text-sm font-black text-slate-800">Correo de inventario</p>
+              <p className="mt-0.5 text-xs font-semibold text-slate-500">Cada cuánto se le manda a esta empresa el resumen de su mercadería.</p>
+              <select
+                className="input mt-2 w-full sm:w-56"
+                value={selectedClient?.inventory_email_frequency || 'mensual'}
+                onChange={(e) => updateFrequency(e.target.value)}
+              >
+                <option value="mensual">Mensual (por defecto)</option>
+                <option value="quincenal">Quincenal</option>
+                <option value="semanal">Semanal</option>
+                <option value="ninguno">No enviar</option>
+              </select>
+            </div>
             <PortalAccess
               clientId={selectedId}
               clientName={displayName(selectedClient?.name || '')}
