@@ -185,6 +185,13 @@ export default function LotDetail() {
   const [extendSaving, setExtendSaving] = useState(false)
   const [extendError, setExtendError] = useState('')
   const [expiryExtensions, setExpiryExtensions] = useState([])
+  // Traspaso entre clientes (cambio de dueño) — requiere aprobación del admin
+  const [showTransfer, setShowTransfer] = useState(false)
+  const [transferForm, setTransferForm] = useState({ to_client_id: '', notes: '' })
+  const [transferSaving, setTransferSaving] = useState(false)
+  const [transferError, setTransferError] = useState('')
+  const [transferClients, setTransferClients] = useState([])
+  const [pendingTransfer, setPendingTransfer] = useState(null)
 
   useEffect(() => {
     loadLot()
@@ -209,7 +216,66 @@ export default function LotDetail() {
 
   useEffect(() => {
     loadExpiryExtensions()
+    loadPendingTransfer()
   }, [id])
+
+  async function loadPendingTransfer() {
+    if (!id) return
+    const { data } = await supabase
+      .from('lot_transfers')
+      .select('id, created_at, to_client_id, notes, created_by_name, clients:to_client_id(name)')
+      .eq('lot_id', id)
+      .eq('status', 'pendiente')
+      .maybeSingle()
+    setPendingTransfer(data || null)
+  }
+
+  async function openTransfer() {
+    setTransferError('')
+    setShowTransfer(true)
+    if (transferClients.length === 0) {
+      const { data } = await supabase.from('clients').select('id, name').order('name')
+      setTransferClients((data || []).filter((c) => c.id !== lot?.client_id))
+    }
+  }
+
+  // Traspaso: lo pide el operador y queda PENDIENTE. La RPC congela el lote
+  // (status retenido) y el candado de la base impide cualquier movimiento
+  // hasta que un administrador apruebe o rechace.
+  async function handleTransfer(event) {
+    event.preventDefault()
+    setTransferError('')
+
+    if (!transferForm.to_client_id) {
+      setTransferError('Elegí la empresa que recibe el lote.')
+      return
+    }
+    if (!transferForm.notes.trim()) {
+      setTransferError('Escribí el motivo del traspaso.')
+      return
+    }
+
+    setTransferSaving(true)
+    try {
+      const { error: rpcError } = await supabase.rpc('request_lot_transfer', {
+        p_lot_id: lot.id,
+        p_to_client_id: transferForm.to_client_id,
+        p_notes: transferForm.notes.trim(),
+      })
+      if (rpcError) throw rpcError
+
+      vibrateSuccess()
+      setShowTransfer(false)
+      setTransferForm({ to_client_id: '', notes: '' })
+      await loadLot()
+      await loadPendingTransfer()
+    } catch (err) {
+      vibrateError()
+      setTransferError(err.message || 'No se pudo registrar el traspaso.')
+    } finally {
+      setTransferSaving(false)
+    }
+  }
 
   async function loadExpiryExtensions() {
     if (!id) return
@@ -1193,6 +1259,11 @@ export default function LotDetail() {
             Traslado
           </button>
           ) : null}
+          {!pendingTransfer ? (
+            <button className="btn-secondary" type="button" onClick={openTransfer}>
+              Traspaso
+            </button>
+          ) : null}
           {isAdmin ? (
             <button className="btn-secondary" type="button" onClick={() => setShowExtendExpiry(true)}>
               Extender vigencia
@@ -1203,6 +1274,25 @@ export default function LotDetail() {
               Reportar problema
             </button>
           ) : null}
+        </div>
+      ) : null}
+
+      {pendingTransfer ? (
+        <div className="mb-4 rounded-xl border border-orange-300 bg-orange-50 p-3">
+          <p className="flex items-center gap-1.5 text-xs font-black uppercase tracking-wide text-orange-800">
+            <Clock size={14} /> En traspaso · esperando aprobación
+          </p>
+          <p className="mt-1.5 text-[13px] font-bold text-orange-900 [overflow-wrap:anywhere]">
+            Este lote está por pasar a <strong>{pendingTransfer.clients?.name || 'otra empresa'}</strong>.
+          </p>
+          <p className="mt-1 text-[11px] font-semibold text-orange-800/90 [overflow-wrap:anywhere]">
+            Queda congelado: no se puede despachar, reparar ni operar hasta que un administrador lo apruebe o lo rechace.
+          </p>
+          <p className="mt-1 text-[10px] font-semibold text-orange-700/80">
+            Registrado {formatDate(pendingTransfer.created_at)}
+            {pendingTransfer.created_by_name ? ` · ${pendingTransfer.created_by_name}` : ''}
+            {pendingTransfer.notes ? ` · ${pendingTransfer.notes}` : ''}
+          </p>
         </div>
       ) : null}
 
@@ -1787,6 +1877,89 @@ export default function LotDetail() {
         </div>
       </section>
       {showIssueReport ? <OperationalIssueModal lot={lot} userId={user.id} onClose={() => setShowIssueReport(false)} /> : null}
+
+      {showTransfer ? (
+        <div data-modal-backdrop="true" className="fixed inset-0 z-50 grid place-items-center overflow-y-auto bg-slate-950/50 p-4">
+          <form
+            data-overlay-panel="true"
+            role="dialog"
+            className="flex max-h-[92dvh] w-full max-w-md flex-col overflow-y-auto rounded-2xl bg-white p-5 shadow-xl"
+            onSubmit={handleTransfer}
+          >
+            <h2 className="text-lg font-black text-slate-950">Traspaso a otra empresa</h2>
+            <p className="mt-1 text-xs font-semibold text-slate-500">
+              Cambia el dueño del lote. La mercadería no se mueve del depósito.
+            </p>
+
+            <div className="mt-3 rounded-lg bg-slate-50 p-3">
+              <p className="text-sm font-black text-slate-950 [overflow-wrap:anywhere]">{cleanProductName(lot?.product)}</p>
+              <p className="mt-0.5 text-[11px] font-semibold text-slate-400">Lote {visibleLotCode}</p>
+              <p className="mt-1.5 text-xs font-semibold text-slate-600">
+                Dueño actual: <strong>{lot?.clients?.name || '—'}</strong>
+              </p>
+              <p className="text-xs font-semibold text-slate-600">
+                Se traspasa todo el stock:{' '}
+                <strong>
+                  {Number(lot?.package_size) > 0
+                    ? equivalentLabel(currentEquivalent, lot?.package_unit)
+                    : `${formatNumber(lot?.current_quantity)} uds`}
+                </strong>
+              </p>
+            </div>
+
+            <label className="mt-3 block">
+              <span className="label">Empresa que recibe</span>
+              <select
+                className="input mt-1"
+                value={transferForm.to_client_id}
+                onChange={(event) => setTransferForm((value) => ({ ...value, to_client_id: event.target.value }))}
+              >
+                <option value="">Elegí la empresa...</option>
+                {transferClients.map((client) => (
+                  <option key={client.id} value={client.id}>{client.name}</option>
+                ))}
+              </select>
+            </label>
+
+            <label className="mt-3 block">
+              <span className="label">Motivo</span>
+              <textarea
+                className="input mt-1"
+                rows={2}
+                placeholder="Ej.: Venta de MAXIAGRO a AGRO FORCE segun acuerdo"
+                value={transferForm.notes}
+                onChange={(event) => setTransferForm((value) => ({ ...value, notes: event.target.value }))}
+              />
+            </label>
+
+            <p className="mt-3 rounded-lg bg-orange-50 p-2 text-[11px] font-bold text-orange-800">
+              Al guardar, el lote queda congelado hasta que un administrador apruebe: nadie va a poder despacharlo,
+              repararlo ni operarlo.
+            </p>
+
+            {transferError ? (
+              <p className="mt-3 rounded-lg bg-red-50 p-2 text-xs font-bold text-red-700">{transferError}</p>
+            ) : null}
+
+            <div className="mt-4 grid gap-2">
+              <button className="btn-primary w-full" type="submit" disabled={transferSaving}>
+                <Save size={20} /> {transferSaving ? 'Guardando...' : 'Enviar a aprobación'}
+              </button>
+              <button
+                className="btn-secondary w-full"
+                type="button"
+                disabled={transferSaving}
+                onClick={() => {
+                  setShowTransfer(false)
+                  setTransferError('')
+                }}
+              >
+                Cancelar
+              </button>
+            </div>
+          </form>
+        </div>
+      ) : null}
 
       {showExtendExpiry && isAdmin ? (
         <div data-modal-backdrop="true" className="fixed inset-0 z-50 grid place-items-center overflow-y-auto bg-slate-950/50 p-4">

@@ -43,6 +43,7 @@ export default function AdminPending() {
   const [movements, setMovements] = useState([])
   const [clients, setClients] = useState([])
   const [issues, setIssues] = useState([])
+  const [transfers, setTransfers] = useState([])
   const [error, setError] = useState('')
 
   useEffect(() => {
@@ -72,6 +73,14 @@ export default function AdminPending() {
         .order('created_at', { ascending: false }),
       supabase.from('clients').select('id, name').eq('inventory_source', 'stock_independiente').order('name'),
     ])
+
+    // Traspasos entre clientes esperando aprobación (tabla propia, no son movimientos)
+    const { data: transferRows } = await supabase
+      .from('lot_transfers')
+      .select('*, lots(package_size, package_unit, location, expiry_date), origen:from_client_id(name), destino:to_client_id(name)')
+      .eq('status', 'pendiente')
+      .order('created_at', { ascending: false })
+    setTransfers(transferRows || [])
 
     let movementRows = movementResult.data || []
     const loadErrors = []
@@ -137,7 +146,30 @@ export default function AdminPending() {
     loadPending()
   }
 
-  const total = movements.length + issues.length
+  async function approveTransfer(transfer) {
+    setError('')
+    const { error: rpcError } = await supabase.rpc('approve_lot_transfer', { p_transfer_id: transfer.id })
+    if (rpcError) setError(rpcError.message)
+    await loadPending()
+  }
+
+  async function rejectTransfer(transfer) {
+    const reason = window.prompt('¿Por qué se rechaza el traspaso?')
+    if (reason === null) return
+    if (!reason.trim()) {
+      setError('Escribí por qué se rechaza el traspaso.')
+      return
+    }
+    setError('')
+    const { error: rpcError } = await supabase.rpc('reject_lot_transfer', {
+      p_transfer_id: transfer.id,
+      p_reason: reason.trim(),
+    })
+    if (rpcError) setError(rpcError.message)
+    await loadPending()
+  }
+
+  const total = movements.length + issues.length + transfers.length
 
   return (
     <div>
@@ -146,9 +178,65 @@ export default function AdminPending() {
       {error ? <div className="mb-4 rounded-lg bg-red-50 p-3 text-sm font-bold text-red-700">{error}</div> : null}
 
       {total === 0 ? (
-        <EmptyState title="Nada por aprobar" text="No hay reparaciones, traslados, salidas offline ni reportes por revisar." />
+        <EmptyState title="Nada por aprobar" text="No hay reparaciones, traspasos, salidas offline ni reportes por revisar." />
       ) : (
         <div className="space-y-4">
+          {transfers.map((transfer) => {
+            const size = Number(transfer.lots?.package_size) || 0
+            const unit = transfer.lots?.package_unit
+            const qty = Number(transfer.quantity) || 0
+            const eq = size > 0 ? equivalentLabel(qty, unit) : `${formatNumber(qty)} uds`
+            const env = size > 0 ? desgloseEnvases(qty, size, unit, 0).unidadesLabel : ''
+            return (
+              <article key={transfer.id} className="panel border-sky-200 bg-sky-50">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="rounded-full bg-sky-600 px-2.5 py-1 text-[11px] font-black uppercase tracking-wide text-white">
+                    Traspaso
+                  </span>
+                  <span className="text-[11px] font-semibold text-slate-500">{formatDate(transfer.created_at)}</span>
+                </div>
+
+                <p className="mt-2 text-base font-black text-slate-950 [overflow-wrap:anywhere]">
+                  {cleanProductName(transfer.product)}
+                </p>
+                <p className="text-[11px] font-semibold text-slate-500">
+                  Lote {displayLotCode(transfer.lot_code)}
+                  {transfer.lots?.location ? ` · ${transfer.lots.location}` : ''}
+                </p>
+
+                <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                  <div className="rounded-lg bg-white px-3 py-2">
+                    <p className="text-[10px] font-black uppercase tracking-wide text-slate-400">Dueño actual</p>
+                    <p className="text-sm font-black text-slate-900 [overflow-wrap:anywhere]">{transfer.origen?.name || '—'}</p>
+                  </div>
+                  <div className="rounded-lg bg-white px-3 py-2">
+                    <p className="text-[10px] font-black uppercase tracking-wide text-sky-600">Pasa a</p>
+                    <p className="text-sm font-black text-sky-800 [overflow-wrap:anywhere]">{transfer.destino?.name || '—'}</p>
+                  </div>
+                </div>
+
+                <div className="mt-2">
+                  <StockLine label="Se traspasa" eq={eq} env={env} tone="green" />
+                </div>
+
+                <p className="mt-2 text-[11px] font-semibold italic text-slate-600 [overflow-wrap:anywhere]">
+                  Motivo: {transfer.notes}
+                </p>
+                <p className="text-[10px] font-semibold text-slate-400">
+                  Registrado por {transfer.created_by_name || '—'}
+                </p>
+
+                <div className="mt-3 flex gap-2">
+                  <button className="btn-primary flex-1" type="button" onClick={() => approveTransfer(transfer)}>
+                    <Check size={18} /> Aprobar
+                  </button>
+                  <button className="btn-secondary flex-1" type="button" onClick={() => rejectTransfer(transfer)}>
+                    <X size={18} /> Rechazar
+                  </button>
+                </div>
+              </article>
+            )
+          })}
           {movements.map((movement) => {
             const size = Number(movement.lots?.package_size) || 0
             const unit = movement.lots?.package_unit

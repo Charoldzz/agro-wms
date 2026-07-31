@@ -5,6 +5,7 @@ import { formatNumber, normalizeEquivalent, pluralUnit, equivalentLabel } from '
 import { cleanProductName, displayLotCode } from '../lib/display'
 import { desgloseEnvases } from '../lib/envases'
 import { openDispatchReceipt, openEntryReceipt } from '../lib/comprobante'
+import { TRASLADO_ENABLED } from '../lib/features'
 
 // Etiquetas técnicas del concepto que NO son observación del usuario
 const CONCEPT_TAGS = [
@@ -413,7 +414,7 @@ export default function MovimientosModal({ onClose, canEdit = true, isAdmin = fa
             <option value="">Todos</option>
             <option value="entrada">Ingresos</option>
             <option value="salida">Salidas</option>
-            <option value="traslado">Traslados</option>
+            {TRASLADO_ENABLED ? <option value="traslado">Traslados</option> : null}
             <option value="ajuste">Ajustes</option>
           </select>
         </div>
