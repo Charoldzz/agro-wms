@@ -38,6 +38,33 @@ function fmtDate(v: unknown) {
   const s = String(v)
   return /^\d{4}-\d{2}-\d{2}$/.test(s) ? s.split('-').reverse().join('/') : s
 }
+// Réplica de displayLotCode de la app (lib/display.js): los lotes importados de
+// SOLUCION guardan un código compuesto ("SOL-MAXI-00009-44-25RFS0136-2027-01-28");
+// el lote real está adentro. Extrae ese código; si no hay, devuelve "SIN LOTE".
+function stockLotCode(code: string) {
+  const c = code.trim()
+  if (!c) return ''
+  let m = c.match(/^SOL-\d+-\d+-(.+)-\d{4}-\d{2}-\d{2}$/i)
+  if (m?.[1]) { const v = m[1].trim(); return /^SIN-?LOTE$/i.test(v) || /^SINLOTE$/i.test(v) ? '' : v }
+  m = c.match(/^SOL-[A-Z0-9]+-\d+-\d+-(.+?)-(?:\d{4}-\d{2}-\d{2}|SINVEN)$/i)
+  if (m?.[1]) { const v = m[1].trim(); return /^SIN-?LOTE$/i.test(v) || /^SINLOTE$/i.test(v) ? '' : v }
+  return ''
+}
+function isGeneratedLotCode(code: string) {
+  const c = String(code || '').trim()
+  return /^EXCEL-\d+-/i.test(c) || /^SOL-/i.test(c) || /^AUTO-/i.test(c) || /^SIN-?LOTE/i.test(c) || /^Codigo\s+\d+/i.test(c)
+}
+function displayLotCode(lotCode: unknown) {
+  const raw = String(lotCode || '')
+  if (!raw) return 'SIN LOTE'
+  const cleanCode = raw.replace(/^EXCEL-\d+-/i, '').trim()
+  if (/^SIN-?LOTE/i.test(cleanCode) || /^SINLOTE/i.test(cleanCode)) return 'SIN LOTE'
+  const real = stockLotCode(cleanCode)
+  if (real) return real
+  if (isGeneratedLotCode(raw)) return 'SIN LOTE'
+  if (cleanCode.includes('-LOTE-')) { const v = cleanCode.split('-LOTE-').pop() || ''; return /^SIN-?LOTE/i.test(v) ? 'SIN LOTE' : v }
+  return cleanCode
+}
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
@@ -92,7 +119,7 @@ Deno.serve(async (req) => {
     const rows = items.map((it) => `
                 <tr>
                   <td style="padding:9px 8px;border-bottom:1px solid #f1f5f9;font-size:13px;font-weight:bold;color:#0f172a;">${escapeHtml(it.product)}</td>
-                  <td style="padding:9px 8px;border-bottom:1px solid #f1f5f9;font-size:12px;color:#64748b;">${escapeHtml(it.lot_code || '-')}</td>
+                  <td style="padding:9px 8px;border-bottom:1px solid #f1f5f9;font-size:12px;color:#64748b;">${escapeHtml(displayLotCode(it.lot_code))}</td>
                   <td style="padding:9px 8px;border-bottom:1px solid #f1f5f9;font-size:12px;color:#64748b;white-space:nowrap;">${escapeHtml(fmtDate(it.expiry_date) || '-')}</td>
                   <td align="right" style="padding:9px 8px;border-bottom:1px solid #f1f5f9;font-size:14px;font-weight:bold;color:#166534;white-space:nowrap;">${escapeHtml(it.cantidad_label || '-')}</td>
                   <td align="right" style="padding:9px 8px;border-bottom:1px solid #f1f5f9;font-size:12px;color:#334155;white-space:nowrap;">${escapeHtml(it.envases_label || '-')}</td>
@@ -161,7 +188,9 @@ Deno.serve(async (req) => {
   </td></tr>
 </table>`
 
-    const subject = `${esSalida ? 'Despacho' : 'Ingreso'} de mercadería · ${b.client_name || ''}${b.guide ? ' · ' + b.guide : ''}`.trim()
+    const subject = esSalida
+      ? 'Todo Agrícola · Despachamos tu mercadería 🚚'
+      : 'Todo Agrícola · Recibimos tu mercadería 📦'
 
     const resp = await fetch('https://api.resend.com/emails', {
       method: 'POST',

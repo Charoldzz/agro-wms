@@ -27,6 +27,33 @@ function fmtDate(iso: unknown) {
   const s = String(iso)
   return /^\d{4}-\d{2}-\d{2}$/.test(s) ? s.split('-').reverse().join('/') : s
 }
+// Réplica de displayLotCode de la app (lib/display.js): los lotes importados de
+// SOLUCION guardan un código compuesto ("SOL-MAXI-00009-44-25RFS0136-2027-01-28");
+// el lote real está adentro. Extrae ese código; si no hay, devuelve "SIN LOTE".
+function stockLotCode(code: string) {
+  const c = code.trim()
+  if (!c) return ''
+  let m = c.match(/^SOL-\d+-\d+-(.+)-\d{4}-\d{2}-\d{2}$/i)
+  if (m?.[1]) { const v = m[1].trim(); return /^SIN-?LOTE$/i.test(v) || /^SINLOTE$/i.test(v) ? '' : v }
+  m = c.match(/^SOL-[A-Z0-9]+-\d+-\d+-(.+?)-(?:\d{4}-\d{2}-\d{2}|SINVEN)$/i)
+  if (m?.[1]) { const v = m[1].trim(); return /^SIN-?LOTE$/i.test(v) || /^SINLOTE$/i.test(v) ? '' : v }
+  return ''
+}
+function isGeneratedLotCode(code: string) {
+  const c = String(code || '').trim()
+  return /^EXCEL-\d+-/i.test(c) || /^SOL-/i.test(c) || /^AUTO-/i.test(c) || /^SIN-?LOTE/i.test(c) || /^Codigo\s+\d+/i.test(c)
+}
+function displayLotCode(lotCode: unknown) {
+  const raw = String(lotCode || '')
+  if (!raw) return 'SIN LOTE'
+  const cleanCode = raw.replace(/^EXCEL-\d+-/i, '').trim()
+  if (/^SIN-?LOTE/i.test(cleanCode) || /^SINLOTE/i.test(cleanCode)) return 'SIN LOTE'
+  const real = stockLotCode(cleanCode)
+  if (real) return real
+  if (isGeneratedLotCode(raw)) return 'SIN LOTE'
+  if (cleanCode.includes('-LOTE-')) { const v = cleanCode.split('-LOTE-').pop() || ''; return /^SIN-?LOTE/i.test(v) ? 'SIN LOTE' : v }
+  return cleanCode
+}
 function formatNum(v: unknown) { return Number(v || 0).toLocaleString('es-BO', { maximumFractionDigits: 2 }) }
 // Réplica de equivalentLabel de la app (lib/format.js): ml/gr → lt/kg (÷1000).
 function eqLabel(value: unknown, unit: unknown) {
@@ -97,22 +124,20 @@ function buildHtml(nombre: string, lots: any[], appUrl: string) {
     const estado = d < 0 ? 'Vencido' : d === 0 ? 'Vence hoy' : `Vence en ${d} día${d === 1 ? '' : 's'}`
     const color = d < 0 ? '#dc2626' : '#b45309'
     return `<tr>
-      <td style="padding:7px 8px;border-bottom:1px solid #fde68a;font-size:12px;font-weight:bold;color:#0f172a;">${escapeHtml(l.product)}</td>
-      <td style="padding:7px 8px;border-bottom:1px solid #fde68a;font-size:11px;color:#64748b;">${escapeHtml(l.lot_code || '-')}</td>
-      <td style="padding:7px 8px;border-bottom:1px solid #fde68a;font-size:11px;color:#64748b;white-space:nowrap;">${escapeHtml(fmtDate(l.expiry_date))}</td>
-      <td align="right" style="padding:7px 8px;border-bottom:1px solid #fde68a;font-size:11px;font-weight:bold;color:${color};white-space:nowrap;">${escapeHtml(estado)}</td>
+      <td style="padding:3px 0;font-size:12px;color:#0f172a;line-height:1.35;"><strong>${escapeHtml(l.product)}</strong><span style="color:#94a3b8;font-size:10px;"> · ${escapeHtml(displayLotCode(l.lot_code))}</span></td>
+      <td align="right" style="padding:3px 0;font-size:11px;font-weight:bold;color:${color};white-space:nowrap;vertical-align:top;">${escapeHtml(estado)}</td>
     </tr>`
   }).join('')
 
   const vencSection = porVencer.length > 0
-    ? `<table width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 18px;background:#fffbeb;border:1px solid #fde68a;border-radius:12px;">
-        <tr><td style="padding:14px 16px;">
-          <p style="margin:0 0 8px;color:#b45309;font-size:13px;font-weight:bold;">⚠️ ${porVencer.length} ${porVencer.length === 1 ? 'producto por vencer' : 'productos por vencer'}</p>
+    ? `<table width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 18px;background:#fffbeb;border:1px solid #fde68a;border-radius:10px;">
+        <tr><td style="padding:11px 16px;">
+          <p style="margin:0 0 6px;color:#b45309;font-size:13px;font-weight:bold;">⚠️ ${porVencer.length} ${porVencer.length === 1 ? 'producto por vencer' : 'productos por vencer'}</p>
           <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;">${vencRows}</table>
         </td></tr>
       </table>`
-    : `<table width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 18px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:12px;">
-        <tr><td style="padding:14px 16px;"><p style="margin:0;color:#166534;font-size:14px;font-weight:bold;">✓ Todo tu stock está vigente</p></td></tr>
+    : `<table width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 18px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;">
+        <tr><td style="padding:11px 16px;"><p style="margin:0;color:#166534;font-size:13px;font-weight:bold;">✓ Todo tu stock está vigente</p></td></tr>
       </table>`
 
   // ── Tabla completa
@@ -121,7 +146,7 @@ function buildHtml(nombre: string, lots: any[], appUrl: string) {
     const vencColor = d === null ? '#64748b' : d < 0 ? '#dc2626' : d <= VENC_DIAS ? '#b45309' : '#64748b'
     return `<tr>
       <td style="padding:8px;border-bottom:1px solid #f1f5f9;font-size:12px;font-weight:bold;color:#0f172a;">${escapeHtml(l.product)}</td>
-      <td style="padding:8px;border-bottom:1px solid #f1f5f9;font-size:11px;color:#64748b;">${escapeHtml(l.lot_code || '-')}</td>
+      <td style="padding:8px;border-bottom:1px solid #f1f5f9;font-size:11px;color:#64748b;">${escapeHtml(displayLotCode(l.lot_code))}</td>
       <td style="padding:8px;border-bottom:1px solid #f1f5f9;font-size:11px;font-weight:bold;color:${vencColor};white-space:nowrap;">${escapeHtml(fmtDate(l.expiry_date))}</td>
       <td align="right" style="padding:8px;border-bottom:1px solid #f1f5f9;font-size:13px;font-weight:bold;color:#166534;white-space:nowrap;">${escapeHtml(eqLabel(l.current_quantity, l.package_unit))}</td>
     </tr>`
@@ -185,6 +210,8 @@ Deno.serve(async (req) => {
 
     const now = Date.now()
     const results: Array<Record<string, unknown>> = []
+    const hoy = new Date()
+    const fechaCorta = `${String(hoy.getUTCDate()).padStart(2, '0')}/${String(hoy.getUTCMonth() + 1).padStart(2, '0')}/${hoy.getUTCFullYear()}`
 
     for (const c of (clients || [])) {
       if (!force && !onlyClient) {
@@ -200,7 +227,7 @@ Deno.serve(async (req) => {
       const resp = await fetch('https://api.resend.com/emails', {
         method: 'POST',
         headers: { Authorization: `Bearer ${RESEND}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ from: FROM, to: emails, subject: `Tu inventario en Todo Agrícola · ${c.name}`, html }),
+        body: JSON.stringify({ from: FROM, to: emails, subject: `Todo Agrícola · Tu inventario al ${fechaCorta}`, html }),
       })
       if (!resp.ok) { results.push({ client: c.name, error: await resp.text() }); continue }
       await admin.from('clients').update({ inventory_email_last_sent: new Date().toISOString() }).eq('id', c.id)

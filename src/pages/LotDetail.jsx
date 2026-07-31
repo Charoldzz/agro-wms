@@ -182,6 +182,13 @@ export default function LotDetail() {
   const [movementSuccess, setMovementSuccess] = useState(null)
   const [confirmChecks, setConfirmChecks] = useState(emptyConfirmChecks())
   const [showIssueReport, setShowIssueReport] = useState(false)
+  // Extensión de vigencia (revalidación) — solo administrador
+  const [showExtendExpiry, setShowExtendExpiry] = useState(false)
+  const [extendForm, setExtendForm] = useState({ new_expiry: '', reason: '' })
+  const [extendFile, setExtendFile] = useState(null)
+  const [extendSaving, setExtendSaving] = useState(false)
+  const [extendError, setExtendError] = useState('')
+  const [expiryExtensions, setExpiryExtensions] = useState([])
 
   useEffect(() => {
     loadLot()
@@ -203,6 +210,73 @@ export default function LotDetail() {
 
     createLotQrDataUrl(lot.qr_token).then(setQrDataUrl)
   }, [lot?.qr_token])
+
+  useEffect(() => {
+    loadExpiryExtensions()
+  }, [id])
+
+  async function loadExpiryExtensions() {
+    if (!id) return
+    const { data } = await supabase
+      .from('lot_expiry_extensions')
+      .select('id, created_at, previous_expiry, new_expiry, reason, certificate_url, created_by_name')
+      .eq('lot_id', id)
+      .order('created_at', { ascending: false })
+    setExpiryExtensions(data || [])
+  }
+
+  // Extensión de vigencia: sube el certificado y llama a la RPC (que revalida
+  // el rol administrador en la base — el botón oculto no alcanza como control).
+  async function handleExtendExpiry(event) {
+    event.preventDefault()
+    setExtendError('')
+
+    if (!extendForm.new_expiry) {
+      setExtendError('Indicá la nueva fecha de vencimiento.')
+      return
+    }
+    if (!extendForm.reason.trim()) {
+      setExtendError('Indicá el motivo de la extensión.')
+      return
+    }
+    if (!extendFile) {
+      setExtendError('Adjuntá el certificado del fabricante que respalda la extensión.')
+      return
+    }
+
+    setExtendSaving(true)
+    try {
+      const extension = extendFile.name.split('.').pop() || 'pdf'
+      const cleanCode = displayLotCode(lot.lot_code, lot).replace(/[^a-z0-9_-]/gi, '-')
+      const path = `vigencia-${cleanCode}-${Date.now()}.${extension}`
+      const { error: uploadError } = await supabase.storage
+        .from('lot-photos')
+        .upload(path, extendFile, { cacheControl: '3600', upsert: false })
+      if (uploadError) throw uploadError
+
+      const { data: publicData } = supabase.storage.from('lot-photos').getPublicUrl(path)
+
+      const { error: rpcError } = await supabase.rpc('extend_lot_expiry', {
+        p_lot_id: lot.id,
+        p_new_expiry: extendForm.new_expiry,
+        p_reason: extendForm.reason.trim(),
+        p_certificate_url: publicData.publicUrl,
+      })
+      if (rpcError) throw rpcError
+
+      vibrateSuccess()
+      setShowExtendExpiry(false)
+      setExtendForm({ new_expiry: '', reason: '' })
+      setExtendFile(null)
+      await loadLot()
+      await loadExpiryExtensions()
+    } catch (err) {
+      vibrateError()
+      setExtendError(err.message || 'No se pudo extender la vigencia.')
+    } finally {
+      setExtendSaving(false)
+    }
+  }
 
   useEffect(() => {
     const mode = location.state?.movementMode || ''
@@ -1123,11 +1197,46 @@ export default function LotDetail() {
             Traslado
           </button>
           ) : null}
+          {isAdmin ? (
+            <button className="btn-secondary" type="button" onClick={() => setShowExtendExpiry(true)}>
+              Extender vigencia
+            </button>
+          ) : null}
           {isOperator ? (
             <button className="btn-secondary" type="button" onClick={() => setShowIssueReport(true)}>
               Reportar problema
             </button>
           ) : null}
+        </div>
+      ) : null}
+
+      {expiryExtensions.length > 0 && !canRegisterMovement ? (
+        <div className="mb-4 rounded-xl border border-sky-200 bg-sky-50 p-3">
+          <p className="text-xs font-black uppercase tracking-wide text-sky-800">
+            Vigencia extendida {expiryExtensions.length > 1 ? `(${expiryExtensions.length} veces)` : ''}
+          </p>
+          <ul className="mt-1.5 space-y-1.5">
+            {expiryExtensions.map((ext) => (
+              <li key={ext.id} className="text-[11px] font-semibold text-sky-900">
+                <span className="[overflow-wrap:anywhere]">
+                  De {ext.previous_expiry ? formatDate(ext.previous_expiry) : 'sin fecha'} a{' '}
+                  <strong>{formatDate(ext.new_expiry)}</strong> · {ext.reason}
+                </span>
+                <span className="block text-[10px] font-semibold text-sky-700/80">
+                  {formatDate(ext.created_at)}
+                  {ext.created_by_name ? ` · ${ext.created_by_name}` : ''}
+                  {ext.certificate_url ? (
+                    <>
+                      {' · '}
+                      <a className="underline" href={ext.certificate_url} target="_blank" rel="noreferrer">
+                        Ver certificado
+                      </a>
+                    </>
+                  ) : null}
+                </span>
+              </li>
+            ))}
+          </ul>
         </div>
       ) : null}
 
@@ -1682,6 +1791,85 @@ export default function LotDetail() {
         </div>
       </section>
       {showIssueReport ? <OperationalIssueModal lot={lot} userId={user.id} onClose={() => setShowIssueReport(false)} /> : null}
+
+      {showExtendExpiry && isAdmin ? (
+        <div data-modal-backdrop="true" className="fixed inset-0 z-50 grid place-items-center overflow-y-auto bg-slate-950/50 p-4">
+          <form
+            data-overlay-panel="true"
+            role="dialog"
+            className="flex max-h-[92dvh] w-full max-w-md flex-col overflow-y-auto rounded-2xl bg-white p-5 shadow-xl"
+            onSubmit={handleExtendExpiry}
+          >
+            <h2 className="text-lg font-black text-slate-950">Extender vigencia</h2>
+            <p className="mt-1 text-xs font-semibold text-slate-500">
+              Solo se usa cuando el fabricante revalida el producto. No cambia la cantidad ni el dueño.
+            </p>
+
+            <div className="mt-3 rounded-lg bg-slate-50 p-3">
+              <p className="text-sm font-black text-slate-950 [overflow-wrap:anywhere]">{cleanProductName(lot?.product)}</p>
+              <p className="mt-0.5 text-[11px] font-semibold text-slate-400">Lote {visibleLotCode}</p>
+              <p className="mt-1.5 text-xs font-semibold text-slate-600">
+                Vence hoy: <strong>{lot?.expiry_date ? formatDate(lot.expiry_date) : 'Sin dato'}</strong>
+              </p>
+            </div>
+
+            <label className="mt-3 block">
+              <span className="label">Nueva fecha de vencimiento</span>
+              <input
+                className="input mt-1"
+                type="date"
+                value={extendForm.new_expiry}
+                onChange={(event) => setExtendForm((value) => ({ ...value, new_expiry: event.target.value }))}
+              />
+            </label>
+
+            <label className="mt-3 block">
+              <span className="label">Motivo</span>
+              <textarea
+                className="input mt-1"
+                rows={2}
+                placeholder="Ej.: Revalidación del fabricante según análisis de laboratorio"
+                value={extendForm.reason}
+                onChange={(event) => setExtendForm((value) => ({ ...value, reason: event.target.value }))}
+              />
+            </label>
+
+            <label className="mt-3 block">
+              <span className="label">Certificado del fabricante (obligatorio)</span>
+              <input
+                className="input mt-1"
+                type="file"
+                accept="image/*,application/pdf"
+                onChange={(event) => setExtendFile(event.target.files?.[0] || null)}
+              />
+              {extendFile ? (
+                <span className="mt-1 block text-[11px] font-semibold text-campo-700">{extendFile.name}</span>
+              ) : null}
+            </label>
+
+            {extendError ? (
+              <p className="mt-3 rounded-lg bg-red-50 p-2 text-xs font-bold text-red-700">{extendError}</p>
+            ) : null}
+
+            <div className="mt-4 grid gap-2">
+              <button className="btn-primary w-full" type="submit" disabled={extendSaving}>
+                <Save size={20} /> {extendSaving ? 'Guardando...' : 'Extender vigencia'}
+              </button>
+              <button
+                className="btn-secondary w-full"
+                type="button"
+                disabled={extendSaving}
+                onClick={() => {
+                  setShowExtendExpiry(false)
+                  setExtendError('')
+                }}
+              >
+                Cancelar
+              </button>
+            </div>
+          </form>
+        </div>
+      ) : null}
     </div>
   )
 }
