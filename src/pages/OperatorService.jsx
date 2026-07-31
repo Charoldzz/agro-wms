@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ArrowRightLeft, Wrench } from 'lucide-react'
 import PageHeader from '../components/PageHeader'
+import { TRASLADO_ENABLED } from '../lib/features'
 
 const repairTypes = [
   { value: 'fraccionamiento', label: 'Fraccionamiento' },
@@ -24,9 +25,13 @@ export default function OperatorService() {
 
   return (
     <div>
-      <PageHeader title="Reparacion / Traslado" subtitle="Elige la operacion y escanea el lote" />
+      <PageHeader
+        title={TRASLADO_ENABLED ? 'Reparacion / Traslado' : 'Reparacion'}
+        subtitle={TRASLADO_ENABLED ? 'Elige la operacion y escanea el lote' : 'Elige el tipo de reparacion y escanea el lote'}
+      />
 
       <section className="panel space-y-4">
+        {TRASLADO_ENABLED ? (
         <div>
           <span className="label">Operacion</span>
           <div className="mt-2 grid grid-cols-2 gap-2">
@@ -46,6 +51,7 @@ export default function OperatorService() {
             </button>
           </div>
         </div>
+        ) : null}
 
         {mode === 'reparo' ? (
           <label className="block">
@@ -59,7 +65,9 @@ export default function OperatorService() {
         ) : null}
 
         <div className="rounded-lg bg-orange-50 p-3 text-sm font-bold text-orange-800">
-          Primero selecciona la operacion. Luego escanea el QR del lote para registrar el movimiento correcto.
+          {TRASLADO_ENABLED
+            ? 'Primero selecciona la operacion. Luego escanea el QR del lote para registrar el movimiento correcto.'
+            : 'Primero selecciona el tipo de reparacion. Luego escanea el QR del lote para registrar el movimiento correcto.'}
         </div>
 
         <button className="min-h-16 w-full justify-center inline-flex items-center gap-2 rounded-lg bg-orange-500 px-4 py-3 text-base font-semibold text-white shadow-soft transition active:scale-[0.99]" type="button" onClick={startScan}>
