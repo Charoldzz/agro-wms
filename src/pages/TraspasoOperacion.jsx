@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ArrowRightLeft, Plus, Save, Trash2 } from 'lucide-react'
 import PageHeader from '../components/PageHeader'
+import Combobox from '../components/Combobox'
 import { supabase } from '../lib/supabase'
 import { equivalentLabel, formatDate, formatNumber, formatQtyInput, parseQtyInput } from '../lib/format'
 import { desgloseEnvases } from '../lib/envases'
@@ -162,20 +163,28 @@ export default function TraspasoOperacion() {
         <div className="grid gap-3 sm:grid-cols-2">
           <label className="block">
             <span className="label">Empresa que vende</span>
-            <select className="input mt-1" value={fromClient} onChange={(e) => setFromClient(e.target.value)}>
-              <option value="">Elegí la empresa...</option>
-              {clients.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-            </select>
+            {/* Combobox y no <select>: son 40+ empresas, así se busca escribiendo
+                y el desplegable no queda recortado ni se abre fuera de pantalla. */}
+            <div className="mt-1">
+              <Combobox
+                value={fromClient}
+                options={clients.map((c) => ({ value: c.id, label: c.name }))}
+                onChange={setFromClient}
+                placeholder="Buscá la empresa…"
+              />
+            </div>
           </label>
 
           <label className="block">
             <span className="label">Empresa que recibe</span>
-            <select className="input mt-1" value={toClient} onChange={(e) => setToClient(e.target.value)}>
-              <option value="">Elegí la empresa...</option>
-              {clients.filter((c) => c.id !== fromClient).map((c) => (
-                <option key={c.id} value={c.id}>{c.name}</option>
-              ))}
-            </select>
+            <div className="mt-1">
+              <Combobox
+                value={toClient}
+                options={clients.filter((c) => c.id !== fromClient).map((c) => ({ value: c.id, label: c.name }))}
+                onChange={setToClient}
+                placeholder="Buscá la empresa…"
+              />
+            </div>
             {toClientSinCodigo ? (
               <span className="mt-1 block rounded-lg bg-red-50 p-2 text-[11px] font-bold text-red-700">
                 {toClientObj?.name} no tiene código de empresa asignado. Un administrador debe cargarlo en
@@ -191,10 +200,14 @@ export default function TraspasoOperacion() {
 
             <label className="block">
               <span className="text-[11px] font-bold uppercase text-slate-400">Lote</span>
-              <select className="input mt-1" value={pickLot} onChange={(e) => { setPickLot(e.target.value); setPickQty('') }}>
-                <option value="">Elegí el lote...</option>
-                {availableLots.map((l) => <option key={l.id} value={l.id}>{lotLabelFull(l)}</option>)}
-              </select>
+              <div className="mt-1">
+                <Combobox
+                  value={pickLot}
+                  options={availableLots.map((l) => ({ value: l.id, label: lotLabelFull(l) }))}
+                  onChange={(v) => { setPickLot(v); setPickQty('') }}
+                  placeholder="Buscá por producto o lote…"
+                />
+              </div>
             </label>
 
             {selectedLot ? (
