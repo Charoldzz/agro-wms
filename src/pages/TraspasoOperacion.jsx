@@ -11,6 +11,7 @@ import {
 import { desgloseEnvases } from '../lib/envases'
 import { cleanProductName, displayLotCode } from '../lib/display'
 import { vibrateError, vibrateSuccess } from '../lib/haptics'
+import { useAuth } from '../hooks/useAuth.jsx'
 
 let rowSeq = 0
 const newRow = () => ({ id: `r${++rowSeq}`, lot_id: '', cantidad: '' })
@@ -19,6 +20,7 @@ const newRow = () => ({ id: `r${++rowSeq}`, lot_id: '', cantidad: '' })
 // no genera guía ni cuenta como ingreso/salida del depósito.
 export default function TraspasoOperacion() {
   const navigate = useNavigate()
+  const { isAdmin } = useAuth()
   const [clients, setClients] = useState([])
   const [fromClient, setFromClient] = useState('')
   const [toClient, setToClient] = useState('')
@@ -113,7 +115,7 @@ export default function TraspasoOperacion() {
 
     setSaving(true)
     try {
-      const { error: rpcError } = await supabase.rpc('request_transfer_operation', {
+      const { data: res, error: rpcError } = await supabase.rpc('request_transfer_operation', {
         p_from_client_id: fromClient,
         p_to_client_id: toClient,
         p_notes: notes.trim(),
@@ -124,6 +126,8 @@ export default function TraspasoOperacion() {
       // Se guarda el detalle completo para el comprobante en pantalla: qué
       // producto, qué lote, cuánto se fue y cuánto le quedó a cada uno.
       setDone({
+        aplicado: Boolean(res?.aplicado),
+        codigo: res?.operation_code || '',
         from: fromObj?.name,
         to: toObj?.name,
         totales,
@@ -154,13 +158,21 @@ export default function TraspasoOperacion() {
   if (done) {
     return (
       <div>
-        <PageHeader title="Traspaso enviado" subtitle="Espera la aprobación del administrador" />
+        <PageHeader
+          title={done.aplicado ? "Traspaso aplicado" : "Traspaso enviado"}
+          subtitle={done.aplicado ? "La mercadería ya cambió de dueño" : "Espera la aprobación del administrador"}
+        />
         <section className="panel">
           <div className="text-center">
             <span className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-campo-50 text-campo-700">
               <CheckCircle2 size={34} strokeWidth={2} />
             </span>
-            <p className="mt-2 text-xl font-black text-slate-950">Traspaso registrado</p>
+            <p className="mt-2 text-xl font-black text-slate-950">
+              {done.aplicado ? "Traspaso aplicado" : "Traspaso registrado"}
+            </p>
+            {done.codigo ? (
+              <p className="font-mono text-[11px] font-bold text-slate-400">{done.codigo}</p>
+            ) : null}
             <div className="mt-1 flex flex-wrap items-center justify-center gap-2 text-sm font-black text-slate-800">
               <span>{done.from}</span>
               <ArrowRight size={16} className="shrink-0 text-campo-700" />
@@ -213,10 +225,16 @@ export default function TraspasoOperacion() {
             </p>
           ) : null}
 
-          <p className="mt-3 rounded-lg bg-orange-50 p-3 text-xs font-bold text-orange-800">
-            Estos lotes quedaron congelados: nadie puede despacharlos, repararlos ni operarlos hasta que un
-            administrador apruebe o rechace el traspaso.
-          </p>
+          {done.aplicado ? (
+            <p className="mt-3 rounded-lg bg-campo-50 p-3 text-xs font-bold text-campo-800">
+              Listo: la mercadería ya figura a nombre de {done.to}. No hace falta aprobar nada más.
+            </p>
+          ) : (
+            <p className="mt-3 rounded-lg bg-orange-50 p-3 text-xs font-bold text-orange-800">
+              Estos lotes quedaron congelados: nadie puede despacharlos, repararlos ni operarlos hasta que un
+              administrador apruebe o rechace el traspaso.
+            </p>
+          )}
 
           <div className="mt-3 grid gap-2">
             <button className="btn-primary w-full" type="button" onClick={() => navigate('/lotes')}>
@@ -501,15 +519,21 @@ export default function TraspasoOperacion() {
           />
         </label>
 
-        <p className="rounded-lg bg-orange-50 p-2.5 text-[11px] font-bold text-orange-800">
-          Al enviar, todos los lotes quedan congelados hasta que un administrador apruebe: nadie va a poder
-          despacharlos, repararlos ni operarlos.
-        </p>
+        {isAdmin ? (
+          <p className="rounded-lg bg-campo-50 p-2.5 text-[11px] font-bold text-campo-800">
+            Como administrador, el traspaso se aplica al instante: la mercadería cambia de dueño al guardar.
+          </p>
+        ) : (
+          <p className="rounded-lg bg-orange-50 p-2.5 text-[11px] font-bold text-orange-800">
+            Al enviar, todos los lotes quedan congelados hasta que un administrador apruebe: nadie va a poder
+            despacharlos, repararlos ni operarlos.
+          </p>
+        )}
 
         {error ? <p className="rounded-lg bg-red-50 p-2 text-xs font-bold text-red-700">{error}</p> : null}
 
         <button className="btn-primary w-full" type="button" onClick={submit} disabled={saving}>
-          <Save size={20} /> {saving ? 'Guardando...' : 'Enviar a aprobación'}
+          <Save size={20} /> {saving ? 'Guardando...' : isAdmin ? 'Registrar traspaso' : 'Enviar a aprobación'}
         </button>
       </section>
     </div>
