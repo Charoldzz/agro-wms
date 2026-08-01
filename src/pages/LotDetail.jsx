@@ -187,7 +187,7 @@ export default function LotDetail() {
   const [expiryExtensions, setExpiryExtensions] = useState([])
   // Traspaso entre clientes (cambio de dueño) — requiere aprobación del admin
   const [showTransfer, setShowTransfer] = useState(false)
-  const [transferForm, setTransferForm] = useState({ to_client_id: '', notes: '' })
+  const [transferForm, setTransferForm] = useState({ to_client_id: '', notes: '', quantity: '' })
   const [transferSaving, setTransferSaving] = useState(false)
   const [transferError, setTransferError] = useState('')
   const [transferClients, setTransferClients] = useState([])
@@ -232,12 +232,24 @@ export default function LotDetail() {
 
   async function openTransfer() {
     setTransferError('')
+    // Arranca con todo el stock cargado: el caso más común es traspasar el
+    // lote entero, y si es parcial el operador solo corrige el número.
+    setTransferForm({ to_client_id: '', notes: '', quantity: String(currentEquivalent ?? '') })
     setShowTransfer(true)
     if (transferClients.length === 0) {
       const { data } = await supabase.from('clients').select('id, name').order('name')
       setTransferClients((data || []).filter((c) => c.id !== lot?.client_id))
     }
   }
+
+  // Cuánto se traspasa, en equivalente, con su desglose de envases en vivo
+  const transferQty = Number(String(transferForm.quantity).replace(',', '.')) || 0
+  const transferEqLabel = Number(lot?.package_size) > 0
+    ? equivalentLabel(transferQty, lot?.package_unit)
+    : `${formatNumber(transferQty)} uds`
+  const transferEnvLabel = Number(lot?.package_size) > 0
+    ? desgloseEnvases(transferQty, Number(lot.package_size), lot.package_unit, 0).unidadesLabel
+    : ''
 
   // Traspaso: lo pide el operador y queda PENDIENTE. La RPC congela el lote
   // (status retenido) y el candado de la base impide cualquier movimiento
@@ -254,6 +266,14 @@ export default function LotDetail() {
       setTransferError('Escribí el motivo del traspaso.')
       return
     }
+    if (!(transferQty > 0)) {
+      setTransferError('Indicá cuánto se traspasa.')
+      return
+    }
+    if (transferQty > currentEquivalent) {
+      setTransferError(`No podés traspasar más de lo que hay (${equivalentLabel(currentEquivalent, lot?.package_unit)}).`)
+      return
+    }
 
     setTransferSaving(true)
     try {
@@ -261,12 +281,13 @@ export default function LotDetail() {
         p_lot_id: lot.id,
         p_to_client_id: transferForm.to_client_id,
         p_notes: transferForm.notes.trim(),
+        p_quantity: transferQty,
       })
       if (rpcError) throw rpcError
 
       vibrateSuccess()
       setShowTransfer(false)
-      setTransferForm({ to_client_id: '', notes: '' })
+      setTransferForm({ to_client_id: '', notes: '', quantity: '' })
       await loadLot()
       await loadPendingTransfer()
     } catch (err) {
@@ -1098,14 +1119,46 @@ export default function LotDetail() {
                   Dueño actual: <strong>{lot?.clients?.name || '—'}</strong>
                 </p>
                 <p className="text-xs font-semibold text-slate-600">
-                  Se traspasa todo el stock:{' '}
+                  Stock disponible:{' '}
                   <strong>
                     {Number(lot?.package_size) > 0
                       ? equivalentLabel(currentEquivalent, lot?.package_unit)
                       : `${formatNumber(lot?.current_quantity)} uds`}
                   </strong>
+                  {unidadesEnvaseLabel(lot) ? (
+                    <span className="text-slate-400"> · {unidadesEnvaseLabel(lot)}</span>
+                  ) : null}
                 </p>
               </div>
+
+              <label className="mt-3 block">
+                <span className="label">
+                  Cantidad a traspasar {lot?.package_unit ? `(${lot.package_unit})` : ''}
+                </span>
+                <input
+                  className="input mt-1"
+                  type="number"
+                  inputMode="decimal"
+                  min="0"
+                  step="any"
+                  value={transferForm.quantity}
+                  onChange={(event) => setTransferForm((value) => ({ ...value, quantity: event.target.value }))}
+                />
+                <span className="mt-1 flex flex-wrap items-baseline gap-x-2 text-[11px] font-bold">
+                  <span className={transferQty > currentEquivalent ? 'text-red-600' : 'text-campo-700'}>
+                    {transferEqLabel}
+                  </span>
+                  {transferEnvLabel ? <span className="text-slate-400">{transferEnvLabel}</span> : null}
+                  {transferQty > 0 && transferQty < currentEquivalent ? (
+                    <span className="text-slate-400">
+                      · le quedan {equivalentLabel(currentEquivalent - transferQty, lot?.package_unit)}
+                    </span>
+                  ) : null}
+                  {transferQty > 0 && transferQty === currentEquivalent ? (
+                    <span className="text-slate-400">· se traspasa el lote completo</span>
+                  ) : null}
+                </span>
+              </label>
 
               <label className="mt-3 block">
                 <span className="label">Empresa que recibe</span>

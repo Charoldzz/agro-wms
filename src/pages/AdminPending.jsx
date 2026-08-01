@@ -77,7 +77,7 @@ export default function AdminPending() {
     // Traspasos entre clientes esperando aprobación (tabla propia, no son movimientos)
     const { data: transferRows } = await supabase
       .from('lot_transfers')
-      .select('*, lots(package_size, package_unit, location, expiry_date), origen:from_client_id(name), destino:to_client_id(name)')
+      .select('*, lots(package_size, package_unit, location, expiry_date, current_quantity), origen:from_client_id(name), destino:to_client_id(name)')
       .eq('status', 'pendiente')
       .order('created_at', { ascending: false })
     setTransfers(transferRows || [])
@@ -217,6 +217,17 @@ export default function AdminPending() {
 
                 <div className="mt-2">
                   <StockLine label="Se traspasa" eq={eq} env={env} tone="green" />
+                  {(() => {
+                    const total = Number(transfer.lots?.current_quantity) || 0
+                    if (total <= 0) return null
+                    const parcial = qty < total
+                    const restoEq = size > 0 ? equivalentLabel(total - qty, unit) : `${formatNumber(total - qty)} uds`
+                    return (
+                      <p className={`mt-1 text-[11px] font-black uppercase tracking-wide ${parcial ? 'text-amber-700' : 'text-slate-500'}`}>
+                        {parcial ? `Traspaso parcial · al vendedor le quedan ${restoEq}` : 'Traspaso del lote completo'}
+                      </p>
+                    )
+                  })()}
                 </div>
 
                 <p className="mt-2 text-[11px] font-semibold italic text-slate-600 [overflow-wrap:anywhere]">
