@@ -1072,6 +1072,177 @@ export default function LotDetail() {
     )
   }
 
+  // Ventanas del lote: UNA sola definición para todas las vistas. Antes
+  // estaban solo al final del archivo, que es una parte que las pantallas
+  // de operador y de administrador nunca dibujan: se abrían "invisibles".
+  function renderLotModals() {
+    return (
+      <>
+        {showTransfer ? (
+          <div data-modal-backdrop="true" className="fixed inset-0 z-50 grid place-items-center overflow-y-auto bg-slate-950/50 p-4">
+            <form
+              data-overlay-panel="true"
+              role="dialog"
+              className="flex max-h-[92dvh] w-full max-w-md flex-col overflow-y-auto rounded-2xl bg-white p-5 shadow-xl"
+              onSubmit={handleTransfer}
+            >
+              <h2 className="text-lg font-black text-slate-950">Traspaso a otra empresa</h2>
+              <p className="mt-1 text-xs font-semibold text-slate-500">
+                Cambia el dueño del lote. La mercadería no se mueve del depósito.
+              </p>
+
+              <div className="mt-3 rounded-lg bg-slate-50 p-3">
+                <p className="text-sm font-black text-slate-950 [overflow-wrap:anywhere]">{cleanProductName(lot?.product)}</p>
+                <p className="mt-0.5 text-[11px] font-semibold text-slate-400">Lote {visibleLotCode}</p>
+                <p className="mt-1.5 text-xs font-semibold text-slate-600">
+                  Dueño actual: <strong>{lot?.clients?.name || '—'}</strong>
+                </p>
+                <p className="text-xs font-semibold text-slate-600">
+                  Se traspasa todo el stock:{' '}
+                  <strong>
+                    {Number(lot?.package_size) > 0
+                      ? equivalentLabel(currentEquivalent, lot?.package_unit)
+                      : `${formatNumber(lot?.current_quantity)} uds`}
+                  </strong>
+                </p>
+              </div>
+
+              <label className="mt-3 block">
+                <span className="label">Empresa que recibe</span>
+                <select
+                  className="input mt-1"
+                  value={transferForm.to_client_id}
+                  onChange={(event) => setTransferForm((value) => ({ ...value, to_client_id: event.target.value }))}
+                >
+                  <option value="">Elegí la empresa...</option>
+                  {transferClients.map((client) => (
+                    <option key={client.id} value={client.id}>{client.name}</option>
+                  ))}
+                </select>
+              </label>
+
+              <label className="mt-3 block">
+                <span className="label">Motivo</span>
+                <textarea
+                  className="input mt-1"
+                  rows={2}
+                  placeholder="Ej.: Venta de MAXIAGRO a AGRO FORCE segun acuerdo"
+                  value={transferForm.notes}
+                  onChange={(event) => setTransferForm((value) => ({ ...value, notes: event.target.value }))}
+                />
+              </label>
+
+              <p className="mt-3 rounded-lg bg-orange-50 p-2 text-[11px] font-bold text-orange-800">
+                Al guardar, el lote queda congelado hasta que un administrador apruebe: nadie va a poder despacharlo,
+                repararlo ni operarlo.
+              </p>
+
+              {transferError ? (
+                <p className="mt-3 rounded-lg bg-red-50 p-2 text-xs font-bold text-red-700">{transferError}</p>
+              ) : null}
+
+              <div className="mt-4 grid gap-2">
+                <button className="btn-primary w-full" type="submit" disabled={transferSaving}>
+                  <Save size={20} /> {transferSaving ? 'Guardando...' : 'Enviar a aprobación'}
+                </button>
+                <button
+                  className="btn-secondary w-full"
+                  type="button"
+                  disabled={transferSaving}
+                  onClick={() => {
+                    setShowTransfer(false)
+                    setTransferError('')
+                  }}
+                >
+                  Cancelar
+                </button>
+              </div>
+            </form>
+          </div>
+        ) : null}
+
+        {showExtendExpiry && isAdmin ? (
+          <div data-modal-backdrop="true" className="fixed inset-0 z-50 grid place-items-center overflow-y-auto bg-slate-950/50 p-4">
+            <form
+              data-overlay-panel="true"
+              role="dialog"
+              className="flex max-h-[92dvh] w-full max-w-md flex-col overflow-y-auto rounded-2xl bg-white p-5 shadow-xl"
+              onSubmit={handleExtendExpiry}
+            >
+              <h2 className="text-lg font-black text-slate-950">Extender vigencia</h2>
+              <p className="mt-1 text-xs font-semibold text-slate-500">
+                Solo se usa cuando el fabricante revalida el producto. No cambia la cantidad ni el dueño.
+              </p>
+
+              <div className="mt-3 rounded-lg bg-slate-50 p-3">
+                <p className="text-sm font-black text-slate-950 [overflow-wrap:anywhere]">{cleanProductName(lot?.product)}</p>
+                <p className="mt-0.5 text-[11px] font-semibold text-slate-400">Lote {visibleLotCode}</p>
+                <p className="mt-1.5 text-xs font-semibold text-slate-600">
+                  Vence hoy: <strong>{lot?.expiry_date ? formatDate(lot.expiry_date) : 'Sin dato'}</strong>
+                </p>
+              </div>
+
+              <label className="mt-3 block">
+                <span className="label">Nueva fecha de vencimiento</span>
+                <input
+                  className="input mt-1"
+                  type="date"
+                  value={extendForm.new_expiry}
+                  onChange={(event) => setExtendForm((value) => ({ ...value, new_expiry: event.target.value }))}
+                />
+              </label>
+
+              <label className="mt-3 block">
+                <span className="label">Motivo</span>
+                <textarea
+                  className="input mt-1"
+                  rows={2}
+                  placeholder="Ej.: Revalidación del fabricante según análisis de laboratorio"
+                  value={extendForm.reason}
+                  onChange={(event) => setExtendForm((value) => ({ ...value, reason: event.target.value }))}
+                />
+              </label>
+
+              <label className="mt-3 block">
+                <span className="label">Certificado del fabricante (obligatorio)</span>
+                <input
+                  className="input mt-1"
+                  type="file"
+                  accept="image/*,application/pdf"
+                  onChange={(event) => setExtendFile(event.target.files?.[0] || null)}
+                />
+                {extendFile ? (
+                  <span className="mt-1 block text-[11px] font-semibold text-campo-700">{extendFile.name}</span>
+                ) : null}
+              </label>
+
+              {extendError ? (
+                <p className="mt-3 rounded-lg bg-red-50 p-2 text-xs font-bold text-red-700">{extendError}</p>
+              ) : null}
+
+              <div className="mt-4 grid gap-2">
+                <button className="btn-primary w-full" type="submit" disabled={extendSaving}>
+                  <Save size={20} /> {extendSaving ? 'Guardando...' : 'Extender vigencia'}
+                </button>
+                <button
+                  className="btn-secondary w-full"
+                  type="button"
+                  disabled={extendSaving}
+                  onClick={() => {
+                    setShowExtendExpiry(false)
+                    setExtendError('')
+                  }}
+                >
+                  Cancelar
+                </button>
+              </div>
+            </form>
+          </div>
+        ) : null}
+      </>
+    )
+  }
+
   if (operatorQrConsultation) {
     return (
       <div>
@@ -1118,6 +1289,7 @@ export default function LotDetail() {
           </div>
         </section>
         {showIssueReport ? <OperationalIssueModal lot={lot} userId={user.id} onClose={() => setShowIssueReport(false)} /> : null}
+        {renderLotModals()}
       </div>
     )
   }
@@ -1194,6 +1366,7 @@ export default function LotDetail() {
         {/* Acciones sobre el lote: el administrador tiene las mismas que el operador */}
         {renderLotActions()}
         {showIssueReport ? <OperationalIssueModal lot={lot} userId={user.id} onClose={() => setShowIssueReport(false)} /> : null}
+        {renderLotModals()}
       </div>
     )
   }
@@ -1878,168 +2051,8 @@ export default function LotDetail() {
         </div>
       </section>
       {showIssueReport ? <OperationalIssueModal lot={lot} userId={user.id} onClose={() => setShowIssueReport(false)} /> : null}
+        {renderLotModals()}
 
-      {showTransfer ? (
-        <div data-modal-backdrop="true" className="fixed inset-0 z-50 grid place-items-center overflow-y-auto bg-slate-950/50 p-4">
-          <form
-            data-overlay-panel="true"
-            role="dialog"
-            className="flex max-h-[92dvh] w-full max-w-md flex-col overflow-y-auto rounded-2xl bg-white p-5 shadow-xl"
-            onSubmit={handleTransfer}
-          >
-            <h2 className="text-lg font-black text-slate-950">Traspaso a otra empresa</h2>
-            <p className="mt-1 text-xs font-semibold text-slate-500">
-              Cambia el dueño del lote. La mercadería no se mueve del depósito.
-            </p>
-
-            <div className="mt-3 rounded-lg bg-slate-50 p-3">
-              <p className="text-sm font-black text-slate-950 [overflow-wrap:anywhere]">{cleanProductName(lot?.product)}</p>
-              <p className="mt-0.5 text-[11px] font-semibold text-slate-400">Lote {visibleLotCode}</p>
-              <p className="mt-1.5 text-xs font-semibold text-slate-600">
-                Dueño actual: <strong>{lot?.clients?.name || '—'}</strong>
-              </p>
-              <p className="text-xs font-semibold text-slate-600">
-                Se traspasa todo el stock:{' '}
-                <strong>
-                  {Number(lot?.package_size) > 0
-                    ? equivalentLabel(currentEquivalent, lot?.package_unit)
-                    : `${formatNumber(lot?.current_quantity)} uds`}
-                </strong>
-              </p>
-            </div>
-
-            <label className="mt-3 block">
-              <span className="label">Empresa que recibe</span>
-              <select
-                className="input mt-1"
-                value={transferForm.to_client_id}
-                onChange={(event) => setTransferForm((value) => ({ ...value, to_client_id: event.target.value }))}
-              >
-                <option value="">Elegí la empresa...</option>
-                {transferClients.map((client) => (
-                  <option key={client.id} value={client.id}>{client.name}</option>
-                ))}
-              </select>
-            </label>
-
-            <label className="mt-3 block">
-              <span className="label">Motivo</span>
-              <textarea
-                className="input mt-1"
-                rows={2}
-                placeholder="Ej.: Venta de MAXIAGRO a AGRO FORCE segun acuerdo"
-                value={transferForm.notes}
-                onChange={(event) => setTransferForm((value) => ({ ...value, notes: event.target.value }))}
-              />
-            </label>
-
-            <p className="mt-3 rounded-lg bg-orange-50 p-2 text-[11px] font-bold text-orange-800">
-              Al guardar, el lote queda congelado hasta que un administrador apruebe: nadie va a poder despacharlo,
-              repararlo ni operarlo.
-            </p>
-
-            {transferError ? (
-              <p className="mt-3 rounded-lg bg-red-50 p-2 text-xs font-bold text-red-700">{transferError}</p>
-            ) : null}
-
-            <div className="mt-4 grid gap-2">
-              <button className="btn-primary w-full" type="submit" disabled={transferSaving}>
-                <Save size={20} /> {transferSaving ? 'Guardando...' : 'Enviar a aprobación'}
-              </button>
-              <button
-                className="btn-secondary w-full"
-                type="button"
-                disabled={transferSaving}
-                onClick={() => {
-                  setShowTransfer(false)
-                  setTransferError('')
-                }}
-              >
-                Cancelar
-              </button>
-            </div>
-          </form>
-        </div>
-      ) : null}
-
-      {showExtendExpiry && isAdmin ? (
-        <div data-modal-backdrop="true" className="fixed inset-0 z-50 grid place-items-center overflow-y-auto bg-slate-950/50 p-4">
-          <form
-            data-overlay-panel="true"
-            role="dialog"
-            className="flex max-h-[92dvh] w-full max-w-md flex-col overflow-y-auto rounded-2xl bg-white p-5 shadow-xl"
-            onSubmit={handleExtendExpiry}
-          >
-            <h2 className="text-lg font-black text-slate-950">Extender vigencia</h2>
-            <p className="mt-1 text-xs font-semibold text-slate-500">
-              Solo se usa cuando el fabricante revalida el producto. No cambia la cantidad ni el dueño.
-            </p>
-
-            <div className="mt-3 rounded-lg bg-slate-50 p-3">
-              <p className="text-sm font-black text-slate-950 [overflow-wrap:anywhere]">{cleanProductName(lot?.product)}</p>
-              <p className="mt-0.5 text-[11px] font-semibold text-slate-400">Lote {visibleLotCode}</p>
-              <p className="mt-1.5 text-xs font-semibold text-slate-600">
-                Vence hoy: <strong>{lot?.expiry_date ? formatDate(lot.expiry_date) : 'Sin dato'}</strong>
-              </p>
-            </div>
-
-            <label className="mt-3 block">
-              <span className="label">Nueva fecha de vencimiento</span>
-              <input
-                className="input mt-1"
-                type="date"
-                value={extendForm.new_expiry}
-                onChange={(event) => setExtendForm((value) => ({ ...value, new_expiry: event.target.value }))}
-              />
-            </label>
-
-            <label className="mt-3 block">
-              <span className="label">Motivo</span>
-              <textarea
-                className="input mt-1"
-                rows={2}
-                placeholder="Ej.: Revalidación del fabricante según análisis de laboratorio"
-                value={extendForm.reason}
-                onChange={(event) => setExtendForm((value) => ({ ...value, reason: event.target.value }))}
-              />
-            </label>
-
-            <label className="mt-3 block">
-              <span className="label">Certificado del fabricante (obligatorio)</span>
-              <input
-                className="input mt-1"
-                type="file"
-                accept="image/*,application/pdf"
-                onChange={(event) => setExtendFile(event.target.files?.[0] || null)}
-              />
-              {extendFile ? (
-                <span className="mt-1 block text-[11px] font-semibold text-campo-700">{extendFile.name}</span>
-              ) : null}
-            </label>
-
-            {extendError ? (
-              <p className="mt-3 rounded-lg bg-red-50 p-2 text-xs font-bold text-red-700">{extendError}</p>
-            ) : null}
-
-            <div className="mt-4 grid gap-2">
-              <button className="btn-primary w-full" type="submit" disabled={extendSaving}>
-                <Save size={20} /> {extendSaving ? 'Guardando...' : 'Extender vigencia'}
-              </button>
-              <button
-                className="btn-secondary w-full"
-                type="button"
-                disabled={extendSaving}
-                onClick={() => {
-                  setShowExtendExpiry(false)
-                  setExtendError('')
-                }}
-              >
-                Cancelar
-              </button>
-            </div>
-          </form>
-        </div>
-      ) : null}
     </div>
   )
 }
