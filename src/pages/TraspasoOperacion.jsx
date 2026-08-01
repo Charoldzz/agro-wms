@@ -121,7 +121,28 @@ export default function TraspasoOperacion() {
       })
       if (rpcError) throw rpcError
       vibrateSuccess()
-      setDone({ items: validRows.length, from: fromObj?.name, to: toObj?.name, totales })
+      // Se guarda el detalle completo para el comprobante en pantalla: qué
+      // producto, qué lote, cuánto se fue y cuánto le quedó a cada uno.
+      setDone({
+        from: fromObj?.name,
+        to: toObj?.name,
+        totales,
+        notes: notes.trim(),
+        detalle: validRows.map((r) => {
+          const l = lotById.get(r.lot_id)
+          const qty = Number(r.cantidad)
+          const resto = Math.max(Number(l.current_quantity) - qty, 0)
+          return {
+            id: r.lot_id,
+            product: cleanProductName(l.product),
+            lot: displayLotCode(l.lot_code, l),
+            expiry: l.expiry_date,
+            eq: eqDe(l, qty),
+            env: envDe(l, qty),
+            restoEq: resto > 0 ? eqDe(l, resto) : null,
+          }
+        }),
+      })
     } catch (err) {
       vibrateError()
       setError(err.message || 'No se pudo registrar el traspaso.')
@@ -134,24 +155,70 @@ export default function TraspasoOperacion() {
     return (
       <div>
         <PageHeader title="Traspaso enviado" subtitle="Espera la aprobación del administrador" />
-        <section className="panel space-y-3 text-center">
-          <span className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-campo-50 text-campo-700">
-            <CheckCircle2 size={38} strokeWidth={2} />
-          </span>
-          <p className="text-xl font-black text-slate-950">Traspaso registrado</p>
-          <div className="flex flex-wrap items-center justify-center gap-2 text-sm font-black text-slate-800">
-            <span>{done.from}</span>
-            <ArrowRight size={16} className="text-campo-700" />
-            <span className="text-campo-700">{done.to}</span>
+        <section className="panel">
+          <div className="text-center">
+            <span className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-campo-50 text-campo-700">
+              <CheckCircle2 size={34} strokeWidth={2} />
+            </span>
+            <p className="mt-2 text-xl font-black text-slate-950">Traspaso registrado</p>
+            <div className="mt-1 flex flex-wrap items-center justify-center gap-2 text-sm font-black text-slate-800">
+              <span>{done.from}</span>
+              <ArrowRight size={16} className="shrink-0 text-campo-700" />
+              <span className="text-campo-700">{done.to}</span>
+            </div>
+            <p className="mt-0.5 text-[10px] font-bold uppercase tracking-wide text-slate-400">
+              Traspaso · {formatDateShort(today)}
+            </p>
           </div>
-          <p className="text-sm font-semibold text-slate-600">
-            {done.items} {done.items === 1 ? 'lote' : 'lotes'} · {done.totales}
+
+          {/* Detalle: qué se traspasó exactamente */}
+          <p className="mt-4 text-[11px] font-black uppercase tracking-wide text-campo-700">
+            Mercadería traspasada
           </p>
-          <p className="rounded-lg bg-orange-50 p-3 text-xs font-bold text-orange-800">
-            Esos lotes quedaron congelados: nadie puede despacharlos, repararlos ni operarlos hasta que un
+          <ul className="mt-1.5 divide-y divide-slate-100 rounded-lg border border-slate-200">
+            {done.detalle.map((d, i) => (
+              <li key={d.id} className="flex items-start justify-between gap-3 px-3 py-2.5">
+                <div className="flex min-w-0 gap-2">
+                  <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-campo-100 text-[10px] font-black text-campo-700">
+                    {i + 1}
+                  </span>
+                  <div className="min-w-0">
+                    <p className="text-[13px] font-black text-slate-950 [overflow-wrap:anywhere]">{d.product}</p>
+                    <p className="text-[11px] font-semibold text-slate-400">
+                      Lote {d.lot}{d.expiry ? ` · vence ${formatDate(d.expiry)}` : ''}
+                    </p>
+                    <p className="text-[10px] font-semibold text-slate-400">
+                      {d.restoEq ? `Al vendedor le quedan ${d.restoEq}` : 'Se traspasó el lote completo'}
+                    </p>
+                  </div>
+                </div>
+                <div className="shrink-0 text-right">
+                  <p className="text-sm font-black text-campo-700">{d.eq}</p>
+                  {d.env ? <p className="text-[10px] font-semibold text-slate-400">{d.env}</p> : null}
+                </div>
+              </li>
+            ))}
+          </ul>
+
+          <div className="mt-2 flex flex-wrap items-center justify-between gap-2 rounded-lg bg-campo-50 px-3 py-2">
+            <span className="text-[11px] font-black uppercase tracking-wide text-campo-700">
+              {done.detalle.length} {done.detalle.length === 1 ? 'lote' : 'lotes'}
+            </span>
+            <span className="text-base font-black text-campo-800">{done.totales}</span>
+          </div>
+
+          {done.notes ? (
+            <p className="mt-2 text-[11px] font-semibold italic text-slate-500 [overflow-wrap:anywhere]">
+              Motivo: {done.notes}
+            </p>
+          ) : null}
+
+          <p className="mt-3 rounded-lg bg-orange-50 p-3 text-xs font-bold text-orange-800">
+            Estos lotes quedaron congelados: nadie puede despacharlos, repararlos ni operarlos hasta que un
             administrador apruebe o rechace el traspaso.
           </p>
-          <div className="grid gap-2">
+
+          <div className="mt-3 grid gap-2">
             <button className="btn-primary w-full" type="button" onClick={() => navigate('/lotes')}>
               Volver a Almacenes
             </button>
@@ -428,9 +495,9 @@ export default function TraspasoOperacion() {
           <textarea
             className="input mt-1"
             rows={2}
-            placeholder="Ej.: Venta de MAXIAGRO a UPL BOLIVIA segun acuerdo"
+            placeholder="EJ.: VENTA DE MAXIAGRO A UPL BOLIVIA SEGUN ACUERDO"
             value={notes}
-            onChange={(e) => setNotes(e.target.value)}
+            onChange={(e) => setNotes(e.target.value.toUpperCase())}
           />
         </label>
 

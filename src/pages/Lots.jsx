@@ -131,7 +131,11 @@ export default function Lots() {
       .eq('inventory_source', 'stock_independiente')
       .order('product', { ascending: true })
 
-    if (!includeZero) lotsQuery = lotsQuery.eq('status', 'activo')
+    // Se incluyen los RETENIDOS: un lote congelado (ej. por un traspaso
+    // pendiente) tiene que seguir viéndose. Si desapareciera del listado, el
+    // operador creería que se perdió y no podría ni abrir su ficha para ver
+    // el cartel que explica por qué está frenado.
+    if (!includeZero) lotsQuery = lotsQuery.in('status', ['activo', 'retenido'])
 
     const [{ data: lotsData, error: lotsError }, { data: clientsData, error: clientsError }] = await Promise.all([
       lotsQuery,
@@ -168,6 +172,9 @@ export default function Lots() {
         cleanProductName(lot.product).toLowerCase().includes(term) ||
         (lot.clients?.name || '').toLowerCase().includes(term) ||
         displayLotCode(lot.lot_code, lot).toLowerCase().includes(term) ||
+        // También el código crudo: así encuentra tanto por el lote real limpio
+        // como escribiendo cualquier parte del código interno.
+        String(lot.lot_code || '').toLowerCase().includes(term) ||
         productCodeLabel(lot).toLowerCase().includes(term) ||
         (lot.location || '').toLowerCase().includes(term)
       )
@@ -592,6 +599,13 @@ export default function Lots() {
                             <p className="mt-0.5 text-xs font-semibold text-slate-400 truncate">
                               {lot.clients?.name || '-'}
                             </p>
+                            {/* Un lote congelado (traspaso pendiente, retención)
+                                tiene que avisarse en la lista, no solo al abrirlo */}
+                            {lot.status === 'retenido' ? (
+                              <span className="mt-1 inline-block rounded bg-orange-100 px-1.5 py-0.5 text-[10px] font-black uppercase tracking-wide text-orange-800">
+                                Retenido
+                              </span>
+                            ) : null}
                           </td>
                           <td className="px-3 py-2.5 text-center">
                             <span className="inline-block rounded bg-slate-100 px-1.5 py-0.5 font-mono text-xs font-bold text-slate-700 whitespace-nowrap">
