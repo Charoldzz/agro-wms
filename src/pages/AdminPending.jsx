@@ -45,6 +45,8 @@ export default function AdminPending() {
   const [issues, setIssues] = useState([])
   const [transfers, setTransfers] = useState([])
   const [error, setError] = useState('')
+  // Confirmacion visible de lo que acaba de pasar (aprobado / rechazado)
+  const [ok, setOk] = useState(null)
 
   useEffect(() => {
     loadPending()
@@ -155,7 +157,14 @@ export default function AdminPending() {
   async function approveTransfer(transfer) {
     setError('')
     const { error: rpcError } = await supabase.rpc('approve_transfer_operation', { p_operation_id: transfer.id })
-    if (rpcError) setError(rpcError.message)
+    if (rpcError) { setError(rpcError.message); return }
+    // Sin esto la tarjeta simplemente desaparecía y no quedaba claro si se
+    // habia aprobado o si algo habia fallado.
+    setOk({
+      titulo: 'Traspaso aprobado',
+      texto: `${transfer.items?.length || 0} ${(transfer.items?.length || 0) === 1 ? 'lote pasó' : 'lotes pasaron'} de ${transfer.origen?.name || '—'} a ${transfer.destino?.name || '—'}.`,
+      codigo: transfer.operation_code,
+    })
     await loadPending()
   }
 
@@ -171,7 +180,12 @@ export default function AdminPending() {
       p_operation_id: transfer.id,
       p_reason: reason.trim(),
     })
-    if (rpcError) setError(rpcError.message)
+    if (rpcError) { setError(rpcError.message); return }
+    setOk({
+      titulo: 'Traspaso rechazado',
+      texto: `Los lotes de ${transfer.origen?.name || '—'} quedaron liberados y vuelven a estar operativos.`,
+      codigo: transfer.operation_code,
+    })
     await loadPending()
   }
 
@@ -182,6 +196,21 @@ export default function AdminPending() {
       <PageHeader title="Por aprobar" subtitle={`${total} por aprobar`} />
 
       {error ? <div className="mb-4 rounded-lg bg-red-50 p-3 text-sm font-bold text-red-700">{error}</div> : null}
+
+      {ok ? (
+        <div className="mb-4 flex items-start gap-3 rounded-xl border border-campo-300 bg-campo-50 p-3">
+          <Check size={20} className="mt-0.5 shrink-0 text-campo-700" />
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-black text-campo-800">
+              {ok.titulo}{ok.codigo ? <span className="ml-2 font-mono text-[11px] font-bold text-campo-700/70">{ok.codigo}</span> : null}
+            </p>
+            <p className="text-[12px] font-semibold text-campo-800/90 [overflow-wrap:anywhere]">{ok.texto}</p>
+          </div>
+          <button type="button" className="shrink-0 rounded p-1 text-campo-700/60" onClick={() => setOk(null)} title="Cerrar">
+            <X size={16} />
+          </button>
+        </div>
+      ) : null}
 
       {total === 0 ? (
         <EmptyState title="Nada por aprobar" text="No hay reparaciones, traspasos, salidas offline ni reportes por revisar." />
