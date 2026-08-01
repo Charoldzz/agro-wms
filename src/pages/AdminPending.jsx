@@ -74,10 +74,13 @@ export default function AdminPending() {
       supabase.from('clients').select('id, name').eq('inventory_source', 'stock_independiente').order('name'),
     ])
 
-    // Traspasos entre clientes esperando aprobación (tabla propia, no son movimientos)
-    const { data: transferRows } = await supabase
+    // Traspasos entre clientes esperando aprobación (tabla propia, no son movimientos).
+    // OJO: lot_transfers apunta DOS veces a lots (lot_id = el del vendedor,
+    // new_lot_id = el que se le crea al comprador al aprobar), así que hay que
+    // decir explícitamente por cuál se embebe o la consulta falla entera.
+    const { data: transferRows, error: transferError } = await supabase
       .from('transfer_operations')
-      .select('*, origen:from_client_id(name), destino:to_client_id(name), items:lot_transfers(id, lot_code, product, quantity, lots(package_size, package_unit, current_quantity))')
+      .select('*, origen:from_client_id(name), destino:to_client_id(name), items:lot_transfers(id, lot_code, product, quantity, lots!lot_transfers_lot_id_fkey(package_size, package_unit, current_quantity))')
       .eq('status', 'pendiente')
       .order('created_at', { ascending: false })
     setTransfers(transferRows || [])
@@ -108,6 +111,9 @@ export default function AdminPending() {
     }
 
     if (!clientResult.error) setClients(clientResult.data || [])
+    // Si la consulta de traspasos falla, avisar: antes se tragaba el error y la
+    // pantalla decia "0 por aprobar" aunque hubiera traspasos esperando.
+    if (transferError) loadErrors.push('traspasos')
     setError(loadErrors.length ? `No se pudieron cargar: ${loadErrors.join(', ')}.` : '')
     setMovements(movementRows)
   }
