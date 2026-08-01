@@ -12,6 +12,7 @@ import EmpresasModal from '../components/EmpresasModal'
 import CatalogoModal from '../components/CatalogoModal'
 import MovimientosModal from '../components/MovimientosModal'
 import FeedbackAdminModal from '../components/FeedbackAdminModal'
+import { QR_ENABLED } from '../lib/features'
 
 const LOTS_CACHE_KEY = 'todo-agricola-lots-cache'
 const CLIENTS_CACHE_KEY = 'todo-agricola-clients-cache'
@@ -344,7 +345,7 @@ export default function Lots() {
         </div>
       )}
 
-      {location.state?.qrFallback && (
+      {QR_ENABLED && location.state?.qrFallback && (
         <div className="rounded-lg border border-orange-200 bg-orange-50 p-3 text-sm font-bold text-orange-900">
           Si el QR no se lee, busca el lote por producto, empresa o lote y reporta el problema desde la ficha.
         </div>

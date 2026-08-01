@@ -66,8 +66,8 @@ export default function OperatorService() {
 
         <div className="rounded-lg bg-orange-50 p-3 text-sm font-bold text-orange-800">
           {TRASLADO_ENABLED
-            ? 'Primero selecciona la operacion. Luego escanea el QR del lote para registrar el movimiento correcto.'
-            : 'Primero selecciona el tipo de reparacion. Luego escanea el QR del lote para registrar el movimiento correcto.'}
+            ? 'Primero selecciona la operacion. Luego elegi el lote para registrar el movimiento correcto.'
+            : 'Primero selecciona el tipo de reparacion. Luego elegi el lote para registrar el movimiento correcto.'}
         </div>
 
         <button className="min-h-16 w-full justify-center inline-flex items-center gap-2 rounded-lg bg-orange-500 px-4 py-3 text-base font-semibold text-white shadow-soft transition active:scale-[0.99]" type="button" onClick={startScan}>

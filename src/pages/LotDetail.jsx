@@ -16,7 +16,7 @@ import ConfirmChecks, { allConfirmChecksDone, emptyConfirmChecks } from '../comp
 import OperationalIssueModal from '../components/OperationalIssueModal'
 import { clearDraft, readDraft, writeDraft } from '../lib/drafts'
 import { internalLocations } from '../lib/locations'
-import { TRASLADO_ENABLED } from '../lib/features'
+import { QR_ENABLED, TRASLADO_ENABLED } from '../lib/features'
 
 // Unidades disponibles con su tipo de envase ("30 bolsas", "53 bidones + 15 lt")
 // NOTA: current_quantity y movements.quantity guardan el EQUIVALENTE (lts/kgs),
@@ -1435,6 +1435,7 @@ export default function LotDetail() {
             </div>
           </div>
 
+          {QR_ENABLED ? (
           <div className="panel text-center">
             <div className="mb-3 flex items-center justify-center gap-2">
               <QrCode className="text-campo-700" />
@@ -1456,6 +1457,7 @@ export default function LotDetail() {
               </div>
             ) : null}
           </div>
+          ) : null}
         </section>
 
         {/* Acciones sobre el lote: el administrador tiene las mismas que el operador */}
@@ -1661,7 +1663,7 @@ export default function LotDetail() {
           </div>
         </div>
 
-        {isAdmin ? (
+        {isAdmin && QR_ENABLED ? (
           <div className="panel text-center">
           <div className="mb-3 flex items-center justify-center gap-2">
             <QrCode className="text-campo-700" />

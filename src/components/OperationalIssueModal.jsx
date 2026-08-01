@@ -2,9 +2,10 @@ import { useState } from 'react'
 import { AlertTriangle, X } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { displayLotCode } from '../lib/display'
+import { QR_ENABLED } from '../lib/features'
 
 const issueTypes = [
-  { value: 'qr_danado', label: 'QR dañado' },
+  ...(QR_ENABLED ? [{ value: 'qr_danado', label: 'QR dañado' }] : []),
   { value: 'producto_danado', label: 'Producto dañado' },
   { value: 'ubicacion_no_coincide', label: 'No coincide ubicación' },
   { value: 'falta_producto', label: 'Falta producto' },
@@ -12,7 +13,7 @@ const issueTypes = [
 ]
 
 export default function OperationalIssueModal({ lot, userId, onClose }) {
-  const [issueType, setIssueType] = useState('qr_danado')
+  const [issueType, setIssueType] = useState(issueTypes[0]?.value || 'otro')
   const [notes, setNotes] = useState('')
   const [status, setStatus] = useState('')
   const [error, setError] = useState('')
