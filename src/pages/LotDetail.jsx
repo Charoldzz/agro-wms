@@ -1395,7 +1395,7 @@ export default function LotDetail() {
         {!pendingTransfer ? <LotStateNotice state={lotState} saleBlocked={blocksSale} /> : null}
         {renderLotNotices()}
 
-        <section className="grid gap-4 lg:grid-cols-[1.15fr_.85fr]">
+        <section className={`grid gap-4 ${QR_ENABLED ? 'lg:grid-cols-[1.15fr_.85fr]' : ''}`}>
           <div className="overflow-hidden rounded-lg border border-slate-200 bg-white/95 shadow-soft">
             <div className="bg-campo-800 px-4 py-5">
               <div className="flex items-start justify-between gap-3">
@@ -1426,7 +1426,7 @@ export default function LotDetail() {
                 </div>
               </div>
 
-              <div className="mt-3 grid gap-2 text-sm sm:grid-cols-2">
+              <div className={`mt-3 grid gap-2 text-sm sm:grid-cols-2 ${QR_ENABLED ? '' : 'lg:grid-cols-4'}`}>
                 <ConsultInfo label="Cliente" value={lot.clients?.name || '-'} strong />
                 <ConsultInfo label="Ubicacion" value={lot.location || '-'} />
                 <ConsultInfo label="Vencimiento" value={lot.expiry_date ? formatDate(lot.expiry_date) : 'Sin dato'} />
