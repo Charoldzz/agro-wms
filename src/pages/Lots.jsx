@@ -262,40 +262,53 @@ export default function Lots() {
     clientsConMercaderia.has(c.id) &&
     (!clientSearch || c.name.toLowerCase().includes(clientSearch.toLowerCase()))
   )
-  // Franja de aviso: lo que espera aprobación del admin. Solo aparece si hay
-  // algo, así no suma ruido permanente. El botón "Por aprobar" de la barra es
-  // fácil de pasar por alto; esto se ve sí o sí al entrar.
-  const pendingResumen = [
-    pendingDetail.traspasos && `${pendingDetail.traspasos} ${pendingDetail.traspasos === 1 ? 'traspaso' : 'traspasos'}`,
-    pendingDetail.movimientos && `${pendingDetail.movimientos} ${pendingDetail.movimientos === 1 ? 'movimiento' : 'movimientos'}`,
-    pendingDetail.reportes && `${pendingDetail.reportes} ${pendingDetail.reportes === 1 ? 'reporte' : 'reportes'}`,
-    pendingDetail.correcciones && `${pendingDetail.correcciones} ${pendingDetail.correcciones === 1 ? 'corrección' : 'correcciones'}`,
+  // Franja de aviso: TODO lo que espera al admin, incluido el catálogo (esas
+  // fichas también hay que aprobarlas). Cada pendiente es un botón que lleva a
+  // donde se resuelve, porque no todos viven en la misma pantalla. Solo
+  // aparece si hay algo, así no suma ruido cuando está todo al día.
+  const plural = (n, uno, muchos) => `${n} ${n === 1 ? uno : muchos}`
+  const pendientesAprobar = pendingDetail.traspasos + pendingDetail.movimientos
+    + pendingDetail.reportes + pendingDetail.correcciones
+  const totalPendientes = pendientesAprobar + pendingCatalog
+  const detalleAprobar = [
+    pendingDetail.traspasos && plural(pendingDetail.traspasos, 'traspaso', 'traspasos'),
+    pendingDetail.movimientos && plural(pendingDetail.movimientos, 'movimiento', 'movimientos'),
+    pendingDetail.reportes && plural(pendingDetail.reportes, 'reporte', 'reportes'),
+    pendingDetail.correcciones && plural(pendingDetail.correcciones, 'corrección', 'correcciones'),
   ].filter(Boolean).join(' · ')
 
   return (
     <div className="flex h-full min-h-0 flex-col gap-3">
 
-      {isAdmin && pendingRepairs > 0 && (
-        <button
-          type="button"
-          onClick={() => navigate('/pendientes')}
-          className="flex w-full items-center gap-3 rounded-xl border border-orange-300 bg-orange-50 px-4 py-3 text-left transition active:scale-[0.99]"
-        >
-          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-orange-500 text-sm font-black text-white">
-            {pendingRepairs > 99 ? '99+' : pendingRepairs}
+      {isAdmin && totalPendientes > 0 && (
+        <div className="flex flex-wrap items-center gap-3 rounded-xl border border-orange-300 bg-orange-50 px-4 py-3">
+          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-red-500 text-sm font-black text-white">
+            {totalPendientes > 99 ? '99+' : totalPendientes}
           </span>
-          <span className="min-w-0 flex-1">
-            <span className="block text-sm font-black text-orange-900">
-              {pendingRepairs === 1 ? 'Algo espera tu aprobación' : 'Cosas esperan tu aprobación'}
-            </span>
-            <span className="block text-[11px] font-semibold text-orange-800/90 [overflow-wrap:anywhere]">
-              {pendingResumen}
-            </span>
-          </span>
-          <span className="shrink-0 rounded-lg bg-orange-500 px-3 py-1.5 text-xs font-black text-white">
-            Revisar
-          </span>
-        </button>
+          <p className="text-sm font-black text-orange-900">
+            {totalPendientes === 1 ? 'Algo espera tu revisión' : 'Cosas esperan tu revisión'}
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {pendientesAprobar > 0 && (
+              <button
+                type="button"
+                onClick={() => navigate('/pendientes')}
+                className="rounded-lg bg-orange-500 px-3 py-1.5 text-xs font-black text-white transition active:scale-[0.98]"
+              >
+                {detalleAprobar} →
+              </button>
+            )}
+            {pendingCatalog > 0 && (
+              <button
+                type="button"
+                onClick={() => setShowCatalogoModal(true)}
+                className="rounded-lg border border-orange-400 bg-white px-3 py-1.5 text-xs font-black text-orange-800 transition active:scale-[0.98]"
+              >
+                {plural(pendingCatalog, 'ficha de catálogo', 'fichas de catálogo')} →
+              </button>
+            )}
+          </div>
+        </div>
       )}
 
       {canOperate && (
@@ -516,7 +529,7 @@ export default function Lots() {
                 onClick={() => setShowCatalogoModal(true)}
               >
                 {pendingCatalog > 0 && (
-                  <span className="absolute -right-1.5 -top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-amber-500 px-1 text-[10px] font-black text-white">
+                  <span className="absolute -right-1.5 -top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-black text-white">
                     {pendingCatalog > 99 ? '99+' : pendingCatalog}
                   </span>
                 )}
