@@ -179,7 +179,7 @@ export default function Kardex() {
       // tipo. (No entra en los totales de ingresos/salidas: esa mercadería
       // nunca cruzó la puerta del depósito.)
       const esIngreso = row.type === 'entrada'
-        || (row.type === 'traspaso' && Number(row.new_quantity) > Number(row.previous_quantity))
+        || (['traspaso', 'fraccionamiento'].includes(row.type) && Number(row.new_quantity) > Number(row.previous_quantity))
       const next = esIngreso ? prev + row.eqQuantity : prev - row.eqQuantity
       balance.set(key, next)
       row.saldo = next

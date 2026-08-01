@@ -185,6 +185,13 @@ export default function LotDetail() {
   const [extendSaving, setExtendSaving] = useState(false)
   const [extendError, setExtendError] = useState('')
   const [expiryExtensions, setExpiryExtensions] = useState([])
+  // Fraccionamiento: cambia la presentación del lote (200 lt → bidones de 20)
+  const [showSplit, setShowSplit] = useState(false)
+  const [splitForm, setSplitForm] = useState({ dest: '', out: '', in: '', merma_reason: '', notes: '' })
+  const [splitCatalog, setSplitCatalog] = useState([])
+  const [splitSaving, setSplitSaving] = useState(false)
+  const [splitError, setSplitError] = useState('')
+  const [pendingSplit, setPendingSplit] = useState(null)
   // Traspaso: el lote muestra el cartel si esta en una operacion pendiente
   const [pendingTransfer, setPendingTransfer] = useState(null)
 
@@ -212,7 +219,78 @@ export default function LotDetail() {
   useEffect(() => {
     loadExpiryExtensions()
     loadPendingTransfer()
+    loadPendingSplit()
   }, [id])
+
+  const splitMerma = Math.round(((Number(splitForm.out) || 0) - (Number(splitForm.in) || 0)) * 100) / 100
+
+  async function loadPendingSplit() {
+    if (!id) return
+    const { data } = await supabase
+      .from('lot_splits')
+      .select('id, operation_code, created_at, dest_product, quantity_out, quantity_in, merma, merma_reason, created_by_name')
+      .eq('source_lot_id', id)
+      .eq('status', 'pendiente')
+      .maybeSingle()
+    setPendingSplit(data || null)
+  }
+
+  async function openSplit() {
+    setSplitError('')
+    setSplitForm({ dest: '', out: '', in: '', merma_reason: '', notes: '' })
+    setShowSplit(true)
+    if (splitCatalog.length === 0 && lot?.client_id) {
+      const { data } = await supabase
+        .from('product_catalog')
+        .select('name, package_size, package_unit')
+        .eq('client_id', lot.client_id)
+        .order('name')
+      setSplitCatalog((data || []).filter((p) => String(p.name).toUpperCase() !== String(lot.product).toUpperCase()))
+    }
+  }
+
+  // Fraccionamiento: sale una cantidad de la presentación actual y entra en
+  // otra. Si entra menos de lo que salió, la diferencia es MERMA y hay que
+  // justificarla — no se pierde producto sin explicación.
+  async function handleSplit(event) {
+    event.preventDefault()
+    setSplitError('')
+
+    const salida = Number(splitForm.out) || 0
+    const entrada = Number(splitForm.in) || 0
+    const merma = Math.round((salida - entrada) * 100) / 100
+
+    if (!splitForm.dest) return setSplitError('Elegí la presentación a la que se fracciona.')
+    if (!(salida > 0)) return setSplitError('Indicá cuánto se fracciona.')
+    if (salida > currentEquivalent) return setSplitError(`El lote tiene ${equivalentLabel(currentEquivalent, lot?.package_unit)}.`)
+    if (!(entrada > 0)) return setSplitError('Indicá cuánto queda fraccionado.')
+    if (entrada > salida) return setSplitError('No puede quedar más de lo que se fracciona.')
+    if (merma > 0 && !splitForm.merma_reason.trim()) {
+      return setSplitError(`Faltan ${equivalentLabel(merma, lot?.package_unit)}. Declará el motivo de la merma.`)
+    }
+
+    setSplitSaving(true)
+    try {
+      const { error: rpcError } = await supabase.rpc('request_lot_split', {
+        p_lot_id: lot.id,
+        p_dest_product: splitForm.dest,
+        p_quantity_out: salida,
+        p_quantity_in: entrada,
+        p_merma_reason: splitForm.merma_reason.trim() || null,
+        p_notes: splitForm.notes.trim() || null,
+      })
+      if (rpcError) throw rpcError
+      vibrateSuccess()
+      setShowSplit(false)
+      await loadLot()
+      await loadPendingSplit()
+    } catch (err) {
+      vibrateError()
+      setSplitError(err.message || 'No se pudo registrar el fraccionamiento.')
+    } finally {
+      setSplitSaving(false)
+    }
+  }
 
   async function loadPendingTransfer() {
     if (!id) return
@@ -931,6 +1009,34 @@ export default function LotDetail() {
           </div>
         ) : null}
 
+        {pendingSplit ? (
+          <div className="mb-4 rounded-xl border border-orange-300 bg-orange-50 p-3">
+            <p className="flex flex-wrap items-center gap-1.5 text-xs font-black uppercase tracking-wide text-orange-800">
+              <Clock size={14} /> En fraccionamiento · esperando aprobación
+              {pendingSplit.operation_code ? (
+                <span className="font-mono normal-case text-orange-700/70">{pendingSplit.operation_code}</span>
+              ) : null}
+            </p>
+            <p className="mt-1.5 text-[13px] font-bold text-orange-900 [overflow-wrap:anywhere]">
+              Se fracciona a <strong>{pendingSplit.dest_product}</strong>.
+            </p>
+            <p className="mt-1 text-[11px] font-semibold text-orange-800/90 [overflow-wrap:anywhere]">
+              Sale {equivalentLabel(pendingSplit.quantity_out, lot?.package_unit)} · queda{' '}
+              {equivalentLabel(pendingSplit.quantity_in, lot?.package_unit)}
+              {Number(pendingSplit.merma) > 0
+                ? ' · merma ' + equivalentLabel(pendingSplit.merma, lot?.package_unit) + ' (' + (pendingSplit.merma_reason || '') + ')'
+                : ' · sin merma'}
+            </p>
+            <p className="mt-1 text-[11px] font-semibold text-orange-800/90">
+              Queda congelado hasta que un administrador lo apruebe o lo rechace.
+            </p>
+            <p className="mt-1 text-[10px] font-semibold text-orange-700/80">
+              Registrado {formatDate(pendingSplit.created_at)}
+              {pendingSplit.created_by_name ? ' · ' + pendingSplit.created_by_name : ''}
+            </p>
+          </div>
+        ) : null}
+
         {expiryExtensions.length > 0 ? (
           <div className="mb-4 rounded-xl border border-sky-200 bg-sky-50 p-3">
             <p className="text-xs font-black uppercase tracking-wide text-sky-800">
@@ -965,7 +1071,7 @@ export default function LotDetail() {
   }
 
   function renderLotActions(className = 'mt-4 flex flex-wrap gap-2') {
-    const frozen = Boolean(pendingTransfer)
+    const frozen = Boolean(pendingTransfer) || Boolean(pendingSplit)
     const closed = lot?.status === 'cerrado'
     const blocked = frozen || closed
     const off = 'pointer-events-none opacity-40'
@@ -989,6 +1095,12 @@ export default function LotDetail() {
             onClick={() => navigate(`/lotes/${lot.id}`, { state: { movementMode: 'traslado', scanned: true } })}
           >
             Traslado
+          </button>
+        ) : null}
+
+        {!blocked ? (
+          <button className="btn-secondary flex-1" type="button" onClick={openSplit}>
+            Fraccionar
           </button>
         ) : null}
 
@@ -1024,6 +1136,126 @@ export default function LotDetail() {
   function renderLotModals() {
     return (
       <>
+        {showSplit ? (
+          <div data-modal-backdrop="true" className="fixed inset-0 z-50 grid place-items-center overflow-y-auto bg-slate-950/50 p-4">
+            <form
+              data-overlay-panel="true"
+              role="dialog"
+              className="flex max-h-[92dvh] w-full max-w-md flex-col overflow-y-auto rounded-2xl bg-white p-5 shadow-xl"
+              onSubmit={handleSplit}
+            >
+              <h2 className="text-lg font-black text-slate-950">Fraccionar</h2>
+              <p className="mt-1 text-xs font-semibold text-slate-500">
+                Cambia la presentación. La mercadería no sale del depósito ni cambia de dueño.
+              </p>
+
+              <div className="mt-3 rounded-lg bg-slate-50 p-3">
+                <p className="text-sm font-black text-slate-950 [overflow-wrap:anywhere]">{cleanProductName(lot?.product)}</p>
+                <p className="mt-0.5 text-[11px] font-semibold text-slate-400">Lote {visibleLotCode}</p>
+                <p className="mt-1.5 text-xs font-semibold text-slate-600">
+                  Stock: <strong>{equivalentLabel(currentEquivalent, lot?.package_unit)}</strong>
+                  {unidadesEnvaseLabel(lot) ? <span className="text-slate-400"> · {unidadesEnvaseLabel(lot)}</span> : null}
+                </p>
+              </div>
+
+              <label className="mt-3 block">
+                <span className="label">Se fracciona a</span>
+                <select
+                  className="input mt-1"
+                  value={splitForm.dest}
+                  onChange={(e) => setSplitForm((v) => ({ ...v, dest: e.target.value }))}
+                >
+                  <option value="">Elegí la presentación...</option>
+                  {splitCatalog.map((p) => (
+                    <option key={p.name} value={p.name}>
+                      {p.name}{p.package_size ? ` (${formatNumber(p.package_size)} ${p.package_unit || ''})` : ''}
+                    </option>
+                  ))}
+                </select>
+                {splitCatalog.length === 0 ? (
+                  <span className="mt-1 block text-[11px] font-semibold text-slate-400">
+                    Esta empresa no tiene otra presentación cargada en su catálogo.
+                  </span>
+                ) : null}
+              </label>
+
+              <div className="mt-3 grid grid-cols-2 gap-2">
+                <label className="block">
+                  <span className="label">Sale del lote {lot?.package_unit ? `(${lot.package_unit})` : ''}</span>
+                  <input
+                    className="input mt-1 text-right font-bold"
+                    inputMode="decimal"
+                    placeholder="0"
+                    value={formatQtyInput(splitForm.out)}
+                    onChange={(e) => {
+                      const v = parseQtyInput(e.target.value)
+                      if (v !== null) setSplitForm((s) => ({ ...s, out: v, in: s.in === '' ? v : s.in }))
+                    }}
+                  />
+                </label>
+                <label className="block">
+                  <span className="label">Queda fraccionado</span>
+                  <input
+                    className="input mt-1 text-right font-bold"
+                    inputMode="decimal"
+                    placeholder="0"
+                    value={formatQtyInput(splitForm.in)}
+                    onChange={(e) => { const v = parseQtyInput(e.target.value); if (v !== null) setSplitForm((s) => ({ ...s, in: v })) }}
+                  />
+                </label>
+              </div>
+
+              {splitMerma > 0 ? (
+                <>
+                  <p className="mt-2 rounded-lg bg-amber-50 p-2 text-[11px] font-black text-amber-800">
+                    Merma: {equivalentLabel(splitMerma, lot?.package_unit)} — se pierden en el proceso
+                  </p>
+                  <label className="mt-2 block">
+                    <span className="label">Motivo de la merma</span>
+                    <input
+                      className="input mt-1"
+                      value={splitForm.merma_reason}
+                      onChange={(e) => setSplitForm((v) => ({ ...v, merma_reason: e.target.value.toUpperCase() }))}
+                    />
+                  </label>
+                </>
+              ) : Number(splitForm.out) > 0 ? (
+                <p className="mt-2 rounded-lg bg-campo-50 p-2 text-[11px] font-black text-campo-800">
+                  Sin merma: entra todo lo que sale
+                </p>
+              ) : null}
+
+              <label className="mt-3 block">
+                <span className="label">Observaciones</span>
+                <textarea
+                  className="input mt-1"
+                  rows={2}
+                  value={splitForm.notes}
+                  onChange={(e) => setSplitForm((v) => ({ ...v, notes: e.target.value.toUpperCase() }))}
+                />
+              </label>
+
+              {splitError ? (
+                <p className="mt-3 rounded-lg bg-red-50 p-2 text-xs font-bold text-red-700">{splitError}</p>
+              ) : null}
+
+              <div className="mt-4 grid gap-2">
+                <button className="btn-primary w-full" type="submit" disabled={splitSaving}>
+                  <Save size={20} /> {splitSaving ? 'Guardando...' : isAdmin ? 'Fraccionar' : 'Enviar a aprobación'}
+                </button>
+                <button
+                  className="btn-secondary w-full"
+                  type="button"
+                  disabled={splitSaving}
+                  onClick={() => { setShowSplit(false); setSplitError('') }}
+                >
+                  Cancelar
+                </button>
+              </div>
+            </form>
+          </div>
+        ) : null}
+
         {showExtendExpiry && isAdmin ? (
           <div data-modal-backdrop="true" className="fixed inset-0 z-50 grid place-items-center overflow-y-auto bg-slate-950/50 p-4">
             <form

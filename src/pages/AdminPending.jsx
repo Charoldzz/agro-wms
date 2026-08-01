@@ -44,6 +44,7 @@ export default function AdminPending() {
   const [clients, setClients] = useState([])
   const [issues, setIssues] = useState([])
   const [transfers, setTransfers] = useState([])
+  const [splits, setSplits] = useState([])
   const [error, setError] = useState('')
   // Confirmacion visible de lo que acaba de pasar (aprobado / rechazado)
   const [ok, setOk] = useState(null)
@@ -86,6 +87,13 @@ export default function AdminPending() {
       .eq('status', 'pendiente')
       .order('created_at', { ascending: false })
     setTransfers(transferRows || [])
+
+    const { data: splitRows } = await supabase
+      .from('lot_splits')
+      .select('*, clients(name), lots!lot_splits_source_lot_id_fkey(package_unit, package_size)')
+      .eq('status', 'pendiente')
+      .order('created_at', { ascending: false })
+    setSplits(splitRows || [])
 
     let movementRows = movementResult.data || []
     const loadErrors = []
@@ -189,7 +197,28 @@ export default function AdminPending() {
     await loadPending()
   }
 
-  const total = movements.length + issues.length + transfers.length
+  async function approveSplit(s) {
+    setError('')
+    const { error: e } = await supabase.rpc('approve_lot_split', { p_split_id: s.id })
+    if (e) { setError(e.message); return }
+    setOk({ titulo: 'Fraccionamiento aprobado', codigo: s.operation_code,
+      texto: cleanProductName(s.source_product) + ' pasó a ' + cleanProductName(s.dest_product) + '.' })
+    await loadPending()
+  }
+
+  async function rejectSplit(s) {
+    const reason = window.prompt('¿Por qué se rechaza el fraccionamiento?')
+    if (reason === null) return
+    if (!reason.trim()) { setError('Escribí por qué se rechaza.'); return }
+    setError('')
+    const { error: e } = await supabase.rpc('reject_lot_split', { p_split_id: s.id, p_reason: reason.trim() })
+    if (e) { setError(e.message); return }
+    setOk({ titulo: 'Fraccionamiento rechazado', codigo: s.operation_code,
+      texto: 'El lote quedó liberado y vuelve a estar operativo.' })
+    await loadPending()
+  }
+
+  const total = movements.length + issues.length + transfers.length + splits.length
 
   return (
     <div>
@@ -216,6 +245,65 @@ export default function AdminPending() {
         <EmptyState title="Nada por aprobar" text="No hay reparaciones, traspasos, salidas offline ni reportes por revisar." />
       ) : (
         <div className="space-y-4">
+          {splits.map((s) => {
+            const unit = s.lots?.package_unit
+            const eqOut = equivalentLabel(s.quantity_out, unit)
+            const eqIn = equivalentLabel(s.quantity_in, unit)
+            const merma = Number(s.merma) || 0
+            return (
+              <article key={s.id} className="panel border-purple-200 bg-purple-50">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="rounded-full bg-purple-600 px-2.5 py-1 text-[11px] font-black uppercase tracking-wide text-white">
+                    Fraccionamiento
+                  </span>
+                  <span className="text-[11px] font-semibold text-slate-500">{formatDate(s.created_at)}</span>
+                  {s.operation_code ? (
+                    <span className="font-mono text-[11px] font-bold text-slate-400">{s.operation_code}</span>
+                  ) : null}
+                </div>
+
+                <p className="mt-2 text-[11px] font-semibold text-slate-500">
+                  {s.clients?.name || '—'} · Lote {displayLotCode(s.lot_code)}
+                </p>
+
+                <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                  <div className="rounded-lg bg-white px-3 py-2">
+                    <p className="text-[10px] font-black uppercase tracking-wide text-slate-400">De</p>
+                    <p className="text-[13px] font-black text-slate-900 [overflow-wrap:anywhere]">{cleanProductName(s.source_product)}</p>
+                    <p className="text-xs font-bold text-slate-600">Sale {eqOut}</p>
+                  </div>
+                  <div className="rounded-lg bg-white px-3 py-2">
+                    <p className="text-[10px] font-black uppercase tracking-wide text-purple-600">A</p>
+                    <p className="text-[13px] font-black text-purple-800 [overflow-wrap:anywhere]">{cleanProductName(s.dest_product)}</p>
+                    <p className="text-xs font-bold text-purple-700">Queda {eqIn}</p>
+                  </div>
+                </div>
+
+                {merma > 0 ? (
+                  <p className="mt-2 rounded-lg bg-amber-50 px-3 py-2 text-[11px] font-black text-amber-800 [overflow-wrap:anywhere]">
+                    Merma declarada: {equivalentLabel(merma, unit)} — {s.merma_reason || 'sin motivo'}
+                  </p>
+                ) : (
+                  <p className="mt-2 text-[11px] font-black uppercase tracking-wide text-campo-700">Sin merma · cuadra exacto</p>
+                )}
+
+                {s.notes ? (
+                  <p className="mt-2 text-[11px] font-semibold italic text-slate-600 [overflow-wrap:anywhere]">Obs.: {s.notes}</p>
+                ) : null}
+                <p className="text-[10px] font-semibold text-slate-400">Registrado por {s.created_by_name || '—'}</p>
+
+                <div className="mt-3 flex gap-2">
+                  <button className="btn-primary flex-1" type="button" onClick={() => approveSplit(s)}>
+                    <Check size={18} /> Aprobar
+                  </button>
+                  <button className="btn-secondary flex-1" type="button" onClick={() => rejectSplit(s)}>
+                    <X size={18} /> Rechazar
+                  </button>
+                </div>
+              </article>
+            )
+          })}
+
           {transfers.map((op) => {
             const items = op.items || []
             return (

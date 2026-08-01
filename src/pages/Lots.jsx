@@ -82,7 +82,7 @@ export default function Lots() {
   // Contadores para los badges de admin: cosas por aprobar y fichas del catálogo pendientes de revisión
   const [pendingRepairs, setPendingRepairs] = useState(0)
   // Desglose para la franja de aviso ("1 traspaso · 2 reparaciones")
-  const [pendingDetail, setPendingDetail] = useState({ movimientos: 0, correcciones: 0, reportes: 0, traspasos: 0 })
+  const [pendingDetail, setPendingDetail] = useState({ movimientos: 0, correcciones: 0, reportes: 0, traspasos: 0, fraccionamientos: 0 })
   const [pendingCatalog, setPendingCatalog] = useState(0)
   const [feedbackNuevos, setFeedbackNuevos] = useState(0)
   const [showFeedbackModal, setShowFeedbackModal] = useState(false)
@@ -100,20 +100,22 @@ export default function Lots() {
   useEffect(() => {
     if (!isAdmin) return
     async function loadRepairs() {
-      const [m, c, i, t] = await Promise.all([
+      const [m, c, i, t, f] = await Promise.all([
         supabase.from('movements').select('id', { count: 'exact', head: true }).in('type', ['ajuste', 'traslado', 'salida']).eq('approval_status', 'pendiente'),
         supabase.from('movement_correction_requests').select('id', { count: 'exact', head: true }).eq('status', 'pendiente'),
         supabase.from('operational_issue_reports').select('id', { count: 'exact', head: true }).eq('status', 'pendiente'),
         // Los traspasos faltaban en el contador: quedaban esperando sin que nada avisara
         supabase.from('transfer_operations').select('id', { count: 'exact', head: true }).eq('status', 'pendiente'),
+        supabase.from('lot_splits').select('id', { count: 'exact', head: true }).eq('status', 'pendiente'),
       ])
       setPendingDetail({
         movimientos: m.count || 0,
         correcciones: c.count || 0,
         reportes: i.count || 0,
         traspasos: t.count || 0,
+        fraccionamientos: f.count || 0,
       })
-      setPendingRepairs((m.count || 0) + (c.count || 0) + (i.count || 0) + (t.count || 0))
+      setPendingRepairs((m.count || 0) + (c.count || 0) + (i.count || 0) + (t.count || 0) + (f.count || 0))
     }
     loadRepairs()
     loadCatalogBadge()
@@ -124,6 +126,7 @@ export default function Lots() {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'movement_correction_requests' }, loadRepairs)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'operational_issue_reports' }, loadRepairs)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'transfer_operations' }, loadRepairs)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'lot_splits' }, loadRepairs)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'product_catalog' }, loadCatalogBadge)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'portal_feedback' }, loadFeedbackBadge)
       .subscribe()
@@ -271,6 +274,7 @@ export default function Lots() {
   // que importa es saber QUÉ está esperando, no solo cuántas cosas hay.
   const pendientesLista = [
     { key: 'traspasos', n: pendingDetail.traspasos, label: 'Traspasos por aprobar', Icon: ArrowRightLeft, go: () => navigate('/pendientes') },
+    { key: 'fraccionamientos', n: pendingDetail.fraccionamientos, label: 'Fraccionamientos por aprobar', Icon: LayoutList, go: () => navigate('/pendientes') },
     { key: 'movimientos', n: pendingDetail.movimientos, label: 'Movimientos por aprobar', Icon: ClipboardCheck, go: () => navigate('/pendientes') },
     { key: 'reportes', n: pendingDetail.reportes, label: 'Reportes operativos', Icon: LifeBuoy, go: () => navigate('/pendientes') },
     { key: 'correcciones', n: pendingDetail.correcciones, label: 'Correcciones de movimiento', Icon: ClipboardList, go: () => navigate('/pendientes') },
