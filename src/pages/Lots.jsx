@@ -266,47 +266,44 @@ export default function Lots() {
   // fichas también hay que aprobarlas). Cada pendiente es un botón que lleva a
   // donde se resuelve, porque no todos viven en la misma pantalla. Solo
   // aparece si hay algo, así no suma ruido cuando está todo al día.
-  const plural = (n, uno, muchos) => `${n} ${n === 1 ? uno : muchos}`
-  const pendientesAprobar = pendingDetail.traspasos + pendingDetail.movimientos
-    + pendingDetail.reportes + pendingDetail.correcciones
-  const totalPendientes = pendientesAprobar + pendingCatalog
-  const detalleAprobar = [
-    pendingDetail.traspasos && plural(pendingDetail.traspasos, 'traspaso', 'traspasos'),
-    pendingDetail.movimientos && plural(pendingDetail.movimientos, 'movimiento', 'movimientos'),
-    pendingDetail.reportes && plural(pendingDetail.reportes, 'reporte', 'reportes'),
-    pendingDetail.correcciones && plural(pendingDetail.correcciones, 'corrección', 'correcciones'),
-  ].filter(Boolean).join(' · ')
+  // Una fila por tipo de pendiente: nombre completo, cuántos y adónde lleva.
+  // Se listan por separado (aunque varios terminen en "Por aprobar") porque lo
+  // que importa es saber QUÉ está esperando, no solo cuántas cosas hay.
+  const pendientesLista = [
+    { key: 'traspasos', n: pendingDetail.traspasos, label: 'Traspasos por aprobar', Icon: ArrowRightLeft, go: () => navigate('/pendientes') },
+    { key: 'movimientos', n: pendingDetail.movimientos, label: 'Movimientos por aprobar', Icon: ClipboardCheck, go: () => navigate('/pendientes') },
+    { key: 'reportes', n: pendingDetail.reportes, label: 'Reportes operativos', Icon: LifeBuoy, go: () => navigate('/pendientes') },
+    { key: 'correcciones', n: pendingDetail.correcciones, label: 'Correcciones de movimiento', Icon: ClipboardList, go: () => navigate('/pendientes') },
+    { key: 'catalogo', n: pendingCatalog, label: 'Fichas de catálogo por revisar', Icon: LayoutList, go: () => setShowCatalogoModal(true) },
+  ].filter((p) => p.n > 0)
+
+  const totalPendientes = pendientesLista.reduce((a, p) => a + p.n, 0)
 
   return (
     <div className="flex h-full min-h-0 flex-col gap-3">
 
       {isAdmin && totalPendientes > 0 && (
-        <div className="flex flex-wrap items-center gap-3 rounded-xl border border-orange-300 bg-orange-50 px-4 py-3">
-          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-red-500 text-sm font-black text-white">
-            {totalPendientes > 99 ? '99+' : totalPendientes}
-          </span>
-          <p className="text-sm font-black text-orange-900">
-            {totalPendientes === 1 ? 'Algo espera tu revisión' : 'Cosas esperan tu revisión'}
-          </p>
-          <div className="flex flex-wrap gap-2">
-            {pendientesAprobar > 0 && (
+        <div className="overflow-hidden rounded-xl border border-orange-300 bg-orange-50">
+          <div className="flex items-center gap-2 px-4 py-2.5">
+            <CalendarClock size={18} className="shrink-0 text-orange-700" />
+            <p className="text-sm font-black text-orange-900">
+              {totalPendientes} {totalPendientes === 1 ? 'cosa espera tu revisión' : 'cosas esperan tu revisión'}
+            </p>
+          </div>
+          <div className="divide-y divide-slate-100 border-t border-orange-200">
+            {pendientesLista.map(({ key, n, label, Icon, go }) => (
               <button
+                key={key}
                 type="button"
-                onClick={() => navigate('/pendientes')}
-                className="rounded-lg bg-orange-500 px-3 py-1.5 text-xs font-black text-white transition active:scale-[0.98]"
+                onClick={go}
+                className="flex w-full items-center gap-3 bg-white px-4 py-2.5 text-left transition hover:bg-orange-50/60 active:scale-[0.995]"
               >
-                {detalleAprobar} →
+                <Icon size={18} className="shrink-0 text-orange-700" />
+                <span className="min-w-0 flex-1 text-[13px] font-bold text-slate-800 [overflow-wrap:anywhere]">{label}</span>
+                <span className="shrink-0 text-sm font-black text-orange-900">{n > 99 ? '99+' : n}</span>
+                <ChevronRight size={16} className="shrink-0 text-slate-400" />
               </button>
-            )}
-            {pendingCatalog > 0 && (
-              <button
-                type="button"
-                onClick={() => setShowCatalogoModal(true)}
-                className="rounded-lg border border-orange-400 bg-white px-3 py-1.5 text-xs font-black text-orange-800 transition active:scale-[0.98]"
-              >
-                {plural(pendingCatalog, 'ficha de catálogo', 'fichas de catálogo')} →
-              </button>
-            )}
+            ))}
           </div>
         </div>
       )}
