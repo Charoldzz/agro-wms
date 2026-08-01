@@ -509,7 +509,6 @@ export default function TraspasoOperacion() {
           <textarea
             className="input mt-1"
             rows={2}
-            placeholder="EJ.: VENTA DE MAXIAGRO A UPL BOLIVIA SEGUN ACUERDO"
             value={notes}
             onChange={(e) => setNotes(e.target.value.toUpperCase())}
           />
