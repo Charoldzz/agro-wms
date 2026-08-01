@@ -171,10 +171,11 @@ export default function Lots() {
       return (
         cleanProductName(lot.product).toLowerCase().includes(term) ||
         (lot.clients?.name || '').toLowerCase().includes(term) ||
+        // Solo por el lote VERDADERO (displayLotCode). No se busca en el código
+        // interno SOL-...: el lote real ya está adentro de ese combo, así que no
+        // agrega ningún caso, y en cambio ensucia (escribir "44" o "2027"
+        // engancharía el depósito y el vencimiento de decenas de lotes).
         displayLotCode(lot.lot_code, lot).toLowerCase().includes(term) ||
-        // También el código crudo: así encuentra tanto por el lote real limpio
-        // como escribiendo cualquier parte del código interno.
-        String(lot.lot_code || '').toLowerCase().includes(term) ||
         productCodeLabel(lot).toLowerCase().includes(term) ||
         (lot.location || '').toLowerCase().includes(term)
       )
