@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { ArrowRightLeft, Plus, Save, Trash2 } from 'lucide-react'
 import PageHeader from '../components/PageHeader'
 import { supabase } from '../lib/supabase'
-import { equivalentLabel, formatNumber } from '../lib/format'
+import { equivalentLabel, formatDate, formatNumber, formatQtyInput, parseQtyInput } from '../lib/format'
 import { desgloseEnvases } from '../lib/envases'
 import { cleanProductName, displayLotCode } from '../lib/display'
 import { vibrateError, vibrateSuccess } from '../lib/haptics'
@@ -52,19 +52,24 @@ export default function TraspasoOperacion() {
   const availableLots = lots.filter((l) => !usedLotIds.has(l.id))
   const selectedLot = lots.find((l) => l.id === pickLot)
 
-  const qtyNum = Number(String(pickQty).replace(',', '.')) || 0
-  const qtyEq = selectedLot && Number(selectedLot.package_size) > 0
-    ? equivalentLabel(qtyNum, selectedLot.package_unit)
-    : `${formatNumber(qtyNum)} uds`
-  const qtyEnv = selectedLot && Number(selectedLot.package_size) > 0
-    ? desgloseEnvases(qtyNum, Number(selectedLot.package_size), selectedLot.package_unit, 0).unidadesLabel
-    : ''
+  // pickQty guarda el valor canónico ("5000.5"); en pantalla se ve "5.000,5"
+  const qtyNum = Number(pickQty) || 0
+  const stockLote = Number(selectedLot?.current_quantity) || 0
+  const restante = Math.max(stockLote - qtyNum, 0)
+
+  // Etiquetas de una cantidad para ESTE lote: equivalente + envases
+  function eqDe(l, v) {
+    return Number(l?.package_size) > 0 ? equivalentLabel(v, l.package_unit) : `${formatNumber(v)} uds`
+  }
+  function envDe(l, v) {
+    return Number(l?.package_size) > 0
+      ? desgloseEnvases(v, Number(l.package_size), l.package_unit, 0).unidadesLabel
+      : ''
+  }
 
   function lotLabelFull(l) {
-    const eq = Number(l.package_size) > 0
-      ? equivalentLabel(l.current_quantity, l.package_unit)
-      : `${formatNumber(l.current_quantity)} uds`
-    return `${cleanProductName(l.product)} · Lote ${displayLotCode(l.lot_code, l)} · ${eq}`
+    const venc = l.expiry_date ? ` · vence ${formatDate(l.expiry_date)}` : ' · sin vencimiento'
+    return `${cleanProductName(l.product)} · Lote ${displayLotCode(l.lot_code, l)}${venc}`
   }
 
   function addItem() {
@@ -183,43 +188,96 @@ export default function TraspasoOperacion() {
         {fromClient ? (
           <div className="rounded-lg border border-slate-200 p-3">
             <p className="label mb-2">Agregar lote</p>
-            <div className="grid gap-2 sm:grid-cols-[2fr_1fr_auto] sm:items-end">
-              <label className="block">
-                <span className="text-[11px] font-bold uppercase text-slate-400">Lote</span>
-                <select className="input mt-1" value={pickLot} onChange={(e) => { setPickLot(e.target.value); setPickQty('') }}>
-                  <option value="">Elegí el lote...</option>
-                  {availableLots.map((l) => <option key={l.id} value={l.id}>{lotLabelFull(l)}</option>)}
-                </select>
-              </label>
-              <label className="block">
-                <span className="text-[11px] font-bold uppercase text-slate-400">
-                  Cantidad {selectedLot?.package_unit ? `(${selectedLot.package_unit})` : ''}
-                </span>
-                <input
-                  className="input mt-1"
-                  type="number"
-                  inputMode="decimal"
-                  min="0"
-                  step="any"
-                  placeholder={selectedLot ? String(selectedLot.current_quantity) : ''}
-                  value={pickQty}
-                  onChange={(e) => setPickQty(e.target.value)}
-                />
-              </label>
-              <button className="btn-secondary sm:mb-0" type="button" onClick={addItem} disabled={!selectedLot}>
-                <Plus size={18} /> Agregar
-              </button>
-            </div>
-            {selectedLot && qtyNum > 0 ? (
-              <p className="mt-2 flex flex-wrap gap-x-2 text-[11px] font-bold">
-                <span className={qtyNum > Number(selectedLot.current_quantity) ? 'text-red-600' : 'text-campo-700'}>{qtyEq}</span>
-                {qtyEnv ? <span className="text-slate-400">{qtyEnv}</span> : null}
-                {qtyNum < Number(selectedLot.current_quantity) ? (
-                  <span className="text-slate-400">
-                    · le quedan {equivalentLabel(Number(selectedLot.current_quantity) - qtyNum, selectedLot.package_unit)}
-                  </span>
-                ) : <span className="text-slate-400">· se traspasa el lote completo</span>}
-              </p>
+
+            <label className="block">
+              <span className="text-[11px] font-bold uppercase text-slate-400">Lote</span>
+              <select className="input mt-1" value={pickLot} onChange={(e) => { setPickLot(e.target.value); setPickQty('') }}>
+                <option value="">Elegí el lote...</option>
+                {availableLots.map((l) => <option key={l.id} value={l.id}>{lotLabelFull(l)}</option>)}
+              </select>
+            </label>
+
+            {selectedLot ? (
+              <>
+                {/* Ficha del lote elegido: qué hay hoy, en qué envases y cuándo vence */}
+                <div className="mt-2 grid gap-2 sm:grid-cols-3">
+                  <div className="rounded-lg bg-slate-50 px-3 py-2">
+                    <p className="text-[10px] font-black uppercase tracking-wide text-slate-400">Stock del lote</p>
+                    <p className="text-sm font-black text-slate-900">{eqDe(selectedLot, stockLote)}</p>
+                    {envDe(selectedLot, stockLote) ? (
+                      <p className="text-[10px] font-semibold text-slate-400">{envDe(selectedLot, stockLote)}</p>
+                    ) : null}
+                  </div>
+                  <div className="rounded-lg bg-slate-50 px-3 py-2">
+                    <p className="text-[10px] font-black uppercase tracking-wide text-slate-400">Vencimiento</p>
+                    <p className="text-sm font-black text-slate-900">
+                      {selectedLot.expiry_date ? formatDate(selectedLot.expiry_date) : 'Sin dato'}
+                    </p>
+                  </div>
+                  <div className="rounded-lg bg-slate-50 px-3 py-2">
+                    <p className="text-[10px] font-black uppercase tracking-wide text-slate-400">Presentación</p>
+                    <p className="text-sm font-black text-slate-900">
+                      {Number(selectedLot.package_size) > 0
+                        ? `${formatNumber(selectedLot.package_size)} ${selectedLot.package_unit || ''}`
+                        : 'Sin presentación'}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="mt-2 grid gap-2 sm:grid-cols-[1fr_auto] sm:items-end">
+                  <label className="block">
+                    <span className="text-[11px] font-bold uppercase text-slate-400">
+                      Cantidad a traspasar {selectedLot.package_unit ? `(${selectedLot.package_unit})` : ''}
+                    </span>
+                    <input
+                      className="input mt-1 text-right font-bold"
+                      inputMode="decimal"
+                      placeholder="0"
+                      value={formatQtyInput(pickQty)}
+                      onChange={(e) => { const v = parseQtyInput(e.target.value); if (v !== null) setPickQty(v) }}
+                    />
+                  </label>
+                  <button className="btn-secondary" type="button" onClick={addItem}>
+                    <Plus size={18} /> Agregar
+                  </button>
+                </div>
+
+                {/* Qué se lleva y qué le queda: los envases van pegados a SU cantidad
+                    para que no se confunda con el stock del lote */}
+                {qtyNum > 0 ? (
+                  <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                    <div className={`rounded-lg px-3 py-2 ${qtyNum > stockLote ? 'bg-red-50' : 'bg-campo-50'}`}>
+                      <p className={`text-[10px] font-black uppercase tracking-wide ${qtyNum > stockLote ? 'text-red-600' : 'text-campo-700'}`}>
+                        Se traspasa
+                      </p>
+                      <p className={`text-base font-black ${qtyNum > stockLote ? 'text-red-700' : 'text-campo-800'}`}>
+                        {eqDe(selectedLot, qtyNum)}
+                      </p>
+                      {envDe(selectedLot, qtyNum) ? (
+                        <p className={`text-[11px] font-semibold ${qtyNum > stockLote ? 'text-red-500' : 'text-campo-700/80'}`}>
+                          {envDe(selectedLot, qtyNum)}
+                        </p>
+                      ) : null}
+                    </div>
+                    <div className="rounded-lg bg-slate-50 px-3 py-2">
+                      <p className="text-[10px] font-black uppercase tracking-wide text-slate-400">Le queda al vendedor</p>
+                      <p className="text-base font-black text-slate-800">{eqDe(selectedLot, restante)}</p>
+                      {envDe(selectedLot, restante) ? (
+                        <p className="text-[11px] font-semibold text-slate-400">{envDe(selectedLot, restante)}</p>
+                      ) : null}
+                      {restante === 0 ? (
+                        <p className="text-[10px] font-black uppercase tracking-wide text-amber-700">Se traspasa el lote completo</p>
+                      ) : null}
+                    </div>
+                  </div>
+                ) : null}
+
+                {qtyNum > stockLote ? (
+                  <p className="mt-2 rounded-lg bg-red-50 p-2 text-[11px] font-bold text-red-700">
+                    Ese lote solo tiene {eqDe(selectedLot, stockLote)}.
+                  </p>
+                ) : null}
+              </>
             ) : null}
           </div>
         ) : null}
@@ -229,14 +287,20 @@ export default function TraspasoOperacion() {
             <p className="label mb-2">{items.length} {items.length === 1 ? 'lote' : 'lotes'} a traspasar</p>
             <ul className="space-y-1.5">
               {items.map((i, idx) => {
-                const size = Number(i.lot.package_size) || 0
-                const eq = size > 0 ? equivalentLabel(i.quantity, i.lot.package_unit) : `${formatNumber(i.quantity)} uds`
-                const env = size > 0 ? desgloseEnvases(i.quantity, size, i.lot.package_unit, 0).unidadesLabel : ''
+                const eq = eqDe(i.lot, i.quantity)
+                const env = envDe(i.lot, i.quantity)
+                const resto = Math.max(Number(i.lot.current_quantity) - i.quantity, 0)
                 return (
                   <li key={i.lot_id} className="flex items-start justify-between gap-2 rounded-lg bg-white px-3 py-2">
                     <div className="min-w-0">
                       <p className="text-[13px] font-black text-slate-950 [overflow-wrap:anywhere]">{cleanProductName(i.lot.product)}</p>
-                      <p className="text-[11px] font-semibold text-slate-400">Lote {displayLotCode(i.lot.lot_code, i.lot)}</p>
+                      <p className="text-[11px] font-semibold text-slate-400">
+                        Lote {displayLotCode(i.lot.lot_code, i.lot)}
+                        {i.lot.expiry_date ? ` · vence ${formatDate(i.lot.expiry_date)}` : ''}
+                      </p>
+                      <p className="text-[10px] font-semibold text-slate-400">
+                        {resto > 0 ? `Le quedan ${eqDe(i.lot, resto)}` : 'Se traspasa el lote completo'}
+                      </p>
                     </div>
                     <div className="shrink-0 text-right">
                       <p className="text-sm font-black text-campo-700">{eq}</p>
