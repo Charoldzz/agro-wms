@@ -40,6 +40,9 @@ function daysUntil(expiryDate) {
 
 function lotStatus(lot) {
   const days = daysUntil(lot.expiry_date)
+  // El traspaso manda: aunque el lote esté vencido, lo que le importa saber al
+  // dueño es que está por cambiar de manos y no lo puede tocar.
+  if (lot.en_traspaso) return { label: 'En traspaso', cls: 'bg-orange-100 text-orange-800' }
   if (days !== null && days < 0) return { label: 'Vencido',   cls: 'bg-red-50 text-red-700' }
   if (lot.status === 'retenido')  return { label: 'Retenido',  cls: 'bg-orange-50 text-orange-700' }
   if (lot.status === 'cerrado')   return { label: 'Cerrado',   cls: 'bg-slate-100 text-slate-600' }
@@ -297,7 +300,11 @@ export default function ClientPortal({ view = 'inventory' }) {
         .select('id,lot_code,client_id,product,solucion_product_code,solucion_warehouse_code,current_quantity,package_size,package_unit,location,entry_date,expiry_date,status,clients(name,contact)')
         .eq('inventory_source','stock_independiente')
         .eq('client_id', clientId)
-        .eq('status','activo')
+        // Se incluyen los RETENIDOS a propósito: si un lote se congela (por
+        // ejemplo por un traspaso pendiente) y desapareciera del portal, el
+        // dueño creería que se le esfumó mercadería. Lo ve, pero no lo puede
+        // pedir: más abajo se excluyen de las opciones de despacho.
+        .in('status', ['activo','retenido'])
         .gt('current_quantity', 0)
         .order('product'),
       supabase
@@ -311,7 +318,17 @@ export default function ClientPortal({ view = 'inventory' }) {
       .filter(p => p.pending_review && p.code)
       .map(p => String(p.code).toUpperCase()))
     const visibleLots = (lotsData || []).filter(l => !pendingCodes.has(String(l.solucion_product_code || '').toUpperCase()))
-    setLots(visibleLots)
+
+    // Marca los lotes con traspaso pendiente para mostrarlos "En traspaso".
+    // Por permisos, el cliente solo ve los traspasos donde él es el VENDEDOR:
+    // el comprador no se entera hasta que el admin aprueba y el lote ya es suyo.
+    const { data: transferRows } = await supabase
+      .from('lot_transfers')
+      .select('lot_id')
+      .eq('status', 'pendiente')
+      .eq('from_client_id', clientId)
+    const enTraspaso = new Set((transferRows || []).map(t => t.lot_id))
+    setLots(visibleLots.map(l => (enTraspaso.has(l.id) ? { ...l, en_traspaso: true } : l)))
     setCatalog(catalogData || [])
 
     const lotIds = visibleLots.map(l => l.id)
@@ -545,7 +562,8 @@ export default function ClientPortal({ view = 'inventory' }) {
   // request: UNA sola lista producto+lote con el equivalente disponible como
   // referencia — sin código (pedido Harold: texto corto y útil)
   const reqLotOptions = useMemo(() => {
-    return sortInventoryLots(lots).map(l => {
+    // Solo lotes operables: un lote retenido o en traspaso no se puede pedir.
+    return sortInventoryLots(lots.filter(l => l.status === 'activo' && !l.en_traspaso)).map(l => {
       const eq = lotEquivalent(l)
       const disp = eq ? equivalentLabel(eq.quantity, eq.unit) : `${formatNumber(l.current_quantity)} uds`
       const st = lotStatus(l)

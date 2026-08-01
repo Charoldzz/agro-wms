@@ -1210,6 +1210,10 @@ export default function LotDetail() {
         </button>
 
         <LotStateNotice state={lotState} saleBlocked={blocksSale} />
+        {/* El vendedor (cliente) tiene que ver que su lote está en traspaso: la
+            mercadería sigue siendo suya hasta que el admin apruebe, así que si
+            desapareciera o se congelara sin aviso pensaría que se le esfumó. */}
+        <div className="mx-auto max-w-lg">{renderLotNotices()}</div>
 
         <div className="mx-auto max-w-lg overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
           {/* Campo header inside card */}
