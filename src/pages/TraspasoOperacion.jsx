@@ -225,16 +225,12 @@ export default function TraspasoOperacion() {
             </p>
           ) : null}
 
-          {done.aplicado ? (
-            <p className="mt-3 rounded-lg bg-campo-50 p-3 text-xs font-bold text-campo-800">
-              Listo: la mercadería ya figura a nombre de {done.to}. No hace falta aprobar nada más.
-            </p>
-          ) : (
+          {!done.aplicado ? (
             <p className="mt-3 rounded-lg bg-orange-50 p-3 text-xs font-bold text-orange-800">
               Estos lotes quedaron congelados: nadie puede despacharlos, repararlos ni operarlos hasta que un
               administrador apruebe o rechace el traspaso.
             </p>
-          )}
+          ) : null}
 
           <div className="mt-3 grid gap-2">
             <button className="btn-primary w-full" type="button" onClick={() => navigate('/lotes')}>
@@ -519,16 +515,12 @@ export default function TraspasoOperacion() {
           />
         </label>
 
-        {isAdmin ? (
-          <p className="rounded-lg bg-campo-50 p-2.5 text-[11px] font-bold text-campo-800">
-            Como administrador, el traspaso se aplica al instante: la mercadería cambia de dueño al guardar.
-          </p>
-        ) : (
+        {!isAdmin ? (
           <p className="rounded-lg bg-orange-50 p-2.5 text-[11px] font-bold text-orange-800">
             Al enviar, todos los lotes quedan congelados hasta que un administrador apruebe: nadie va a poder
             despacharlos, repararlos ni operarlos.
           </p>
-        )}
+        ) : null}
 
         {error ? <p className="rounded-lg bg-red-50 p-2 text-xs font-bold text-red-700">{error}</p> : null}
 
