@@ -81,6 +81,8 @@ export default function Lots() {
 
   // Contadores para los badges de admin: cosas por aprobar y fichas del catálogo pendientes de revisión
   const [pendingRepairs, setPendingRepairs] = useState(0)
+  // Desglose para la franja de aviso ("1 traspaso · 2 reparaciones")
+  const [pendingDetail, setPendingDetail] = useState({ movimientos: 0, correcciones: 0, reportes: 0, traspasos: 0 })
   const [pendingCatalog, setPendingCatalog] = useState(0)
   const [feedbackNuevos, setFeedbackNuevos] = useState(0)
   const [showFeedbackModal, setShowFeedbackModal] = useState(false)
@@ -98,12 +100,20 @@ export default function Lots() {
   useEffect(() => {
     if (!isAdmin) return
     async function loadRepairs() {
-      const [m, c, i] = await Promise.all([
+      const [m, c, i, t] = await Promise.all([
         supabase.from('movements').select('id', { count: 'exact', head: true }).in('type', ['ajuste', 'traslado', 'salida']).eq('approval_status', 'pendiente'),
         supabase.from('movement_correction_requests').select('id', { count: 'exact', head: true }).eq('status', 'pendiente'),
         supabase.from('operational_issue_reports').select('id', { count: 'exact', head: true }).eq('status', 'pendiente'),
+        // Los traspasos faltaban en el contador: quedaban esperando sin que nada avisara
+        supabase.from('transfer_operations').select('id', { count: 'exact', head: true }).eq('status', 'pendiente'),
       ])
-      setPendingRepairs((m.count || 0) + (c.count || 0) + (i.count || 0))
+      setPendingDetail({
+        movimientos: m.count || 0,
+        correcciones: c.count || 0,
+        reportes: i.count || 0,
+        traspasos: t.count || 0,
+      })
+      setPendingRepairs((m.count || 0) + (c.count || 0) + (i.count || 0) + (t.count || 0))
     }
     loadRepairs()
     loadCatalogBadge()
@@ -113,6 +123,7 @@ export default function Lots() {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'movements' }, loadRepairs)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'movement_correction_requests' }, loadRepairs)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'operational_issue_reports' }, loadRepairs)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'transfer_operations' }, loadRepairs)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'product_catalog' }, loadCatalogBadge)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'portal_feedback' }, loadFeedbackBadge)
       .subscribe()
@@ -251,8 +262,41 @@ export default function Lots() {
     clientsConMercaderia.has(c.id) &&
     (!clientSearch || c.name.toLowerCase().includes(clientSearch.toLowerCase()))
   )
+  // Franja de aviso: lo que espera aprobación del admin. Solo aparece si hay
+  // algo, así no suma ruido permanente. El botón "Por aprobar" de la barra es
+  // fácil de pasar por alto; esto se ve sí o sí al entrar.
+  const pendingResumen = [
+    pendingDetail.traspasos && `${pendingDetail.traspasos} ${pendingDetail.traspasos === 1 ? 'traspaso' : 'traspasos'}`,
+    pendingDetail.movimientos && `${pendingDetail.movimientos} ${pendingDetail.movimientos === 1 ? 'movimiento' : 'movimientos'}`,
+    pendingDetail.reportes && `${pendingDetail.reportes} ${pendingDetail.reportes === 1 ? 'reporte' : 'reportes'}`,
+    pendingDetail.correcciones && `${pendingDetail.correcciones} ${pendingDetail.correcciones === 1 ? 'corrección' : 'correcciones'}`,
+  ].filter(Boolean).join(' · ')
+
   return (
     <div className="flex h-full min-h-0 flex-col gap-3">
+
+      {isAdmin && pendingRepairs > 0 && (
+        <button
+          type="button"
+          onClick={() => navigate('/pendientes')}
+          className="flex w-full items-center gap-3 rounded-xl border border-orange-300 bg-orange-50 px-4 py-3 text-left transition active:scale-[0.99]"
+        >
+          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-orange-500 text-sm font-black text-white">
+            {pendingRepairs > 99 ? '99+' : pendingRepairs}
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="block text-sm font-black text-orange-900">
+              {pendingRepairs === 1 ? 'Algo espera tu aprobación' : 'Cosas esperan tu aprobación'}
+            </span>
+            <span className="block text-[11px] font-semibold text-orange-800/90 [overflow-wrap:anywhere]">
+              {pendingResumen}
+            </span>
+          </span>
+          <span className="shrink-0 rounded-lg bg-orange-500 px-3 py-1.5 text-xs font-black text-white">
+            Revisar
+          </span>
+        </button>
+      )}
 
       {canOperate && (
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-3">
@@ -428,7 +472,7 @@ export default function Lots() {
                   <button
                     className="btn-secondary relative !min-h-8 !px-2.5 !py-1.5 text-xs font-bold"
                     onClick={() => navigate('/pendientes')}
-                    title="Ajustes, traslados, salidas offline y reportes por aprobar"
+                    title="Traspasos, reparaciones, salidas offline y reportes por aprobar"
                   >
                     {pendingRepairs > 0 && (
                       <span className="absolute -right-1.5 -top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-black text-white">
