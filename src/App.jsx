@@ -17,6 +17,7 @@ import NuevaSalida from './pages/NuevaSalida'
 import SalidasHub from './pages/SalidasHub'
 import Kardex from './pages/Kardex'
 import OperatorService from './pages/OperatorService'
+import TraspasoOperacion from './pages/TraspasoOperacion'
 import OfflineAudit from './pages/OfflineAudit'
 import QrGate from './pages/QrGate'
 import ClientPortal from './pages/ClientPortal'
@@ -83,6 +84,7 @@ function AppRoutes() {
         <Route path="kardex" element={<RoleRoute roles={['administrador', 'operador']}><Kardex /></RoleRoute>} />
         <Route path="operacion/salidas" element={<RoleRoute roles={['administrador', 'operador']}><SalidasHub /></RoleRoute>} />
         <Route path="operacion/reparacion-traslado" element={<RoleRoute roles={['administrador', 'operador']}><OperatorService /></RoleRoute>} />
+        <Route path="operacion/traspaso" element={<RoleRoute roles={['administrador', 'operador']}><TraspasoOperacion /></RoleRoute>} />
         <Route path="lotes" element={<RoleRoute roles={['administrador', 'operador']}><Lots /></RoleRoute>} />
         {/* La ficha del lote SÍ permite cliente: LotDetail tiene vista propia de consulta
             (clientLotConsultation) y RLS limita a sus lotes. La LISTA /lotes sigue cerrada. */}

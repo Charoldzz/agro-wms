@@ -85,8 +85,11 @@ export default function EmpresasModal({ onClose, onSaved }) {
     e.preventDefault()
     setError('')
     if (!newForm.name.trim()) return setError('El nombre es obligatorio.')
-    setSaving(true)
     const prefix = newForm.product_code_prefix.trim().toUpperCase().replace(/[^A-Z0-9]/g, '')
+    // Obligatorio: sin código no se pueden generar los códigos de producto de
+    // esta empresa, y por lo tanto no se le puede traspasar mercadería.
+    if (!prefix) return setError('El código de empresa es obligatorio (ej.: MAXI).')
+    setSaving(true)
     const { error: err } = await supabase.from('clients').insert({
       name: newForm.name.trim(),
       inventory_source: 'stock_independiente',
@@ -106,9 +109,10 @@ export default function EmpresasModal({ onClose, onSaved }) {
     e.preventDefault()
     setError('')
     if (!selectedId) return
-    setSaving(true)
     const prefix = editForm.product_code_prefix.trim().toUpperCase().replace(/[^A-Z0-9]/g, '')
     if (!editForm.name.trim()) return setError('El nombre es obligatorio.')
+    if (!prefix) return setError('El código de empresa es obligatorio (ej.: MAXI).')
+    setSaving(true)
     const { error: err } = await supabase.from('clients').update({
       name: editForm.name.trim(),
       product_code_prefix: prefix || null,
@@ -292,7 +296,7 @@ export default function EmpresasModal({ onClose, onSaved }) {
               />
             </label>
             <label className="block">
-              <span className="text-sm font-bold text-slate-700">Prefijo de código</span>
+              <span className="text-sm font-bold text-slate-700">Código de empresa <span className="text-red-600">*</span></span>
               <input
                 className="input mt-1 w-full font-mono uppercase"
                 maxLength={8}
@@ -344,7 +348,7 @@ export default function EmpresasModal({ onClose, onSaved }) {
               />
             </label>
             <label className="block">
-              <span className="text-sm font-bold text-slate-700">Prefijo de código</span>
+              <span className="text-sm font-bold text-slate-700">Código de empresa <span className="text-red-600">*</span></span>
               <input
                 className="input mt-1 w-full font-mono uppercase"
                 maxLength={8}

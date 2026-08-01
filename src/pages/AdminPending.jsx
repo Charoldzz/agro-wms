@@ -76,8 +76,8 @@ export default function AdminPending() {
 
     // Traspasos entre clientes esperando aprobación (tabla propia, no son movimientos)
     const { data: transferRows } = await supabase
-      .from('lot_transfers')
-      .select('*, lots(package_size, package_unit, location, expiry_date, current_quantity), origen:from_client_id(name), destino:to_client_id(name)')
+      .from('transfer_operations')
+      .select('*, origen:from_client_id(name), destino:to_client_id(name), items:lot_transfers(id, lot_code, product, quantity, lots(package_size, package_unit, current_quantity))')
       .eq('status', 'pendiente')
       .order('created_at', { ascending: false })
     setTransfers(transferRows || [])
@@ -148,7 +148,7 @@ export default function AdminPending() {
 
   async function approveTransfer(transfer) {
     setError('')
-    const { error: rpcError } = await supabase.rpc('approve_lot_transfer', { p_transfer_id: transfer.id })
+    const { error: rpcError } = await supabase.rpc('approve_transfer_operation', { p_operation_id: transfer.id })
     if (rpcError) setError(rpcError.message)
     await loadPending()
   }
@@ -161,8 +161,8 @@ export default function AdminPending() {
       return
     }
     setError('')
-    const { error: rpcError } = await supabase.rpc('reject_lot_transfer', {
-      p_transfer_id: transfer.id,
+    const { error: rpcError } = await supabase.rpc('reject_transfer_operation', {
+      p_operation_id: transfer.id,
       p_reason: reason.trim(),
     })
     if (rpcError) setError(rpcError.message)
@@ -181,67 +181,71 @@ export default function AdminPending() {
         <EmptyState title="Nada por aprobar" text="No hay reparaciones, traspasos, salidas offline ni reportes por revisar." />
       ) : (
         <div className="space-y-4">
-          {transfers.map((transfer) => {
-            const size = Number(transfer.lots?.package_size) || 0
-            const unit = transfer.lots?.package_unit
-            const qty = Number(transfer.quantity) || 0
-            const eq = size > 0 ? equivalentLabel(qty, unit) : `${formatNumber(qty)} uds`
-            const env = size > 0 ? desgloseEnvases(qty, size, unit, 0).unidadesLabel : ''
+          {transfers.map((op) => {
+            const items = op.items || []
             return (
-              <article key={transfer.id} className="panel border-sky-200 bg-sky-50">
+              <article key={op.id} className="panel border-sky-200 bg-sky-50">
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="rounded-full bg-sky-600 px-2.5 py-1 text-[11px] font-black uppercase tracking-wide text-white">
                     Traspaso
                   </span>
-                  <span className="text-[11px] font-semibold text-slate-500">{formatDate(transfer.created_at)}</span>
+                  <span className="text-[11px] font-semibold text-slate-500">{formatDate(op.created_at)}</span>
+                  {op.operation_code ? (
+                    <span className="font-mono text-[11px] font-bold text-slate-400">{op.operation_code}</span>
+                  ) : null}
                 </div>
 
-                <p className="mt-2 text-base font-black text-slate-950 [overflow-wrap:anywhere]">
-                  {cleanProductName(transfer.product)}
-                </p>
-                <p className="text-[11px] font-semibold text-slate-500">
-                  Lote {displayLotCode(transfer.lot_code)}
-                  {transfer.lots?.location ? ` · ${transfer.lots.location}` : ''}
-                </p>
-
-                <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                <div className="mt-2 grid gap-2 sm:grid-cols-2">
                   <div className="rounded-lg bg-white px-3 py-2">
-                    <p className="text-[10px] font-black uppercase tracking-wide text-slate-400">Dueño actual</p>
-                    <p className="text-sm font-black text-slate-900 [overflow-wrap:anywhere]">{transfer.origen?.name || '—'}</p>
+                    <p className="text-[10px] font-black uppercase tracking-wide text-slate-400">Vende</p>
+                    <p className="text-sm font-black text-slate-900 [overflow-wrap:anywhere]">{op.origen?.name || '—'}</p>
                   </div>
                   <div className="rounded-lg bg-white px-3 py-2">
-                    <p className="text-[10px] font-black uppercase tracking-wide text-sky-600">Pasa a</p>
-                    <p className="text-sm font-black text-sky-800 [overflow-wrap:anywhere]">{transfer.destino?.name || '—'}</p>
+                    <p className="text-[10px] font-black uppercase tracking-wide text-sky-600">Recibe</p>
+                    <p className="text-sm font-black text-sky-800 [overflow-wrap:anywhere]">{op.destino?.name || '—'}</p>
                   </div>
                 </div>
 
-                <div className="mt-2">
-                  <StockLine label="Se traspasa" eq={eq} env={env} tone="green" />
-                  {(() => {
-                    const total = Number(transfer.lots?.current_quantity) || 0
-                    if (total <= 0) return null
-                    const parcial = qty < total
-                    const restoEq = size > 0 ? equivalentLabel(total - qty, unit) : `${formatNumber(total - qty)} uds`
+                <p className="mt-3 text-[11px] font-black uppercase tracking-wide text-slate-500">
+                  {items.length} {items.length === 1 ? 'lote' : 'lotes'}
+                </p>
+                <ul className="mt-1 space-y-1">
+                  {items.map((it) => {
+                    const size = Number(it.lots?.package_size) || 0
+                    const unit = it.lots?.package_unit
+                    const qty = Number(it.quantity) || 0
+                    const total = Number(it.lots?.current_quantity) || 0
+                    const eq = size > 0 ? equivalentLabel(qty, unit) : `${formatNumber(qty)} uds`
+                    const env = size > 0 ? desgloseEnvases(qty, size, unit, 0).unidadesLabel : ''
+                    const parcial = total > 0 && qty < total
                     return (
-                      <p className={`mt-1 text-[11px] font-black uppercase tracking-wide ${parcial ? 'text-amber-700' : 'text-slate-500'}`}>
-                        {parcial ? `Traspaso parcial · al vendedor le quedan ${restoEq}` : 'Traspaso del lote completo'}
-                      </p>
+                      <li key={it.id} className="flex items-start justify-between gap-2 rounded-lg bg-white px-3 py-2">
+                        <div className="min-w-0">
+                          <p className="text-[13px] font-black text-slate-950 [overflow-wrap:anywhere]">{cleanProductName(it.product)}</p>
+                          <p className="text-[11px] font-semibold text-slate-400">
+                            Lote {displayLotCode(it.lot_code)}
+                            {parcial ? <span className="text-amber-700"> · parcial</span> : null}
+                          </p>
+                        </div>
+                        <div className="shrink-0 text-right">
+                          <p className="text-sm font-black text-campo-700">{eq}</p>
+                          {env ? <p className="text-[10px] font-semibold text-slate-400">{env}</p> : null}
+                        </div>
+                      </li>
                     )
-                  })()}
-                </div>
+                  })}
+                </ul>
 
                 <p className="mt-2 text-[11px] font-semibold italic text-slate-600 [overflow-wrap:anywhere]">
-                  Motivo: {transfer.notes}
+                  Motivo: {op.notes}
                 </p>
-                <p className="text-[10px] font-semibold text-slate-400">
-                  Registrado por {transfer.created_by_name || '—'}
-                </p>
+                <p className="text-[10px] font-semibold text-slate-400">Registrado por {op.created_by_name || '—'}</p>
 
                 <div className="mt-3 flex gap-2">
-                  <button className="btn-primary flex-1" type="button" onClick={() => approveTransfer(transfer)}>
+                  <button className="btn-primary flex-1" type="button" onClick={() => approveTransfer(op)}>
                     <Check size={18} /> Aprobar
                   </button>
-                  <button className="btn-secondary flex-1" type="button" onClick={() => rejectTransfer(transfer)}>
+                  <button className="btn-secondary flex-1" type="button" onClick={() => rejectTransfer(op)}>
                     <X size={18} /> Rechazar
                   </button>
                 </div>

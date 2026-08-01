@@ -185,12 +185,7 @@ export default function LotDetail() {
   const [extendSaving, setExtendSaving] = useState(false)
   const [extendError, setExtendError] = useState('')
   const [expiryExtensions, setExpiryExtensions] = useState([])
-  // Traspaso entre clientes (cambio de dueño) — requiere aprobación del admin
-  const [showTransfer, setShowTransfer] = useState(false)
-  const [transferForm, setTransferForm] = useState({ to_client_id: '', notes: '', quantity: '' })
-  const [transferSaving, setTransferSaving] = useState(false)
-  const [transferError, setTransferError] = useState('')
-  const [transferClients, setTransferClients] = useState([])
+  // Traspaso: el lote muestra el cartel si esta en una operacion pendiente
   const [pendingTransfer, setPendingTransfer] = useState(null)
 
   useEffect(() => {
@@ -223,79 +218,11 @@ export default function LotDetail() {
     if (!id) return
     const { data } = await supabase
       .from('lot_transfers')
-      .select('id, created_at, to_client_id, notes, created_by_name, clients:to_client_id(name)')
+      .select('id, created_at, notes, created_by_name, clients:to_client_id(name), transfer_operations!inner(status)')
       .eq('lot_id', id)
-      .eq('status', 'pendiente')
+      .eq('transfer_operations.status', 'pendiente')
       .maybeSingle()
     setPendingTransfer(data || null)
-  }
-
-  async function openTransfer() {
-    setTransferError('')
-    // Arranca con todo el stock cargado: el caso más común es traspasar el
-    // lote entero, y si es parcial el operador solo corrige el número.
-    setTransferForm({ to_client_id: '', notes: '', quantity: String(currentEquivalent ?? '') })
-    setShowTransfer(true)
-    if (transferClients.length === 0) {
-      const { data } = await supabase.from('clients').select('id, name').order('name')
-      setTransferClients((data || []).filter((c) => c.id !== lot?.client_id))
-    }
-  }
-
-  // Cuánto se traspasa, en equivalente, con su desglose de envases en vivo
-  const transferQty = Number(String(transferForm.quantity).replace(',', '.')) || 0
-  const transferEqLabel = Number(lot?.package_size) > 0
-    ? equivalentLabel(transferQty, lot?.package_unit)
-    : `${formatNumber(transferQty)} uds`
-  const transferEnvLabel = Number(lot?.package_size) > 0
-    ? desgloseEnvases(transferQty, Number(lot.package_size), lot.package_unit, 0).unidadesLabel
-    : ''
-
-  // Traspaso: lo pide el operador y queda PENDIENTE. La RPC congela el lote
-  // (status retenido) y el candado de la base impide cualquier movimiento
-  // hasta que un administrador apruebe o rechace.
-  async function handleTransfer(event) {
-    event.preventDefault()
-    setTransferError('')
-
-    if (!transferForm.to_client_id) {
-      setTransferError('Elegí la empresa que recibe el lote.')
-      return
-    }
-    if (!transferForm.notes.trim()) {
-      setTransferError('Escribí el motivo del traspaso.')
-      return
-    }
-    if (!(transferQty > 0)) {
-      setTransferError('Indicá cuánto se traspasa.')
-      return
-    }
-    if (transferQty > currentEquivalent) {
-      setTransferError(`No podés traspasar más de lo que hay (${equivalentLabel(currentEquivalent, lot?.package_unit)}).`)
-      return
-    }
-
-    setTransferSaving(true)
-    try {
-      const { error: rpcError } = await supabase.rpc('request_lot_transfer', {
-        p_lot_id: lot.id,
-        p_to_client_id: transferForm.to_client_id,
-        p_notes: transferForm.notes.trim(),
-        p_quantity: transferQty,
-      })
-      if (rpcError) throw rpcError
-
-      vibrateSuccess()
-      setShowTransfer(false)
-      setTransferForm({ to_client_id: '', notes: '', quantity: '' })
-      await loadLot()
-      await loadPendingTransfer()
-    } catch (err) {
-      vibrateError()
-      setTransferError(err.message || 'No se pudo registrar el traspaso.')
-    } finally {
-      setTransferSaving(false)
-    }
   }
 
   async function loadExpiryExtensions() {
@@ -1065,14 +992,12 @@ export default function LotDetail() {
           </button>
         ) : null}
 
-        {/* Traspaso: lo inicia el OPERADOR (o el admin) y lo aprueba el admin */}
-        {!blocked ? (
-          <button className="btn-secondary flex-1" type="button" onClick={openTransfer}>
-            Traspaso
-          </button>
-        ) : null}
+        {/* El TRASPASO ya no vive acá: es una operación aparte (Almacenes →
+            Traspaso) porque casi siempre son varios lotes y entrar ficha por
+            ficha no tiene sentido. Un solo camino evita que se desincronicen. */}
 
-        {/* Extensión de vigencia: SOLO administrador, con certificado */}
+        {/* Extensión de vigencia: SOLO administrador, con certificado.
+            Esta sí es por lote: cada uno tiene su vencimiento y su certificado. */}
         {isAdmin ? (
           <button
             className={`btn-secondary flex-1 ${closed ? off : ''}`}
@@ -1099,121 +1024,6 @@ export default function LotDetail() {
   function renderLotModals() {
     return (
       <>
-        {showTransfer ? (
-          <div data-modal-backdrop="true" className="fixed inset-0 z-50 grid place-items-center overflow-y-auto bg-slate-950/50 p-4">
-            <form
-              data-overlay-panel="true"
-              role="dialog"
-              className="flex max-h-[92dvh] w-full max-w-md flex-col overflow-y-auto rounded-2xl bg-white p-5 shadow-xl"
-              onSubmit={handleTransfer}
-            >
-              <h2 className="text-lg font-black text-slate-950">Traspaso a otra empresa</h2>
-              <p className="mt-1 text-xs font-semibold text-slate-500">
-                Cambia el dueño del lote. La mercadería no se mueve del depósito.
-              </p>
-
-              <div className="mt-3 rounded-lg bg-slate-50 p-3">
-                <p className="text-sm font-black text-slate-950 [overflow-wrap:anywhere]">{cleanProductName(lot?.product)}</p>
-                <p className="mt-0.5 text-[11px] font-semibold text-slate-400">Lote {visibleLotCode}</p>
-                <p className="mt-1.5 text-xs font-semibold text-slate-600">
-                  Dueño actual: <strong>{lot?.clients?.name || '—'}</strong>
-                </p>
-                <p className="text-xs font-semibold text-slate-600">
-                  Stock disponible:{' '}
-                  <strong>
-                    {Number(lot?.package_size) > 0
-                      ? equivalentLabel(currentEquivalent, lot?.package_unit)
-                      : `${formatNumber(lot?.current_quantity)} uds`}
-                  </strong>
-                  {unidadesEnvaseLabel(lot) ? (
-                    <span className="text-slate-400"> · {unidadesEnvaseLabel(lot)}</span>
-                  ) : null}
-                </p>
-              </div>
-
-              <label className="mt-3 block">
-                <span className="label">
-                  Cantidad a traspasar {lot?.package_unit ? `(${lot.package_unit})` : ''}
-                </span>
-                <input
-                  className="input mt-1"
-                  type="number"
-                  inputMode="decimal"
-                  min="0"
-                  step="any"
-                  value={transferForm.quantity}
-                  onChange={(event) => setTransferForm((value) => ({ ...value, quantity: event.target.value }))}
-                />
-                <span className="mt-1 flex flex-wrap items-baseline gap-x-2 text-[11px] font-bold">
-                  <span className={transferQty > currentEquivalent ? 'text-red-600' : 'text-campo-700'}>
-                    {transferEqLabel}
-                  </span>
-                  {transferEnvLabel ? <span className="text-slate-400">{transferEnvLabel}</span> : null}
-                  {transferQty > 0 && transferQty < currentEquivalent ? (
-                    <span className="text-slate-400">
-                      · le quedan {equivalentLabel(currentEquivalent - transferQty, lot?.package_unit)}
-                    </span>
-                  ) : null}
-                  {transferQty > 0 && transferQty === currentEquivalent ? (
-                    <span className="text-slate-400">· se traspasa el lote completo</span>
-                  ) : null}
-                </span>
-              </label>
-
-              <label className="mt-3 block">
-                <span className="label">Empresa que recibe</span>
-                <select
-                  className="input mt-1"
-                  value={transferForm.to_client_id}
-                  onChange={(event) => setTransferForm((value) => ({ ...value, to_client_id: event.target.value }))}
-                >
-                  <option value="">Elegí la empresa...</option>
-                  {transferClients.map((client) => (
-                    <option key={client.id} value={client.id}>{client.name}</option>
-                  ))}
-                </select>
-              </label>
-
-              <label className="mt-3 block">
-                <span className="label">Motivo</span>
-                <textarea
-                  className="input mt-1"
-                  rows={2}
-                  placeholder="Ej.: Venta de MAXIAGRO a AGRO FORCE segun acuerdo"
-                  value={transferForm.notes}
-                  onChange={(event) => setTransferForm((value) => ({ ...value, notes: event.target.value }))}
-                />
-              </label>
-
-              <p className="mt-3 rounded-lg bg-orange-50 p-2 text-[11px] font-bold text-orange-800">
-                Al guardar, el lote queda congelado hasta que un administrador apruebe: nadie va a poder despacharlo,
-                repararlo ni operarlo.
-              </p>
-
-              {transferError ? (
-                <p className="mt-3 rounded-lg bg-red-50 p-2 text-xs font-bold text-red-700">{transferError}</p>
-              ) : null}
-
-              <div className="mt-4 grid gap-2">
-                <button className="btn-primary w-full" type="submit" disabled={transferSaving}>
-                  <Save size={20} /> {transferSaving ? 'Guardando...' : 'Enviar a aprobación'}
-                </button>
-                <button
-                  className="btn-secondary w-full"
-                  type="button"
-                  disabled={transferSaving}
-                  onClick={() => {
-                    setShowTransfer(false)
-                    setTransferError('')
-                  }}
-                >
-                  Cancelar
-                </button>
-              </div>
-            </form>
-          </div>
-        ) : null}
-
         {showExtendExpiry && isAdmin ? (
           <div data-modal-backdrop="true" className="fixed inset-0 z-50 grid place-items-center overflow-y-auto bg-slate-950/50 p-4">
             <form

@@ -38,11 +38,12 @@ function stockEnvaseLabel(uds, lot) {
   return desgloseEnvases(eqRaw, size, lot?.package_unit, 0).unidadesLabel || `${formatNumber(q)} uds`
 }
 
-const TYPE_LABELS = { entrada: 'INGRESO', salida: 'SALIDA', traslado: 'TRASLADO', ajuste: 'AJUSTE' }
+const TYPE_LABELS = { entrada: 'INGRESO', salida: 'SALIDA', traslado: 'TRASLADO', ajuste: 'AJUSTE', traspaso: 'TRASPASO' }
 const TYPE_COLORS = {
   entrada: 'bg-campo-100 text-campo-800',
   salida: 'bg-red-100 text-red-800',
   traslado: 'bg-blue-100 text-blue-800',
+  traspaso: 'bg-sky-100 text-sky-800',
   ajuste: 'bg-amber-100 text-amber-800',
 }
 
@@ -415,6 +416,7 @@ export default function MovimientosModal({ onClose, canEdit = true, isAdmin = fa
             <option value="entrada">Ingresos</option>
             <option value="salida">Salidas</option>
             {TRASLADO_ENABLED ? <option value="traslado">Traslados</option> : null}
+            <option value="traspaso">Traspasos</option>
             <option value="ajuste">Ajustes</option>
           </select>
         </div>

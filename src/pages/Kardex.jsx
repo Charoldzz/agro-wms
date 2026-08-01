@@ -174,7 +174,13 @@ export default function Kardex() {
     for (const row of merged) {
       const key = `${String(row.lots?.product || '').toUpperCase()}|${String(row.lots?.lot_code || '').toUpperCase()}`
       const prev = balance.get(key) || 0
-      const next = row.type === 'entrada' ? prev + row.eqQuantity : prev - row.eqQuantity
+      // El traspaso es interno y va en los dos sentidos: al vendedor le resta y
+      // al comprador le suma. La dirección se lee del propio movimiento, no del
+      // tipo. (No entra en los totales de ingresos/salidas: esa mercadería
+      // nunca cruzó la puerta del depósito.)
+      const esIngreso = row.type === 'entrada'
+        || (row.type === 'traspaso' && Number(row.new_quantity) > Number(row.previous_quantity))
+      const next = esIngreso ? prev + row.eqQuantity : prev - row.eqQuantity
       balance.set(key, next)
       row.saldo = next
     }
