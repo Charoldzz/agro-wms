@@ -956,10 +956,127 @@ export default function LotDetail() {
     return <div className="p-6 text-center text-slate-600">Cargando lote...</div>
   }
 
+  // ── Acciones y avisos del lote: UNA sola definición ────────────────────
+  // La ficha se dibuja en tres vistas (operador, administrador y la barra del
+  // flujo de movimiento). Antes los botones estaban copiados en las tres, así
+  // que cada función nueva había que agregarla tres veces y si se olvidaba una
+  // esa pantalla quedaba distinta. Ahora se define acá y aparece en todas.
+  function renderLotNotices() {
+    return (
+      <>
+        {pendingTransfer ? (
+          <div className="mb-4 rounded-xl border border-orange-300 bg-orange-50 p-3">
+            <p className="flex items-center gap-1.5 text-xs font-black uppercase tracking-wide text-orange-800">
+              <Clock size={14} /> En traspaso · esperando aprobación
+            </p>
+            <p className="mt-1.5 text-[13px] font-bold text-orange-900 [overflow-wrap:anywhere]">
+              Este lote está por pasar a <strong>{pendingTransfer.clients?.name || 'otra empresa'}</strong>.
+            </p>
+            <p className="mt-1 text-[11px] font-semibold text-orange-800/90 [overflow-wrap:anywhere]">
+              Queda congelado: no se puede despachar, reparar ni operar hasta que un administrador lo apruebe o lo rechace.
+            </p>
+            <p className="mt-1 text-[10px] font-semibold text-orange-700/80">
+              Registrado {formatDate(pendingTransfer.created_at)}
+              {pendingTransfer.created_by_name ? ` · ${pendingTransfer.created_by_name}` : ''}
+              {pendingTransfer.notes ? ` · ${pendingTransfer.notes}` : ''}
+            </p>
+          </div>
+        ) : null}
+
+        {expiryExtensions.length > 0 ? (
+          <div className="mb-4 rounded-xl border border-sky-200 bg-sky-50 p-3">
+            <p className="text-xs font-black uppercase tracking-wide text-sky-800">
+              Vigencia extendida {expiryExtensions.length > 1 ? `(${expiryExtensions.length} veces)` : ''}
+            </p>
+            <ul className="mt-1.5 space-y-1.5">
+              {expiryExtensions.map((ext) => (
+                <li key={ext.id} className="text-[11px] font-semibold text-sky-900">
+                  <span className="[overflow-wrap:anywhere]">
+                    De {ext.previous_expiry ? formatDate(ext.previous_expiry) : 'sin fecha'} a{' '}
+                    <strong>{formatDate(ext.new_expiry)}</strong> · {ext.reason}
+                  </span>
+                  <span className="block text-[10px] font-semibold text-sky-700/80">
+                    {formatDate(ext.created_at)}
+                    {ext.created_by_name ? ` · ${ext.created_by_name}` : ''}
+                    {ext.certificate_url ? (
+                      <>
+                        {' · '}
+                        <a className="underline" href={ext.certificate_url} target="_blank" rel="noreferrer">
+                          Ver certificado
+                        </a>
+                      </>
+                    ) : null}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
+      </>
+    )
+  }
+
+  function renderLotActions(className = 'mt-4 flex flex-wrap gap-2') {
+    const frozen = Boolean(pendingTransfer)
+    const closed = lot?.status === 'cerrado'
+    const blocked = frozen || closed
+    const off = 'pointer-events-none opacity-40'
+
+    return (
+      <div className={className}>
+        <button
+          className={`btn-secondary flex-1 ${blocked ? off : ''}`}
+          type="button"
+          disabled={blocked}
+          onClick={() => navigate(`/lotes/${lot.id}`, { state: { movementMode: 'reparo', scanned: true } })}
+        >
+          Reparación / Ajuste
+        </button>
+
+        {TRASLADO_ENABLED ? (
+          <button
+            className={`btn-secondary flex-1 ${blocked ? off : ''}`}
+            type="button"
+            disabled={blocked}
+            onClick={() => navigate(`/lotes/${lot.id}`, { state: { movementMode: 'traslado', scanned: true } })}
+          >
+            Traslado
+          </button>
+        ) : null}
+
+        {/* Traspaso: lo inicia el OPERADOR (o el admin) y lo aprueba el admin */}
+        {!blocked ? (
+          <button className="btn-secondary flex-1" type="button" onClick={openTransfer}>
+            Traspaso
+          </button>
+        ) : null}
+
+        {/* Extensión de vigencia: SOLO administrador, con certificado */}
+        {isAdmin ? (
+          <button
+            className={`btn-secondary flex-1 ${closed ? off : ''}`}
+            type="button"
+            disabled={closed}
+            onClick={() => setShowExtendExpiry(true)}
+          >
+            Extender vigencia
+          </button>
+        ) : null}
+
+        {isOperator ? (
+          <button className="btn-secondary flex-1" type="button" onClick={() => setShowIssueReport(true)}>
+            Reportar problema
+          </button>
+        ) : null}
+      </div>
+    )
+  }
+
   if (operatorQrConsultation) {
     return (
       <div>
         <LotStateNotice state={lotState} saleBlocked={blocksSale} />
+        {renderLotNotices()}
 
         <section className="overflow-hidden rounded-lg border border-slate-200 bg-white/95 shadow-soft">
           <div className="bg-campo-800 px-4 py-5">
@@ -997,27 +1114,7 @@ export default function LotDetail() {
               <ConsultInfo label="Vencimiento" value={lot.expiry_date ? formatDate(lot.expiry_date) : 'Sin dato'} />
               <ConsultInfo label="Fecha ingreso" value={lot.entry_date ? formatDate(lot.entry_date) : 'Sin dato'} />
             </div>
-            <div className="mt-4 flex flex-wrap gap-2">
-              <button
-                className="btn-secondary flex-1"
-                type="button"
-                onClick={() => navigate(`/lotes/${lot.id}`, { state: { movementMode: 'reparo', scanned: true } })}
-              >
-                Reparación / Ajuste
-              </button>
-              {TRASLADO_ENABLED ? (
-              <button
-                className="btn-secondary flex-1"
-                type="button"
-                onClick={() => navigate(`/lotes/${lot.id}`, { state: { movementMode: 'traslado', scanned: true } })}
-              >
-                Traslado
-              </button>
-              ) : null}
-              <button className="btn-secondary flex-1" type="button" onClick={() => setShowIssueReport(true)}>
-                Reportar problema
-              </button>
-            </div>
+            {renderLotActions()}
           </div>
         </section>
         {showIssueReport ? <OperationalIssueModal lot={lot} userId={user.id} onClose={() => setShowIssueReport(false)} /> : null}
@@ -1029,6 +1126,7 @@ export default function LotDetail() {
     return (
       <div>
         <LotStateNotice state={lotState} saleBlocked={blocksSale} />
+        {renderLotNotices()}
 
         <section className="grid gap-4 lg:grid-cols-[1.15fr_.85fr]">
           <div className="overflow-hidden rounded-lg border border-slate-200 bg-white/95 shadow-soft">
@@ -1094,27 +1192,7 @@ export default function LotDetail() {
         </section>
 
         {/* Acciones sobre el lote: el administrador tiene las mismas que el operador */}
-        <div className="mt-4 flex flex-wrap gap-2">
-          <button
-            className="btn-secondary flex-1"
-            type="button"
-            onClick={() => navigate(`/lotes/${lot.id}`, { state: { movementMode: 'reparo', scanned: true } })}
-          >
-            Reparación / Ajuste
-          </button>
-          {TRASLADO_ENABLED ? (
-            <button
-              className="btn-secondary flex-1"
-              type="button"
-              onClick={() => navigate(`/lotes/${lot.id}`, { state: { movementMode: 'traslado', scanned: true } })}
-            >
-              Traslado
-            </button>
-          ) : null}
-          <button className="btn-secondary flex-1" type="button" onClick={() => setShowIssueReport(true)}>
-            Reportar problema
-          </button>
-        </div>
+        {renderLotActions()}
         {showIssueReport ? <OperationalIssueModal lot={lot} userId={user.id} onClose={() => setShowIssueReport(false)} /> : null}
       </div>
     )
@@ -1241,90 +1319,9 @@ export default function LotDetail() {
 
       <LotStateNotice state={lotState} saleBlocked={blocksSale} />
 
-      {(isAdmin || isOperator) && !canRegisterMovement ? (
-        <div className="mb-4 flex flex-wrap gap-2">
-          <button
-            className="btn-secondary"
-            type="button"
-            onClick={() => navigate(`/lotes/${lot.id}`, { state: { movementMode: 'reparo', scanned: true } })}
-          >
-            Reparación / Ajuste
-          </button>
-          {TRASLADO_ENABLED ? (
-          <button
-            className="btn-secondary"
-            type="button"
-            onClick={() => navigate(`/lotes/${lot.id}`, { state: { movementMode: 'traslado', scanned: true } })}
-          >
-            Traslado
-          </button>
-          ) : null}
-          {!pendingTransfer ? (
-            <button className="btn-secondary" type="button" onClick={openTransfer}>
-              Traspaso
-            </button>
-          ) : null}
-          {isAdmin ? (
-            <button className="btn-secondary" type="button" onClick={() => setShowExtendExpiry(true)}>
-              Extender vigencia
-            </button>
-          ) : null}
-          {isOperator ? (
-            <button className="btn-secondary" type="button" onClick={() => setShowIssueReport(true)}>
-              Reportar problema
-            </button>
-          ) : null}
-        </div>
-      ) : null}
+      {renderLotNotices()}
 
-      {pendingTransfer ? (
-        <div className="mb-4 rounded-xl border border-orange-300 bg-orange-50 p-3">
-          <p className="flex items-center gap-1.5 text-xs font-black uppercase tracking-wide text-orange-800">
-            <Clock size={14} /> En traspaso · esperando aprobación
-          </p>
-          <p className="mt-1.5 text-[13px] font-bold text-orange-900 [overflow-wrap:anywhere]">
-            Este lote está por pasar a <strong>{pendingTransfer.clients?.name || 'otra empresa'}</strong>.
-          </p>
-          <p className="mt-1 text-[11px] font-semibold text-orange-800/90 [overflow-wrap:anywhere]">
-            Queda congelado: no se puede despachar, reparar ni operar hasta que un administrador lo apruebe o lo rechace.
-          </p>
-          <p className="mt-1 text-[10px] font-semibold text-orange-700/80">
-            Registrado {formatDate(pendingTransfer.created_at)}
-            {pendingTransfer.created_by_name ? ` · ${pendingTransfer.created_by_name}` : ''}
-            {pendingTransfer.notes ? ` · ${pendingTransfer.notes}` : ''}
-          </p>
-        </div>
-      ) : null}
-
-      {expiryExtensions.length > 0 && !canRegisterMovement ? (
-        <div className="mb-4 rounded-xl border border-sky-200 bg-sky-50 p-3">
-          <p className="text-xs font-black uppercase tracking-wide text-sky-800">
-            Vigencia extendida {expiryExtensions.length > 1 ? `(${expiryExtensions.length} veces)` : ''}
-          </p>
-          <ul className="mt-1.5 space-y-1.5">
-            {expiryExtensions.map((ext) => (
-              <li key={ext.id} className="text-[11px] font-semibold text-sky-900">
-                <span className="[overflow-wrap:anywhere]">
-                  De {ext.previous_expiry ? formatDate(ext.previous_expiry) : 'sin fecha'} a{' '}
-                  <strong>{formatDate(ext.new_expiry)}</strong> · {ext.reason}
-                </span>
-                <span className="block text-[10px] font-semibold text-sky-700/80">
-                  {formatDate(ext.created_at)}
-                  {ext.created_by_name ? ` · ${ext.created_by_name}` : ''}
-                  {ext.certificate_url ? (
-                    <>
-                      {' · '}
-                      <a className="underline" href={ext.certificate_url} target="_blank" rel="noreferrer">
-                        Ver certificado
-                      </a>
-                    </>
-                  ) : null}
-                </span>
-              </li>
-            ))}
-          </ul>
-        </div>
-      ) : null}
+      {(isAdmin || isOperator) && !canRegisterMovement ? renderLotActions('mb-4 flex flex-wrap gap-2') : null}
 
       {compactServiceView ? (
         <section className="mb-4">
