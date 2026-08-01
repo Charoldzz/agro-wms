@@ -1109,7 +1109,7 @@ export default function LotDetail() {
   if (operatorQrConsultation) {
     return (
       <div>
-        <LotStateNotice state={lotState} saleBlocked={blocksSale} />
+        {!pendingTransfer ? <LotStateNotice state={lotState} saleBlocked={blocksSale} /> : null}
         {renderLotNotices()}
 
         <section className="overflow-hidden rounded-lg border border-slate-200 bg-white/95 shadow-soft">
@@ -1160,7 +1160,7 @@ export default function LotDetail() {
   if (adminLotConsultation) {
     return (
       <div>
-        <LotStateNotice state={lotState} saleBlocked={blocksSale} />
+        {!pendingTransfer ? <LotStateNotice state={lotState} saleBlocked={blocksSale} /> : null}
         {renderLotNotices()}
 
         <section className="grid gap-4 lg:grid-cols-[1.15fr_.85fr]">
@@ -1245,7 +1245,7 @@ export default function LotDetail() {
           <ArrowLeft size={18} /> Volver
         </button>
 
-        <LotStateNotice state={lotState} saleBlocked={blocksSale} />
+        {!pendingTransfer ? <LotStateNotice state={lotState} saleBlocked={blocksSale} /> : null}
         {/* El vendedor (cliente) tiene que ver que su lote está en traspaso: la
             mercadería sigue siendo suya hasta que el admin apruebe, así que si
             desapareciera o se congelara sin aviso pensaría que se le esfumó. */}
@@ -1357,7 +1357,7 @@ export default function LotDetail() {
         </div>
       ) : null}
 
-      <LotStateNotice state={lotState} saleBlocked={blocksSale} />
+      {!pendingTransfer ? <LotStateNotice state={lotState} saleBlocked={blocksSale} /> : null}
 
       {renderLotNotices()}
 
