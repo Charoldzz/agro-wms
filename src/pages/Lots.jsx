@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
-import { ArrowRightLeft, Building2, CalendarClock, ChevronLeft, ChevronRight, ClipboardCheck, ClipboardList, Download, History, LayoutList, LifeBuoy, LogOut, Menu, PackagePlus, Plus, X } from 'lucide-react'
+import { Building2, CalendarClock, ChevronLeft, ChevronRight, ClipboardCheck, ClipboardList, Download, History, LayoutList, LifeBuoy, LogOut, Menu, PackagePlus, Plus, Wrench, X } from 'lucide-react'
 import { useAuth } from '../hooks/useAuth.jsx'
 import { supabase } from '../lib/supabase'
 import { formatDate, formatNumber, normalizeEquivalent, pluralUnit, equivalentLabel } from '../lib/format'
@@ -334,13 +334,13 @@ export default function Lots() {
             <LogOut size={26} className="opacity-70" />
             <span>Salida</span>
           </Link>
-          {/* Traspaso: operación interna (cambio de dueño, sin movimiento físico) */}
+          {/* Ajustes: todo lo que cambia el stock sin nota de ingreso ni de salida */}
           <Link
             className="col-span-2 inline-flex min-h-16 flex-col items-start justify-between gap-2 rounded-lg border border-slate-200 bg-white px-5 py-4 text-left text-lg font-semibold text-slate-800 shadow-soft transition active:scale-[0.99] lg:col-span-1 lg:min-h-24"
-            to="/operacion/traspaso"
+            to="/operacion/ajustes"
           >
-            <ArrowRightLeft size={26} className="text-campo-700 opacity-80" />
-            <span>Traspaso</span>
+            <Wrench size={26} className="text-campo-700 opacity-80" />
+            <span>Ajustes</span>
           </Link>
         </div>
       )}

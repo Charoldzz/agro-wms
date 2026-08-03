@@ -215,6 +215,16 @@ export default function LotDetail() {
     createLotQrDataUrl(lot.qr_token).then(setQrDataUrl)
   }, [lot?.qr_token])
 
+  // Si se llega desde Ajustes eligiendo el lote, se abre el formulario que
+  // corresponde en vez de dejar al operador buscando el boton.
+  useEffect(() => {
+    const pedida = location.state?.openAction
+    if (!pedida || !lot) return
+    if (pedida === "fraccionar") openSplit()
+    else if (pedida === "vigencia" && isAdmin) setShowExtendExpiry(true)
+    navigate(location.pathname, { replace: true, state: { scanned: location.state?.scanned } })
+  }, [lot?.id, location.state?.openAction])
+
   useEffect(() => {
     loadExpiryExtensions()
     loadPendingTransfer()
