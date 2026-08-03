@@ -85,6 +85,8 @@ export default function Lots() {
   // Desglose para la franja de aviso ("1 traspaso · 2 reparaciones")
   const [pendingDetail, setPendingDetail] = useState({ movimientos: 0, correcciones: 0, reportes: 0, traspasos: 0, fraccionamientos: 0 })
   const [pendingCatalog, setPendingCatalog] = useState(0)
+  // Códigos pendientes de revisión, para marcar esos lotes en la lista
+  const [pendingCodes, setPendingCodes] = useState(new Set())
   const [feedbackNuevos, setFeedbackNuevos] = useState(0)
   const [showFeedbackModal, setShowFeedbackModal] = useState(false)
 
