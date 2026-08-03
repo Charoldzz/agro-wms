@@ -4,7 +4,7 @@ import { ArrowLeft, Camera, CheckCircle2, Clock, Download, Printer, QrCode, Save
 import PageHeader from '../components/PageHeader'
 import ListProductCard from '../components/ListProductCard'
 import { useAuth } from '../hooks/useAuth.jsx'
-import { formatDate, formatNumber, formatQtyInput, movementLabel, equivalentLabel, parseQtyInput } from '../lib/format'
+import { formatDate, formatNumber, formatQtyInput, movementLabel, equivalentLabel, normalizeEquivalent, parseQtyInput, pluralUnit } from '../lib/format'
 import { createLotQrDataUrl } from '../lib/qr'
 import { supabase } from '../lib/supabase'
 import { cleanProductName, displayLotCode, productCodeLabel } from '../lib/display'
@@ -187,7 +187,7 @@ export default function LotDetail() {
   const [expiryExtensions, setExpiryExtensions] = useState([])
   // Fraccionamiento: cambia la presentación del lote (200 lt → bidones de 20)
   const [showSplit, setShowSplit] = useState(false)
-  const [splitForm, setSplitForm] = useState({ out: '', size: '', merma: '', merma_reason: '', notes: '' })
+  const [splitForm, setSplitForm] = useState({ out: '', size: '', envases: '', merma_reason: '', notes: '' })
   const [splitSaving, setSplitSaving] = useState(false)
   const [splitError, setSplitError] = useState('')
   const [pendingSplit, setPendingSplit] = useState(null)
@@ -241,26 +241,35 @@ export default function LotDetail() {
       .trim()
   }
 
-  const splitResult = useMemo(() => {
-    const salida = Number(splitForm.out) || 0
-    const tam = Number(splitForm.size) || 0
-    const merma = Math.max(Number(splitForm.merma) || 0, 0)
-    const queda = salida - merma
-    if (!(salida > 0) || !(tam > 0) || !(queda > 0)) return null
-    const unidad = String(lot?.package_unit || "")
-    const u = unidad.toLowerCase() === "lt" ? (tam === 1 ? "LT" : "LTS")
-      : unidad.toLowerCase() === "kg" ? (tam === 1 ? "KG" : "KGS")
-      : unidad.toUpperCase()
-    return {
-      eq: equivalentLabel(queda, unidad),
-      env: desgloseEnvases(queda, tam, unidad, 0).unidadesLabel,
-      nombre: `${baseProductName(lot?.product)} X ${formatNumber(tam)} ${u}.`,
-      tam,
-      queda,
-    }
-  }, [splitForm.out, splitForm.size, splitForm.merma, lot?.product, lot?.package_unit])
+  // Todo se trabaja en EQUIVALENTE (lts / kgs), que es lo que el operador ve.
+  // El stock del lote se guarda en su unidad cruda (puede ser ml o gr), asi
+  // que se convierte al mandar. La merma sale de la diferencia entre lo que
+  // salio del lote y lo que realmente se envaso.
+  const eqLote = normalizeEquivalent(currentEquivalent, lot?.package_unit)
+  const eqUnidad = eqLote.unit                       // lt | kg | uds
+  const factorCrudo = normalizeEquivalent(1, lot?.package_unit).value || 1
 
-  const splitMerma = Math.max(Number(splitForm.merma) || 0, 0)
+  const splitResult = useMemo(() => {
+    const saleEq = Number(splitForm.out) || 0
+    const tamEq = Number(splitForm.size) || 0
+    const envases = Math.floor(Number(splitForm.envases) || 0)
+    if (!(saleEq > 0) || !(tamEq > 0)) return null
+    const producidoEq = Math.round(envases * tamEq * 100) / 100
+    const mermaEq = Math.round((saleEq - producidoEq) * 100) / 100
+    const u = eqUnidad === "lt" ? (tamEq === 1 ? "LT" : "LTS")
+      : eqUnidad === "kg" ? (tamEq === 1 ? "KG" : "KGS") : "UDS"
+    const envaseTipo = desgloseEnvases(tamEq * 2, tamEq, eqUnidad, 0).unidadesLabel.replace(/^S+s/, "")
+    return {
+      saleEq, tamEq, envases, producidoEq, mermaEq,
+      sugeridos: tamEq > 0 ? Math.floor(saleEq / tamEq) : 0,
+      envaseTipo,
+      eqProducido: equivalentLabel(producidoEq, eqUnidad),
+      eqMerma: equivalentLabel(Math.abs(mermaEq), eqUnidad),
+      nombre: `${baseProductName(lot?.product)} X ${formatNumber(tamEq)} ${u}.`,
+    }
+  }, [splitForm.out, splitForm.size, splitForm.envases, lot?.product, eqUnidad])
+
+  const splitMerma = splitResult ? splitResult.mermaEq : 0
 
   async function loadPendingSplit() {
     if (!id) return
@@ -275,7 +284,7 @@ export default function LotDetail() {
 
   function openSplit() {
     setSplitError('')
-    setSplitForm({ out: '', size: '', merma: '', merma_reason: '', notes: '' })
+    setSplitForm({ out: '', size: '', envases: '', merma_reason: '', notes: '' })
     setShowSplit(true)
   }
 
@@ -286,29 +295,30 @@ export default function LotDetail() {
     event.preventDefault()
     setSplitError('')
 
-    const salida = Number(splitForm.out) || 0
-    const tam = Number(splitForm.size) || 0
-    const merma = Math.max(Number(splitForm.merma) || 0, 0)
+    if (!splitResult) return setSplitError('Completá cuánto sale y el tamaño del envase nuevo.')
+    const { saleEq, tamEq, envases, producidoEq, mermaEq, nombre } = splitResult
 
-    if (!(salida > 0)) return setSplitError('Indicá cuánto se fracciona.')
-    if (salida > currentEquivalent) return setSplitError(`El lote tiene ${equivalentLabel(currentEquivalent, lot?.package_unit)}.`)
-    if (!(tam > 0)) return setSplitError('Indicá el tamaño del envase nuevo.')
-    if (tam === Number(lot?.package_size)) return setSplitError('El envase nuevo tiene que ser distinto al actual.')
-    if (merma >= salida) return setSplitError('La merma no puede ser igual ni mayor a lo que se fracciona.')
-    if (merma > 0 && !splitForm.merma_reason.trim()) {
-      return setSplitError('Declará el motivo de la merma.')
-    }
-    if (!splitResult) return setSplitError('Revisá las cantidades.')
+    if (!(saleEq > 0)) return setSplitError('Indicá cuánto sale del lote.')
+    if (saleEq > eqLote.value) return setSplitError(`El lote tiene ${equivalentLabel(currentEquivalent, lot?.package_unit)}.`)
+    if (!(tamEq > 0)) return setSplitError('Indicá el tamaño del envase nuevo.')
+    if (!(envases > 0)) return setSplitError('Indicá cuántos envases salieron.')
+    if (mermaEq < 0) return setSplitError('Salió más de lo que entró. Revisá las cantidades.')
+    if (mermaEq > 0 && !splitForm.merma_reason.trim()) return setSplitError('Declará el motivo de la merma.')
 
     setSplitSaving(true)
     try {
+      // El lote guarda su stock en la unidad cruda (puede ser ml o gr): se
+      // convierte lo que sale y la merma. Lo producido ya va en lt/kg, que es
+      // la unidad del envase nuevo.
+      const aCrudo = (v) => Math.round((v / (factorCrudo || 1)) * 100) / 100
       const { error: rpcError } = await supabase.rpc('request_lot_split', {
         p_lot_id: lot.id,
-        p_dest_product: splitResult.nombre,
-        p_dest_package_size: tam,
-        p_dest_package_unit: lot.package_unit,
-        p_quantity_out: salida,
-        p_merma: merma,
+        p_dest_product: nombre,
+        p_dest_package_size: tamEq,
+        p_dest_package_unit: eqUnidad,
+        p_quantity_out: aCrudo(saleEq),
+        p_quantity_in: producidoEq,
+        p_merma: aCrudo(mermaEq),
         p_merma_reason: splitForm.merma_reason.trim() || null,
         p_notes: splitForm.notes.trim() || null,
       })
@@ -324,6 +334,7 @@ export default function LotDetail() {
       setSplitSaving(false)
     }
   }
+
 
 
   async function loadPendingTransfer() {
@@ -1183,7 +1194,6 @@ export default function LotDetail() {
                 Cambia el tamaño del envase. El producto, el lote y el vencimiento no cambian.
               </p>
 
-              {/* Datos fijos del lote: no se eligen, es el mismo lote */}
               <div className="mt-3 rounded-lg bg-slate-50 p-3">
                 <p className="text-sm font-black text-slate-950 [overflow-wrap:anywhere]">{cleanProductName(lot?.product)}</p>
                 <p className="mt-0.5 text-[11px] font-semibold text-slate-400">
@@ -1196,19 +1206,27 @@ export default function LotDetail() {
                 </p>
               </div>
 
+              <label className="mt-3 block">
+                <span className="label">Sale del lote ({pluralUnit(eqUnidad, 2)})</span>
+                <input
+                  className="input mt-1 text-right font-bold"
+                  inputMode="decimal"
+                  placeholder="0"
+                  value={formatQtyInput(splitForm.out)}
+                  onChange={(e) => { const v = parseQtyInput(e.target.value); if (v !== null) setSplitForm((s) => ({ ...s, out: v })) }}
+                />
+                {Number(splitForm.out) > 0 ? (
+                  <span className="mt-1 block text-[11px] font-semibold text-slate-500">
+                    {desgloseEnvases(Number(splitForm.out), Number(lot?.package_size) || 0, eqUnidad, 0).unidadesLabel}
+                    {' · al lote le quedan '}
+                    {equivalentLabel(Math.max(eqLote.value - Number(splitForm.out), 0), eqUnidad)}
+                  </span>
+                ) : null}
+              </label>
+
               <div className="mt-3 grid grid-cols-2 gap-2">
                 <label className="block">
-                  <span className="label">Cantidad a fraccionar {lot?.package_unit ? `(${lot.package_unit})` : ''}</span>
-                  <input
-                    className="input mt-1 text-right font-bold"
-                    inputMode="decimal"
-                    placeholder="0"
-                    value={formatQtyInput(splitForm.out)}
-                    onChange={(e) => { const v = parseQtyInput(e.target.value); if (v !== null) setSplitForm((s) => ({ ...s, out: v })) }}
-                  />
-                </label>
-                <label className="block">
-                  <span className="label">Envase nuevo {lot?.package_unit ? `(${lot.package_unit})` : ''}</span>
+                  <span className="label">Envase nuevo ({pluralUnit(eqUnidad, 2)})</span>
                   <input
                     className="input mt-1 text-right font-bold"
                     inputMode="decimal"
@@ -1217,45 +1235,67 @@ export default function LotDetail() {
                     onChange={(e) => { const v = parseQtyInput(e.target.value); if (v !== null) setSplitForm((s) => ({ ...s, size: v })) }}
                   />
                 </label>
+                <label className="block">
+                  <span className="label">
+                    {splitResult?.envaseTipo ? `${splitResult.envaseTipo} que salieron` : 'Envases que salieron'}
+                  </span>
+                  <input
+                    className="input mt-1 text-right font-bold"
+                    inputMode="numeric"
+                    placeholder="0"
+                    value={formatQtyInput(splitForm.envases)}
+                    onChange={(e) => { const v = parseQtyInput(e.target.value); if (v !== null) setSplitForm((s) => ({ ...s, envases: v })) }}
+                  />
+                  {splitResult && splitResult.sugeridos > 0 && !splitForm.envases ? (
+                    <button
+                      type="button"
+                      className="mt-1 text-[11px] font-bold text-campo-700 underline"
+                      onClick={() => setSplitForm((s) => ({ ...s, envases: String(splitResult.sugeridos) }))}
+                    >
+                      Deberían salir {formatNumber(splitResult.sugeridos)} — usar
+                    </button>
+                  ) : null}
+                </label>
               </div>
 
-              <label className="mt-3 block">
-                <span className="label">Merma {lot?.package_unit ? `(${lot.package_unit})` : ''} — dejá 0 si no se perdió nada</span>
-                <input
-                  className="input mt-1 text-right font-bold"
-                  inputMode="decimal"
-                  placeholder="0"
-                  value={formatQtyInput(splitForm.merma)}
-                  onChange={(e) => { const v = parseQtyInput(e.target.value); if (v !== null) setSplitForm((s) => ({ ...s, merma: v })) }}
-                />
-              </label>
+              {splitResult && splitResult.envases > 0 ? (
+                <>
+                  <div className="mt-3 rounded-lg border border-campo-200 bg-campo-50 p-3">
+                    <p className="text-[10px] font-black uppercase tracking-wide text-campo-700">Queda fraccionado</p>
+                    <p className="text-xl font-black text-campo-800">{splitResult.eqProducido}</p>
+                    <p className="text-sm font-bold text-campo-700">
+                      {formatNumber(splitResult.envases)} {splitResult.envaseTipo} de {formatNumber(splitResult.tamEq)} {eqUnidad}
+                    </p>
+                    <p className="mt-1.5 text-[11px] font-semibold text-campo-800/80 [overflow-wrap:anywhere]">
+                      Producto resultante: <strong>{splitResult.nombre}</strong>
+                    </p>
+                  </div>
 
-              {splitMerma > 0 ? (
-                <label className="mt-2 block">
-                  <span className="label">Motivo de la merma</span>
-                  <input
-                    className="input mt-1"
-                    value={splitForm.merma_reason}
-                    onChange={(e) => setSplitForm((v) => ({ ...v, merma_reason: e.target.value.toUpperCase() }))}
-                  />
-                </label>
-              ) : null}
-
-              {/* Resultado calculado: cuánto queda, en qué envases y cómo se va a llamar */}
-              {splitResult ? (
-                <div className="mt-3 rounded-lg border border-campo-200 bg-campo-50 p-3">
-                  <p className="text-[10px] font-black uppercase tracking-wide text-campo-700">Queda fraccionado</p>
-                  <p className="text-xl font-black text-campo-800">{splitResult.eq}</p>
-                  {splitResult.env ? (
-                    <p className="text-sm font-bold text-campo-700">{splitResult.env}</p>
-                  ) : null}
-                  <p className="mt-1.5 text-[11px] font-semibold text-campo-800/80 [overflow-wrap:anywhere]">
-                    Producto resultante: <strong>{splitResult.nombre}</strong>
-                  </p>
-                  <p className="text-[11px] font-semibold text-campo-800/70">
-                    Al lote le quedan {equivalentLabel(Math.max(currentEquivalent - (Number(splitForm.out) || 0), 0), lot?.package_unit)}
-                  </p>
-                </div>
+                  {splitResult.mermaEq > 0 ? (
+                    <>
+                      <p className="mt-2 rounded-lg bg-amber-50 p-2 text-[11px] font-black text-amber-800">
+                        Merma: {splitResult.eqMerma} — salieron {formatNumber(splitResult.sugeridos - splitResult.envases)}{' '}
+                        {splitResult.envaseTipo} menos de lo esperado
+                      </p>
+                      <label className="mt-2 block">
+                        <span className="label">Motivo de la merma</span>
+                        <input
+                          className="input mt-1"
+                          value={splitForm.merma_reason}
+                          onChange={(e) => setSplitForm((v) => ({ ...v, merma_reason: e.target.value.toUpperCase() }))}
+                        />
+                      </label>
+                    </>
+                  ) : splitResult.mermaEq < 0 ? (
+                    <p className="mt-2 rounded-lg bg-red-50 p-2 text-[11px] font-black text-red-700">
+                      Salió más de lo que entró ({splitResult.eqMerma} de más). Revisá las cantidades.
+                    </p>
+                  ) : (
+                    <p className="mt-2 rounded-lg bg-campo-50 p-2 text-[11px] font-black text-campo-800">
+                      Sin merma · cuadra exacto
+                    </p>
+                  )}
+                </>
               ) : null}
 
               <label className="mt-3 block">
