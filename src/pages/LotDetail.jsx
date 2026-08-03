@@ -262,49 +262,7 @@ export default function LotDetail() {
   // Fraccionamiento: sale una cantidad de la presentación actual y entra en
   // otra. Si entra menos de lo que salió, la diferencia es MERMA y hay que
   // justificarla — no se pierde producto sin explicación.
-  async function handleSplit(event) {
-    event.preventDefault()
-    setSplitError('')
 
-    if (!splitResult) return setSplitError('Completá cuánto sale y el tamaño del envase nuevo.')
-    const { saleEq, tamEq, envases, producidoEq, mermaEq, nombre } = splitResult
-
-    if (!(saleEq > 0)) return setSplitError('Indicá cuánto sale del lote.')
-    if (saleEq > eqLote.value) return setSplitError(`El lote tiene ${equivalentLabel(currentEquivalent, lot?.package_unit)}.`)
-    if (!(tamEq > 0)) return setSplitError('Indicá el tamaño del envase nuevo.')
-    if (!(envases > 0)) return setSplitError('Indicá cuántos envases salieron.')
-    if (mermaEq < 0) return setSplitError('Salió más de lo que entró. Revisá las cantidades.')
-    if (mermaEq > 0 && !splitForm.merma_reason.trim()) return setSplitError('Declará el motivo de la merma.')
-
-    setSplitSaving(true)
-    try {
-      // El lote guarda su stock en la unidad cruda (puede ser ml o gr): se
-      // convierte lo que sale y la merma. Lo producido ya va en lt/kg, que es
-      // la unidad del envase nuevo.
-      const aCrudo = (v) => Math.round((v / (factorCrudo || 1)) * 100) / 100
-      const { error: rpcError } = await supabase.rpc('request_lot_split', {
-        p_lot_id: lot.id,
-        p_dest_product: nombre,
-        p_dest_package_size: tamEq,
-        p_dest_package_unit: eqUnidad,
-        p_quantity_out: aCrudo(saleEq),
-        p_quantity_in: producidoEq,
-        p_merma: aCrudo(mermaEq),
-        p_merma_reason: splitForm.merma_reason.trim() || null,
-        p_notes: splitForm.notes.trim() || null,
-      })
-      if (rpcError) throw rpcError
-      vibrateSuccess()
-      setShowSplit(false)
-      await loadLot()
-      await loadPendingSplit()
-    } catch (err) {
-      vibrateError()
-      setSplitError(err.message || 'No se pudo registrar el fraccionamiento.')
-    } finally {
-      setSplitSaving(false)
-    }
-  }
 
 
 
@@ -542,7 +500,50 @@ export default function LotDetail() {
   }, [splitForm.out, splitForm.size, splitForm.envases, lot?.product, eqUnidad])
 
   const splitMerma = splitResult ? splitResult.mermaEq : 0
-  const visibleMovements = showFullHistory ? movements : movements.slice(0, 3)
+
+  async function handleSplit(event) {
+    event.preventDefault()
+    setSplitError('')
+
+    if (!splitResult) return setSplitError('Completá cuánto sale y el tamaño del envase nuevo.')
+    const { saleEq, tamEq, envases, producidoEq, mermaEq, nombre } = splitResult
+
+    if (!(saleEq > 0)) return setSplitError('Indicá cuánto sale del lote.')
+    if (saleEq > eqLote.value) return setSplitError(`El lote tiene ${equivalentLabel(currentEquivalent, lot?.package_unit)}.`)
+    if (!(tamEq > 0)) return setSplitError('Indicá el tamaño del envase nuevo.')
+    if (!(envases > 0)) return setSplitError('Indicá cuántos envases salieron.')
+    if (mermaEq < 0) return setSplitError('Salió más de lo que entró. Revisá las cantidades.')
+    if (mermaEq > 0 && !splitForm.merma_reason.trim()) return setSplitError('Declará el motivo de la merma.')
+
+    setSplitSaving(true)
+    try {
+      // El lote guarda su stock en la unidad cruda (puede ser ml o gr): se
+      // convierte lo que sale y la merma. Lo producido ya va en lt/kg, que es
+      // la unidad del envase nuevo.
+      const aCrudo = (v) => Math.round((v / (factorCrudo || 1)) * 100) / 100
+      const { error: rpcError } = await supabase.rpc('request_lot_split', {
+        p_lot_id: lot.id,
+        p_dest_product: nombre,
+        p_dest_package_size: tamEq,
+        p_dest_package_unit: eqUnidad,
+        p_quantity_out: aCrudo(saleEq),
+        p_quantity_in: producidoEq,
+        p_merma: aCrudo(mermaEq),
+        p_merma_reason: splitForm.merma_reason.trim() || null,
+        p_notes: splitForm.notes.trim() || null,
+      })
+      if (rpcError) throw rpcError
+      vibrateSuccess()
+      setShowSplit(false)
+      await loadLot()
+      await loadPendingSplit()
+    } catch (err) {
+      vibrateError()
+      setSplitError(err.message || 'No se pudo registrar el fraccionamiento.')
+    } finally {
+      setSplitSaving(false)
+    }
+  }  const visibleMovements = showFullHistory ? movements : movements.slice(0, 3)
   const movementDraftKey = canRegisterMovement ? `todo-agricola-lot-movement-draft:${id}:${movementMode}` : ''
 
   useEffect(() => {

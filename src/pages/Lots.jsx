@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
-import { Building2, CalendarClock, ChevronLeft, ChevronRight, ClipboardCheck, ClipboardList, Download, History, LayoutList, LifeBuoy, LogOut, Menu, PackagePlus, Plus, Wrench, X } from 'lucide-react'
+import { ArrowRightLeft, Building2, CalendarClock, ChevronLeft, ChevronRight, ClipboardCheck, ClipboardList, Download, History, LayoutList, LifeBuoy, LogOut, Menu, PackagePlus, Plus, Wrench, X } from 'lucide-react'
 import { useAuth } from '../hooks/useAuth.jsx'
 import { supabase } from '../lib/supabase'
 import { formatDate, formatNumber, normalizeEquivalent, pluralUnit, equivalentLabel } from '../lib/format'
