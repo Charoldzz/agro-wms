@@ -4,7 +4,7 @@ import { ArrowLeft, Camera, CheckCircle2, Clock, Download, Printer, QrCode, Save
 import PageHeader from '../components/PageHeader'
 import ListProductCard from '../components/ListProductCard'
 import { useAuth } from '../hooks/useAuth.jsx'
-import { formatDate, formatNumber, movementLabel, equivalentLabel } from '../lib/format'
+import { formatDate, formatNumber, formatQtyInput, movementLabel, equivalentLabel, parseQtyInput } from '../lib/format'
 import { createLotQrDataUrl } from '../lib/qr'
 import { supabase } from '../lib/supabase'
 import { cleanProductName, displayLotCode, productCodeLabel } from '../lib/display'
