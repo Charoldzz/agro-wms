@@ -91,8 +91,11 @@ export default function Lots() {
   const [showFeedbackModal, setShowFeedbackModal] = useState(false)
 
   async function loadCatalogBadge() {
-    const { count } = await supabase.from('product_catalog').select('id', { count: 'exact', head: true }).eq('pending_review', true)
-    setPendingCatalog(count || 0)
+    // Se traen los CÓDIGOS, no solo el conteo, para poder marcar en la lista
+    // qué lotes son de un producto que el admin todavía no revisó.
+    const { data } = await supabase.from('product_catalog').select('code').eq('pending_review', true)
+    setPendingCatalog((data || []).length)
+    setPendingCodes(new Set((data || []).filter((p) => p.code).map((p) => String(p.code).toUpperCase())))
   }
 
   async function loadFeedbackBadge() {
@@ -664,8 +667,15 @@ export default function Lots() {
                             {/* Un lote congelado (traspaso pendiente, retención)
                                 tiene que avisarse en la lista, no solo al abrirlo */}
                             {lot.status === 'retenido' ? (
-                              <span className="mt-1 inline-block rounded bg-orange-100 px-1.5 py-0.5 text-[10px] font-black uppercase tracking-wide text-orange-800">
+                              <span className="mt-1 mr-1 inline-block rounded bg-orange-100 px-1.5 py-0.5 text-[10px] font-black uppercase tracking-wide text-orange-800">
                                 Retenido
+                              </span>
+                            ) : null}
+                            {/* Producto que el admin todavía no revisó: el cliente no lo
+                                ve y no se puede despachar, así que hay que avisarlo acá */}
+                            {pendingCodes.has(String(lot.solucion_product_code || '').toUpperCase()) ? (
+                              <span className="mt-1 inline-block rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-black uppercase tracking-wide text-amber-800">
+                                Sin aprobar
                               </span>
                             ) : null}
                           </td>
