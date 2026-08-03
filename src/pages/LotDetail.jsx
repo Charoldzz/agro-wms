@@ -241,35 +241,6 @@ export default function LotDetail() {
       .trim()
   }
 
-  // Todo se trabaja en EQUIVALENTE (lts / kgs), que es lo que el operador ve.
-  // El stock del lote se guarda en su unidad cruda (puede ser ml o gr), asi
-  // que se convierte al mandar. La merma sale de la diferencia entre lo que
-  // salio del lote y lo que realmente se envaso.
-  const eqLote = normalizeEquivalent(currentEquivalent, lot?.package_unit)
-  const eqUnidad = eqLote.unit                       // lt | kg | uds
-  const factorCrudo = normalizeEquivalent(1, lot?.package_unit).value || 1
-
-  const splitResult = useMemo(() => {
-    const saleEq = Number(splitForm.out) || 0
-    const tamEq = Number(splitForm.size) || 0
-    const envases = Math.floor(Number(splitForm.envases) || 0)
-    if (!(saleEq > 0) || !(tamEq > 0)) return null
-    const producidoEq = Math.round(envases * tamEq * 100) / 100
-    const mermaEq = Math.round((saleEq - producidoEq) * 100) / 100
-    const u = eqUnidad === "lt" ? (tamEq === 1 ? "LT" : "LTS")
-      : eqUnidad === "kg" ? (tamEq === 1 ? "KG" : "KGS") : "UDS"
-    const envaseTipo = desgloseEnvases(tamEq * 2, tamEq, eqUnidad, 0).unidadesLabel.replace(/^S+s/, "")
-    return {
-      saleEq, tamEq, envases, producidoEq, mermaEq,
-      sugeridos: tamEq > 0 ? Math.floor(saleEq / tamEq) : 0,
-      envaseTipo,
-      eqProducido: equivalentLabel(producidoEq, eqUnidad),
-      eqMerma: equivalentLabel(Math.abs(mermaEq), eqUnidad),
-      nombre: `${baseProductName(lot?.product)} X ${formatNumber(tamEq)} ${u}.`,
-    }
-  }, [splitForm.out, splitForm.size, splitForm.envases, lot?.product, eqUnidad])
-
-  const splitMerma = splitResult ? splitResult.mermaEq : 0
 
   async function loadPendingSplit() {
     if (!id) return
@@ -541,6 +512,36 @@ export default function LotDetail() {
     stockQuantity >= Number(lot.current_quantity) * 0.5
 
   const currentEquivalent = lot ? Number(lot.current_quantity || 0) : 0
+
+  // Todo se trabaja en EQUIVALENTE (lts / kgs), que es lo que el operador ve.
+  // El stock del lote se guarda en su unidad cruda (puede ser ml o gr), asi
+  // que se convierte al mandar. La merma sale de la diferencia entre lo que
+  // salio del lote y lo que realmente se envaso.
+  const eqLote = normalizeEquivalent(currentEquivalent, lot?.package_unit)
+  const eqUnidad = eqLote.unit                       // lt | kg | uds
+  const factorCrudo = normalizeEquivalent(1, lot?.package_unit).value || 1
+
+  const splitResult = useMemo(() => {
+    const saleEq = Number(splitForm.out) || 0
+    const tamEq = Number(splitForm.size) || 0
+    const envases = Math.floor(Number(splitForm.envases) || 0)
+    if (!(saleEq > 0) || !(tamEq > 0)) return null
+    const producidoEq = Math.round(envases * tamEq * 100) / 100
+    const mermaEq = Math.round((saleEq - producidoEq) * 100) / 100
+    const u = eqUnidad === "lt" ? (tamEq === 1 ? "LT" : "LTS")
+      : eqUnidad === "kg" ? (tamEq === 1 ? "KG" : "KGS") : "UDS"
+    const envaseTipo = desgloseEnvases(tamEq * 2, tamEq, eqUnidad, 0).unidadesLabel.replace(/^S+s/, "")
+    return {
+      saleEq, tamEq, envases, producidoEq, mermaEq,
+      sugeridos: tamEq > 0 ? Math.floor(saleEq / tamEq) : 0,
+      envaseTipo,
+      eqProducido: equivalentLabel(producidoEq, eqUnidad),
+      eqMerma: equivalentLabel(Math.abs(mermaEq), eqUnidad),
+      nombre: `${baseProductName(lot?.product)} X ${formatNumber(tamEq)} ${u}.`,
+    }
+  }, [splitForm.out, splitForm.size, splitForm.envases, lot?.product, eqUnidad])
+
+  const splitMerma = splitResult ? splitResult.mermaEq : 0
   const visibleMovements = showFullHistory ? movements : movements.slice(0, 3)
   const movementDraftKey = canRegisterMovement ? `todo-agricola-lot-movement-draft:${id}:${movementMode}` : ''
 
