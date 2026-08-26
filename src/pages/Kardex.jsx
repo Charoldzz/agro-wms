@@ -1,16 +1,28 @@
-import { useEffect, useMemo, useState } from 'react'
-import { Search } from 'lucide-react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { AlertTriangle, Search } from 'lucide-react'
 import PageHeader from '../components/PageHeader'
 import EmptyState from '../components/EmptyState'
 import { supabase } from '../lib/supabase'
 import { formatDate, formatNumber, movementLabel, normalizeEquivalent, pluralUnit, equivalentLabel } from '../lib/format'
-import { cleanProductName, displayLotCode } from '../lib/display'
+import { cleanProductName } from '../lib/display'
+
+// Cuántos movimientos se bajan por vez. El saldo NO depende de esto: lo calcula
+// la base sobre toda la historia de la empresa, así que mostrar una página o
+// mil da el mismo número.
+const POR_PAGINA = 300
 
 const TYPE_COLORS = {
   entrada: 'text-campo-700',
   salida: 'text-red-700',
   traslado: 'text-blue-700',
   ajuste: 'text-orange-700',
+  traspaso: 'text-blue-700',
+  fraccionamiento: 'text-orange-700',
+}
+
+const TYPE_LABELS = {
+  traspaso: 'Traspaso',
+  fraccionamiento: 'Fraccionamiento',
 }
 
 const CONCEPT_TAGS = [
@@ -39,22 +51,40 @@ function displayClientName(name) {
   return String(name || '').replaceAll('"', '').replace(/\s+/g, ' ').trim()
 }
 
+// Los totales vienen de la base separados por unidad cruda (lt, kg, gr, ml).
+// Acá se pasan a la unidad de siempre y se juntan: "5.160 lts · 320 kgs".
+function totalLegible(items) {
+  const totals = new Map()
+  for (const it of items || []) {
+    const eq = normalizeEquivalent(it.valor, it.unidad)
+    totals.set(eq.unit, (totals.get(eq.unit) || 0) + eq.value)
+  }
+  return [...totals.entries()]
+    .map(([unit, value]) => `${formatNumber(value)} ${pluralUnit(unit, value)}`)
+    .join(' · ') || '0'
+}
+
 export default function Kardex() {
   const [clients, setClients] = useState([])
   const [clientId, setClientId] = useState('')
   const [search, setSearch] = useState('')
+  const [busqueda, setBusqueda] = useState('')      // la búsqueda ya aquietada
   const [movements, setMovements] = useState([])
+  const [resumen, setResumen] = useState(null)
   const [loading, setLoading] = useState(false)
+  const [cargandoMas, setCargandoMas] = useState(false)
   const [loadError, setLoadError] = useState('')
+  const pedido = useRef(0)
 
   useEffect(() => {
     loadClients()
   }, [])
 
+  // Se espera a que deje de escribir antes de ir a la base
   useEffect(() => {
-    if (clientId) loadKardex()
-    else setMovements([])
-  }, [clientId])
+    const t = setTimeout(() => setBusqueda(search.trim()), 350)
+    return () => clearTimeout(t)
+  }, [search])
 
   async function loadClients() {
     const { data } = await supabase
@@ -72,152 +102,64 @@ export default function Kardex() {
     setClients(unique)
   }
 
-  async function loadKardex() {
+  const loadKardex = useCallback(async () => {
+    if (!clientId) {
+      setMovements([])
+      setResumen(null)
+      return
+    }
+    const marca = ++pedido.current
     setLoading(true)
     setLoadError('')
 
-    const { data: lotsData, error: lotsError } = await supabase
-      .from('lots')
-      .select('id, product, lot_code, package_size, package_unit')
-      .eq('inventory_source', 'stock_independiente')
-      .eq('client_id', clientId)
-
-    if (lotsError) {
-      setLoadError('No se pudieron cargar los lotes.')
-      setLoading(false)
-      return
-    }
-
-    const lotIds = (lotsData || []).map((l) => l.id)
-    if (lotIds.length === 0) {
-      setMovements([])
-      setLoading(false)
-      return
-    }
-
-    const prefix = (clients.find((c) => c.id === clientId)?.product_code_prefix || '').toUpperCase()
-
-    const [webResult, desktopResult] = await Promise.all([
-      supabase
-        .from('movements')
-        .select('id, type, quantity, previous_quantity, new_quantity, notes, created_at, lot_id, operation_id, lots(lot_code, product, package_size, package_unit, clients(name))')
-        .in('lot_id', lotIds)
-        .order('created_at', { ascending: false })
-        .limit(1000),
-      prefix
-        ? supabase
-            .from('desktop_movements')
-            .select('id, note_number, type, date, product_name, lot, quantity')
-            .eq('client_prefix', prefix)
-            .order('date', { ascending: false })
-            .limit(3000)
-        : Promise.resolve({ data: [], error: null }),
+    const [pagina, resumenRes] = await Promise.all([
+      supabase.rpc('kardex_pagina', {
+        p_client_id: clientId,
+        p_busqueda: busqueda || null,
+        p_limite: POR_PAGINA,
+        p_desde: 0,
+      }),
+      supabase.rpc('kardex_resumen', {
+        p_client_id: clientId,
+        p_busqueda: busqueda || null,
+      }),
     ])
 
-    if (webResult.error && desktopResult.error) {
+    if (marca !== pedido.current) return   // llegó tarde, ya hay otra búsqueda
+
+    if (pagina.error || resumenRes.error) {
       setLoadError('No se pudieron cargar los movimientos.')
       setMovements([])
+      setResumen(null)
       setLoading(false)
       return
     }
 
-    // Mapa producto → presentación para etiquetar unidades de las filas del programa
-    const productInfo = new Map()
-    for (const lot of lotsData || []) {
-      const key = String(lot.product || '').toUpperCase()
-      if (!productInfo.has(key) && Number(lot.package_size) > 0) {
-        productInfo.set(key, { size: Number(lot.package_size), unit: lot.package_unit || '' })
-      }
-    }
-
-    // Guías de las operaciones web, en consulta aparte (por id de operación)
-    const opIds = [...new Set((webResult.data || []).map((m) => m.operation_id).filter(Boolean))]
-    const guideMap = new Map()
-    if (opIds.length > 0) {
-      const { data: ops } = await supabase
-        .from('warehouse_operations')
-        .select('id, guide_number')
-        .in('id', opIds)
-      ;(ops || []).forEach((op) => guideMap.set(op.id, op.guide_number))
-    }
-
-    // La web guarda unidades; el programa guarda el equivalente en lts/kgs.
-    // Todo se muestra en equivalente.
-    const webRows = (webResult.data || []).map((m) => {
-      const size = Number(m.lots?.package_size) || 0
-      return {
-        ...m,
-        note: guideMap.get(m.operation_id) || null,
-        eqQuantity: Number(m.quantity || 0),
-        unit: m.lots?.package_unit || '',
-      }
-    })
-    const desktopRows = (desktopResult.data || []).map((r) => {
-      const info = productInfo.get(String(r.product_name || '').toUpperCase())
-      return {
-        id: `desktop-${r.id}`,
-        type: r.type === 'INGRESO' ? 'entrada' : 'salida',
-        eqQuantity: Number(r.quantity || 0),
-        unit: info?.unit || '',
-        note: r.note_number || null,
-        notes: null,
-        created_at: r.date,
-        lots: { product: r.product_name, lot_code: r.lot },
-      }
-    })
-
-    // Saldo acumulado por producto+lote, en orden cronológico (arranca del inventario inicial)
-    const merged = [...webRows, ...desktopRows].sort(
-      (a, b) => new Date(a.created_at || 0) - new Date(b.created_at || 0),
-    )
-    const balance = new Map()
-    for (const row of merged) {
-      const key = `${String(row.lots?.product || '').toUpperCase()}|${String(row.lots?.lot_code || '').toUpperCase()}`
-      const prev = balance.get(key) || 0
-      // El traspaso es interno y va en los dos sentidos: al vendedor le resta y
-      // al comprador le suma. La dirección se lee del propio movimiento, no del
-      // tipo. (No entra en los totales de ingresos/salidas: esa mercadería
-      // nunca cruzó la puerta del depósito.)
-      const esIngreso = row.type === 'entrada'
-        || (['traspaso', 'fraccionamiento'].includes(row.type) && Number(row.new_quantity) > Number(row.previous_quantity))
-      const next = esIngreso ? prev + row.eqQuantity : prev - row.eqQuantity
-      balance.set(key, next)
-      row.saldo = next
-    }
-
-    setMovements(merged.reverse())
+    setMovements(pagina.data || [])
+    setResumen(resumenRes.data || null)
     setLoading(false)
-  }
+  }, [clientId, busqueda])
 
-  const filtered = useMemo(() => {
-    if (!search.trim()) return movements
-    const q = search.toLowerCase().trim()
-    return movements.filter((m) => {
-      const product = cleanProductName(m.lots?.product || '').toLowerCase()
-      const lotCode = displayLotCode(m.lots?.lot_code || '').toLowerCase()
-      const notes = (m.notes || '').toLowerCase()
-      const note = (m.note || '').toLowerCase()
-      return product.includes(q) || lotCode.includes(q) || notes.includes(q) || note.includes(q)
+  useEffect(() => {
+    loadKardex()
+  }, [loadKardex])
+
+  async function verMas() {
+    setCargandoMas(true)
+    const { data, error } = await supabase.rpc('kardex_pagina', {
+      p_client_id: clientId,
+      p_busqueda: busqueda || null,
+      p_limite: POR_PAGINA,
+      p_desde: movements.length,
     })
-  }, [movements, search])
-
-  function totalsByUnit(rows) {
-    const totals = new Map()
-    for (const m of rows) {
-      const eq = normalizeEquivalent(m.eqQuantity, m.unit)
-      totals.set(eq.unit, (totals.get(eq.unit) || 0) + eq.value)
-    }
-    return [...totals.entries()].map(([unit, value]) => `${formatNumber(value)} ${pluralUnit(unit, value)}`).join(' · ') || '0'
+    if (!error) setMovements((prev) => [...prev, ...(data || [])])
+    setCargandoMas(false)
   }
 
-  const totalEntradas = useMemo(
-    () => totalsByUnit(filtered.filter((m) => m.type === 'entrada')),
-    [filtered],
-  )
-  const totalSalidas = useMemo(
-    () => totalsByUnit(filtered.filter((m) => m.type === 'salida')),
-    [filtered],
-  )
+  const totalEntradas = useMemo(() => totalLegible(resumen?.entradas), [resumen])
+  const totalSalidas = useMemo(() => totalLegible(resumen?.salidas), [resumen])
+  const descuadres = resumen?.descuadres || []
+  const totalMovimientos = resumen?.movimientos ?? 0
 
   return (
     <div>
@@ -268,20 +210,57 @@ export default function Kardex() {
         <div className="mb-4 rounded-lg bg-red-50 p-3 text-sm font-bold text-red-700">{loadError}</div>
       )}
 
+      {/* El control de cuadre. Si el saldo que sale de los movimientos no da lo
+          mismo que el stock de hoy, se avisa. Antes un número mal se mostraba
+          igual, sin decir nada. */}
+      {clientId && !loading && descuadres.length > 0 && (
+        <div className="mb-4 rounded-xl border border-amber-300 bg-amber-50 p-4">
+          <div className="flex items-start gap-2">
+            <AlertTriangle className="mt-0.5 shrink-0 text-amber-600" size={18} />
+            <div className="min-w-0">
+              <p className="text-sm font-black text-amber-900">
+                {descuadres.length === 1
+                  ? 'Hay 1 lote donde la cuenta no cierra'
+                  : `Hay ${descuadres.length} lotes donde la cuenta no cierra`}
+              </p>
+              <p className="mt-0.5 text-xs font-semibold text-amber-800">
+                El saldo que sale de los movimientos no da lo mismo que el stock de hoy.
+                Suele ser que falta cargar el movimiento de entrada del lote.
+              </p>
+              <ul className="mt-2 space-y-1">
+                {descuadres.slice(0, 5).map((d, i) => (
+                  <li key={i} className="text-xs font-semibold text-amber-900 [overflow-wrap:anywhere]">
+                    <span className="font-black">{cleanProductName(d.producto)}</span>
+                    {d.lote ? <> · Lote {d.lote}</> : null}
+                    {' — '}movimientos: {equivalentLabel(d.segun_movimientos, d.unidad)}
+                    {' · '}stock: {equivalentLabel(d.stock_actual, d.unidad)}
+                  </li>
+                ))}
+                {descuadres.length > 5 && (
+                  <li className="text-xs font-bold text-amber-700">…y {descuadres.length - 5} más</li>
+                )}
+              </ul>
+            </div>
+          </div>
+        </div>
+      )}
+
       {clientId && !loading && movements.length === 0 && !loadError && (
         <EmptyState
           icon="📋"
           title="Sin movimientos"
-          description="Esta empresa no tiene movimientos registrados."
+          description={busqueda
+            ? 'Ningún movimiento coincide con la búsqueda.'
+            : 'Esta empresa no tiene movimientos registrados.'}
         />
       )}
 
-      {filtered.length > 0 && (
+      {movements.length > 0 && (
         <>
           <div className="mb-3 grid grid-cols-3 divide-x divide-slate-200 overflow-hidden rounded-xl border border-slate-200 bg-white">
             <div className="px-4 py-3 text-center">
               <p className="text-xs font-bold uppercase text-slate-500">Movimientos</p>
-              <p className="mt-0.5 text-lg font-black text-slate-950">{formatNumber(filtered.length)}</p>
+              <p className="mt-0.5 text-lg font-black text-slate-950">{formatNumber(totalMovimientos)}</p>
             </div>
             <div className="px-4 py-3 text-center">
               <p className="text-xs font-bold uppercase text-campo-700">Total entradas</p>
@@ -316,34 +295,34 @@ export default function Kardex() {
                 </tr>
               </thead>
               <tbody>
-                {filtered.map((m) => {
-                  const isEntry = m.type === 'entrada'
-                  const isSalida = m.type === 'salida'
-                  const qty = Number(m.eqQuantity || 0)
+                {movements.map((m) => {
+                  const isEntry = m.tipo === 'entrada'
+                  const isSalida = m.tipo === 'salida'
+                  const qty = Number(m.cantidad || 0)
                   const saldo = m.saldo != null ? Number(m.saldo) : null
 
                   return (
                     <tr key={m.id} className="border-b border-slate-100 hover:bg-slate-50">
                       <td className="px-3 py-2 text-xs font-semibold text-slate-600">
-                        {formatDate(m.created_at)}
+                        {formatDate(m.fecha)}
                       </td>
                       <td className="px-3 py-2 font-mono text-xs font-bold text-campo-700 whitespace-nowrap">
-                        {m.note || <span className="text-slate-300">—</span>}
+                        {m.nota || <span className="text-slate-300">—</span>}
                       </td>
                       <td className="px-3 py-2 text-center">
-                        <span className={`text-xs font-black ${TYPE_COLORS[m.type] || 'text-slate-600'}`}>
-                          {movementLabel(m.type)}
+                        <span className={`text-xs font-black ${TYPE_COLORS[m.tipo] || 'text-slate-600'}`}>
+                          {TYPE_LABELS[m.tipo] || movementLabel(m.tipo)}
                         </span>
                       </td>
                       <td className="px-3 py-2">
                         <p className="text-sm font-semibold text-slate-900 [overflow-wrap:anywhere]">
-                          {cleanProductName(m.lots?.product || '—')}
+                          {cleanProductName(m.producto || '—')}
                         </p>
-                        {m.lots?.lot_code ? (
-                          <p className="text-xs font-bold text-slate-600">Lote {displayLotCode(m.lots.lot_code)}</p>
+                        {m.lote ? (
+                          <p className="text-xs font-bold text-slate-600">Lote {m.lote}</p>
                         ) : null}
                         {(() => {
-                          const c = parseConcepto(m.notes)
+                          const c = parseConcepto(m.detalle)
                           const datos = [
                             c.transportista && `Transportista: ${c.transportista}`,
                             c.placa && `Placa: ${c.placa}`,
@@ -354,13 +333,13 @@ export default function Kardex() {
                         })()}
                       </td>
                       <td className="px-3 py-2 text-right text-sm font-black text-campo-700">
-                        {isEntry ? equivalentLabel(qty, m.unit) : <span className="text-slate-200">—</span>}
+                        {isEntry ? equivalentLabel(qty, m.unidad) : <span className="text-slate-200">—</span>}
                       </td>
                       <td className="px-3 py-2 text-right text-sm font-black text-red-700">
-                        {isSalida ? equivalentLabel(qty, m.unit) : <span className="text-slate-200">—</span>}
+                        {isSalida ? equivalentLabel(qty, m.unidad) : <span className="text-slate-200">—</span>}
                       </td>
                       <td className="px-3 py-2 text-right text-sm font-bold text-slate-700">
-                        {saldo != null ? equivalentLabel(saldo, m.unit) : <span className="text-slate-300">—</span>}
+                        {saldo != null ? equivalentLabel(saldo, m.unidad) : <span className="text-slate-300">—</span>}
                       </td>
                     </tr>
                   )
@@ -369,10 +348,19 @@ export default function Kardex() {
             </table>
           </div>
 
-          {filtered.length < movements.length && (
-            <p className="mt-2 text-center text-xs font-semibold text-slate-500">
-              Mostrando {filtered.length} de {movements.length} movimientos
-            </p>
+          {movements.length < totalMovimientos && (
+            <div className="mt-3 text-center">
+              <button
+                type="button"
+                className="btn-secondary"
+                onClick={verMas}
+                disabled={cargandoMas}
+              >
+                {cargandoMas
+                  ? 'Cargando...'
+                  : `Ver más (${formatNumber(movements.length)} de ${formatNumber(totalMovimientos)})`}
+              </button>
+            </div>
           )}
         </>
       )}
