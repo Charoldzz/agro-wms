@@ -300,6 +300,17 @@ export default function Kardex() {
                   const isSalida = m.tipo === 'salida'
                   const qty = Number(m.cantidad || 0)
                   const saldo = m.saldo != null ? Number(m.saldo) : null
+                  // Un traspaso, un fraccionamiento o un ajuste no es entrada ni
+                  // salida del depósito, pero al lote le suma o le resta. Se
+                  // muestra del lado que corresponde y con su propio color, para
+                  // que se vea cuánto se movió sin confundirlo con mercadería
+                  // que cruzó la puerta.
+                  // Si `signo` todavía no viene (la base sin actualizar), se deja
+                  // el guión de antes: mejor no mostrar nada que mostrarlo del
+                  // lado equivocado.
+                  const interno = !isEntry && !isSalida && m.signo != null
+                  const suma = Number(m.signo) >= 0
+                  const colorInterno = TYPE_COLORS[m.tipo] || 'text-slate-600'
 
                   return (
                     <tr key={m.id} className="border-b border-slate-100 hover:bg-slate-50">
@@ -332,11 +343,15 @@ export default function Kardex() {
                           return linea ? <p className="mt-0.5 text-[11px] font-semibold text-slate-400 [overflow-wrap:anywhere]">{linea}</p> : null
                         })()}
                       </td>
-                      <td className="px-3 py-2 text-right text-sm font-black text-campo-700">
-                        {isEntry ? equivalentLabel(qty, m.unidad) : <span className="text-slate-200">—</span>}
+                      <td className={`px-3 py-2 text-right text-sm font-black ${interno ? colorInterno : 'text-campo-700'}`}>
+                        {isEntry || (interno && suma)
+                          ? equivalentLabel(qty, m.unidad)
+                          : <span className="text-slate-200">—</span>}
                       </td>
-                      <td className="px-3 py-2 text-right text-sm font-black text-red-700">
-                        {isSalida ? equivalentLabel(qty, m.unidad) : <span className="text-slate-200">—</span>}
+                      <td className={`px-3 py-2 text-right text-sm font-black ${interno ? colorInterno : 'text-red-700'}`}>
+                        {isSalida || (interno && !suma)
+                          ? equivalentLabel(qty, m.unidad)
+                          : <span className="text-slate-200">—</span>}
                       </td>
                       <td className="px-3 py-2 text-right text-sm font-bold text-slate-700">
                         {saldo != null ? equivalentLabel(saldo, m.unidad) : <span className="text-slate-300">—</span>}

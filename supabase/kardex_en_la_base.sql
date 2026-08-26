@@ -207,7 +207,11 @@ $$;
 -- El saldo se calcula SIEMPRE sobre toda la historia de la empresa, aunque
 -- después se muestre una página o se filtre por producto. Por eso ya no
 -- depende de cuántas filas alcance a bajar el navegador.
-create or replace function public.kardex_pagina(
+-- Se devuelve tambien `signo` (+1 o -1): un traspaso o un fraccionamiento no
+-- es entrada ni salida del deposito, pero al lote le suma o le resta, y la
+-- pantalla tiene que poder mostrar cuanto se movio y para que lado.
+drop function if exists public.kardex_pagina(uuid, text, integer, integer);
+create function public.kardex_pagina(
   p_client_id uuid,
   p_busqueda  text default null,
   p_limite    integer default 300,
@@ -223,6 +227,7 @@ returns table (
   lote     text,
   unidad   text,
   cantidad numeric,
+  signo    integer,
   saldo    numeric,
   detalle  text
 )
@@ -258,6 +263,7 @@ begin
     b.lote,
     b.unidad,
     b.cantidad,
+    b.signo,
     b.saldo_corrido,
     b.detalle
   from libro b
