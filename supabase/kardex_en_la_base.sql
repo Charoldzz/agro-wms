@@ -479,19 +479,116 @@ end;
 $$;
 
 
--- ── 7. Permisos ────────────────────────────────────────────────────────
+-- ── 7. El cuadre de TODAS las empresas de una ──────────────────────────
+-- El control de kardex_resumen es pasivo: solo aparece si alguien abre el
+-- kardex de esa empresa concreta, y son 44. El saldo negativo estuvo mal
+-- durante meses justamente por eso: la app tenía el dato y nadie lo miró.
+--
+-- Esta función revisa las 44 de una sola vez, para poder avisar en la pantalla
+-- de inicio del administrador sin que nadie tenga que ir a buscarlo.
+-- Devuelve una fila por empresa que NO cuadra.
+create or replace function public.cuadre_general()
+returns table (
+  client_id uuid,
+  cliente   text,
+  lotes     integer,
+  detalle   jsonb
+)
+language plpgsql
+stable
+security definer
+set search_path = public, auth
+as $$
+declare
+  v_rol text;
+begin
+  if auth.uid() is null then
+    raise exception 'Debes iniciar sesión.';
+  end if;
+
+  select p.role::text into v_rol
+  from public.profiles p
+  where p.id = auth.uid();
+
+  if v_rol is distinct from 'administrador' and v_rol is distinct from 'operador' then
+    raise exception 'Solo el administrador o el operador pueden ver el cuadre general.';
+  end if;
+
+  return query
+  with saldo_final as (
+    select
+      k.client_id,
+      k.clave_producto,
+      k.clave_lote,
+      max(k.cliente)            as cliente,
+      max(k.producto)           as producto,
+      max(k.lote)               as lote,
+      max(k.unidad)             as unidad,
+      sum(k.cantidad * k.signo) as segun_movimientos
+    from public.kardex_libro k
+    where k.client_id is not null
+    group by k.client_id, k.clave_producto, k.clave_lote
+  ),
+  stock_hoy as (
+    select
+      lo.client_id,
+      coalesce(lo.solucion_product_code, upper(lo.product)) as clave_producto,
+      upper(public.lote_real(lo.lot_code))                  as clave_lote,
+      sum(lo.current_quantity)                              as stock
+    from public.lots lo
+    where lo.inventory_source = 'stock_independiente'
+    group by 1, 2, 3
+  ),
+  descuadrados as (
+    select
+      s.client_id,
+      s.cliente,
+      s.producto,
+      s.lote,
+      s.unidad,
+      s.segun_movimientos,
+      coalesce(h.stock, 0) as stock_actual
+    from saldo_final s
+    left join stock_hoy h
+      on  h.client_id      = s.client_id
+      and h.clave_producto = s.clave_producto
+      and h.clave_lote     = s.clave_lote
+    where abs(s.segun_movimientos - coalesce(h.stock, 0)) > 0.01
+  )
+  select
+    d.client_id,
+    max(d.cliente),
+    count(*)::integer,
+    jsonb_agg(jsonb_build_object(
+      'producto',          d.producto,
+      'lote',              d.lote,
+      'unidad',            d.unidad,
+      'segun_movimientos', round(d.segun_movimientos, 3),
+      'stock_actual',      round(d.stock_actual, 3),
+      'diferencia',        round(d.segun_movimientos - d.stock_actual, 3)
+    ) order by abs(d.segun_movimientos - d.stock_actual) desc)
+  from descuadrados d
+  group by d.client_id
+  order by max(d.cliente);
+end;
+$$;
+
+
+-- ── 8. Permisos ────────────────────────────────────────────────────────
 revoke all on function public.kardex_pagina(uuid, text, integer, integer) from public;
 revoke all on function public.kardex_resumen(uuid, text) from public;
 revoke all on function public.kardex_permitido(uuid) from public;
 revoke all on function public.kardex_export(integer, integer) from public;
+revoke all on function public.cuadre_general() from public;
 
 grant execute on function public.kardex_pagina(uuid, text, integer, integer) to authenticated;
 grant execute on function public.kardex_resumen(uuid, text) to authenticated;
 grant execute on function public.kardex_export(integer, integer) to authenticated;
+grant execute on function public.cuadre_general() to authenticated;
 grant execute on function public.lote_real(text) to authenticated;
 
 
--- ── 8. Índices, para que no se ponga lenta ─────────────────────────────
+-- ── 9. Índices, para que no se ponga lenta ─────────────────────────────
 create index if not exists desktop_movements_product_code_idx
   on public.desktop_movements (product_code);
 create index if not exists desktop_movements_date_idx

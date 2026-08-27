@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
-import { ArrowRightLeft, Building2, CalendarClock, ChevronLeft, ChevronRight, ClipboardCheck, ClipboardList, Download, History, LayoutList, LifeBuoy, LogOut, Menu, PackagePlus, Plus, Wrench, X } from 'lucide-react'
+import { AlertTriangle, ArrowRightLeft, Building2, CalendarClock, ChevronLeft, ChevronRight, ClipboardCheck, ClipboardList, Download, History, LayoutList, LifeBuoy, LogOut, Menu, PackagePlus, Plus, Wrench, X } from 'lucide-react'
 import { useAuth } from '../hooks/useAuth.jsx'
 import { supabase } from '../lib/supabase'
 import { formatDate, formatNumber, normalizeEquivalent, pluralUnit, equivalentLabel } from '../lib/format'
@@ -12,6 +12,7 @@ import NewProductModal from '../components/NewProductModal'
 import EmpresasModal from '../components/EmpresasModal'
 import CatalogoModal from '../components/CatalogoModal'
 import MovimientosModal from '../components/MovimientosModal'
+import CuadreModal from '../components/CuadreModal'
 import FeedbackAdminModal from '../components/FeedbackAdminModal'
 import { QR_ENABLED } from '../lib/features'
 
@@ -90,6 +91,16 @@ export default function Lots() {
   const [pendingCodes, setPendingCodes] = useState(new Set())
   const [feedbackNuevos, setFeedbackNuevos] = useState(0)
   const [showFeedbackModal, setShowFeedbackModal] = useState(false)
+  // Empresas donde la cuenta de los movimientos no da lo mismo que el stock.
+  // Se revisan TODAS de una: antes el aviso solo salía si alguien abría el
+  // kardex de esa empresa, y son 44 — nadie las abre todas.
+  const [descuadres, setDescuadres] = useState([])
+  const [showCuadreModal, setShowCuadreModal] = useState(false)
+
+  async function loadCuadre() {
+    const { data, error } = await supabase.rpc('cuadre_general')
+    setDescuadres(error ? [] : (data || []))
+  }
 
   async function loadCatalogBadge() {
     // Se traen los CÓDIGOS, no solo el conteo, para poder marcar en la lista
@@ -127,6 +138,7 @@ export default function Lots() {
     loadRepairs()
     loadCatalogBadge()
     loadFeedbackBadge()
+    loadCuadre()
     const ch = supabase
       .channel('lots-admin-badges')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'movements' }, loadRepairs)
@@ -291,6 +303,15 @@ export default function Lots() {
     { key: 'reportes', n: pendingDetail.reportes, label: 'Reportes operativos', Icon: LifeBuoy, go: () => navigate('/pendientes') },
     { key: 'correcciones', n: pendingDetail.correcciones, label: 'Correcciones de movimiento', Icon: ClipboardList, go: () => navigate('/pendientes') },
     { key: 'catalogo', n: pendingCatalog, label: 'Fichas de catálogo por revisar', Icon: LayoutList, go: () => setShowCatalogoModal(true) },
+    {
+      key: 'cuadre',
+      n: descuadres.length,
+      label: descuadres.length === 1
+        ? 'Empresa con la cuenta descuadrada'
+        : 'Empresas con la cuenta descuadrada',
+      Icon: AlertTriangle,
+      go: () => setShowCuadreModal(true),
+    },
   ].filter((p) => p.n > 0)
 
   const totalPendientes = pendientesLista.reduce((a, p) => a + p.n, 0)
@@ -787,6 +808,13 @@ export default function Lots() {
           canEdit={isAdmin}
           isAdmin={isAdmin}
           onClose={() => setShowMovimientosModal(false)}
+        />
+      )}
+
+      {showCuadreModal && (
+        <CuadreModal
+          empresas={descuadres}
+          onClose={() => setShowCuadreModal(false)}
         />
       )}
     </div>

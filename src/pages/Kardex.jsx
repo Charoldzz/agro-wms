@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useLocation } from 'react-router-dom'
 import { AlertTriangle, Search } from 'lucide-react'
 import PageHeader from '../components/PageHeader'
 import EmptyState from '../components/EmptyState'
@@ -65,8 +66,10 @@ function totalLegible(items) {
 }
 
 export default function Kardex() {
+  const location = useLocation()
   const [clients, setClients] = useState([])
-  const [clientId, setClientId] = useState('')
+  // Cuando se llega desde el aviso de cuadre, ya viene elegida la empresa
+  const [clientId, setClientId] = useState(location.state?.clientId || '')
   const [search, setSearch] = useState('')
   const [busqueda, setBusqueda] = useState('')      // la búsqueda ya aquietada
   const [movements, setMovements] = useState([])
