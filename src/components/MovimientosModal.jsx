@@ -258,7 +258,14 @@ export default function MovimientosModal({ onClose, canEdit = true, isAdmin = fa
         if (!webByOperation.has(m.operation_id)) webByOperation.set(m.operation_id, [])
         webByOperation.get(m.operation_id).push({ ...m, note_number: noteNumber })
       } else {
-        webMovements.push({ ...m, note_number: noteNumber, receiptRows: receiptRowsWeb([m]) })
+        // Traspasos, fraccionamientos y ajustes: también llevan su unidad. Sin
+        // esto la columna mostraba "1.000" pelado, sin decir de qué.
+        webMovements.push({
+          ...m,
+          note_number: noteNumber,
+          cantidadLabel: cantidadPorUnidad([m]),
+          receiptRows: receiptRowsWeb([m]),
+        })
       }
     }
     for (const group of webByOperation.values()) {
@@ -344,8 +351,8 @@ export default function MovimientosModal({ onClose, canEdit = true, isAdmin = fa
           product: r.product_name,
           lot: r.lot,
           expiry_date: r.expiry_date,
-          quantity: r.quantity,
-          cantidadLabel: equivalenteLabel(r.quantity, unitByCode.get(String(r.product_code || '').toUpperCase())),
+          quantity: cantidadDelPrograma(r.quantity, unidadDe(r)),
+          cantidadLabel: equivalenteLabel(cantidadDelPrograma(r.quantity, unidadDe(r)), unidadDe(r)),
           chips: packageChips(r),
           location: r.location || '',
         })),
