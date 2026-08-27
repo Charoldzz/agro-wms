@@ -5,6 +5,7 @@ import EmptyState from '../components/EmptyState'
 import SimpleDateSelect from '../components/SimpleDateSelect'
 import { cleanProductName, displayLotCode, packageLabel } from '../lib/display'
 import { formatDate, formatNumber, movementLabel, equivalentLabel as fmtEquivalent } from '../lib/format'
+import { traerTodo } from '../lib/paginado'
 import { exportTableExcel, printTablePdf } from '../lib/exports'
 import { desgloseEnvases } from '../lib/envases'
 import { supabase } from '../lib/supabase'
@@ -146,21 +147,6 @@ export default function AdminExports() {
   useEffect(() => {
     loadData()
   }, [])
-
-  // La base devuelve como mucho 1.000 filas por pedido, aunque se le pidan más.
-  // Se va pidiendo de a tandas hasta que no quede ninguna: si no, el Excel sale
-  // incompleto sin avisar (era lo que pasaba: 1.000 de 4.214 movimientos).
-  async function traerTodo(hacerPedido) {
-    const todo = []
-    for (let desde = 0; ; desde += 1000) {
-      const { data, error } = await hacerPedido(desde, 1000)
-      if (error) return { data: todo, error }
-      const tanda = data || []
-      todo.push(...tanda)
-      if (tanda.length < 1000) break
-    }
-    return { data: todo, error: null }
-  }
 
   async function loadData() {
     const [{ data: lotRows, error: lotError }, { data: ledger, error: ledgerError }] = await Promise.all([

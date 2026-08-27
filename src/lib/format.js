@@ -52,6 +52,24 @@ export function formatNumber(value) {
   )
 }
 
+// ── Cantidades que vienen del programa de escritorio ───────────────────
+// El programa anota SIEMPRE en kilos y litros. La app, en cambio, guarda los
+// productos chicos en gramos y mililitros (un frasco de 500 ml se guarda como
+// 500, no como 0,5). Al mezclar los dos sin convertir, esos productos salían
+// 1.000 veces más chicos: MATAPOL X 500 GRS mostraba "3,46 kgs" donde hay
+// 3.458 kgs, y una salida de 4 kgs aparecía como "0 kgs".
+//
+// Toda cantidad que venga de desktop_movements tiene que pasar por acá antes
+// de mostrarse o de sumarse con las de la app.
+// Un valor vacío se devuelve tal cual: "no hay dato" no es lo mismo que cero.
+export function cantidadDelPrograma(valor, unidad) {
+  if (valor === null || valor === undefined || valor === '') return valor
+  const u = String(unidad || '').toLowerCase().trim()
+  const v = Number(valor)
+  if (!Number.isFinite(v)) return valor
+  return (u === 'gr' || u === 'grs' || u === 'g' || u === 'ml' || u === 'cc') ? v * 1000 : v
+}
+
 // ── Equivalente (lts / kgs) ────────────────────────────────────────────
 // Unidad canónica para acumular y comparar: ml→lt, gr→kg, l*→lt, k*→kg;
 // cualquier otra (incl. vacía) → uds. El valor de ml/gr se convierte a lt/kg.

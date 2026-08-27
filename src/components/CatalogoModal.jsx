@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { ArrowLeft, CheckCircle2, Edit2, Filter, Save, Search, Trash2, X } from 'lucide-react'
 import { supabase } from '../lib/supabase'
+import { traerTodo } from '../lib/paginado'
 import { catalogClientIds } from '../lib/catalogo'
 import { catalogDisplayName as productDisplayName } from '../lib/display'
 
@@ -45,10 +46,14 @@ export default function CatalogoModal({ clients, onClose }) {
 
   async function load() {
     setLoading(true)
-    const { data } = await supabase
-      .from('product_catalog')
-      .select('*, clients(name)')
-      .order('code')
+    // De a tandas: hoy son 421 fichas y el tope por pedido es de 1.000
+    const { data } = await traerTodo((desde, cuantos) =>
+      supabase
+        .from('product_catalog')
+        .select('*, clients(name)')
+        .order('code')
+        .range(desde, desde + cuantos - 1),
+    )
     setProducts(data || [])
     setLoading(false)
   }

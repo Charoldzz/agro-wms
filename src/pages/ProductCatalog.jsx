@@ -6,6 +6,7 @@ import PageHeader from '../components/PageHeader'
 import EmptyState from '../components/EmptyState'
 import NewProductModal from '../components/NewProductModal'
 import { useAuth } from '../hooks/useAuth.jsx'
+import { traerTodo } from '../lib/paginado'
 import { supabase } from '../lib/supabase'
 
 const UNITS = ['lt', 'ml', 'kg', 'g', 'unid', 'caja', 'bolsa', 'saco']
@@ -40,7 +41,10 @@ export default function ProductCatalog() {
     setLoading(true)
     const [{ data: clientsData }, { data: productsData }] = await Promise.all([
       supabase.from('clients').select('id, name, product_code_prefix').eq('inventory_source', 'stock_independiente').order('name'),
-      supabase.from('product_catalog').select('*, clients(name)').order('code'),
+      // De a tandas: hoy son 421 fichas y el tope por pedido es de 1.000
+      traerTodo((desde, cuantos) =>
+        supabase.from('product_catalog').select('*, clients(name)').order('code')
+          .range(desde, desde + cuantos - 1)),
     ])
     setClients(clientsData || [])
     setProducts(productsData || [])

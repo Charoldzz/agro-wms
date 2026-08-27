@@ -1,4 +1,5 @@
 import { cleanProductName, displayLotCode } from './display'
+import { traerTodo } from './paginado'
 import { supabase } from './supabase'
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
@@ -145,13 +146,18 @@ function normalizeOneRequest(request, lots) {
 }
 
 export async function fetchCurrentDispatchLots() {
-  const { data } = await supabase
-    .from('lots')
-    .select('id, lot_code, client_id, product, current_quantity, package_size, package_unit, location, expiry_date, status, clients(name)')
-    .eq('inventory_source', 'stock_independiente')
-    .gt('current_quantity', 0)
-    .order('updated_at', { ascending: false })
-    .limit(5000)
+  // De a tandas: son los lotes que el cliente puede pedir. Con .limit(5000) la
+  // base devolvia solo 1.000 igual, asi que pasadas las 1.000 el cliente no
+  // habria podido pedir parte de su propia mercaderia.
+  const { data } = await traerTodo((desde, cuantos) =>
+    supabase
+      .from('lots')
+      .select('id, lot_code, client_id, product, current_quantity, package_size, package_unit, location, expiry_date, status, clients(name)')
+      .eq('inventory_source', 'stock_independiente')
+      .gt('current_quantity', 0)
+      .order('updated_at', { ascending: false })
+      .range(desde, desde + cuantos - 1),
+  )
 
   return data || []
 }

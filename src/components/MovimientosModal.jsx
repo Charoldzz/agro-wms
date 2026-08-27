@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import { ArrowDown, ArrowLeftRight, ArrowUp, FileText, RotateCcw, Save, Search, X } from 'lucide-react'
 import { supabase } from '../lib/supabase'
-import { formatNumber, normalizeEquivalent, pluralUnit, equivalentLabel } from '../lib/format'
+import { cantidadDelPrograma, formatNumber, normalizeEquivalent, pluralUnit, equivalentLabel } from '../lib/format'
+import { traerTodo } from '../lib/paginado'
 import { cleanProductName, displayLotCode } from '../lib/display'
 import { desgloseEnvases } from '../lib/envases'
 import { openDispatchReceipt, openEntryReceipt } from '../lib/comprobante'
@@ -102,26 +103,49 @@ export default function MovimientosModal({ onClose, canEdit = true, isAdmin = fa
 
   async function load() {
     setLoading(true)
-    const [webResult, desktopResult, clientsResult, catalogResult] = await Promise.all([
-      supabase
-        .from('movements')
-        .select('*, lots(lot_code, product, solucion_product_code, package_size, package_unit, location, expiry_date, clients(name)), profiles!movements_user_id_fkey(full_name)')
-        .order('created_at', { ascending: false })
-        .limit(500),
-      supabase
-        .from('desktop_movements')
-        .select('*')
-        .order('date', { ascending: false })
-        .limit(5000),
+    const [webResult, desktopResult, clientsResult, catalogResult, lotesResult] = await Promise.all([
+      traerTodo((desde, cuantos) =>
+        supabase
+          .from('movements')
+          .select('*, lots(lot_code, product, solucion_product_code, package_size, package_unit, location, expiry_date, clients(name)), profiles!movements_user_id_fkey(full_name)')
+          .order('created_at', { ascending: false })
+          .range(desde, desde + cuantos - 1),
+      ),
+      traerTodo((desde, cuantos) =>
+        supabase
+          .from('desktop_movements')
+          .select('*')
+          .order('date', { ascending: false })
+          .range(desde, desde + cuantos - 1),
+      ),
       supabase
         .from('clients')
         .select('name, product_code_prefix')
         .eq('inventory_source', 'stock_independiente'),
-      supabase
-        .from('product_catalog')
-        .select('code, package_size, package_unit')
-        .limit(2000),
+      traerTodo((desde, cuantos) =>
+        supabase
+          .from('product_catalog')
+          .select('code, package_size, package_unit')
+          .range(desde, desde + cuantos - 1),
+      ),
+      // Para saber de qué empresa es cada producto del programa. Se resuelve por
+      // el LOTE y no por el prefijo, porque hay dos TECNOMYL que comparten el
+      // prefijo TCML y cada una veía los movimientos de la otra.
+      traerTodo((desde, cuantos) =>
+        supabase
+          .from('lots')
+          .select('solucion_product_code, clients(name)')
+          .eq('inventory_source', 'stock_independiente')
+          .not('solucion_product_code', 'is', null)
+          .range(desde, desde + cuantos - 1),
+      ),
     ])
+
+    const empresaPorCodigo = new Map()
+    for (const l of lotesResult.data || []) {
+      const cod = String(l.solucion_product_code || '').toUpperCase()
+      if (cod && l.clients?.name && !empresaPorCodigo.has(cod)) empresaPorCodigo.set(cod, l.clients.name)
+    }
 
     // Unidad de cada producto del programa, por CÓDIGO (desktop_movements.product_code ↔ catalog.code)
     const unitByCode = new Map()
@@ -157,7 +181,8 @@ export default function MovimientosModal({ onClose, canEdit = true, isAdmin = fa
         const code = String(r.product_code || '').toUpperCase()
         const size = sizeByCode.get(code) || 0
         const unit = unitByCode.get(code) || ''
-        const eq = Number(r.quantity || 0)
+        // El programa anota en kg/lt; los productos chicos se guardan en gr/ml
+        const eq = cantidadDelPrograma(r.quantity, unit)
         const d = desgloseEnvases(eq, size, unit, 0)
         return {
           code: r.product_code || '',
@@ -175,11 +200,13 @@ export default function MovimientosModal({ onClose, canEdit = true, isAdmin = fa
 
     let rawWebMovements = webResult.data || []
     if (webResult.error) {
-      const { data: raw } = await supabase
-        .from('movements')
-        .select('*')
-        .order('created_at', { ascending: false })
-        .limit(500)
+      const { data: raw } = await traerTodo((desde, cuantos) =>
+        supabase
+          .from('movements')
+          .select('*')
+          .order('created_at', { ascending: false })
+          .range(desde, desde + cuantos - 1),
+      )
       rawWebMovements = raw || []
     }
 
@@ -212,12 +239,14 @@ export default function MovimientosModal({ onClose, canEdit = true, isAdmin = fa
       }))
     }
 
-    // Programa: la cantidad ya es equivalente; la unidad sale del catálogo por código
+    // Programa: la cantidad ya es equivalente; la unidad sale del catálogo por
+    // código. Se pasa por cantidadDelPrograma para llevar los kg/lt del programa
+    // a los gr/ml en que la app guarda los productos chicos.
     function cantidadDesktop(rows) {
-      return totalesPorUnidad(rows.map((r) => ({
-        value: r.quantity,
-        unit: unitByCode.get(String(r.product_code || '').toUpperCase()),
-      })))
+      return totalesPorUnidad(rows.map((r) => {
+        const unit = unitByCode.get(String(r.product_code || '').toUpperCase())
+        return { value: cantidadDelPrograma(r.quantity, unit), unit }
+      }))
     }
 
     // Agrupar movimientos web que pertenecen a la misma operación (misma guía)
@@ -281,10 +310,14 @@ export default function MovimientosModal({ onClose, canEdit = true, isAdmin = fa
       if (!groupedByNote.has(key)) groupedByNote.set(key, [])
       groupedByNote.get(key).push(row)
     }
+    const unidadDe = (r) => unitByCode.get(String(r.product_code || '').toUpperCase())
     const desktopRows = [...groupedByNote.values()].map((rows) => {
       const first = rows[0]
       const multi = rows.length > 1
-      const empresa = rows.find((r) => r.dispatch_company)?.dispatch_company
+      // Primero por el lote (una empresa por producto), y solo si no se
+      // encuentra se cae al prefijo, que es ambiguo entre las dos TECNOMYL.
+      const empresa = empresaPorCodigo.get(String(first.product_code || '').toUpperCase())
+        || rows.find((r) => r.dispatch_company)?.dispatch_company
         || prefixMap.get((first.client_prefix || '').toUpperCase())
         || ''
       return {
@@ -292,7 +325,7 @@ export default function MovimientosModal({ onClose, canEdit = true, isAdmin = fa
         source: 'desktop',
         type: first.type === 'INGRESO' ? 'entrada' : 'salida',
         created_at: rows.reduce((max, r) => (r.date > max ? r.date : max), first.date),
-        quantity: rows.reduce((sum, r) => sum + Number(r.quantity || 0), 0),
+        quantity: rows.reduce((sum, r) => sum + cantidadDelPrograma(r.quantity, unidadDe(r)), 0),
         cantidadLabel: cantidadDesktop(rows),
         receiptRows: receiptRowsDesktop(rows),
         empresa,
@@ -303,9 +336,10 @@ export default function MovimientosModal({ onClose, canEdit = true, isAdmin = fa
         contact_person: rows.find((r) => r.contact_person)?.contact_person || '',
         observations: rows.find((r) => r.observations)?.observations || '',
         // Saldos calculados al importar (SQL 14). Solo tienen sentido mostrarlos
-        // como dato unico cuando la nota mueve un solo lote.
-        previous_quantity: multi ? null : first.previous_quantity,
-        new_quantity: multi ? null : first.new_quantity,
+        // como dato unico cuando la nota mueve un solo lote. Van en la escala
+        // del programa, asi que tambien hay que convertirlos.
+        previous_quantity: multi ? null : cantidadDelPrograma(first.previous_quantity, unidadDe(first)),
+        new_quantity: multi ? null : cantidadDelPrograma(first.new_quantity, unidadDe(first)),
         items: rows.map((r) => ({
           product: r.product_name,
           lot: r.lot,

@@ -15,7 +15,8 @@ import { cleanProductName, displayLotCode, lotLabel, packageLabel, productCode, 
 import { desgloseEnvases, envaseTipo } from '../lib/envases'
 import { docFontsCss, openDispatchReceipt, openEntryReceipt } from '../lib/comprobante'
 import { normalizeDispatchRequests } from '../lib/dispatchRequests'
-import { formatDate, formatDateOnly, formatNumber, movementLabel, equivalentLabel, pluralUnit, normalizeEquivalent as toCanonicalEq, formatQtyInput, parseQtyInput } from '../lib/format'
+import { cantidadDelPrograma, formatDate, formatDateOnly, formatNumber, movementLabel, equivalentLabel, pluralUnit, normalizeEquivalent as toCanonicalEq, formatQtyInput, parseQtyInput } from '../lib/format'
+import { traerTodo } from '../lib/paginado'
 import { supabase } from '../lib/supabase'
 
 /* ─── helpers ─────────────────────────────────────────────────────── */
@@ -348,13 +349,17 @@ export default function ClientPortal({ view = 'inventory' }) {
     const whCodes = miEmpresa?.solucion_codigo != null
       ? [miEmpresa.solucion_codigo]
       : [...new Set((lotsData || []).map(l => l.solucion_warehouse_code).filter(v => v != null))]
+    // Se pide de a tandas: es el historial COMPLETO del cliente y la base
+    // devuelve como mucho 1.000 filas por pedido. Con .limit(5000) el mas
+    // grande (UPL, 1.801 movimientos) perdia los mas viejos sin avisar.
     const { data: deskData } = whCodes.length
-      ? await supabase.from('desktop_movements')
-          .select('id,note_number,type,date,product_code,product_name,lot,expiry_date,quantity,previous_quantity,new_quantity,location,concept,transporter,plate,contact_person')
-          .in('warehouse_code', whCodes.map(String))
-          // Tope alto a proposito: es el historial COMPLETO del cliente y ya
-          // viene filtrado por su propio almacen (el mayor hoy tiene ~1.000)
-          .order('date', { ascending: false }).limit(5000)
+      ? await traerTodo((desde, cuantos) =>
+          supabase.from('desktop_movements')
+            .select('id,note_number,type,date,product_code,product_name,lot,expiry_date,quantity,previous_quantity,new_quantity,location,concept,transporter,plate,contact_person')
+            .in('warehouse_code', whCodes.map(String))
+            .order('date', { ascending: false })
+            .range(desde, desde + cuantos - 1),
+        )
       : { data: [] }
 
     const catByCode = new Map((catalogData || []).map(c => [String(c.code).toUpperCase(), c]))
@@ -366,9 +371,11 @@ export default function ClientPortal({ view = 'inventory' }) {
         source: 'programa',
         type: r.type === 'INGRESO' ? 'entrada' : 'salida',
         saldoInicial: esSaldoInicial,
-        quantity: Number(r.quantity || 0),
-        previous_quantity: r.previous_quantity,
-        new_quantity: r.new_quantity,
+        // El programa anota en kg/lt; la app guarda los productos chicos en
+        // gr/ml. Sin convertir, un frasco de 500 ml salia 1.000 veces mas chico.
+        quantity: cantidadDelPrograma(r.quantity, cat?.package_unit),
+        previous_quantity: cantidadDelPrograma(r.previous_quantity, cat?.package_unit),
+        new_quantity: cantidadDelPrograma(r.new_quantity, cat?.package_unit),
         notes: null,              // el concepto tecnico NO se le muestra al cliente
         created_at: r.date,
         operation_id: null,

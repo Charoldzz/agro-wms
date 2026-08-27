@@ -4,6 +4,7 @@ import { ArrowRightLeft, Building2, CalendarClock, ChevronLeft, ChevronRight, Cl
 import { useAuth } from '../hooks/useAuth.jsx'
 import { supabase } from '../lib/supabase'
 import { formatDate, formatNumber, normalizeEquivalent, pluralUnit, equivalentLabel } from '../lib/format'
+import { traerTodo } from '../lib/paginado'
 import { cleanProductName, displayLotCode, lotLabel, lotSizeAndUnit, productCodeLabel } from '../lib/display'
 import { sumBillingPallets } from '../lib/pallets'
 import { desgloseEnvases } from '../lib/envases'
@@ -145,20 +146,25 @@ export default function Lots() {
     setLoading(true)
     // includeZero=false → only status='activo' (normal view, fast)
     // includeZero=true  → all statuses (shows lots with any status including zero-stock)
-    let lotsQuery = supabase
-      .from('lots')
-      .select('*, clients(name)')
-      .eq('inventory_source', 'stock_independiente')
-      .order('product', { ascending: true })
-
-    // Se incluyen los RETENIDOS: un lote congelado (ej. por un traspaso
-    // pendiente) tiene que seguir viéndose. Si desapareciera del listado, el
-    // operador creería que se perdió y no podría ni abrir su ficha para ver
-    // el cartel que explica por qué está frenado.
-    if (!includeZero) lotsQuery = lotsQuery.in('status', ['activo', 'retenido'])
+    // De a tandas: la base devuelve como mucho 1.000 filas por pedido y hoy hay
+    // 759 lotes. Sin esto, el día que pasen las 1.000 esta pantalla —la que se
+    // usa todo el día— empezaría a esconder lotes sin decir nada.
+    const pedirLotes = (desde, cuantos) => {
+      let q = supabase
+        .from('lots')
+        .select('*, clients(name)')
+        .eq('inventory_source', 'stock_independiente')
+        .order('product', { ascending: true })
+      // Se incluyen los RETENIDOS: un lote congelado (ej. por un traspaso
+      // pendiente) tiene que seguir viéndose. Si desapareciera del listado, el
+      // operador creería que se perdió y no podría ni abrir su ficha para ver
+      // el cartel que explica por qué está frenado.
+      if (!includeZero) q = q.in('status', ['activo', 'retenido'])
+      return q.range(desde, desde + cuantos - 1)
+    }
 
     const [{ data: lotsData, error: lotsError }, { data: clientsData, error: clientsError }] = await Promise.all([
-      lotsQuery,
+      traerTodo(pedirLotes),
       supabase.from('clients').select('*').eq('inventory_source', 'stock_independiente').order('name'),
     ])
 
