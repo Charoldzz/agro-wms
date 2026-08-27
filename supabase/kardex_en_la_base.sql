@@ -104,6 +104,11 @@ select
   -- en 'SIN LOTE' para caer en la misma cuenta.
   upper(public.lote_real(dm.lot))                  as clave_lote,
   coalesce(nullif(btrim(pc.package_unit), ''), l.package_unit) as unidad,
+  coalesce(pc.package_size, l.package_size)        as presentacion,
+  cli.name                                         as cliente,
+  dm.location                                      as ubicacion,
+  null::text                                       as usuario,
+  dm.type                                          as tipo_programa,
   dm.date                                          as fecha,
   dm.note_number                                   as nota,
   case when dm.type = 'INGRESO' then 'entrada' else 'salida' end as tipo,
@@ -120,13 +125,14 @@ from public.desktop_movements dm
 -- dos TECNOMYL ya no se mezclan. Ningún código de producto se repite entre
 -- empresas (comprobado sobre los 4.214 movimientos).
 left join lateral (
-  select lo.client_id, lo.product, lo.package_unit
+  select lo.client_id, lo.product, lo.package_unit, lo.package_size
   from public.lots lo
   where lo.solucion_product_code = dm.product_code
   order by (lo.package_unit is null), lo.id   -- primero uno que tenga unidad
   limit 1
 ) l on true
 left join public.product_catalog pc on pc.code = dm.product_code
+left join public.clients cli on cli.id = l.client_id
 
 union all
 
@@ -141,6 +147,11 @@ select
   coalesce(lo.solucion_product_code, upper(lo.product)) as clave_producto,
   upper(public.lote_real(lo.lot_code))             as clave_lote,
   lo.package_unit                                  as unidad,
+  lo.package_size                                  as presentacion,
+  cli.name                                         as cliente,
+  lo.location                                      as ubicacion,
+  pr.full_name                                     as usuario,
+  null::text                                       as tipo_programa,
   m.created_at                                     as fecha,
   op.guide_number                                  as nota,
   m.type::text                                     as tipo,
@@ -150,6 +161,8 @@ select
 from public.movements m
 join public.lots lo on lo.id = m.lot_id
 left join public.warehouse_operations op on op.id = m.operation_id
+left join public.clients cli on cli.id = lo.client_id
+left join public.profiles pr on pr.id = m.user_id
 -- Lo que de verdad le pasó al lote es la diferencia entre lo que había y lo
 -- que quedó. NO se puede usar `quantity` a secas: en un ajuste esa columna
 -- guarda el TOTAL que queda, no el cambio (un ajuste de 2.000 a 2.100 guarda
@@ -377,17 +390,108 @@ end;
 $$;
 
 
--- ── 6. Permisos ────────────────────────────────────────────────────────
+-- ── 6. Los movimientos para exportar ───────────────────────────────────
+-- Igual que el kardex pero para TODAS las empresas de una, porque el Excel de
+-- Exportes es general. Se pide de a tandas: el servidor nunca devuelve más de
+-- 1.000 filas por pedido, y hoy hay 4.245.
+--
+-- El "stock anterior" y el "stock nuevo" salen del saldo calculado acá, no de
+-- las columnas que trajo la importación: aquellas se armaron mirando solo los
+-- movimientos del programa y no saben nada de lo que se cargó desde la app.
+create or replace function public.kardex_export(
+  p_limite integer default 1000,
+  p_desde  integer default 0
+)
+returns table (
+  origen        text,
+  fecha         timestamptz,
+  tipo          text,
+  tipo_programa text,
+  cliente       text,
+  producto      text,
+  lote          text,
+  unidad        text,
+  presentacion  numeric,
+  cantidad      numeric,
+  signo         integer,
+  saldo         numeric,
+  previo        numeric,
+  ubicacion     text,
+  usuario       text,
+  nota          text,
+  detalle       text
+)
+language plpgsql
+stable
+security definer
+set search_path = public, auth
+as $$
+declare
+  v_rol text;
+begin
+  if auth.uid() is null then
+    raise exception 'Debes iniciar sesión.';
+  end if;
+
+  select p.role::text into v_rol
+  from public.profiles p
+  where p.id = auth.uid();
+
+  -- Este export cruza todas las empresas, así que no es para un cliente.
+  if v_rol is distinct from 'administrador' and v_rol is distinct from 'operador' then
+    raise exception 'Solo el administrador o el operador pueden exportar los movimientos.';
+  end if;
+
+  return query
+  with libro as (
+    select
+      k.*,
+      sum(k.cantidad * k.signo) over (
+        partition by k.client_id, k.clave_producto, k.clave_lote
+        order by k.fecha, k.origen, k.orden, k.id
+        rows between unbounded preceding and current row
+      ) as saldo_corrido
+    from public.kardex_libro k
+  )
+  select
+    b.origen,
+    b.fecha,
+    b.tipo,
+    b.tipo_programa,
+    b.cliente,
+    b.producto,
+    b.lote,
+    b.unidad,
+    b.presentacion,
+    b.cantidad,
+    b.signo,
+    b.saldo_corrido,
+    b.saldo_corrido - (b.cantidad * b.signo),
+    b.ubicacion,
+    b.usuario,
+    b.nota,
+    b.detalle
+  from libro b
+  order by b.fecha desc, b.origen desc, b.orden desc, b.id desc
+  limit  greatest(coalesce(p_limite, 1000), 1)
+  offset greatest(coalesce(p_desde, 0), 0);
+end;
+$$;
+
+
+-- ── 7. Permisos ────────────────────────────────────────────────────────
 revoke all on function public.kardex_pagina(uuid, text, integer, integer) from public;
 revoke all on function public.kardex_resumen(uuid, text) from public;
 revoke all on function public.kardex_permitido(uuid) from public;
+revoke all on function public.kardex_export(integer, integer) from public;
 
 grant execute on function public.kardex_pagina(uuid, text, integer, integer) to authenticated;
 grant execute on function public.kardex_resumen(uuid, text) to authenticated;
+grant execute on function public.kardex_export(integer, integer) to authenticated;
 grant execute on function public.lote_real(text) to authenticated;
 
 
--- ── 7. Índices, para que no se ponga lenta ─────────────────────────────
+-- ── 8. Índices, para que no se ponga lenta ─────────────────────────────
 create index if not exists desktop_movements_product_code_idx
   on public.desktop_movements (product_code);
 create index if not exists desktop_movements_date_idx

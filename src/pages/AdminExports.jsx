@@ -80,15 +80,8 @@ function printReport(title, headers, rows) {
 // para que las filas de la app y las del programa se lean igual en Excel y PDF.
 const TIPO_MAYUSCULA = { entrada: 'INGRESO', salida: 'SALIDA', traslado: 'TRASLADO', ajuste: 'AJUSTE' }
 
-// Tipos del programa C# -> tipos de la app (para que el filtro por tipo funcione)
-function desktopTypeToApp(type) {
-  const t = String(type || '').toUpperCase()
-  if (t.includes('TRASPASO') && t.includes('SALIDA')) return 'traslado'
-  if (t.includes('INGRESO')) return 'entrada'
-  if (t === 'SALIDA' || t === 'REMISION') return 'salida'
-  if (t.includes('SALIDA')) return 'ajuste'   // transformacion/formulacion/fraccionamiento
-  return 'ajuste'
-}
+// (La traducción de tipos del programa a tipos de la app ahora la hace la base,
+// dentro de kardex_libro, para que el kardex y los exportes usen la misma.)
 
 export default function AdminExports() {
   const [lots, setLots] = useState([])
@@ -154,96 +147,77 @@ export default function AdminExports() {
     loadData()
   }, [])
 
+  // La base devuelve como mucho 1.000 filas por pedido, aunque se le pidan más.
+  // Se va pidiendo de a tandas hasta que no quede ninguna: si no, el Excel sale
+  // incompleto sin avisar (era lo que pasaba: 1.000 de 4.214 movimientos).
+  async function traerTodo(hacerPedido) {
+    const todo = []
+    for (let desde = 0; ; desde += 1000) {
+      const { data, error } = await hacerPedido(desde, 1000)
+      if (error) return { data: todo, error }
+      const tanda = data || []
+      todo.push(...tanda)
+      if (tanda.length < 1000) break
+    }
+    return { data: todo, error: null }
+  }
+
   async function loadData() {
-    const [{ data: lotRows, error: lotError }, { data: movementRows, error: movementError }] = await Promise.all([
-      supabase
-        .from('lots')
-        .select('*, clients(name)')
-        .eq('inventory_source', 'stock_independiente')
-        .eq('status', 'activo')
-        .gt('current_quantity', 0)
-        .order('product'),
-      supabase
-        .from('movements')
-        .select('*, lots(lot_code, product, package_size, package_unit, location, expiry_date, clients(name)), profiles!movements_user_id_fkey(full_name)')
-        .order('created_at', { ascending: false })
-        .limit(1500),
+    const [{ data: lotRows, error: lotError }, { data: ledger, error: ledgerError }] = await Promise.all([
+      traerTodo((desde, cuantos) =>
+        supabase
+          .from('lots')
+          .select('*, clients(name)')
+          .eq('inventory_source', 'stock_independiente')
+          .eq('status', 'activo')
+          .gt('current_quantity', 0)
+          .order('product')
+          .range(desde, desde + cuantos - 1),
+      ),
+      // Los movimientos vienen del libro que arma la base: los del programa y
+      // los de la app ya unificados, en la misma unidad, con la empresa
+      // resuelta por el lote y el saldo calculado sobre toda la historia.
+      traerTodo((desde, cuantos) =>
+        supabase.rpc('kardex_export', { p_limite: cuantos, p_desde: desde }),
+      ),
     ])
 
     const safeLots = lotRows || []
-    let safeMovements = movementRows || []
 
-    setNotice(lotError ? 'No se pudo cargar el inventario para exportar. Revisa la conexion o intenta nuevamente.' : '')
+    setNotice(
+      lotError
+        ? 'No se pudo cargar el inventario para exportar. Revisa la conexion o intenta nuevamente.'
+        : ledgerError
+          ? 'No se pudieron cargar los movimientos para exportar.'
+          : '',
+    )
 
-    if (movementError) {
-      const { data: fallbackMovements, error: fallbackError } = await supabase
-        .from('movements')
-        .select('*')
-        .order('created_at', { ascending: false })
-        .limit(1500)
-
-      if (!fallbackError) {
-        const lotMap = new Map(safeLots.map((lot) => [lot.id, lot]))
-        safeMovements = (fallbackMovements || []).map((movement) => ({
-          ...movement,
-          lots: lotMap.get(movement.lot_id) || null,
-          profiles: null,
-        }))
-      } else {
-        safeMovements = []
-      }
-    }
-
-    // Movimientos historicos del programa C# (desktop_movements). Se marcan con
-    // origin='programa' porque su cantidad YA viene en equivalente (lts/kgs),
-    // a diferencia de los de la app que vienen en envases.
-    const [{ data: deskRows }, { data: catRows }, { data: clientRows }] = await Promise.all([
-      supabase
-        .from('desktop_movements')
-        .select('id, note_number, type, date, product_code, client_prefix, product_name, lot, quantity, previous_quantity, new_quantity, location, concept, dispatch_company, observations, created_at')
-        .order('date', { ascending: false })
-        .limit(5000),
-      supabase.from('product_catalog').select('code, package_size, package_unit'),
-      supabase.from('clients').select('name, product_code_prefix'),
-    ])
-
-    const catByCode = new Map((catRows || []).map((c) => [c.code, c]))
-    const clientByPrefix = new Map((clientRows || []).filter((c) => c.product_code_prefix).map((c) => [c.product_code_prefix, c.name]))
-
-    const desktopMovements = (deskRows || []).map((m) => {
-      const cat = catByCode.get(m.product_code)
-      return {
-        id: `desk-${m.id}`,
-        origin: 'programa',
-        programType: m.type,
-        type: desktopTypeToApp(m.type),
-        created_at: m.date || m.created_at,
-        quantity: Number(m.quantity || 0),   // YA es equivalente
-        // Saldos calculados al importar (SQL 14): el programa no los guarda,
-        // se reprodujo la cuenta cronologica por lote.
-        previous_quantity: m.previous_quantity,
-        new_quantity: m.new_quantity,
-        notes: m.observations || m.concept || '',
-        lots: {
-          product: m.product_name || m.product_code || '',
-          lot_code: m.lot || '',
-          package_size: cat?.package_size ?? null,
-          package_unit: cat?.package_unit ?? null,
-          location: m.location || '',
-          clients: { name: clientByPrefix.get(m.client_prefix) || m.dispatch_company || '' },
-        },
-        profiles: { full_name: '' },
-      }
-    })
-
-    const appMovements = safeMovements.map((m) => ({ ...m, origin: 'app' }))
+    // Se les da la forma que ya usaban las tablas de esta pantalla
+    const movimientos = (ledger || []).map((m, i) => ({
+      id: `${m.origen}-${i}`,
+      origin: m.origen === 'programa' ? 'programa' : 'app',
+      programType: m.tipo_programa,
+      type: m.tipo,
+      created_at: m.fecha,
+      quantity: Number(m.cantidad || 0),
+      // El stock de antes y el de después salen del saldo del libro, que sí
+      // tiene en cuenta los movimientos de los dos orígenes.
+      previous_quantity: m.previo,
+      new_quantity: m.saldo,
+      notes: m.detalle || '',
+      lots: {
+        product: m.producto || '',
+        lot_code: m.lote || '',
+        package_size: m.presentacion ?? null,
+        package_unit: m.unidad ?? null,
+        location: m.ubicacion || '',
+        clients: { name: m.cliente || '' },
+      },
+      profiles: { full_name: m.usuario || '' },
+    }))
 
     setLots(safeLots)
-    setMovements(
-      [...appMovements, ...desktopMovements].sort(
-        (a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0),
-      ),
-    )
+    setMovements(movimientos)
   }
 
   function clearFilters() {
