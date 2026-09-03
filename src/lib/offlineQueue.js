@@ -1,4 +1,5 @@
 import { supabase } from './supabase'
+import { avisarMovimiento } from './avisoCorreo'
 
 const QUEUE_KEY = 'todo-agricola-offline-movements'
 
@@ -59,9 +60,9 @@ export async function syncQueuedMovements() {
     }
 
     synced += 1
-    if (item.email) {
-      await supabase.functions.invoke('send-movement-email', { body: item.email })
-    }
+    // El aviso al cliente sale recién cuando vuelve la señal. Si no sale,
+    // queda anotado y aparece en la franja de inicio.
+    if (item.email) await avisarMovimiento(item.email)
   }
 
   writeQueue(remaining)

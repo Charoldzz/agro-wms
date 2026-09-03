@@ -229,7 +229,23 @@ Deno.serve(async (req) => {
         headers: { Authorization: `Bearer ${RESEND}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({ from: FROM, to: emails, subject: `Todo Agrícola · Tu inventario al ${fechaCorta}`, html }),
       })
-      if (!resp.ok) { results.push({ client: c.name, error: await resp.text() }); continue }
+      if (!resp.ok) {
+        const motivo = await resp.text()
+        // Este envío lo dispara una tarea programada de madrugada: si falla,
+        // no hay nadie mirando. Se anota para que aparezca en la franja de
+        // inicio del depósito.
+        try {
+          await admin.from('email_failures').insert({
+            tipo: 'inventario',
+            client_id: c.id,
+            client_name: c.name,
+            destinatarios: emails,
+            motivo,
+          })
+        } catch (_) { /* si ni esto se puede anotar, se sigue con el resto */ }
+        results.push({ client: c.name, error: motivo })
+        continue
+      }
       await admin.from('clients').update({ inventory_email_last_sent: new Date().toISOString() }).eq('id', c.id)
       results.push({ client: c.name, sent_to: emails, productos: new Set(lots.map((l) => l.product)).size, lotes: lots.length })
     }

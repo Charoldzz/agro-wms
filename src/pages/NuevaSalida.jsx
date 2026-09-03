@@ -5,6 +5,7 @@ import { attachmentViewerUrl } from '../lib/dispatchRequests'
 import PageHeader from '../components/PageHeader'
 import { useAuth } from '../hooks/useAuth.jsx'
 import { supabase } from '../lib/supabase'
+import { avisarMovimiento } from '../lib/avisoCorreo'
 import { formatDateShort, formatNumber, equivalentLabel, formatQtyInput, parseQtyInput } from '../lib/format'
 import { cleanProductName, displayLotCode } from '../lib/display'
 import { vibrateSuccess } from '../lib/haptics'
@@ -498,29 +499,28 @@ export default function NuevaSalida() {
         }),
       })
 
-      // Aviso al cliente (+ copia a oficina). Fire-and-forget: si falla el correo, la salida ya quedó guardada.
-      supabase.functions.invoke('send-movement-email', {
-        body: {
-          client_id: clientId,
-          movement_type: 'salida',
-          client_name: empresaNombre,
-          guide: rpcData?.guide_number || guiaPreview,
-          date: today,
-          driver_name: transportista.trim() || null,
-          vehicle_plate: placa.trim() || null,
-          notes: observaciones.trim() || null,
-          items: validRows.map((r) => {
-            const d = desgloseEnvases(r.cantidad, r.package_size, r.package_unit, upbForRow(r))
-            return {
-              product: r.product,
-              lot_code: r.lot_code,
-              expiry_date: r.expiry_date,
-              cantidad_label: (Number(r.package_size) > 0 && r.package_unit) ? equivalentLabel(Number(r.cantidad), r.package_unit) : `${formatNumber(r.cantidad)} uds`,
-              envases_label: d.unidadesLabel || '',
-            }
-          }),
-        },
-      }).catch(() => {})
+      // Aviso al cliente. Si el correo no sale, queda anotado y aparece en la
+      // franja de inicio: la salida ya se guardó igual.
+      avisarMovimiento({
+        client_id: clientId,
+        movement_type: 'salida',
+        client_name: empresaNombre,
+        guide: rpcData?.guide_number || guiaPreview,
+        date: today,
+        driver_name: transportista.trim() || null,
+        vehicle_plate: placa.trim() || null,
+        notes: observaciones.trim() || null,
+        items: validRows.map((r) => {
+          const d = desgloseEnvases(r.cantidad, r.package_size, r.package_unit, upbForRow(r))
+          return {
+            product: r.product,
+            lot_code: r.lot_code,
+            expiry_date: r.expiry_date,
+            cantidad_label: (Number(r.package_size) > 0 && r.package_unit) ? equivalentLabel(Number(r.cantidad), r.package_unit) : `${formatNumber(r.cantidad)} uds`,
+            envases_label: d.unidadesLabel || '',
+          }
+        }),
+      })
 
       clearDraft()
       vibrateSuccess()

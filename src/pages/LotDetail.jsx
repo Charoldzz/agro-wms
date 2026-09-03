@@ -7,6 +7,7 @@ import { useAuth } from '../hooks/useAuth.jsx'
 import { formatDate, formatNumber, formatQtyInput, movementLabel, equivalentLabel, normalizeEquivalent, parseQtyInput, pluralUnit } from '../lib/format'
 import { createLotQrDataUrl } from '../lib/qr'
 import { supabase } from '../lib/supabase'
+import { avisarMovimiento } from '../lib/avisoCorreo'
 import { cleanProductName, displayLotCode, productCodeLabel } from '../lib/display'
 import { desgloseEnvases } from '../lib/envases'
 import { isNetworkMovementError, queueMovement } from '../lib/offlineQueue'
@@ -816,14 +817,14 @@ export default function LotDetail() {
   async function notifyOfficeMovement(payload) {
     if (!payload) return
 
-    const { error: emailError } = await supabase.functions.invoke('send-movement-email', {
-      body: payload,
-    })
+    // Si el correo no sale queda anotado y aparece en la franja de inicio del
+    // administrador, además del aviso que se le muestra acá al operador.
+    const { ok } = await avisarMovimiento(payload)
 
     setEmailStatus(
-      emailError
-        ? 'Movimiento guardado. Falta configurar el envio automatico de correo.'
-        : 'Movimiento guardado y correo enviado a oficina.',
+      ok
+        ? 'Movimiento guardado y correo enviado a oficina.'
+        : 'Movimiento guardado, pero el correo al cliente no salió. Ya quedó avisado.',
     )
   }
 

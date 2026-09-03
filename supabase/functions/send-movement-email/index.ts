@@ -27,6 +27,18 @@ function json(o: unknown, status = 200) {
   })
 }
 
+// Deja anotado que un correo NO salió, para que aparezca en la franja de
+// inicio del depósito. Nunca hace fallar el envío: si esto falla, se ignora.
+async function anotarFalla(fila: Record<string, unknown>) {
+  try {
+    const admin = createClient(
+      Deno.env.get('SUPABASE_URL')!,
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
+    )
+    await admin.from('email_failures').insert(fila)
+  } catch (_) { /* si ni esto se puede anotar, no se rompe el envío */ }
+}
+
 function escapeHtml(v: unknown) {
   return String(v ?? '')
     .replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;')
@@ -197,7 +209,21 @@ Deno.serve(async (req) => {
       headers: { Authorization: `Bearer ${RESEND}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({ from: FROM, to, subject, html }),
     })
-    if (!resp.ok) return json({ error: await resp.text() }, 500)
+    if (!resp.ok) {
+      const motivo = await resp.text()
+      // Se anota para que aparezca en la franja de inicio del depósito. Antes
+      // el error se perdía y el cliente se quedaba sin aviso sin que nadie
+      // se enterara.
+      await anotarFalla({
+        tipo: 'movimiento',
+        client_id: b.client_id,
+        client_name: b.client_name,
+        destinatarios: to,
+        guia: b.guide || null,
+        motivo,
+      })
+      return json({ error: motivo }, 500)
+    }
     return json({ ok: true, sent_to: to })
   } catch (e) {
     return json({ error: (e as Error).message }, 500)

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
-import { AlertTriangle, ArrowRightLeft, Building2, CalendarClock, ChevronLeft, ChevronRight, ClipboardCheck, ClipboardList, Download, History, LayoutList, LifeBuoy, LogOut, Menu, PackagePlus, Plus, Wrench, X } from 'lucide-react'
+import { AlertTriangle, ArrowRightLeft, MailWarning, Building2, CalendarClock, ChevronLeft, ChevronRight, ClipboardCheck, ClipboardList, Download, History, LayoutList, LifeBuoy, LogOut, Menu, PackagePlus, Plus, Wrench, X } from 'lucide-react'
 import { useAuth } from '../hooks/useAuth.jsx'
 import { supabase } from '../lib/supabase'
 import { formatDate, formatNumber, normalizeEquivalent, pluralUnit, equivalentLabel } from '../lib/format'
@@ -13,6 +13,7 @@ import EmpresasModal from '../components/EmpresasModal'
 import CatalogoModal from '../components/CatalogoModal'
 import MovimientosModal from '../components/MovimientosModal'
 import CuadreModal from '../components/CuadreModal'
+import CorreosFallidosModal from '../components/CorreosFallidosModal'
 import FeedbackAdminModal from '../components/FeedbackAdminModal'
 import { QR_ENABLED } from '../lib/features'
 
@@ -96,10 +97,24 @@ export default function Lots() {
   // kardex de esa empresa, y son 44 — nadie las abre todas.
   const [descuadres, setDescuadres] = useState([])
   const [showCuadreModal, setShowCuadreModal] = useState(false)
+  const [correosFallidos, setCorreosFallidos] = useState([])
+  const [showCorreosModal, setShowCorreosModal] = useState(false)
 
   async function loadCuadre() {
     const { data, error } = await supabase.rpc('cuadre_general')
     setDescuadres(error ? [] : (data || []))
+  }
+
+  // Avisos al cliente que no salieron. Antes el error se tiraba a la basura y
+  // el cliente se quedaba sin enterarse de que llegó su mercadería.
+  async function loadCorreosFallidos() {
+    const { data, error } = await supabase
+      .from('email_failures')
+      .select('id, created_at, tipo, client_name, destinatarios, guia, motivo')
+      .eq('resuelto', false)
+      .order('created_at', { ascending: false })
+      .limit(100)
+    setCorreosFallidos(error ? [] : (data || []))
   }
 
   async function loadCatalogBadge() {
@@ -139,6 +154,7 @@ export default function Lots() {
     loadCatalogBadge()
     loadFeedbackBadge()
     loadCuadre()
+    loadCorreosFallidos()
     const ch = supabase
       .channel('lots-admin-badges')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'movements' }, loadRepairs)
@@ -311,6 +327,15 @@ export default function Lots() {
         : 'Empresas con la cuenta descuadrada',
       Icon: AlertTriangle,
       go: () => setShowCuadreModal(true),
+    },
+    {
+      key: 'correos',
+      n: correosFallidos.length,
+      label: correosFallidos.length === 1
+        ? 'Aviso que no le llegó al cliente'
+        : 'Avisos que no le llegaron al cliente',
+      Icon: MailWarning,
+      go: () => setShowCorreosModal(true),
     },
   ].filter((p) => p.n > 0)
 
@@ -815,6 +840,14 @@ export default function Lots() {
         <CuadreModal
           empresas={descuadres}
           onClose={() => setShowCuadreModal(false)}
+        />
+      )}
+
+      {showCorreosModal && (
+        <CorreosFallidosModal
+          fallos={correosFallidos}
+          onClose={() => setShowCorreosModal(false)}
+          onResuelto={loadCorreosFallidos}
         />
       )}
     </div>
